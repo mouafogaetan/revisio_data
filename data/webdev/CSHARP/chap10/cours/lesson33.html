@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Tâches multiples et annulation | C# Async/Await</title>
+    <!-- Tailwind CSS CDN + base interractive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules, optionnel mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation légère pour les slides & couleurs lisibles -->
+    <style>
+        /* Transition douce entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.2s;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+        }
+        /* Code blocks style simple */
+        pre {
+            background: #1e1e2f;
+            color: #f8f8f2;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        /* mobile fine-tune */
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* better tap target */
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-indigo-100 overflow-hidden">
+            
+            <!-- Header fixe avec progression -->
+            <div class="bg-indigo-800 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    <span class="font-semibold text-sm md:text-base">Initiation C# | Async/Await</span>
+                </div>
+                <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full"><span id="slideCounter">1</span> / <span id="totalSlides">0</span></div>
+            </div>
+
+            <!-- Zone dynamique des slides (injectée via JS) -->
+            <div id="slidesContainer" class="relative min-h-[500px] p-6 md:p-8"></div>
+
+            <!-- Navigation buttons + indicateur -->
+            <div class="border-t border-indigo-100 px-5 py-4 bg-gray-50 flex justify-between items-center">
+                <button id="prevSlide" class="btn-nav bg-white hover:bg-indigo-50 text-indigo-800 font-medium py-2 px-5 rounded-full shadow-sm border border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed transition">← Précédent</button>
+                <div class="flex gap-2" id="dotsContainer"></div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md transition">Suivant →</button>
+            </div>
+        </div>
+        
+        <!-- petite note pédagogique -->
+        <p class="text-center text-sm text-gray-500 mt-6">✨ Utilisez les flèches ou cliquez sur les points pour naviguer. Exemples de code asynchrone avec <strong class="text-indigo-700">Task.WhenAll, WhenAny, CancellationToken</strong></p>
+    </div>
+
+    <script>
+        // Définition des slides: titre, objectifs, contenu détaillé + exemples
+        // Leçon 33 : Démarrer des tâches avec Task.Run, attendre multiples, annulation avec CancellationToken.
+        const slidesData = [
+            { // slide 0 : titre
+                type: "title",
+                title: "⚡ Tâches multiples et annulation en C#",
+                subtitle: "Maîtriser Task.WhenAll, Task.WhenAny et CancellationToken",
+                badge: "Leçon 33 · Async/Await avancé"
+            },
+            { // slide 1 : objectifs pédagogiques
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Démarrer des tâches en arrière-plan avec Task.Run()",
+                    "Attendre plusieurs tâches simultanément avec WhenAll et WhenAny",
+                    "Gérer l'annulation polie des opérations asynchrones grâce à CancellationToken",
+                    "Savoir annuler un ensemble de tâches et réagir aux annulations"
+                ]
+            },
+            { // slide 2 : Task.Run — Démarrer des tâches
+                type: "content",
+                title: "🚀 Démarrer des tâches avec Task.Run()",
+                content: `
+                    <p class="mb-3">La méthode <code class="bg-indigo-100 text-indigo-800 px-1 rounded">Task.Run()</code> permet d'exécuter du code de manière asynchrone sur un thread du pool. Idéal pour les opérations longues (calculs, I/O simulé).</p>
+                    <pre><code>// Exemple simple
+Task&lt;int&gt; calculTask = Task.Run(() => {
+    Thread.Sleep(1000); // simulation charge
+    return 42;
+});
+int resultat = await calculTask;
+Console.WriteLine(resultat);</code></pre>
+                    <p class="mt-2 text-sm text-gray-600">💡 <strong>Bonnes pratiques :</strong> Pour des opérations déjà asynchrones (ex: appel réseau), privilégiez les méthodes async directement, sans Task.Run inutile.</p>
+                `
+            },
+            { // slide 3 : Task.WhenAll - attendre plusieurs tâches
+                type: "content",
+                title: "⏳ Attendre plusieurs tâches : Task.WhenAll",
+                content: `
+                    <p><strong>Task.WhenAll</strong> prend une collection de tâches et retourne une tâche qui se termine quand <strong>toutes</strong> sont terminées.</p>
+                    <pre><code>// Lancement de trois tâches en parallèle
+var tache1 = Task.Run(() => CalculLong(1));
+var tache2 = Task.Run(() => CalculLong(2));
+var tache3 = Task.Run(() => CalculLong(3));
+
+int[] resultats = await Task.WhenAll(tache1, tache2, tache3);
+Console.WriteLine($"Somme : {resultats.Sum()}");
+
+async Task&lt;int&gt; CalculLong(int valeur) {
+    await Task.Delay(500);
+    return valeur * 10;
+}</code></pre>
+                    <div class="bg-green-50 border-l-4 border-green-500 p-3 my-3 text-sm">✅ <strong>Utilité</strong> : exécution parallèle pour améliorer les performances, par ex appels API indépendants.</div>
+                `
+            },
+            { // slide 4 : Task.WhenAny - première tâche terminée
+                type: "content",
+                title: "🏁 Task.WhenAny : réagir à la première tâche terminée",
+                content: `
+                    <p><code>Task.WhenAny</code> retourne une tâche qui se termine dès qu'une des tâches du lot est finie. Utile pour des scénarios de timeout ou accès à plusieurs sources redondantes.</p>
+                    <pre><code>// Exemple : service météo depuis 2 API, on prend la plus rapide
+Task&lt;string&gt; meteoAPI1 = GetMeteoFromSource1();
+Task&lt;string&gt; meteoAPI2 = GetMeteoFromSource2();
+
+Task&lt;string&gt; tacheRapide = await Task.WhenAny(meteoAPI1, meteoAPI2);
+string resultatMeteo = await tacheRapide;
+Console.WriteLine($"Météo obtenue : {resultatMeteo}");</code></pre>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-2 border border-amber-200 text-sm"><span class="font-semibold">💡 Astuce :</span> Combinez WhenAny avec un délai pour implémenter des timeouts élégants.</div>
+                `
+            },
+            { // slide 5 : Annulation avec CancellationToken
+                type: "content",
+                title: "🛑 Annulation polie : CancellationTokenSource",
+                content: `
+                    <p>Le modèle d'annulation asynchrone repose sur <code>CancellationTokenSource</code> et <code>CancellationToken</code>. On passe le token aux méthodes asynchrones qui vérifient régulièrement <code>IsCancellationRequested</code> ou lèvent une exception <code>OperationCanceledException</code>.</p>
+                    <pre><code>using var cts = new CancellationTokenSource();
+// Annuler après 2 secondes
+cts.CancelAfter(2000);
+
+try {
+    await TacheLongueAvecAnnulation(cts.Token);
+} catch (OperationCanceledException) {
+    Console.WriteLine("Tâche annulée proprement !");
+}
+
+async Task TacheLongueAvecAnnulation(CancellationToken token) {
+    for (int i = 0; i < 10; i++) {
+        token.ThrowIfCancellationRequested(); // lève une exception si annulation demandée
+        await Task.Delay(500, token);        // le delay peut aussi être annulé
+    }
+}</code></pre>
+                `
+            },
+            { // slide 6 : Annuler plusieurs tâches avec WhenAll et token
+                type: "content",
+                title: "🔁 Annuler plusieurs tâches simultanées",
+                content: `
+                    <p>En combinant <code>CancellationToken</code> et <code>Task.WhenAll</code>, on peut annuler un groupe de tâches d'une seule source.</p>
+                    <pre><code>var cts = new CancellationTokenSource();
+cts.CancelAfter(TimeSpan.FromSeconds(1.5));
+
+Task[] tasks = new Task[3];
+for (int i = 0; i < 3; i++) {
+    int nb = i;
+    tasks[i] = Task.Run(async () => {
+        while (true) {
+            cts.Token.ThrowIfCancellationRequested();
+            Console.WriteLine($"Tâche {nb} travaille...");
+            await Task.Delay(300, cts.Token);
+        }
+    }, cts.Token);
+}
+
+try {
+    await Task.WhenAll(tasks);
+} catch (OperationCanceledException) {
+    Console.WriteLine("L'ensemble des tâches a été annulé.");
+}</code></pre>
+                    <p class="text-sm text-gray-600 mt-2">⚠️ N'oubliez pas de passer le token à Task.Run et aux méthodes internes.</p>
+                `
+            },
+            { // slide 7 : Bonnes pratiques et pièges
+                type: "content",
+                title: "🧠 Bonnes pratiques & résumé",
+                content: `
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>✔️ WhenAll</strong> : idéal pour lancer des tâches indépendantes et attendre tous les résultats.</li>
+                        <li><strong>✔️ WhenAny</strong> : réactivité, cache distribué, ou timeout simple sans bloquer le thread.</li>
+                        <li><strong>✔️ CancellationToken</strong> : toujours fournir un token pour les méthodes potentiellement longues (appels réseau, fichiers).</li>
+                        <li><strong>✔️ Utilisez ThrowIfCancellationRequested()</strong> ou vérifiez manuellement token.IsCancellationRequested.</li>
+                        <li><strong>⚠️ Évitez Task.WhenAll sur un très grand nombre de tâches simultanées</strong> → pensez à limiter le parallélisme avec <em>SemaphoreSlim</em> ou <em>Parallel.ForEachAsync</em>.</li>
+                    </ul>
+                    <div class="mt-4 bg-indigo-50 p-3 rounded-xl border border-indigo-200 text-center text-indigo-800">
+                        📘 <span class="font-medium">À retenir : </span> Async/Await + WhenAll/WhenAny + CancellationToken = asynchrone robuste et réactif !
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let total = slidesData.length;
+
+        // Fonction pour afficher le slide courant
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            let html = '';
+            
+            // En-tête différent selon type
+            if (slide.type === 'title') {
+                html = `
+                    <div class="text-center py-8 md:py-12 slide fade-in">
+                        <div class="inline-block bg-indigo-100 text-indigo-700 text-sm font-semibold px-3 py-1 rounded-full mb-4">${slide.badge || 'C# Async'}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <svg class="w-12 h-12 text-indigo-300 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectives') {
+                html = `
+                    <div class="slide">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            ${slide.objectives.map(obj => `
+                                <div class="flex items-start gap-3 bg-indigo-50/60 p-4 rounded-xl shadow-sm">
+                                    <span class="text-indigo-600 text-xl">🎯</span>
+                                    <span class="text-gray-700">${obj}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-8 text-center text-sm text-gray-500">📌 À la fin de cette leçon, vous serez capable de gérer des lots de tâches et d'annuler des opérations asynchrones.</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                html = `
+                    <div class="slide">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+                        <div class="prose prose-indigo max-w-none text-gray-700">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // mise à jour container
+            $('#slidesContainer').html(html);
+            // Réappliquer MathJax au cas où des formules (bien que peu probable ici) mais sécurité
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // Mettre à jour compteur et dots
+            $('#slideCounter').text(index+1);
+            $('#totalSlides').text(total);
+            updateDots(index);
+            // gestion état boutons
+            $('#prevSlide').prop('disabled', index === 0);
+            $('#nextSlide').prop('disabled', index === total-1);
+        }
+
+        function updateDots(activeIdx) {
+            let dotsHtml = '';
+            for (let i = 0; i < total; i++) {
+                let isActive = (i === activeIdx);
+                dotsHtml += `<button class="dot w-2.5 h-2.5 rounded-full mx-1 transition-all ${isActive ? 'bg-indigo-600 w-5' : 'bg-gray-300 hover:bg-indigo-300'}" data-index="${i}"></button>`;
+            }
+            $('#dotsContainer').html(dotsHtml);
+            // click event sur les dots
+            $('.dot').on('click', function() {
+                let idx = $(this).data('index');
+                if (idx !== undefined && idx >= 0 && idx < total) {
+                    currentIndex = idx;
+                    renderSlide(currentIndex);
+                }
+            });
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < total - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        }
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+
+        // Événements + gestes clavier
+        $(document).ready(function() {
+            renderSlide(0);
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            // swiper tactile simple pour mobiles
+            let touchStartX = 0;
+            $('#slidesContainer').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesContainer').on('touchend', function(e) {
+                if (!touchStartX) return;
+                let touchEndX = e.originalEvent.changedTouches[0].clientX;
+                let diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+    
+    <!-- Ajout d'une illustration SVG dessinée maison pour enrichir un slide? On peut ajouter un petit schéma annulation via un canvas ou SVG? Conformément demande: "si possible dessine toi même" -> j'ajoute une petite icône schématique pour le slide WhenAll/WhenAny (slide content 3 ou 4) mais pour ne pas surcharger, je vais rajouter une représentation SVG dans le slide de Task.WhenAll pour montrer le concept visuel mais sans image externe.
+    On va plutôt insérer un petit diagramme simple dans le slide whenall sans utiliser une URL externe -->
+    <script>
+        // Après le chargement, personnaliser un des slides avec un petit dessin SVG intégré si utile (éducation).
+        // On injecte dynamiquement un petit schéma dans le contenu de Task.WhenAll (slide index 3) pour illustrer le parallélisme.
+        // C'est une amélioration sans recourir à img externe. Pour respecter consignes : "si possible tu le dessine toi meme"
+        function enhanceSlideWithDrawing() {
+            // On attend 0.2s que le DOM du slide soit potentiellement présent, mais on peut faire après chaque render? plus simple : ajouter une fois que le slide WhenAll est chargé.
+            // On va utiliser un observer ou simplement modifier le contenu après render via un hook léger. Étant donné que render peut être appelé plusieurs fois, on va vérifier à chaque render.
+            // on va créer une fonction pour détecter slide avec titre "⏳ Attendre plusieurs tâches : Task.WhenAll"
+            const checkAndInjectDrawing = () => {
+                const slideTitleElem = $('h2:contains("⏳ Attendre plusieurs tâches : Task.WhenAll")');
+                if (slideTitleElem.length && !slideTitleElem.parent().find('.custom-drawing-svg').length) {
+                    const drawingHtml = `
+                        <div class="custom-drawing-svg mt-5 bg-gray-50 p-3 rounded-xl border border-dashed border-indigo-300">
+                            <svg viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto max-w-md mx-auto">
+                                <rect x="10" y="10" width="80" height="40" fill="#818cf8" rx="8" />
+                                <text x="30" y="36" fill="white" font-size="12">Tâche 1</text>
+                                <rect x="110" y="10" width="80" height="40" fill="#a78bfa" rx="8" />
+                                <text x="130" y="36" fill="white" font-size="12">Tâche 2</text>
+                                <rect x="210" y="10" width="80" height="40" fill="#c084fc" rx="8" />
+                                <text x="230" y="36" fill="white" font-size="12">Tâche 3</text>
+                                <path d="M50 60 L50 85 L200 85 L200 60" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="4" />
+                                <text x="155" y="78" fill="#d97706" font-size="10">Task.WhenAll</text>
+                                <rect x="150" y="90" width="100" height="24" fill="#10b981" rx="12" />
+                                <text x="170" y="107" fill="white" font-size="11">Toutes terminées ✅</text>
+                            </svg>
+                            <p class="text-xs text-center text-gray-500 mt-2">Schéma: exécution parallèle et synchronisation avec WhenAll</p>
+                        </div>
+                    `;
+                    slideTitleElem.parent().find('pre').first().after(drawingHtml);
+                }
+                // Ajouter un petit schéma aussi pour l'annulation (slide cancellation)
+                const cancelTitle = $('h2:contains("🛑 Annulation polie : CancellationTokenSource")');
+                if(cancelTitle.length && !cancelTitle.parent().find('.cancel-schema').length) {
+                    const cancelDraw = `
+                        <div class="cancel-schema mt-5 bg-red-50/40 p-3 rounded-lg border border-red-200">
+                            <svg viewBox="0 0 400 80" class="w-full max-w-md mx-auto">
+                                <rect x="20" y="20" width="120" height="40" fill="#ef4444" rx="8" />
+                                <text x="50" y="45" fill="white" font-size="12">CancellationTokenSource</text>
+                                <line x1="145" y1="40" x2="175" y2="40" stroke="#334155" stroke-width="2" marker-end="url(#arrow)" />
+                                <rect x="180" y="20" width="100" height="40" fill="#f97316" rx="8" />
+                                <text x="200" y="45" fill="white" font-size="11">CancellationToken</text>
+                                <line x1="285" y1="40" x2="320" y2="40" stroke="#334155" stroke-width="2" />
+                                <rect x="325" y="10" width="60" height="60" fill="#3b82f6" rx="8" />
+                                <text x="335" y="48" fill="white" font-size="10">async opération</text>
+                                <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#334155"/></marker></defs>
+                            </svg>
+                            <p class="text-xs text-center">Le jeton d'annulation est passé à la méthode asynchrone pour stopper proprement.</p>
+                        </div>
+                    `;
+                    cancelTitle.parent().find('pre').first().after(cancelDraw);
+                }
+            };
+            // Observer les changements du DOM slidesContainer via MutationObserver
+            const observer = new MutationObserver(() => {
+                checkAndInjectDrawing();
+            });
+            const container = document.getElementById('slidesContainer');
+            if (container) observer.observe(container, { childList: true, subtree: true });
+            setTimeout(checkAndInjectDrawing, 100);
+        }
+        
+        // Lancer après le premier render et à chaque changement de slide
+        $(document).ready(function() {
+            // On va aussi invoquer après chaque renderSlide car la fonction peut être améliorée
+            const originalRender = renderSlide;
+            window.renderSlide = function(index) {
+                originalRender(index);
+                setTimeout(() => {
+                    if (window.enhanceSlideWithDrawing) window.enhanceSlideWithDrawing();
+                    else enhanceSlideWithDrawing();
+                }, 50);
+            };
+            renderSlide = window.renderSlide;
+            // redéfinir aussi la fonction attachée aux clics
+            $('#nextSlide, #prevSlide').off('click').on('click', function(e) {
+                if($(this).attr('id') === 'nextSlide') {
+                    if(currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); }
+                } else {
+                    if(currentIndex > 0) { currentIndex--; renderSlide(currentIndex); }
+                }
+            });
+            $('.dot').off('click').on('click', function() { let idx = $(this).data('index'); if(idx!==undefined && idx<total && idx>=0){ currentIndex=idx; renderSlide(currentIndex); } });
+            $(document).off('keydown').on('keydown', function(e) {
+                if (e.key === 'ArrowRight') { if(currentIndex < total-1){ currentIndex++; renderSlide(currentIndex); } e.preventDefault(); }
+                else if (e.key === 'ArrowLeft') { if(currentIndex > 0){ currentIndex--; renderSlide(currentIndex); } e.preventDefault(); }
+            });
+            enhanceSlideWithDrawing();
+        });
+    </script>
+</body>
+</html>

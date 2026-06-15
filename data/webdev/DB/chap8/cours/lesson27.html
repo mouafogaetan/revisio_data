@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 27 : Les Triggers en Bases de Données | Cours Web Dev</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules éventuelles, bien que cette leçon n'en nécessite pas directement) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* styles personnalisés pour la navigation slides et améliorations mobiles */
+    body {
+      background: #f8fafc;
+    }
+    .slide {
+      transition: all 0.3s ease;
+    }
+    .slide-container {
+      scroll-behavior: smooth;
+    }
+    /* personnalisation du défilement pour les petits écrans */
+    @media (max-width: 640px) {
+      .slide {
+        scroll-margin-top: 1rem;
+      }
+    }
+    .btn-nav {
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-nav:active {
+      transform: scale(0.96);
+    }
+    /* code block simple */
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-size: 0.85rem;
+      overflow-x: auto;
+    }
+    code {
+      font-family: 'Menlo', 'Courier New', monospace;
+    }
+    .card-hover {
+      transition: box-shadow 0.2s;
+    }
+    .card-hover:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur principal slides -->
+    <div class="slide-container space-y-8 md:space-y-10">
+      
+      <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+      <section id="slide1" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+        <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-8 md:py-12 text-white">
+          <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-semibold tracking-wide mb-3">📚 Initiation aux Bases de Données</span>
+          <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">Leçon 27 : Les Triggers</h1>
+          <p class="text-indigo-100 text-lg md:text-xl mt-3 font-medium">Automatiser des actions côté base de données</p>
+          <div class="mt-6 flex flex-wrap gap-3 text-sm text-indigo-100">
+            <div class="flex items-center gap-1">🎯 Chapitre 8 : Automatisation</div>
+            <div class="flex items-center gap-1">⚡ Déclencheurs SQL</div>
+          </div>
+        </div>
+        <div class="px-6 py-5 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+          <div class="text-xs text-gray-500">📖 Cours interactif – Slides</div>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium shadow-sm transition" data-next="slide2">Commencer →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 2 : OBJECTIFS D'APPRENTISSAGE -->
+      <section id="slide2" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="border-l-8 border-indigo-500 bg-indigo-50 px-6 py-5">
+          <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+        </div>
+        <div class="p-6 space-y-5">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+              <span class="text-indigo-600 text-xl">✓</span>
+              <span class="text-gray-700">Comprendre le rôle des triggers : automatisation et audit.</span>
+            </div>
+            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+              <span class="text-indigo-600 text-xl">✓</span>
+              <span class="text-gray-700">Créer des triggers <strong>BEFORE/AFTER</strong> (INSERT, UPDATE, DELETE).</span>
+            </div>
+            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+              <span class="text-indigo-600 text-xl">✓</span>
+              <span class="text-gray-700">Gérer les tables virtuelles <strong>NEW</strong> et <strong>OLD</strong>.</span>
+            </div>
+            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+              <span class="text-indigo-600 text-xl">✓</span>
+              <span class="text-gray-700">Savoir quand utiliser un trigger vs procédure stockée.</span>
+            </div>
+          </div>
+          <div class="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-sm">
+            💡 À la fin de cette leçon, vous serez capable d’ajouter des déclencheurs pour maintenir l’intégrité ou tracer automatiquement des opérations.
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-5 py-2 rounded-full text-sm font-medium transition" data-prev="slide1">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium transition" data-next="slide3">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 3 : INTRODUCTION & RÔLE DES TRIGGERS -->
+      <section id="slide3" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4">
+          <h2 class="text-2xl font-bold text-white">⚙️ Qu'est-ce qu'un Trigger ?</h2>
+        </div>
+        <div class="p-6 space-y-5">
+          <p class="text-gray-700 leading-relaxed">Un <strong class="text-indigo-700">trigger (déclencheur)</strong> est une procédure stockée spéciale qui s’exécute <strong>automatiquement</strong> lorsqu’un événement se produit sur une table : <code class="bg-gray-100 px-1 rounded">INSERT</code>, <code class="bg-gray-100 px-1 rounded">UPDATE</code> ou <code class="bg-gray-100 px-1 rounded">DELETE</code>.</p>
+          <div class="bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-500">
+            <p class="font-semibold text-indigo-900">📌 Utilités principales :</p>
+            <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+              <li>✓ Audit des modifications (journalisation).</li>
+              <li>✓ Validation complexe avant insertion/modification.</li>
+              <li>✓ Mise à jour automatique d’autres tables (mise à jour de totaux, statistiques).</li>
+              <li>✓ Application de règles métier impossibles avec des contraintes standard.</li>
+            </ul>
+          </div>
+          <!-- Petit dessin simple SVG pour illustrer le déclenchement -->
+          <div class="flex justify-center mt-4">
+            <svg width="280" height="110" viewBox="0 0 400 120" class="max-w-full" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="20" width="110" height="50" rx="8" fill="#4f46e5" opacity="0.9" />
+              <text x="30" y="50" fill="white" font-size="12">INSERT/UPDATE</text>
+              <text x="30" y="65" fill="white" font-size="12">DELETE</text>
+              <path d="M125 45 L 155 45" stroke="#f97316" stroke-width="3" marker-end="url(#arrow)" />
+              <rect x="170" y="15" width="130" height="60" rx="10" fill="#f97316" />
+              <text x="190" y="42" fill="white" font-size="12" font-weight="bold">⛓️ TRIGGER</text>
+              <text x="190" y="58" fill="white" font-size="10">Action automatique</text>
+              <path d="M305 45 L 335 45" stroke="#4f46e5" stroke-width="3" />
+              <rect x="345" y="25" width="50" height="40" rx="6" fill="#10b981" />
+              <text x="355" y="50" fill="white" font-size="11">AUDIT</text>
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#f97316" />
+                </marker>
+              </defs>
+            </svg>
+          </div>
+          <p class="text-sm text-gray-500 italic mt-2">🎨 Diagramme : un événement SQL → déclenche le trigger → exécute des actions.</p>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide2">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide4">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 4 : SYNTAXE ET MOMENTS (BEFORE / AFTER) -->
+      <section id="slide4" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-emerald-700 to-teal-700 px-6 py-4">
+          <h2 class="text-2xl font-bold text-white">📝 Créer un trigger : syntaxe & moments</h2>
+        </div>
+        <div class="p-6 space-y-5">
+          <p class="text-gray-700">La syntaxe générale (MySQL / PostgreSQL) :</p>
+          <pre class="text-sm"><code>CREATE TRIGGER nom_trigger
+{BEFORE | AFTER} {INSERT | UPDATE | DELETE}
+ON table
+FOR EACH ROW
+BEGIN
+   -- instructions SQL
+END;</code></pre>
+          <div class="grid sm:grid-cols-2 gap-4 mt-2">
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <span class="font-bold text-blue-800">⏱️ BEFORE</span>
+              <p class="text-sm text-gray-600">Exécuté avant l’événement. Permet de modifier les données (NEW) ou d’annuler l’opération avec un signal.</p>
+            </div>
+            <div class="bg-purple-50 p-3 rounded-lg border border-purple-200">
+              <span class="font-bold text-purple-800">⏱️ AFTER</span>
+              <p class="text-sm text-gray-600">Exécuté après l’événement. Idéal pour la journalisation (historique), impossible de modifier la ligne courante.</p>
+            </div>
+          </div>
+          <div class="bg-gray-100 rounded-xl p-4 text-sm">
+            <p class="font-semibold">💡 Important : FOR EACH ROW signifie que le trigger s’exécute pour chaque ligne affectée (utile pour les mises à jour en masse).</p>
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide3">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide5">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 5 : TABLES VIRTUELLES NEW ET OLD -->
+      <section id="slide5" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-amber-700 to-orange-700 px-6 py-4">
+          <h2 class="text-2xl font-bold text-white">🔍 NEW et OLD : les enregistrements virtuels</h2>
+        </div>
+        <div class="p-6 space-y-5">
+          <p class="text-gray-700">Dans le corps d’un trigger, on accède aux valeurs <strong>avant</strong> et <strong>après</strong> modification grâce à deux pseudo-lignes :</p>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-gray-50 rounded-xl overflow-hidden shadow-sm">
+              <thead class="bg-gray-200">
+                <tr><th class="px-4 py-2 text-left">Trigger</th><th class="px-4 py-2 text-left">NEW</th><th class="px-4 py-2 text-left">OLD</th></tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr><td class="px-4 py-2">INSERT</td><td class="px-4 py-2">✅ contient les nouvelles valeurs</td><td class="px-4 py-2">❌ non disponible (NULL)</td></tr>
+                <tr><td class="px-4 py-2">UPDATE</td><td class="px-4 py-2">✅ valeurs après modification</td><td class="px-4 py-2">✅ valeurs avant modification</td></tr>
+                <tr><td class="px-4 py-2">DELETE</td><td class="px-4 py-2">❌ non disponible</td><td class="px-4 py-2">✅ valeurs avant suppression</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+            <p class="font-mono text-sm">Exemple : <code class="bg-white">:NEW.salaire</code> en Oracle, ou <code class="bg-white">NEW.salaire</code> en MySQL/PostgreSQL.</p>
+            <p class="mt-2">✅ On peut utiliser NEW pour vérifier une condition et empêcher l’opération (avec SIGNAL SQLSTATE).</p>
+          </div>
+          <p class="text-sm text-gray-600">📖 Exemple concret : trigger BEFORE UPDATE qui empêche de baisser un prix de plus de 30%.</p>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide4">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide6">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 6 : EXEMPLES PRATIQUES (AUDIT & VALIDATION) -->
+      <section id="slide6" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-cyan-700 to-blue-700 px-6 py-4">
+          <h2 class="text-2xl font-bold text-white">📌 Exemples concrets de triggers</h2>
+        </div>
+        <div class="p-6 space-y-6">
+          <div class="border-b border-gray-200 pb-3">
+            <h3 class="text-lg font-semibold text-gray-800">🛡️ 1. Trigger BEFORE INSERT pour validation métier</h3>
+            <pre class="mt-2 text-xs"><code>CREATE TRIGGER verifier_age_etudiant
+BEFORE INSERT ON etudiants
+FOR EACH ROW
+BEGIN
+   IF NEW.age < 16 THEN
+      SIGNAL SQLSTATE '45000' 
+      SET MESSAGE_TEXT = 'Âge minimum 16 ans';
+   END IF;
+END;</code></pre>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800">📝 2. AFTER UPDATE pour table d'audit (historique des salaires)</h3>
+            <pre class="mt-2 text-xs"><code>CREATE TRIGGER log_salaire_update
+AFTER UPDATE ON employes
+FOR EACH ROW
+BEGIN
+   INSERT INTO audit_employes(employe_id, ancien_salaire, nouveau_salaire, date_modif)
+   VALUES (OLD.id, OLD.salaire, NEW.salaire, NOW());
+END;</code></pre>
+            <p class="text-xs text-gray-500 mt-1">✨ Ainsi chaque modification est tracée sans effort supplémentaire dans l'application.</p>
+          </div>
+          <div class="bg-green-50 p-3 rounded-lg">
+            <p class="text-green-800 text-sm">💡 <strong>Bonnes pratiques :</strong> évitez les triggers trop complexes ou qui appellent d’autres triggers (effet domino). Utilisez-les pour l’intégrité ou l’audit, mais préférez les contraintes quand c’est possible.</p>
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide5">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide7">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 7 : GESTION ET BONNES PRATIQUES -->
+      <section id="slide7" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-rose-700 to-pink-700 px-6 py-4">
+          <h2 class="text-2xl font-bold text-white">⚙️ Gérer, modifier et supprimer un trigger</h2>
+        </div>
+        <div class="p-6 space-y-4">
+          <p class="text-gray-700">Commandes essentielles pour l’administration des triggers :</p>
+          <ul class="list-disc list-inside space-y-2 bg-gray-50 p-4 rounded-xl">
+            <li><code class="bg-gray-200 px-1 rounded">DROP TRIGGER nom_trigger;</code> → supprimer définitivement un trigger.</li>
+            <li><code class="bg-gray-200 px-1 rounded">SHOW TRIGGERS;</code> (MySQL) ou <code class="bg-gray-200 px-1 rounded">SELECT * FROM pg_trigger;</code> (PostgreSQL) pour lister.</li>
+            <li>On ne peut pas modifier directement un trigger, il faut le supprimer puis le recréer.</li>
+            <li>Pensez à nommer clairement vos triggers : <em>trg_before_update_salaire</em>.</li>
+          </ul>
+          <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-400 mt-2">
+            <p class="font-medium text-red-800">⚠️ Attention aux performances :</p>
+            <p class="text-sm text-red-700">Un trigger s’exécute à chaque ligne modifiée, ce qui peut ralentir les gros traitements par lots. À utiliser avec discernement.</p>
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide6">← Précédent</button>
+          <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide8">Suivant →</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 8 : SYNTHÈSE ET EXERCICE -->
+      <section id="slide8" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-indigo-800 to-violet-800 px-6 py-5">
+          <h2 class="text-2xl font-bold text-white">📌 Récapitulons & petit défi !</h2>
+        </div>
+        <div class="p-6 space-y-5">
+          <div class="flex flex-wrap gap-3 justify-center">
+            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">🎯 Automatisation</span>
+            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">🔄 NEW / OLD</span>
+            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">⏲️ BEFORE/AFTER</span>
+            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">📊 Audit</span>
+          </div>
+          <p class="text-gray-700">Les triggers sont des outils puissants pour automatiser des règles métier complexes et tracer les modifications. Ils agissent silencieusement, mais doivent être bien documentés.</p>
+          <div class="bg-gray-100 p-5 rounded-2xl">
+            <p class="font-bold text-gray-800">🧪 Exercice d’entraînement :</p>
+            <p class="text-sm mt-1">Créez une table <strong>produits(id, nom, prix, stock)</strong> et une table <strong>historique_prix</strong>. Écrivez un trigger AFTER UPDATE qui, si le prix change, insère une ligne dans historique_prix (id_produit, ancien_prix, nouveau_prix, date_modification).</p>
+            <details class="mt-3 cursor-pointer bg-white p-3 rounded-lg">
+              <summary class="font-mono text-sm text-indigo-600">Voir une piste de solution (MySQL)</summary>
+              <pre class="mt-2 text-xs bg-gray-800 text-gray-200 p-2 rounded"><code>CREATE TRIGGER log_prix_change
+AFTER UPDATE ON produits
+FOR EACH ROW
+BEGIN
+  IF OLD.prix != NEW.prix THEN
+    INSERT INTO historique_prix(produit_id, ancien_prix, nouveau_prix, date_changement)
+    VALUES (OLD.id, OLD.prix, NEW.prix, NOW());
+  END IF;
+END;</code></pre>
+            </details>
+          </div>
+          <p class="text-sm text-gray-500 italic">🔁 N’oubliez pas de tester vos triggers avec des requêtes simples !</p>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide7">← Précédent</button>
+          <button class="next-btn bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full text-sm font-medium" data-next="slide9">Terminer ✅</button>
+        </div>
+      </section>
+
+      <!-- SLIDE 9 : CONCLUSION & RESSOURCES -->
+      <section id="slide9" class="slide bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hidden">
+        <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-8 text-white text-center">
+          <h2 class="text-3xl font-bold">✨ Félicitations !</h2>
+          <p class="text-gray-200 text-lg mt-2">Vous avez terminé la leçon sur les triggers.</p>
+        </div>
+        <div class="p-6 space-y-4 text-center">
+          <div class="bg-indigo-50 p-4 rounded-2xl">
+            <p class="font-medium">📢 Ce qu'il faut retenir :</p>
+            <p class="text-sm">Un trigger est déclenché automatiquement sur INSERT/UPDATE/DELETE. Les pseudo-lignes NEW/OLD donnent accès aux valeurs. Les triggers aident à maintenir cohérence et audit.</p>
+          </div>
+          <p class="text-gray-600">💻 Pour aller plus loin : pratiquez sur MySQL ou PostgreSQL avec des cas réels (gestion de stock, historique de modification).</p>
+          <div class="flex justify-center gap-4 pt-3">
+            <button class="restart-btn bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full text-sm font-medium">↺ Revoir la leçon</button>
+          </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-center">
+          <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-full text-sm font-medium" data-prev="slide8">← Page précédente</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Indicateur de progression flottant (mobile friendly) -->
+    <div class="fixed bottom-4 right-4 bg-white/80 backdrop-blur-sm rounded-full shadow-lg px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200 z-10">
+      <span id="slideCounter">1/9</span>
+    </div>
+  </main>
+
+  <script>
+    $(document).ready(function(){
+      // gestion des slides : toutes les sections avec classe .slide
+      let slides = $('.slide');
+      let totalSlides = slides.length;
+      let currentIndex = 0;
+      
+      function updateCounter() {
+        $('#slideCounter').text((currentIndex+1) + '/' + totalSlides);
+      }
+      
+      function showSlide(index) {
+        if(index < 0) index = 0;
+        if(index >= totalSlides) index = totalSlides - 1;
+        slides.addClass('hidden');
+        $(slides[index]).removeClass('hidden');
+        currentIndex = index;
+        updateCounter();
+        // scroll en haut pour une meilleure expérience sur mobile
+        $('html, body').animate({ scrollTop: 0 }, 100);
+      }
+      
+      // Clics sur boutons next / prev
+      $(document).on('click', '.next-btn', function(){
+        let nextId = $(this).data('next');
+        if(nextId) {
+          let targetIndex = slides.index($('#' + nextId));
+          if(targetIndex !== -1) showSlide(targetIndex);
+        } else {
+          // fallback index+1
+          if(currentIndex + 1 < totalSlides) showSlide(currentIndex+1);
+        }
+      });
+      
+      $(document).on('click', '.prev-btn', function(){
+        let prevId = $(this).data('prev');
+        if(prevId) {
+          let targetIndex = slides.index($('#' + prevId));
+          if(targetIndex !== -1) showSlide(targetIndex);
+        } else {
+          if(currentIndex - 1 >= 0) showSlide(currentIndex-1);
+        }
+      });
+      
+      $(document).on('click', '.restart-btn', function(){
+        showSlide(0);
+      });
+      
+      // initialisation : afficher slide 1
+      showSlide(0);
+    });
+  </script>
+</body>
+</html>

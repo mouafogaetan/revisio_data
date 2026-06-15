@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 29 : Refactoring - Améliorer le code existant | Génie Logiciel</title>
+    <!-- Tailwind CSS via CDN + base style -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, mais surtout pour cohérence) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles complémentaires : slides, transitions, lecture facile sur petit écran -->
+    <style>
+        /* Styles perso pour l'expérience diaporama */
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        body {
+            background: #f8fafc; /* fond doux */
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+        .card-slide {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* pour les dessins simplifiés (schémas ascii / SVG simples) */
+        .simple-diagram {
+            background: #f1f5f9;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        @media (max-width: 640px) {
+            .card-slide {
+                border-radius: 1.25rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            .btn-nav { padding: 0.5rem 1rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-3xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slides-container" class="relative">
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide active" data-slide="0">
+                <div class="card-slide p-6 md:p-8 border border-gray-100">
+                    <div class="text-center">
+                        <span class="inline-block bg-indigo-100 text-indigo-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">Chapitre 8 · Maintenir et améliorer</span>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">🧹 Refactoring</h1>
+                        <p class="text-xl text-gray-600 mb-6">Améliorer la structure du code sans changer son comportement</p>
+                        <div class="w-24 h-1 bg-indigo-400 mx-auto my-4 rounded-full"></div>
+                        <p class="text-gray-500 mt-4">Leçon 29 / 36 · Cours de Génie Logiciel</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="bg-gray-50 p-4 rounded-2xl inline-block">
+                                <div class="flex items-center gap-3 text-left">
+                                    <div class="text-3xl">🔄</div>
+                                    <div class="text-sm text-gray-600">"Rendre le code plus propre<br> tout en gardant les fonctionnalités"</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs d'apprentissage -->
+            <div class="slide" data-slide="1">
+                <div class="card-slide p-6 md:p-8">
+                    <div class="flex items-center gap-3 mb-6 border-b border-gray-200 pb-3">
+                        <span class="text-3xl">🎯</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4 text-gray-700">
+                        <li class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Définir le <strong class="font-semibold">refactoring</strong> : amélioration sans changement de comportement externe.</span></li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Maîtriser les techniques essentielles : extraction de méthode, renommage, déplacement de code.</span></li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Utiliser les outils de refactoring automatique des IDE (VS Code, IntelliJ, Eclipse).</span></li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Comprendre quand et pourquoi refactorer (dette technique, lisibilité, maintenabilité).</span></li>
+                    </ul>
+                    <div class="mt-8 bg-amber-50 p-4 rounded-xl border-l-4 border-amber-400 text-sm">
+                        💡 <span class="font-medium">À retenir :</span> Le refactoring est une pratique quotidienne en développement agile. Il réduit la dette technique.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Qu'est-ce que le refactoring ? Définition et analogie -->
+            <div class="slide" data-slide="2">
+                <div class="card-slide p-6 md:p-8">
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="text-3xl">🤔</span>
+                        <h2 class="text-2xl font-bold text-gray-800">Qu'est-ce que le refactoring ?</h2>
+                    </div>
+                    <p class="text-gray-700 mb-4 leading-relaxed">Le <strong class="text-indigo-700">refactoring</strong> est le processus de restructuration du code source existant, <span class="bg-yellow-100 px-1">sans modifier son comportement observable</span>. On améliore la structure interne, la lisibilité et la maintenabilité.</p>
+                    <div class="simple-diagram my-5">
+                        <div class="flex flex-col md:flex-row items-center justify-around gap-3 text-sm">
+                            <div class="bg-white p-3 rounded shadow-sm w-full md:w-auto">💩 Code sale<br> (duplication, longues méthodes)</div>
+                            <span class="text-xl">🔧✨ ➡️</span>
+                            <div class="bg-white p-3 rounded shadow-sm w-full md:w-auto">✨ Code propre<br> (DRY, nom clair, petites fonctions)</div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">✅ même résultat fonctionnel ✅</p>
+                    </div>
+                    <p class="text-gray-600 italic">"Refactorer, c'est comme ranger sa chambre : on ne change pas la pièce, mais on rend tout plus accessible."</p>
+                    <div class="mt-5 bg-gray-50 p-3 rounded-lg text-gray-600 text-sm border border-gray-200">
+                        📖 <strong>Extrait de Martin Fowler :</strong> "Refactoring is a disciplined technique for improving the design of existing code."
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Pourquoi refactorer ? Dette technique -->
+            <div class="slide" data-slide="3">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-5">🐢 Pourquoi refactorer ? <span class="text-lg">(Dette technique)</span></h2>
+                    <p class="mb-3 text-gray-700">Chaque raccourci, duplication ou code mal organisé augmente la <strong class="text-red-600">dette technique</strong>. Comme une dette financière, elle accumule des "intérêts" :</p>
+                    <ul class="list-disc pl-6 space-y-2 text-gray-700 mb-5">
+                        <li>🐞 Plus de bugs cachés</li>
+                        <li>⏱️ Ajout de fonctionnalités devient lent</li>
+                        <li>🤯 Difficulté pour les nouveaux développeurs</li>
+                        <li>💸 Coût de maintenance élevé</li>
+                    </ul>
+                    <div class="relative w-full bg-gray-200 h-4 rounded-full overflow-hidden my-2">
+                        <div class="bg-red-500 h-4 rounded-full" style="width: 70%;"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 text-center">Exemple de dette technique croissante (70% de complexité évitable)</p>
+                    <p class="mt-4 text-green-700 bg-green-50 p-3 rounded-lg">✅ Refactoring régulier → réduit la dette, code plus robuste.</p>
+                </div>
+            </div>
+
+            <!-- Slide 5 : Techniques essentielles – extraction de méthode, renommage, déplacement -->
+            <div class="slide" data-slide="4">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔧 Techniques de refactoring (3 fondamentales)</h2>
+                    <div class="space-y-5">
+                        <div class="border-l-4 border-indigo-400 pl-4">
+                            <h3 class="font-bold text-indigo-800">1. Extraction de méthode</h3>
+                            <p class="text-gray-600 text-sm">Transformer un bloc de code en une méthode séparée, avec un nom explicite.</p>
+                            <pre class="bg-gray-100 p-2 text-xs mt-1 rounded overflow-x-auto">// Avant : long bloc dans une fonction
+function afficherFacture() { /* 30 lignes de calcul + affichage */ }
+
+// Après : extraire calcul
+function calculerTotal() { ... }
+function afficherFacture() { calculerTotal(); ... }</pre>
+                        </div>
+                        <div class="border-l-4 border-emerald-400 pl-4">
+                            <h3 class="font-bold text-emerald-800">2. Renommage (significatif)</h3>
+                            <p class="text-gray-600 text-sm">Variables, fonctions, classes doivent avoir des noms qui révèlent l'intention.</p>
+                            <p class="text-xs font-mono bg-gray-100 p-1 inline-block rounded">let d -> let dateLimiteInscription</p>
+                        </div>
+                        <div class="border-l-4 border-amber-400 pl-4">
+                            <h3 class="font-bold text-amber-800">3. Déplacement de méthode / champ</h3>
+                            <p class="text-gray-600 text-sm">Déplacer une méthode vers la classe où elle est le plus utile (meilleure cohésion).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : Outils de refactoring automatique (IDE) -->
+            <div class="slide" data-slide="5">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🛠️ Outils de refactoring automatique</h2>
+                    <p class="mb-4 text-gray-700">Les IDE modernes intègrent des fonctionnalités de refactoring sécurisées. Exemples :</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span class="font-semibold">🔁 VS Code</span><br>Extraire méthode, renommage symbolique, organise imports</div>
+                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span class="font-semibold">☕ IntelliJ / Eclipse</span><br>Refactor menu puissant : Pull up, Push down, Inline, Change signature</div>
+                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span class="font-semibold">💻 PyCharm</span><br>Extract variable, extract method, rename, safe delete</div>
+                        <div class="bg-slate-50 p-3 rounded-lg text-center"><span class="font-semibold">⚡ WebStorm</span><br>JavaScript/TS refactoring (extract component, convert to arrow)</div>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-lg text-sm">
+                        💡 <strong>Astuce :</strong> Utilisez le raccourci clavier <kbd class="bg-gray-200 px-1 rounded">Ctrl+Shift+R</kbd> (ou <kbd>F6</kbd>/<kbd>Ctrl+T</kbd>) pour explorer les refactorings courants.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Exemple visuel avant/après + dessin simple (schéma) -->
+            <div class="slide" data-slide="6">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">📐 Petit schéma : refactoring "Extract Method"</h2>
+                    <div class="simple-diagram bg-gray-100">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="text-left">
+                                <div class="font-mono text-xs bg-white p-2 rounded shadow">
+                                    <span class="text-red-600">function afficherPanier(articles) {</span><br>
+                                    &nbsp;&nbsp;let total = 0;<br>
+                                    &nbsp;&nbsp;for(let a of articles) total += a.prix * a.qte;<br>
+                                    &nbsp;&nbsp;console.log("total:", total); <br>
+                                    &nbsp;&nbsp;let tva = total * 0.2;<br>
+                                    &nbsp;&nbsp;console.log("TVA:", tva);<br>
+                                    <span class="text-red-600">}</span>
+                                </div>
+                                <p class="text-xs mt-1">🐙 Avant : trop de responsabilités</p>
+                            </div>
+                            <div class="text-left">
+                                <div class="font-mono text-xs bg-white p-2 rounded shadow">
+                                    <span class="text-green-700">function calculerTotal(articles) { ... }</span><br>
+                                    <span class="text-green-700">function calculerTVA(total) { ... }</span><br>
+                                    <span class="text-green-700">function afficherPanier(articles) {</span><br>
+                                    &nbsp;&nbsp;let total = calculerTotal(articles);<br>
+                                    &nbsp;&nbsp;let tva = calculerTVA(total);<br>
+                                    &nbsp;&nbsp;console.log(...);<br>
+                                    <span class="text-green-700">}</span>
+                                </div>
+                                <p class="text-xs mt-1">✨ Après : méthodes réutilisables, claires</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-600">✅ Refactoring + test unitaire = 0 régression</div>
+                    </div>
+                    <p class="mt-4 text-gray-600 text-sm">Le refactoring systématique améliore la lisibilité et facilite les tests.</p>
+                </div>
+            </div>
+
+            <!-- Slide 8 : Bonnes pratiques et signaux (code smells) -->
+            <div class="slide" data-slide="7">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">👃 Indices qu'il faut refactorer (Code Smells)</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                        <div class="bg-rose-50 p-3 rounded-xl">📏 <strong>Méthode trop longue</strong> → plus de 20-30 lignes</div>
+                        <div class="bg-rose-50 p-3 rounded-xl">📦 <strong>Classe paresseuse</strong> ou trop grosse (god class)</div>
+                        <div class="bg-rose-50 p-3 rounded-xl">🔁 <strong>Code dupliqué</strong> (violation DRY)</div>
+                        <div class="bg-rose-50 p-3 rounded-xl">🧩 <strong>Jalousie de fonctionnalité</strong> (méthode qui utilise trop les données d'une autre classe)</div>
+                        <div class="bg-rose-50 p-3 rounded-xl">🤷‍♂️ <strong>Noms peu explicites</strong> (var x, fonction traiter)</div>
+                        <div class="bg-rose-50 p-3 rounded-xl">⚙️ <strong>Chaînes de conditions complexes</strong> (if/else nested profond)</div>
+                    </div>
+                    <div class="mt-5 bg-green-50 p-3 rounded-lg border border-green-200 text-green-800 text-sm">
+                        💚 Appliquer DRY (Don't Repeat Yourself) et KISS (Keep It Simple, Stupid) réduit les mauvaises odeurs.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 9 : Refactoring et tests => sécurité -->
+            <div class="slide" data-slide="8">
+                <div class="card-slide p-6 md:p-8">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-3xl">🧪</span>
+                        <h2 class="text-2xl font-bold text-gray-800">Refactoring + Tests unitaires = duo gagnant</h2>
+                    </div>
+                    <p class="text-gray-700 mb-3">Avant de refactorer, assurez-vous d'avoir une <strong>suite de tests solide</strong> (tests unitaires, intégration). Après refactoring, exécutez les tests pour vérifier qu'aucune fonctionnalité n'a été cassée.</p>
+                    <div class="simple-diagram bg-gray-50">
+                        <div class="flex flex-col items-center">
+                            <div class="flex gap-4 text-sm">
+                                <span class="bg-gray-200 p-2 rounded">🔁 Refactoring</span> → <span class="bg-blue-100 p-2 rounded">🧪 Lancer les tests</span> → <span class="bg-green-200 p-2 rounded">✅ Succès</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">Si tests échouent → corriger ou annuler le refactoring.</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-yellow-50 rounded text-sm">
+                        ✨ Meilleure pratique : Faire des petites étapes de refactoring et relancer les tests fréquemment.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 10 : Exemple concret d'outils IDE : extraction via jQuery fictif (schéma) -->
+            <div class="slide" data-slide="9">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">⌨️ Refactoring automatique en action (IDE)</h2>
+                    <p class="text-gray-600 mb-3">Regardez comment IntelliJ/VSCode propose l'extraction :</p>
+                    <!-- simulation visuelle -->
+                    <div class="bg-gray-900 text-green-300 p-3 rounded-lg font-mono text-xs overflow-x-auto">
+                        <p><span class="text-gray-400">// 1. Sélectionner un bloc de code</span></p>
+                        <p>let prix = article.prix * article.quantite;</p>
+                        <p>let remise = prix * 0.1;</p>
+                        <p><span class="text-yellow-400">// 2. Clic droit → Refactor → Extract Method</span></p>
+                        <p><span class="text-green-400">→ Génère : function calculerPrixAvecRemise(article) { ... }</span></p>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2 justify-center text-sm">
+                        <span class="bg-indigo-100 px-2 py-1 rounded-full">🔧 Raccourci VS Code : <kbd>Ctrl+Shift+R</kbd> puis "Extract method"</span>
+                        <span class="bg-indigo-100 px-2 py-1 rounded-full">🚀 Eclipse : <kbd>Alt+Shift+M</kbd></span>
+                    </div>
+                    <p class="text-gray-500 mt-3 text-center text-xs">Utilisez ces outils pour éviter les erreurs manuelles.</p>
+                </div>
+            </div>
+
+            <!-- Slide 11 : Récapitulatif et bonnes habitudes  -->
+            <div class="slide" data-slide="10">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 En résumé : Le refactoring au quotidien</h2>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        <li>Refactorer <strong>souvent</strong> (à chaque fois qu'on comprend mieux le code).</li>
+                        <li>S'appuyer sur les tests pour ne pas casser l'existant.</li>
+                        <li>Utiliser les commandes automatiques des IDE (gain de temps et sécurité).</li>
+                        <li>Améliorer la lisibilité pour soi-même et pour l'équipe.</li>
+                        <li>Réduire la dette technique → projets plus pérennes.</li>
+                    </ul>
+                    <div class="mt-6 p-3 bg-indigo-50 rounded-xl text-center">
+                        ⭐ "Laissez le code plus propre que vous ne l'avez trouvé" — Boy Scout Rule
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 12 : Activité / question pour la classe (option) -->
+            <div class="slide" data-slide="11">
+                <div class="card-slide p-6 md:p-8 text-center">
+                    <span class="text-5xl block mb-3">🧠</span>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">Mini exercice mental</h2>
+                    <p class="mb-4 text-gray-600">Identifiez un code smell dans ce snippet :</p>
+                    <pre class="bg-gray-800 text-gray-200 p-3 rounded text-left text-sm overflow-x-auto">function calcule(a,b,c){
+   let r = a*b;
+   let t = c * 0.2;
+   let result = r + t;
+   console.log("resultat:"+result);
+   return result;
+}</pre>
+                    <p class="mt-3 text-sm text-gray-500">👉 Réponse : nom de fonction peu explicite, paramètres génériques, affichage log mélangé → extraire l'affichage, renommer la fonction.</p>
+                    <button class="mt-5 text-indigo-600 text-sm font-semibold reveal-answer-btn">Voir suggestion 🔍</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Navigation buttons (précédent / suivant) + indicateur progression -->
+        <div class="flex justify-between items-center mt-8 gap-4">
+            <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40">← Précédent</button>
+            <div class="flex-1 text-center">
+                <span id="slideCounter" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Slide 1 / 12</span>
+            </div>
+            <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm transition">Suivant →</button>
+        </div>
+        <!-- Barre de progression -->
+        <div class="w-full bg-gray-200 rounded-full h-2 mt-5 overflow-hidden">
+            <div id="progressFill" class="bg-indigo-500 h-2 rounded-full progress-bar" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+                let progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+                $('#progressFill').css('width', progressPercent + '%');
+                // Désactiver boutons selon les limites
+                if (currentIndex === 0) {
+                    $('#prevSlide').prop('disabled', true).addClass('opacity-40');
+                } else {
+                    $('#prevSlide').prop('disabled', false).removeClass('opacity-40');
+                }
+                if (currentIndex === totalSlides - 1) {
+                    $('#nextSlide').prop('disabled', true).addClass('opacity-40');
+                } else {
+                    $('#nextSlide').prop('disabled', false).removeClass('opacity-40');
+                }
+            }
+
+            $('#nextSlide').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            });
+            $('#prevSlide').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            // gestionnaire clavier (flèches)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    $('#nextSlide').click();
+                } else if (e.key === 'ArrowLeft') {
+                    $('#prevSlide').click();
+                }
+            });
+
+            // mini-révélation réponse pour l'exercice (slide 12)
+            $('.reveal-answer-btn').on('click', function() {
+                if ($(this).text().includes('Voir suggestion')) {
+                    $(this).text('✅ Noms explicites (ex: calculerMontantTTC) + Séparer affichage').removeClass('text-indigo-600').addClass('text-green-700');
+                } else {
+                    $(this).text('Voir suggestion 🔍').removeClass('text-green-700').addClass('text-indigo-600');
+                }
+            });
+
+            // initialisation
+            updateSlides();
+        });
+    </script>
+    <!-- message final pour mobile friendly -->
+    <div class="text-center text-xs text-gray-400 py-4 max-w-3xl mx-auto">
+        Cours conçu pour les étudiants de WebDev Cameroun – Refactoring: amélioration continue.
+    </div>
+</body>
+</html>

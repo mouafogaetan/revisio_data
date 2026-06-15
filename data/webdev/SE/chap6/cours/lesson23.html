@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 23 : Tests d'intégration - Génie Logiciel</title>
+  <!-- Tailwind CSS + Font Awesome (icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax pour formules mathématiques (si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* personnalisations douces pour accessibilité */
+    body {
+      background: #f8fafc;
+    }
+    .slide-container {
+      transition: all 0.3s ease;
+    }
+    .btn-nav {
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-nav:active {
+      transform: scale(0.96);
+    }
+    /* pour les petits écrans, ajustement des marges */
+    @media (max-width: 640px) {
+      .slide-card {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+    /* personnalisation des puces */
+    .list-bullet {
+      list-style-type: disc;
+      margin-left: 1.5rem;
+    }
+    .list-decimal-custom {
+      list-style-type: decimal;
+      margin-left: 1.5rem;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur slide principal -->
+    <div id="slidesWrapper" class="relative">
+      <!-- Slides générés dynamiquement -->
+      <div id="slidesContainer" class="slide-container"></div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4">
+        <button id="prevBtn" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">
+          ← Précédent
+        </button>
+        <div id="slideCounter" class="text-gray-600 font-medium text-sm bg-white/70 px-4 py-1 rounded-full shadow-sm">
+          Slide 1 / 1
+        </div>
+        <button id="nextBtn" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Suivant →
+        </button>
+      </div>
+      <!-- indicateur de progression visuel -->
+      <div class="w-full bg-gray-200 rounded-full h-1.5 mt-5">
+        <div id="progressBar" class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Définition du contenu des slides pour la leçon 23 : "Tests d'intégration"
+    // (objectifs et contenu détaillé)
+    const slidesData = [
+      {
+        type: "title",
+        title: "Tests d'intégration",
+        subtitle: "Vérifier que les composants communiquent correctement",
+        emoji: "🔗🧪"
+      },
+      {
+        type: "objectifs",
+        title: "Objectifs de la leçon",
+        objectives: [
+          "Tester les interactions entre composants d’une application",
+          "Utiliser des bases de données en mémoire pour les tests d’intégration",
+          "Tester des API avec des outils comme Postman ou Supertest"
+        ]
+      },
+      {
+        type: "content",
+        title: "🔌 Qu'est-ce qu'un test d'intégration ?",
+        paragraphs: [
+          "Les tests d'intégration vérifient que plusieurs modules (composants) fonctionnent ensemble correctement. Après les tests unitaires (qui testent chaque brique isolément), on assemble les briques et on s'assure que les échanges de données, les appels de fonctions et les interactions avec des ressources externes (base de données, API) se passent bien.",
+          "Contrairement aux tests unitaires, les tests d'intégration peuvent impliquer des connexions réelles ou simulées à des systèmes extérieurs."
+        ],
+        highlight: "Objectif : détecter les défauts d’interface et de communication."
+      },
+      {
+        type: "content",
+        title: "🧩 Tester les interactions entre composants",
+        paragraphs: [
+          "Dans une application web classique, les composants peuvent être : le frontend, le backend, la base de données, des services externes. Les tests d'intégration vont par exemple :",
+          "- Vérifier qu’une requête HTTP retourne bien les données attendues depuis la couche service.",
+          "- Tester qu’un appel à une méthode métier met correctement à jour la base de données.",
+          "- Simuler un environnement proche de la production pour valider le bon câblage."
+        ],
+        bulletPoints: [
+          "Approche ascendante : on intègre petit à petit les modules.",
+          "Approche descendante : on teste les grandes structures d'abord.",
+          "Tests d'intégration d'API : valider les endpoints, codes HTTP, payloads."
+        ]
+      },
+      {
+        type: "content",
+        title: "🗄️ Bases de données en mémoire pour les tests",
+        paragraphs: [
+          "Pour tester l'intégration avec une base de données sans polluer votre environnement réel, on utilise des bases de données en mémoire (SQLite en mémoire, H2, ou des conteneurs Docker temporaires).",
+          "Avantages : les tests sont rapides, reproductibles, et les données sont effacées automatiquement après chaque exécution."
+        ],
+        codeExample: {
+          language: "JavaScript (exemple avec Jest et SQLite mémoire)",
+          code: `// Exemple simplifié avec Node.js (bibliothèque better-sqlite3)
+const Database = require('better-sqlite3');
+const db = new Database(':memory:'); // Base en mémoire
+
+// Création table et insertion
+db.exec('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)');
+const insert = db.prepare('INSERT INTO users (name) VALUES (?)');
+insert.run('Alice');
+
+// Test d'intégration : vérifier la récupération
+const row = db.prepare('SELECT * FROM users WHERE name = ?').get('Alice');
+console.log(row); // { id: 1, name: 'Alice' }`
+        }
+      },
+      {
+        type: "content",
+        title: "🌐 Tester les API avec des outils (Postman, Supertest)",
+        paragraphs: [
+          "Les API REST ou GraphQL sont le coeur des interactions modernes. Pour tester l'intégration entre services, on utilise souvent :",
+          "- **Postman** : outil graphique permettant de créer des collections de requêtes et d'automatiser des tests d'intégration (scripts Pre-request / Test).",
+          "- **Supertest** : bibliothèque pour Node.js qui permet d'envoyer des requêtes HTTP réelles à votre application et d'assertion sur les réponses.",
+          "- **cURL** ou **Insomnia** : alternatives simples."
+        ],
+        bulletPoints: [
+          "Avec Postman : écrire des tests JavaScript pour valider le statut, le schéma JSON, le temps de réponse.",
+          "Supertest s'intègre bien avec des frameworks comme Express, et peut lancer le serveur en arrière-plan."
+        ],
+        codeExample: {
+          language: "JavaScript (Supertest + Jest)",
+          code: `const request = require('supertest');
+const app = require('../app'); // votre app Express
+
+describe('Test intégration API /users', () => {
+  test('GET /users doit retourner un tableau d’utilisateurs', async () => {
+    const res = await request(app)
+      .get('/api/users')
+      .expect('Content-Type', /json/)
+      .expect(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('POST /users crée un utilisateur valide', async () => {
+    const newUser = { name: "Jordan", email: "jordan@ex.com" };
+    const res = await request(app)
+      .post('/api/users')
+      .send(newUser)
+      .expect(201);
+    expect(res.body.name).toBe("Jordan");
+  });
+});`
+        }
+      },
+      {
+        type: "content",
+        title: "✅ Bonnes pratiques et conseils",
+        paragraphs: [
+          "1. **Isolez les dépendances externes** : utilisez des stubs ou des mocks pour les services extérieurs (paiement, SMS) afin de rendre les tests déterministes.",
+          "2. **Utilisez des données de test contrôlées** : avec des fixtures ou des factories.",
+          "3. **Nettoyez l'état** entre chaque test (transaction rollback ou base de données en mémoire).",
+          "4. **Ne pas confondre test d'intégration et test end-to-end** : les tests d'intégration se concentrent sur quelques composants, pas sur l'ensemble navigateur → serveur complet.",
+          "5. **Automatisez** vos tests d'intégration dans votre pipeline CI (GitHub Actions, GitLab CI)."
+        ],
+        tipBox: "💡 Astuce : commencez par écrire des tests d'intégration pour les parcours critiques d'API, puis étendez aux cas limites."
+      },
+      {
+        type: "recap",
+        title: "📌 Récapitulatif",
+        items: [
+          "Les tests d'intégration valident la collaboration entre modules.",
+          "Bases de données en mémoire : outil clé pour des tests fiables.",
+          "Outils comme Postman / Supertest automatisent les vérifications d'API.",
+          "Intégration continue : exécutez ces tests à chaque modification."
+        ]
+      }
+    ];
+
+    let currentSlide = 0;
+    let totalSlides = slidesData.length;
+
+    // Fonction pour rendre un slide selon son type
+    function renderSlide(slide, idx) {
+      switch(slide.type) {
+        case "title":
+          return `
+            <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-10 text-center border-t-8 border-indigo-500">
+              <div class="text-6xl mb-4">${slide.emoji || "📘"}</div>
+              <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+              <p class="text-gray-600 text-lg md:text-xl">${slide.subtitle || "Cours d'initiation au génie logiciel"}</p>
+              <div class="mt-8 text-indigo-500 text-sm font-medium">👨‍🏫 Cours - Développement Web (Génie Logiciel)</div>
+            </div>
+          `;
+        case "objectifs":
+          return `
+            <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-6">🎯 ${slide.title}</h2>
+              <ul class="space-y-3 text-gray-700 text-lg">
+                ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> <span>${obj}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm italic">
+                💡 À la fin de cette leçon, vous serez capable de mettre en place des tests d'intégration pour vos projets web.
+              </div>
+            </div>
+          `;
+        case "content":
+          let bulletHtml = "";
+          if (slide.bulletPoints) {
+            bulletHtml = `<div class="mt-4"><ul class="list-bullet space-y-2 text-gray-700">${slide.bulletPoints.map(p => `<li>${p}</li>`).join('')}</ul></div>`;
+          }
+          let codeHtml = "";
+          if (slide.codeExample) {
+            codeHtml = `
+              <div class="mt-5 bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                <div class="bg-gray-800 px-4 py-2 text-gray-300 text-xs font-mono">${slide.codeExample.language}</div>
+                <pre class="text-sm text-gray-200 p-4 overflow-x-auto font-mono">${escapeHtml(slide.codeExample.code)}</pre>
+              </div>
+            `;
+          }
+          let highlightHtml = "";
+          if (slide.highlight) {
+            highlightHtml = `<div class="bg-amber-50 border-l-4 border-amber-400 p-3 my-4 text-amber-800 rounded-r">✨ ${slide.highlight}</div>`;
+          }
+          let tipBoxHtml = "";
+          if (slide.tipBox) {
+            tipBoxHtml = `<div class="mt-5 bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-emerald-800">${slide.tipBox}</div>`;
+          }
+          return `
+            <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-4">${slide.title}</h2>
+              ${slide.paragraphs.map(p => `<p class="text-gray-700 mb-3 leading-relaxed">${p}</p>`).join('')}
+              ${highlightHtml}
+              ${bulletHtml}
+              ${codeHtml}
+              ${tipBoxHtml}
+            </div>
+          `;
+        case "recap":
+          return `
+            <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+              <ul class="space-y-3 text-gray-700 text-lg">
+                ${slide.items.map(item => `<li class="flex gap-2"><span class="text-indigo-600 font-bold">▪️</span> ${item}</li>`).join('')}
+              </ul>
+              <div class="mt-8 flex justify-center">
+                <div class="bg-gradient-to-r from-indigo-100 to-sky-100 rounded-2xl p-5 text-center">
+                  <p class="font-semibold">🔁 Prochaine étape : pratiquer avec un mini-projet !</p>
+                  <p class="text-sm text-gray-600">N'oubliez pas : bien tester = moins de bugs en production.</p>
+                </div>
+              </div>
+            </div>
+          `;
+        default:
+          return `<div class="slide-card bg-white rounded-2xl shadow-xl p-8">Contenu non disponible</div>`;
+      }
+    }
+
+    // helper échappement HTML basique pour afficher code proprement
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+      });
+    }
+
+    // Mise à jour de l'affichage
+    function updateSlides() {
+      const container = $("#slidesContainer");
+      // on affiche seulement le slide courant
+      const slideHtml = renderSlide(slidesData[currentSlide], currentSlide);
+      container.html(slideHtml);
+      
+      // Mise à jour compteur
+      $("#slideCounter").text(`Slide ${currentSlide+1} / ${totalSlides}`);
+      
+      // Gestion états des boutons
+      $("#prevBtn").prop("disabled", currentSlide === 0);
+      $("#nextBtn").prop("disabled", currentSlide === totalSlides - 1);
+      
+      // Progression
+      const progressPercent = ((currentSlide) / (totalSlides - 1)) * 100;
+      $("#progressBar").css("width", `${progressPercent}%`);
+      
+      // Scroll en haut pour plus de confort sur mobile
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Navigation
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlides();
+      }
+    }
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlides();
+      }
+    }
+
+    // Événements jQuery
+    $(document).ready(function() {
+      updateSlides();
+      $("#nextBtn").on("click", nextSlide);
+      $("#prevBtn").on("click", prevSlide);
+      
+      // navigation au clavier (flèches)
+      $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") {
+          nextSlide();
+          e.preventDefault();
+        } else if (e.key === "ArrowLeft") {
+          prevSlide();
+          e.preventDefault();
+        }
+      });
+      
+      // swipe simple pour mobile (optionnel)
+      let touchStartX = 0;
+      let touchEndX = 0;
+      $("#slidesContainer").on("touchstart", function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $("#slidesContainer").on("touchend", function(e) {
+        touchEndX = e.originalEvent.changedTouches[0].clientX;
+        if (touchStartX - touchEndX > 60) {
+          nextSlide();
+        } else if (touchEndX - touchStartX > 60) {
+          prevSlide();
+        }
+      });
+      
+      // MathJax rafraîchissement après chaque slide (pour formules éventuelles)
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    });
+    
+    // Réappliquer MathJax après chaque changement de slide (si besoin de formules)
+    // On écoute les mutations du container pour retrigger MathJax
+    const observer = new MutationObserver(function() {
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    });
+    $(document).ready(function() {
+      const containerNode = document.getElementById("slidesContainer");
+      if (containerNode) {
+        observer.observe(containerNode, { childList: true, subtree: true });
+      }
+    });
+  </script>
+</body>
+</html>

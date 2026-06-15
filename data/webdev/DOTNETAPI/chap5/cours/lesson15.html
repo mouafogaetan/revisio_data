@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours ASP.NET Core : Validation des données - Leçon 15</title>
+    <!-- Tailwind CSS + base fine-tuning -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules, même si peu de maths ici, mais prêt) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides, swipe friendly */
+        .slide-container {
+            transition: transform 0.3s ease-in-out;
+        }
+        .slide {
+            min-height: 70vh;
+        }
+        /* style personnalisé pour les puces et listes */
+        .objectif-badge {
+            background: #eef2ff;
+            border-left: 4px solid #3b82f6;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s;
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .swipe-area {
+            touch-action: pan-y pinch-zoom;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                padding: 1rem 0.75rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-3 sm:px-5 py-6 md:py-10">
+        <!-- en-tête fixe avec progression slide -->
+        <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-3 mb-5 flex justify-between items-center border border-blue-100">
+            <div class="text-sm font-semibold text-gray-600">
+                <span id="currentSlideIndicator">1</span> / <span id="totalSlides"></span>
+            </div>
+            <div class="text-center font-bold text-indigo-700 text-sm md:text-base">📘 API .NET – Validation & erreurs</div>
+            <div class="flex gap-2">
+                <button id="prevBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-full px-3 py-1 text-sm disabled:opacity-40 transition">◀ Préc</button>
+                <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-3 py-1 text-sm transition">Suiv ▶</button>
+            </div>
+        </div>
+
+        <!-- container des slides (carrousel horizontal simplifié) -->
+        <div class="overflow-hidden swipe-area rounded-2xl">
+            <div id="slidesWrapper" class="slide-container flex flex-nowrap transition-transform duration-300 ease-out">
+                <!-- Slides générés dynamiquement via jQuery, mais structure statique insérée par JS pour maintenir clarté -->
+            </div>
+        </div>
+
+        <!-- indicateurs de pagination (dots) -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dotsContainer"></div>
+
+        <!-- message de swipe pour mobile (petit rappel) -->
+        <p class="text-center text-xs text-gray-400 mt-4">👆 glisser vers la gauche/droite (mobile) ou utiliser les boutons</p>
+    </div>
+
+    <script>
+        // Données de la Leçon 15 (d'après le programme JSON)
+        // Titre, objectifs + contenu des leçons
+        const lessonData = {
+            titre: "Leçon 15 : Valider les données dans ASP.NET Core",
+            objectifs: [
+                "Utiliser les attributs de validation (Required, StringLength, Range, EmailAddress)",
+                "Comprendre la validation automatique avec [ApiController]",
+                "Personnaliser les messages d'erreur"
+            ],
+            sections: [
+                {
+                    titre: "1️⃣ Pourquoi valider les données ?",
+                    contenu: "<p class='mb-3'>La validation des données entrantes est essentielle pour garantir l'intégrité de l'API et éviter les failles de sécurité. ASP.NET Core intègre un système de validation déclarative basé sur les <strong>attributs (Data Annotations)</strong>. Avec <code class='bg-gray-100 px-1 rounded'>[ApiController]</code>, la validation est automatique : si les données ne respectent pas les règles, l'API retourne une erreur 400 (BadRequest) sans exécuter le contrôleur.</p><p class='mb-2'>✅ Avantages : code propre, réutilisable, moins d'erreurs, messages d'erreur standardisés.</p>"
+                },
+                {
+                    titre: "2️⃣ Attributs de validation essentiels",
+                    contenu: `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400">
+                            <h3 class="font-bold text-indigo-800">🔖 Required</h3>
+                            <p class="text-sm">Champ obligatoire</p>
+                            <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">[Required]<br>public string Nom { get; set; }</pre>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400">
+                            <h3 class="font-bold text-indigo-800">📏 StringLength</h3>
+                            <p class="text-sm">Longueur max/min d'une chaîne</p>
+                            <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">[StringLength(50, MinimumLength=3)]<br>public string Titre { get; set; }</pre>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400">
+                            <h3 class="font-bold text-indigo-800">🔢 Range</h3>
+                            <p class="text-sm">Plage numérique</p>
+                            <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">[Range(1, 100)]<br>public int Age { get; set; }</pre>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-indigo-400">
+                            <h3 class="font-bold text-indigo-800">✉️ EmailAddress</h3>
+                            <p class="text-sm">Validation format email</p>
+                            <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">[EmailAddress]<br>public string Email { get; set; }</pre>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-600">💡 Autres attributs utiles : <strong>[Phone], [Url], [RegularExpression], [Compare]</strong> (confirmation mot de passe).</p>`
+                },
+                {
+                    titre: "3️⃣ Validation automatique avec [ApiController]",
+                    contenu: `<p>Lorsqu’un contrôleur hérite de <strong>ControllerBase</strong> et que l’attribut <code class='bg-gray-200 px-1 rounded'>[ApiController]</code> est présent (ou appliqué globalement), ASP.NET Core :</p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li>Vérifie automatiquement l'état du modèle (<code class="bg-gray-100 px-1">ModelState.IsValid</code>)</li>
+                        <li>Retourne une réponse <strong>400 Bad Request</strong> avec les détails des erreurs au format Problem Details</li>
+                        <li>Empêche l’exécution de l’action si la validation échoue</li>
+                    </ul>
+                    <div class="code-block mt-3">
+                        // Program.cs (configuration implicite)
+                        builder.Services.AddControllers()
+                            .ConfigureApiBehaviorOptions(options => {
+                                // Optionnel : personnaliser la réponse de validation
+                                options.InvalidModelStateResponseFactory = context =>
+                                {
+                                    return new BadRequestObjectResult(context.ModelState);
+                                };
+                            });
+                    </div>`
+                },
+                {
+                    titre: "4️⃣ Personnaliser les messages d'erreur",
+                    contenu: `<p>Vous pouvez modifier les messages d'erreur par défaut pour les rendre plus explicites. Cela se fait directement dans les attributs de validation :</p>
+                    <div class="code-block mt-2">
+[Required(ErrorMessage = "Le champ {0} est obligatoire.")]
+[StringLength(100, ErrorMessage = "Le {0} doit comporter entre {2} et {1} caractères.", MinimumLength = 5)]
+public string NomProduit { get; set; }
+
+[Range(18, 99, ErrorMessage = "L'âge doit être compris entre {1} et {2}.")]
+public int Age { get; set; }
+                    </div>
+                    <p class="mt-3">💡 Vous pouvez aussi utiliser des ressources de localisation pour gérer plusieurs langues. En Cameroun, on peut prévoir du français et de l'anglais !</p>
+                    <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 mt-3">
+                        <span class="font-bold">📢 Exemple d'erreur renvoyée par l’API :</span>
+                        <pre class="text-xs mt-1">{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Une ou plusieurs erreurs de validation se sont produites.",
+  "status": 400,
+  "errors": {
+    "NomProduit": ["Le champ NomProduit est obligatoire."]
+  }
+}</pre>
+                    </div>`
+                },
+                {
+                    titre: "5️⃣ Bonnes pratiques & exemples concrets",
+                    contenu: `<p>Créons un DTO (Data Transfer Object) pour un endpoint d’inscription :</p>
+                    <div class="code-block">
+public class InscriptionDto
+{
+    [Required(ErrorMessage = "Le nom complet est requis")]
+    [StringLength(60, MinimumLength = 3)]
+    public string NomComplet { get; set; }
+
+    [Required]
+    [EmailAddress(ErrorMessage = "Format d'email invalide")]
+    public string Email { get; set; }
+
+    [Required]
+    [Range(18, 120, ErrorMessage = "Âge minimum 18 ans")]
+    public int Age { get; set; }
+
+    [Required]
+    [RegularExpression(@"^[0-9]{9}$", ErrorMessage = "Téléphone à 9 chiffres")]
+    public string Telephone { get; set; }
+}
+
+// Dans le contrôleur :
+[HttpPost("inscription")]
+public IActionResult Inscrire([FromBody] InscriptionDto dto)
+{
+    // La validation est déjà automatique ! Si on arrive ici, c'est que tout est valide
+    return Ok(new { message = "Inscription valide", data = dto });
+}
+                    </div>
+                    <p class="mt-3">👉 <strong class="text-indigo-700">Testez avec Swagger:</strong> envoyez des données incorrectes et observez les réponses 400 avec les messages personnalisés.</p>`
+                },
+                {
+                    titre: "📌 Récapitulatif et Exercice pratique",
+                    contenu: `<div class="bg-white p-5 rounded-2xl shadow-md">
+                        <h3 class="font-bold text-lg flex items-center gap-2">✅ À retenir</h3>
+                        <ul class="list-disc pl-5 mt-2 space-y-1">
+                            <li>Attributs de validation : Required, StringLength, Range, EmailAddress, RegularExpression.</li>
+                            <li>[ApiController] active la validation automatique → renvoie une erreur 400 si invalide.</li>
+                            <li>Personnalisez les messages avec ErrorMessage et utilisez les placeholders {0}, {1}.</li>
+                            <li>La validation protège votre API et donne des retours clairs aux clients (frontend, mobile).</li>
+                        </ul>
+                        <div class="mt-5 bg-indigo-50 p-4 rounded-xl">
+                            <p class="font-bold">🧪 Exercice :</p>
+                            <p>Créez un modèle <strong>ProduitDto</strong> avec : Nom (requis, max 100 caractères), Prix (décimal compris entre 0 et 10000), CodeBarre (Regex: 13 chiffres). Ajoutez un endpoint POST /api/produits et testez la validation. Personnalisez les messages en français.</p>
+                            <button id="copyExoHint" class="mt-3 text-sm bg-white border border-indigo-300 rounded-full px-3 py-1 hover:bg-indigo-100">📋 Copier l'énoncé</button>
+                        </div>
+                    </div>`
+                }
+            ]
+        };
+
+        // Construction des slides
+        let slides = [];
+        // Slide 0 : titre + intro
+        slides.push({
+            type: "title",
+            content: `
+                <div class="flex flex-col items-center justify-center text-center p-4 md:p-8">
+                    <div class="bg-indigo-100 text-indigo-800 rounded-full px-4 py-1 text-sm font-semibold mb-4">ASP.NET Core - API</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-600 bg-clip-text text-transparent">${lessonData.titre}</h1>
+                    <p class="text-gray-600 mt-4 max-w-lg">Validation automatique, attributs puissants et messages d'erreur sur mesure pour des API robustes.</p>
+                    <div class="mt-8 flex gap-3 text-sm text-gray-500">
+                        <span>🎯 Leçon 15 / 39</span>
+                        <span>⏱️ ~20 min</span>
+                    </div>
+                </div>
+            `
+        });
+        // Slide 1 : objectifs
+        slides.push({
+            type: "objectifs",
+            content: `
+                <div class="p-4 md:p-6">
+                    <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-3 mb-5">🎯 Objectifs d'apprentissage</h2>
+                    <div class="grid gap-4">
+                        ${lessonData.objectifs.map(obj => `
+                            <div class="objectif-badge p-4 rounded-xl flex items-start gap-3">
+                                <span class="text-indigo-600 text-xl">✓</span>
+                                <p class="text-gray-700">${obj}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-6 bg-blue-50 rounded-xl p-4 text-center text-blue-800">
+                        💡 Saviez-vous ? La validation évite les failles XSS et les incohérences dans votre base de données.
+                    </div>
+                </div>
+            `
+        });
+        // Slides de contenu (sections normales)
+        lessonData.sections.forEach((sec, idx) => {
+            slides.push({
+                type: "content",
+                title: sec.titre,
+                content: `<div class="p-4 md:p-5"><h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">📖 ${sec.titre}</h2><div class="prose max-w-none text-gray-700">${sec.contenu}</div></div>`
+            });
+        });
+
+        // Variables de navigation
+        let currentIndex = 0;
+        let total = slides.length;
+
+        function renderSlides() {
+            const wrapper = $("#slidesWrapper");
+            wrapper.empty();
+            slides.forEach((slide, i) => {
+                const slideDiv = $("<div>").addClass("slide w-full flex-shrink-0 bg-white rounded-2xl shadow-lg overflow-y-auto").css("min-height", "450px");
+                if(slide.type === "title") {
+                    slideDiv.html(slide.content);
+                } else if(slide.type === "objectifs") {
+                    slideDiv.html(slide.content);
+                } else {
+                    slideDiv.html(slide.content);
+                }
+                wrapper.append(slideDiv);
+            });
+            $("#totalSlides").text(total);
+            updateDots();
+            updateSlidePosition();
+        }
+
+        function updateSlidePosition() {
+            const wrapper = $("#slidesWrapper");
+            const offset = -currentIndex * 100;
+            wrapper.css("transform", `translateX(${offset}%)`);
+            $("#currentSlideIndicator").text(currentIndex + 1);
+            // gestion boutons prev/next disable
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === total - 1);
+            // Mise à jour des dots actifs
+            $(".dot").removeClass("bg-indigo-600 bg-gray-300").addClass("bg-gray-300");
+            $(`.dot[data-index='${currentIndex}']`).removeClass("bg-gray-300").addClass("bg-indigo-600");
+        }
+
+        function updateDots() {
+            const container = $("#dotsContainer");
+            container.empty();
+            for (let i = 0; i < total; i++) {
+                const dot = $("<button>").addClass("dot w-2.5 h-2.5 rounded-full mx-1 transition-all duration-200 focus:outline-none").attr("data-index", i);
+                if(i === currentIndex) dot.addClass("bg-indigo-600 w-4");
+                else dot.addClass("bg-gray-300 hover:bg-indigo-400");
+                dot.on("click", () => {
+                    currentIndex = i;
+                    updateSlidePosition();
+                    updateDots();
+                });
+                container.append(dot);
+            }
+        }
+
+        function nextSlide() {
+            if (currentIndex < total - 1) {
+                currentIndex++;
+                updateSlidePosition();
+                updateDots();
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlidePosition();
+                updateDots();
+            }
+        }
+
+        // Gestion tactile simple (swipe)
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const swipeArea = document.querySelector(".swipe-area");
+        if(swipeArea) {
+            swipeArea.addEventListener("touchstart", (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, false);
+            swipeArea.addEventListener("touchend", (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                const delta = touchEndX - touchStartX;
+                if (Math.abs(delta) > 50) {
+                    if (delta > 0) {
+                        prevSlide();
+                    } else {
+                        nextSlide();
+                    }
+                }
+            }, false);
+        }
+
+        // Initialisation et events
+        $(document).ready(function () {
+            renderSlides();
+
+            $("#prevBtn").on("click", prevSlide);
+            $("#nextBtn").on("click", nextSlide);
+
+            // Copier l'énoncé de l'exercice (présent dans le dernier slide)
+            $("#copyExoHint").on("click", function() {
+                const exoText = `🧪 Exercice : Créez un modèle ProduitDto avec : Nom (requis, max 100 caractères), Prix (décimal compris entre 0 et 10000), CodeBarre (Regex: 13 chiffres). Ajoutez un endpoint POST /api/produits et testez la validation. Personnalisez les messages en français.`;
+                navigator.clipboard.writeText(exoText).then(() => {
+                    alert("📋 Énoncé copié ! Bonne pratique.");
+                }).catch(() => alert("Impossible de copier, mais notez l'énoncé 😊"));
+            });
+
+            // Gestion clavier (flèches)
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowLeft") {
+                    prevSlide();
+                    e.preventDefault();
+                } else if (e.key === "ArrowRight") {
+                    nextSlide();
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+
+    <!-- small extra style pour rendre le code lisible -->
+    <style>
+        .code-block pre, .code-block {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        pre {
+            margin: 0;
+            overflow-x: auto;
+        }
+        .prose p, .prose li {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        .slide-container {
+            will-change: transform;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        /* Design global pour les petits écrans */
+        @media (max-width: 480px) {
+            .code-block {
+                font-size: 0.65rem;
+            }
+            .rounded-2xl {
+                border-radius: 1rem;
+            }
+            .objectif-badge p {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+
+    <!-- MathJax configuration pour d'éventuelles formules (aucune ici mais reste léger) -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <!-- Note: la leçon se focalise sur la validation et les attributs, avec exemples concrets -->
+</body>
+</html>

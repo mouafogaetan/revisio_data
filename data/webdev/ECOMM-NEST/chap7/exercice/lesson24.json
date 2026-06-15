@@ -1,0 +1,127 @@
+[
+  {
+    "intitule": "Configuration de l'API PayPal dans NestJS",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez intégrer PayPal comme moyen de paiement dans votre API e-commerce. Voici les informations fournies par l'équipe marketing :</p>\n<ul>\n<li>Environnement de développement : <strong>sandbox</strong> (mode test)</li>\n<li>Client ID : <code>AWx7F9kLmP2qRtY5uIvN8jK</code></li>\n<li>Client Secret : <code>EJy4gHtR7mLp9sWxZcVbNm</code></li>\n<li>URL de retour en cas de succès : <code>https://marketcamer.com/checkout/success</code></li>\n<li>URL de retour en cas d'annulation : <code>https://marketcamer.com/checkout/cancel</code></li>\n</ul>\n<p>PayPal utilise le mode \"order\" (commande) : on crée un order PayPal, on redirige le client, puis on capture le paiement après confirmation.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la configuration du module `PaypalModule` avec `@nestjs/config` pour injecter les variables d'environnement (Client ID, Secret, Mode).",
+        "niveau": "medium",
+        "reponse": "```typescript\n// paypal.module.ts\nimport { Module } from '@nestjs/common';\nimport { ConfigModule, ConfigService } from '@nestjs/config';\nimport { PaypalService } from './paypal.service';\nimport { PaypalController } from './paypal.controller';\n\n@Module({\n  imports: [ConfigModule],\n  controllers: [PaypalController],\n  providers: [PaypalService],\n  exports: [PaypalService],\n})\nexport class PaypalModule {}\n\n// paypal.service.ts\nimport { Injectable } from '@nestjs/common';\nimport { ConfigService } from '@nestjs/config';\n\n@Injectable()\nexport class PaypalService {\n  private clientId: string;\n  private clientSecret: string;\n  private mode: string; // 'sandbox' ou 'live'\n  private apiUrl: string;\n\n  constructor(private configService: ConfigService) {\n    this.clientId = this.configService.get('PAYPAL_CLIENT_ID');\n    this.clientSecret = this.configService.get('PAYPAL_SECRET');\n    this.mode = this.configService.get('PAYPAL_MODE', 'sandbox');\n    this.apiUrl = this.mode === 'live' \n      ? 'https://api-m.paypal.com' \n      : 'https://api-m.sandbox.paypal.com';\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer pourquoi il ne faut JAMAIS stocker le Client Secret en clair dans le code source. Quelle est la bonne pratique ?",
+        "niveau": "easy",
+        "reponse": "Le Client Secret est une information sensible qui permet d'effectuer des paiements au nom du commerçant. S'il est exposé (ex: sur GitHub), des personnes malveillantes pourraient créer des transactions frauduleuses ou voler de l'argent. La bonne pratique est de le stocker dans une variable d'environnement (fichier `.env` non versionné) et de le charger via `@nestjs/config`. En production, utiliser un gestionnaire de secrets (AWS Secrets Manager, Vault, ou variables d'environnement sécurisées du serveur).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création d'un order PayPal",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Après la validation de la commande dans votre API, l'utilisateur choisit de payer par PayPal. Vous devez créer un \"order\" PayPal correspondant au montant total de la commande.</p>\n<p>La commande a les caractéristiques suivantes :</p>\n<ul>\n<li>ID de commande : 12345</li>\n<li>Montant total : 32 130 FCFA (environ $52 USD au taux $1 = 620 FCFA)</li>\n<li>Devise : USD (PayPal n'accepte pas le FCFA directement, vous convertissez)</li>\n<li>Description : \"Commande #12345 sur MarketCamer\"</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode `createOrder(amount: number, currency: string, orderId: number)` qui interagit avec l'API PayPal (endpoint `/v2/checkout/orders`) pour créer une commande. Inclure l'obtention du token d'accès OAuth2.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport { HttpService } from '@nestjs/axios';\nimport { firstValueFrom } from 'rxjs';\n\nasync getAccessToken(): Promise<string> {\n  const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');\n  const response = await firstValueFrom(\n    this.httpService.post(`${this.apiUrl}/v1/oauth2/token`,\n      'grant_type=client_credentials',\n      {\n        headers: {\n          Authorization: `Basic ${auth}`,\n          'Content-Type': 'application/x-www-form-urlencoded',\n        },\n      }\n    )\n  );\n  return response.data.access_token;\n}\n\nasync createOrder(amount: number, currency: string, orderId: number): Promise<string> {\n  const accessToken = await this.getAccessToken();\n  const response = await firstValueFrom(\n    this.httpService.post(\n      `${this.apiUrl}/v2/checkout/orders`,\n      {\n        intent: 'CAPTURE',\n        purchase_units: [\n          {\n            reference_id: `ORDER_${orderId}`,\n            amount: {\n              currency_code: currency,\n              value: amount.toFixed(2),\n              breakdown: {\n                item_total: { currency_code: currency, value: amount.toFixed(2) },\n              },\n            },\n            description: `Commande #${orderId} sur MarketCamer`,\n          },\n        ],\n        application_context: {\n          brand_name: 'MarketCamer',\n          landing_page: 'LOGIN',\n          user_action: 'PAY_NOW',\n          return_url: `${this.configService.get('APP_URL')}/paypal/success`,\n          cancel_url: `${this.configService.get('APP_URL')}/paypal/cancel`,\n        },\n      },\n      {\n        headers: {\n          Authorization: `Bearer ${accessToken}`,\n          'Content-Type': 'application/json',\n        },\n      }\n    )\n  );\n  const approvalUrl = response.data.links.find(link => link.rel === 'approve').href;\n  return approvalUrl; // URL pour rediriger l'utilisateur vers PayPal\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer le rôle du paramètre `reference_id` dans la requête de création d'order PayPal.",
+        "niveau": "medium",
+        "reponse": "Le `reference_id` permet de lier l'order PayPal à votre commande interne (ici `ORDER_12345`). Lorsque le webhook PayPal `PAYMENT.CAPTURE.COMPLETED` est reçu, vous pouvez utiliser ce `reference_id` pour retrouver quelle commande dans votre base de données a été payée, puis mettre à jour son statut. C'est essentiel pour l'intégrité des données.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Capture du paiement et webhooks",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Après que l'utilisateur a approuvé le paiement sur PayPal, PayPal redirige vers votre site avec un paramètre `token` et `PayerID`. Vous devez ensuite <strong>capturer</strong> le paiement (c'est-à-dire débiter le compte de l'utilisateur).</p>\n<p>PayPal peut aussi envoyer des webhooks pour notifier votre API des événements (paiement réussi, échec, remboursement).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode `captureOrder(orderId: string)` qui capture un order PayPal après approbation. Utiliser l'endpoint `/v2/checkout/orders/{order_id}/capture`.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync captureOrder(paypalOrderId: string): Promise<any> {\n  const accessToken = await this.getAccessToken();\n  const response = await firstValueFrom(\n    this.httpService.post(\n      `${this.apiUrl}/v2/checkout/orders/${paypalOrderId}/capture`,\n      {},\n      {\n        headers: {\n          Authorization: `Bearer ${accessToken}`,\n          'Content-Type': 'application/json',\n        },\n      }\n    )\n  );\n  return response.data; // Contient le statut 'COMPLETED', l'ID de capture, etc.\n}\n\n// paypal.controller.ts\n@Get('success')\nasync paypalSuccess(@Query('token') token: string, @Query('PayerID') payerId: string) {\n  // token correspond à l'ID de l'order PayPal\n  const captureResult = await this.paypalService.captureOrder(token);\n  \n  if (captureResult.status === 'COMPLETED') {\n    // Mettre à jour la commande en base de données (statut -> PAID)\n    const referenceId = captureResult.purchase_units[0].reference_id;\n    const internalOrderId = referenceId.split('_')[1];\n    await this.orderService.markAsPaid(parseInt(internalOrderId), captureResult.id);\n    return { message: 'Paiement réussi', orderId: internalOrderId };\n  } else {\n    throw new BadRequestException('Le paiement n\\'a pas pu être capturé');\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire les webhooks PayPal essentiels à implémenter et expliquer comment vérifier la signature du webhook pour sécuriser l'endpoint.",
+        "niveau": "very hard",
+        "reponse": "Webhooks essentiels :\n- `PAYMENT.CAPTURE.COMPLETED` : paiement réussi (fallback si l'utilisateur ferme la page avant la redirection).\n- `PAYMENT.CAPTURE.DENIED` : paiement refusé.\n- `PAYMENT.CAPTURE.REFUNDED` : remboursement effectué.\n\nVérification de la signature : PayPal envoie un header `PayPal-Auth-Alness` et `Transmission-Id`, `Transmission-Time`, `Cert-Url`, `Auth-Algo`. Votre endpoint doit :\n1. Récupérer ces headers.\n2. Récupérer le corps brut de la requête.\n3. Appeler l'API PayPal `/v1/notifications/verify-webhook-signature` avec ces informations.\n4. Si la réponse est `verification_status: 'SUCCESS'`, alors le webhook est authentique (provient bien de PayPal).\nSans cette vérification, un attaquant pourrait envoyer de faux webhooks pour marquer des commandes comme payées sans réel paiement.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des retours (success et cancel)",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'API PayPal redirige l'utilisateur vers les URLs configurées dans l'order (return_url et cancel_url). Voici les URLs configurées :</p>\n<pre><code>return_url: \"https://marketcamer.com/api/paypal/success\"\ncancel_url: \"https://marketcamer.com/api/paypal/cancel\"</code></pre>\n<p>L'utilisateur peut :</p>\n<ul>\n<li>Payer avec succès → redirection vers success avec token et PayerID.</li>\n<li>Annuler le paiement sur PayPal → redirection vers cancel.</li>\n<li>Fermer le navigateur avant la redirection → PayPal envoie un webhook plus tard.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer les approches : utiliser la redirection synchrone (success/cancel) vs uniquement les webhooks. Quels sont les avantages et inconvénients de chaque méthode ?",
+        "niveau": "hard",
+        "reponse": "Redirection synchrone : avantage - retour utilisateur immédiat, expérience utilisateur fluide. Inconvénient - fragile (si l'utilisateur ferme la fenêtre, le paiement peut être capturé mais l'utilisateur ne revient pas sur le site).\nWebhooks uniquement : avantage - fiable et asynchrone, garantit la notification même si l'utilisateur ferme le navigateur. Inconvénient - l'utilisateur doit manuellement retourner sur le site (perte de conversion).\nMeilleure pratique : combiner les DEUX. Redirection pour UX immédiate, webhook pour fiabilité et mise à jour en arrière-plan.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire le contrôleur pour l'URL de cancel. Que doit-on faire côté serveur lorsqu'un utilisateur annule son paiement ?",
+        "niveau": "easy",
+        "reponse": "```typescript\n@Get('cancel')\nasync paypalCancel(@Query('token') token: string) {\n  // Le paiement a été annulé par l'utilisateur sur PayPal\n  // On ne change PAS le statut de la commande (reste PENDING)\n  // On peut simplement rediriger l'utilisateur vers la page du panier\n  // avec un message d'information\n  \n  // Optionnel : récupérer l'order PayPal et le stocker comme \"annulé\" pour audit\n  return { message: 'Paiement annulé. Vous pouvez réessayer.' };\n  // Redirection : res.redirect('https://marketcamer.com/cart?payment_cancelled=true');\n}\n```\nLe serveur ne doit PAS modifier le statut de la commande. Le client peut réessayer le paiement avec le même panier.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des erreurs et des timeouts",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'intégration PayPal peut échouer pour plusieurs raisons : timeout réseau, API PayPal indisponible, token expiré, transaction refusée par la banque, etc. Vous devez anticiper ces erreurs et proposer une expérience utilisateur robuste.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une stratégie de retry (tentatives) pour la création et la capture d'order PayPal en cas d'échec temporaire (timeout, 503 Service Unavailable). Quel package NestJS peut aider ?",
+        "niveau": "hard",
+        "reponse": "Stratégie : utiliser un backoff exponentiel avec un nombre limité de tentatives (ex: 3 tentatives, délais 1s, 2s, 4s). Package `@nestjs/axios` avec intercepteurs ou utiliser `retry` d'axios. Exemple :\n```typescript\nimport { retry, retryWhen, delay, take } from 'rxjs/operators';\n\nconst response = await firstValueFrom(\n  this.httpService.post(url, body, config).pipe(\n    retryWhen(errors =>\n      errors.pipe(\n        delay(1000), // attendre 1s\n        take(3), // maximum 3 tentatives\n        // Après 3 échecs, l'erreur remonte\n      )\n    )\n  )\n);\n```\nImportant : ne pas retenter pour les erreurs 4xx (ex: token invalide, mauvaise requête) car elles ne se résoudront pas. Retenter uniquement pour 5xx, timeout, ECONNREFUSED.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Que faire si la création de l'order PayPal échoue (timeout) alors que la commande interne a déjà été créée en base de données ?",
+        "niveau": "medium",
+        "reponse": "La commande interne doit être créée AVANT d'appeler PayPal, avec le statut `PENDING`. Si l'appel PayPal échoue, la commande reste en `PENDING` (pas de paiement associé). L'utilisateur doit pouvoir réessayer le paiement (même commande) sans recréer une nouvelle commande. On peut soit :\n1. Réessayer automatiquement (retry policy) avant de montrer une erreur à l'utilisateur.\n2. Si tous les retries échouent, afficher un message invitant l'utilisateur à réessayer plus tard, en conservant la même commande.\n3. Mettre un flag `payment_attempts` sur la commande pour éviter des tentatives infinies.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

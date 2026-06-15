@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 5 : Les verbes HTTP - API .NET (ASP.NET Core)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin, mais pas indispensable pour cette leçon) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles personnalisés pour améliorer le rendu des slides et la navigation */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            transition: transform 0.4s ease-in-out, opacity 0.3s ease;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+            background-color: #1e40af;
+        }
+        .nav-btn:active {
+            transform: scale(0.98);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 {
+                font-size: 1.8rem !important;
+            }
+            h2 {
+                font-size: 1.4rem !important;
+            }
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge-http {
+            display: inline-block;
+            font-weight: bold;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+        }
+        .badge-get { background-color: #10b981; color: white; }
+        .badge-post { background-color: #3b82f6; color: white; }
+        .badge-put { background-color: #f59e0b; color: white; }
+        .badge-delete { background-color: #ef4444; color: white; }
+        .badge-patch { background-color: #8b5cf6; color: white; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur des slides avec navigation dynamique -->
+        <div class="relative">
+            <!-- Slides wrapper -->
+            <div id="slides-wrapper" class="overflow-hidden rounded-2xl">
+                <div id="slides-container" class="slide-container flex flex-col md:flex-row transition-all duration-500">
+                    <!-- Les slides seront générées dynamiquement avec jQuery -->
+                </div>
+            </div>
+
+            <!-- Indicateur de progression et boutons de navigation -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                <div class="flex gap-3">
+                    <button id="prevSlide" class="nav-btn bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">◀ Précédent</button>
+                    <button id="nextSlide" class="nav-btn bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">Suivant ▶</button>
+                </div>
+                <div class="w-full max-w-xs bg-gray-200 rounded-full h-2.5">
+                    <div id="progressFill" class="progress-bar bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <div id="slideCounter" class="text-sm font-medium text-gray-700 bg-white/60 px-3 py-1 rounded-full">Slide 1 / 1</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Données de la leçon 5 (basées sur l'objectif de la lesson5 : verbes HTTP)
+        // Titre principal et objectifs + contenu riche
+        const lessonData = {
+            title: "Les verbes HTTP : GET, POST, PUT, DELETE, PATCH",
+            subtitle: "Maîtriser les méthodes essentielles d'une API REST avec ASP.NET Core",
+            objectives: [
+                "🔹 Utiliser [HttpGet] pour récupérer des données",
+                "🔹 Utiliser [HttpPost], [HttpPut], [HttpDelete], [HttpPatch]",
+                "🔹 Comprendre la différence entre PUT (remplacement total) et PATCH (modification partielle)",
+                "🔹 Appliquer ces verbes dans un contrôleur .NET API"
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "📌 Qu'est-ce qu'un verbe HTTP ?",
+                    content: `
+                        <p class="text-gray-700 leading-relaxed">En HTTP, les <strong class="text-indigo-700">verbes (ou méthodes)</strong> indiquent l'action que l'on souhaite effectuer sur une ressource. Dans une API REST, chaque verbe correspond à une opération précise.</p>
+                        <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-indigo-50 p-4 rounded-xl border-l-8 border-indigo-500">
+                                <p class="font-bold text-indigo-800">📖 GET</p>
+                                <p class="text-sm">Lire / récupérer une ou plusieurs ressources.</p>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-xl border-l-8 border-blue-500">
+                                <p class="font-bold text-blue-800">✏️ POST</p>
+                                <p class="text-sm">Créer une nouvelle ressource.</p>
+                            </div>
+                            <div class="bg-amber-50 p-4 rounded-xl border-l-8 border-amber-500">
+                                <p class="font-bold text-amber-800">🔄 PUT</p>
+                                <p class="text-sm">Remplacer intégralement une ressource existante.</p>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-xl border-l-8 border-red-500">
+                                <p class="font-bold text-red-800">❌ DELETE</p>
+                                <p class="text-sm">Supprimer une ressource.</p>
+                            </div>
+                            <div class="bg-purple-50 p-4 rounded-xl border-l-8 border-purple-500 md:col-span-2">
+                                <p class="font-bold text-purple-800">🩹 PATCH</p>
+                                <p class="text-sm">Modifier partiellement une ressource (seulement certains champs).</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-sm bg-gray-100 p-3 rounded-lg italic">🎯 En ASP.NET Core, on utilise des attributs comme <code class="bg-gray-800 text-white px-1 rounded">[HttpGet]</code>, <code class="bg-gray-800 text-white px-1 rounded">[HttpPost]</code> dans nos contrôleurs.</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧩 GET : Récupérer des données",
+                    content: `
+                        <p class="mb-3">Le verbe <span class="badge-http badge-get">GET</span> est le plus courant. Il ne modifie jamais l'état du serveur (idempotent).</p>
+                        <div class="code-block">
+// Exemple dans un contrôleur ProductsController.cs
+[ApiController]
+[Route("api/[controller]")]
+public class ProductsController : ControllerBase
+{
+    // GET: api/products
+    [HttpGet]
+    public IActionResult GetAll()
+    {
+        var products = new[] { new { Id = 1, Name = "Laptop" }, new { Id = 2, Name = "Souris" } };
+        return Ok(products);
+    }
+
+    // GET: api/products/5
+    [HttpGet("{id}")]
+    public IActionResult GetById(int id)
+    {
+        // Logique pour récupérer un produit par son id
+        return Ok(new { Id = id, Name = "Produit exemple" });
+    }
+}
+                        </div>
+                        <p class="mt-3 text-gray-600">✅ On utilise <code>[HttpGet]</code> sans paramètre pour toute la collection, ou avec un template d'URL comme <code>"{id}"</code>.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "✏️ POST : Créer une ressource",
+                    content: `
+                        <p class="mb-3">Le verbe <span class="badge-http badge-post">POST</span> envoie des données au serveur pour créer un nouvel objet. Généralement on utilise <code>[FromBody]</code> pour lire le JSON.</p>
+                        <div class="code-block">
+[HttpPost]
+public IActionResult Create([FromBody] ProductDto newProduct)
+{
+    if (!ModelState.IsValid) return BadRequest(ModelState);
+    // Ici on ajoute en base de données (simulation)
+    newProduct.Id = 42; // id généré
+    return CreatedAtAction(nameof(GetById), new { id = newProduct.Id }, newProduct);
+}
+                        </div>
+                        <p class="mt-3 bg-green-50 p-3 rounded-lg text-green-800">📌 Retourne souvent un statut <strong>201 Created</strong> avec l'emplacement de la ressource créée.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔄 PUT vs 🩹 PATCH : différence cruciale",
+                    content: `
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="border border-amber-200 rounded-xl p-4 bg-amber-50">
+                                <div class="flex items-center gap-2"><span class="badge-http badge-put">PUT</span><h3 class="font-bold text-amber-800">Remplacement total</h3></div>
+                                <p class="text-sm mt-2">On envoie <strong>l'objet complet</strong> (tous les champs). Les champs omis deviennent null ou valeur par défaut.</p>
+                                <div class="text-xs font-mono bg-white p-2 rounded mt-2">PUT /api/products/5<br>{ "id": 5, "name": "Chaise", "price": 29.99 }</div>
+                            </div>
+                            <div class="border border-purple-200 rounded-xl p-4 bg-purple-50">
+                                <div class="flex items-center gap-2"><span class="badge-http badge-patch">PATCH</span><h3 class="font-bold text-purple-800">Modification partielle</h3></div>
+                                <p class="text-sm mt-2">On envoie <strong>seulement les champs à modifier</strong>. Idéal pour économiser la bande passante.</p>
+                                <div class="text-xs font-mono bg-white p-2 rounded mt-2">PATCH /api/products/5<br>[ { "op": "replace", "path": "/price", "value": 24.99 } ]</div>
+                                <p class="text-xs mt-1">(Format JSON Patch ou simple objet partiel)</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 bg-indigo-100 p-3 rounded-lg text-indigo-900">
+                            💡 <strong>Règle simple</strong> : Pour mettre à jour tout l'objet → PUT. Pour corriger un seul champ → PATCH.
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "❌ DELETE : Supprimer une ressource",
+                    content: `
+                        <p>Le verbe <span class="badge-http badge-delete">DELETE</span> supprime une ressource identifiée par son ID (ou critère).</p>
+                        <div class="code-block mt-3">
+[HttpDelete("{id}")]
+public IActionResult Delete(int id)
+{
+    // Logique de suppression (ex: appel au repository)
+    var existing = _productRepo.GetById(id);
+    if (existing == null) return NotFound();
+    
+    _productRepo.Remove(existing);
+    return NoContent(); // Status 204 (succès sans contenu)
+}
+                        </div>
+                        <p class="mt-3 text-gray-600">✔️ Le status retourné est souvent <strong>204 No Content</strong> ou <strong>200 OK</strong> avec un message optionnel.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚙️ Exemple complet - Tous les verbes ensemble",
+                    content: `
+                        <div class="code-block text-sm">
+[Route("api/[controller]")]
+[ApiController]
+public class TasksController : ControllerBase
+{
+    // GET: api/tasks
+    [HttpGet] public IActionResult Get() => Ok(new[] { "Tâche 1", "Tâche 2" });
+    
+    // GET: api/tasks/5
+    [HttpGet("{id}")] public IActionResult Get(int id) => Ok($"Tâche {id}");
+    
+    // POST: api/tasks
+    [HttpPost] public IActionResult Post([FromBody] string task) => Created("", task);
+    
+    // PUT: api/tasks/5
+    [HttpPut("{id}")] public IActionResult Put(int id, [FromBody] string updated) => Ok($"Remplacé {id} par {updated}");
+    
+    // PATCH: api/tasks/5
+    [HttpPatch("{id}")] public IActionResult Patch(int id, [FromBody] object partial) => Ok($"Modification partielle sur {id}");
+    
+    // DELETE: api/tasks/5
+    [HttpDelete("{id}")] public IActionResult Delete(int id) => NoContent();
+}
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2 justify-center">
+                            <span class="badge-http badge-get">GET</span>
+                            <span class="badge-http badge-post">POST</span>
+                            <span class="badge-http badge-put">PUT</span>
+                            <span class="badge-http badge-patch">PATCH</span>
+                            <span class="badge-http badge-delete">DELETE</span>
+                        </div>
+                        <p class="text-center text-gray-500 text-sm mt-2">✅ Chaque action correspond à une méthode HTTP bien précise !</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧪 Bonnes pratiques et pièges à éviter",
+                    content: `
+                        <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                            <li><strong>Idempotence</strong> : GET, PUT, DELETE sont idempotents (même appel plusieurs fois = même résultat). POST ne l'est pas.</li>
+                            <li><strong>Nommage des routes</strong> : utilisez des noms de ressources au pluriel (<code>/products</code> plutôt que <code>/product</code>).</li>
+                            <li><strong>Body dans DELETE</strong> : Évitez d'envoyer un corps avec DELETE, passez les infos dans l'URL ou en headers.</li>
+                            <li><strong>Retour HTTP adéquat</strong> : 200 OK, 201 Created, 204 No Content, 400 Bad Request, 404 Not Found.</li>
+                            <li><strong>Dans ASP.NET Core</strong> : l'attribut <code>[ApiController]</code> active la validation automatique et les réponses d'erreur standard.</li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-yellow-100 rounded-xl text-yellow-800 text-sm">
+                            ⚠️ Rappel: PUT remplace TOUTES les propriétés, PATCH modifie uniquement celles envoyées. Choisissez selon le besoin.
+                        </div>
+                    `
+                }
+            ]
+        };
+
+        let currentIndex = 0;
+        let totalSlides = 0;
+
+        // Construction HTML des slides
+        function buildSlides() {
+            const container = $("#slides-container");
+            container.empty();
+
+            // Slide 0 : Titre de la leçon
+            const titleSlide = $(`
+                <div class="slide w-full flex-shrink-0 p-6 md:p-10 transition-all duration-300">
+                    <div class="flex flex-col justify-center min-h-[55vh]">
+                        <div class="text-center">
+                            <span class="text-sm font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Leçon 5 · API .NET</span>
+                            <h1 class="text-4xl md:text-5xl font-extrabold mt-5 bg-gradient-to-r from-indigo-800 to-sky-600 bg-clip-text text-transparent">${escapeHtml(lessonData.title)}</h1>
+                            <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl mx-auto">${escapeHtml(lessonData.subtitle)}</p>
+                            <div class="mt-8 flex justify-center">
+                                <div class="bg-gray-100 p-4 rounded-2xl inline-block">
+                                    <p class="text-gray-500">🎯 Matière : ${escapeHtml("API .NET (ASP.NET Core)")} | Classe : Développement Web</p>
+                                </div>
+                            </div>
+                            <div class="mt-12">
+                                <button id="startBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105">Commencer la leçon →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+            container.append(titleSlide);
+
+            // Slide 1 : Objectifs pédagogiques
+            let objectivesHtml = `<ul class="space-y-4 text-lg">`;
+            lessonData.objectives.forEach(obj => {
+                objectivesHtml += `<li class="flex items-start gap-3"><span class="text-indigo-600 text-2xl">✓</span> <span class="text-gray-700">${escapeHtml(obj)}</span></li>`;
+            });
+            objectivesHtml += `</ul>`;
+            const objectivesSlide = $(`
+                <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                    <div class="flex flex-col min-h-[55vh]">
+                        <h2 class="text-3xl md:text-4xl font-bold text-indigo-800 border-b-4 border-indigo-300 pb-3 inline-block">🎯 Objectifs de la leçon</h2>
+                        <div class="mt-8">${objectivesHtml}</div>
+                        <div class="mt-auto pt-8 text-right text-gray-400 text-sm">Maîtrisez les verbes HTTP pour construire des APIs robustes</div>
+                    </div>
+                </div>
+            `);
+            container.append(objectivesSlide);
+
+            // Slides de contenu
+            lessonData.slides.forEach(slide => {
+                const contentSlide = $(`
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <div class="flex flex-col min-h-[55vh]">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-5 flex items-center gap-2">📖 ${escapeHtml(slide.title)}</h2>
+                            <div class="prose prose-indigo max-w-none">${slide.content}</div>
+                            <div class="mt-6 text-xs text-gray-400 border-t pt-3 text-right">Leçon 5 · API .NET</div>
+                        </div>
+                    </div>
+                `);
+                container.append(contentSlide);
+            });
+
+            totalSlides = container.children().length;
+            updateSlideCounterAndProgress();
+            updateNavButtonsState();
+            // Positionner la première slide visible
+            goToSlide(0);
+        }
+
+        // Navigation
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentIndex = index;
+            const slideWidth = $("#slides-container .slide").outerWidth();
+            const containerWidth = $("#slides-wrapper").width();
+            // Défilement horizontal (flex row)
+            const translateX = - (currentIndex * slideWidth);
+            $("#slides-container").css("transform", `translateX(${translateX}px)`);
+            updateSlideCounterAndProgress();
+            updateNavButtonsState();
+        }
+
+        function updateSlideCounterAndProgress() {
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const percent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", percent + "%");
+        }
+
+        function updateNavButtonsState() {
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+        }
+
+        function escapeHtml(str) {
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        $(document).ready(function() {
+            buildSlides();
+
+            // Gestion du démarrage : slide 1 (index 0 = titre, on va à l'index 1 objectifs)
+            $(document).on('click', '#startBtn', function() {
+                goToSlide(1);
+            });
+
+            $("#nextSlide").on("click", function() {
+                if (currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+            });
+            $("#prevSlide").on("click", function() {
+                if (currentIndex > 0) goToSlide(currentIndex - 1);
+            });
+
+            // Ajustement au redimensionnement pour recalculer la translation
+            let resizeTimer;
+            $(window).on("resize", function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    const slideWidth = $("#slides-container .slide").outerWidth();
+                    const translateX = - (currentIndex * slideWidth);
+                    $("#slides-container").css("transform", `translateX(${translateX}px)`);
+                }, 100);
+            });
+
+            // Support clavier (flèches droite/gauche)
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowRight") {
+                    $("#nextSlide").click();
+                    e.preventDefault();
+                } else if (e.key === "ArrowLeft") {
+                    $("#prevSlide").click();
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+    <footer class="text-center text-gray-500 text-xs py-6 border-t mt-8 max-w-5xl mx-auto">
+        Cours conçu pour la classe Développement Web (Cameroun) - Matière : API .NET (ASP.NET Core) - Leçon 5 : Verbes HTTP
+    </footer>
+</body>
+</html>

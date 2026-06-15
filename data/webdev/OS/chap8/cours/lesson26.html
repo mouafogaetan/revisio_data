@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Lesson 26 : Authentification & Contrôle d'accès | OS</title>
+  <!-- Tailwind CSS + Font Awesome (pour icônes) + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- personnalisation légère du thème pour meilleure lisibilité -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1e3a8a',    // bleu profond
+            secondary: '#0f766e',  // teal
+            accent: '#f59e0b',     // orange doux
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (au cas où des formules apparaîtraient dans cette leçon) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* styles doux pour le slide actif, transitions */
+    .slide {
+      transition: opacity 0.3s ease-in-out, transform 0.2s;
+    }
+    .slide.hidden-slide {
+      display: none;
+    }
+    body {
+      background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    .card-slide {
+      backdrop-filter: blur(2px);
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    .nav-btn {
+      transition: all 0.2s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.05);
+      background-color: #1e293b;
+      color: white;
+    }
+    /* meilleur padding sur mobile */
+    @media (max-width: 640px) {
+      .card-slide {
+        border-radius: 1.5rem;
+      }
+      h1, h2, h3 {
+        word-break: break-word;
+      }
+    }
+    /* pour les objectifs listes */
+    .objective-list li {
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .objective-list li i {
+      margin-top: 0.2rem;
+    }
+    .code-block {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <!-- en-tête avec progression et titre de la matière -->
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div class="bg-white/70 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-sm text-sm font-medium text-gray-700">
+        <i class="fas fa-book-open mr-2 text-primary"></i> Initiation aux Systèmes d'exploitation
+      </div>
+      <div class="bg-white/70 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium text-gray-700">
+        <i class="fas fa-chalkboard-teacher mr-2 text-secondary"></i> Lesson 26 : Sécurité & accès
+      </div>
+    </div>
+
+    <!-- Slides container -->
+    <div id="slides-container" class="relative">
+      <!-- Les slides seront injectées ici dynamiquement via jQuery -->
+    </div>
+
+    <!-- Navigation + indicateur de page -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+      <button id="prev-slide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-2.5 px-6 rounded-full shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <i class="fas fa-chevron-left"></i> Précédent
+      </button>
+      <div class="text-sm bg-white/60 rounded-full px-4 py-2 font-mono">
+        <span id="current-slide-idx">1</span> / <span id="total-slides">0</span>
+      </div>
+      <button id="next-slide" class="nav-btn bg-primary hover:bg-blue-800 text-white font-semibold py-2.5 px-6 rounded-full shadow-md transition flex items-center gap-2">
+        Suivant <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // Données de la Lesson 26 d'après le programme JSON
+    // Objectifs officiels extraits du chapitre "chap8" / lesson26
+    // --------------------------------------------------------------
+    const lessonData = {
+      idLesson: "lesson26",
+      titre: "Protection de l'OS : Authentification et Contrôle d'accès",
+      chapitre: "Chap 8 – Protéger l'OS contre les menaces",
+      objectifs: [
+        "Comprendre l'authentification (mot de passe, biométrie, 2FA)",
+        "Maîtriser les modèles de contrôle d'accès (DAC, MAC, RBAC)",
+        "Comprendre les listes de contrôle d'accès (ACL)"
+      ],
+      // Contenu structuré pour les slides 3 à N
+      sections: [
+        {
+          titre: "🔐 Qu'est-ce que l'authentification ?",
+          contenu: `<p class="mb-3">L'authentification est le processus qui permet de vérifier l'identité d'un utilisateur avant de lui donner accès au système. Un système d'exploitation doit s'assurer que la personne (ou le programme) est bien celui qu'il prétend être.</p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg my-4">
+                      <p class="font-semibold"><i class="fas fa-lightbulb text-blue-600 mr-2"></i> Trois grands facteurs d'authentification :</p>
+                      <ul class="list-disc ml-6 mt-2 space-y-1">
+                        <li><span class="font-medium">◾ Quelque chose que l'on sait</span> : mot de passe, code PIN.</li>
+                        <li><span class="font-medium">◾ Quelque chose que l'on possède</span> : carte à puce, jeton, téléphone (2FA).</li>
+                        <li><span class="font-medium">◾ Quelque chose que l'on est</span> : empreinte digitale, reconnaissance faciale (biométrie).</li>
+                      </ul>
+                    </div>
+                    <p><strong>Exemple concret :</strong> Sur Linux, la vérification se fait avec <code class="bg-gray-200 px-1 rounded">/etc/shadow</code> où les mots de passe sont hachés. Windows utilise également le hachage NTLM ou Kerberos dans un domaine. La double authentification (2FA) ajoute une couche de sécurité supplémentaire, très utilisée aujourd'hui (Google Authenticator, SMS, etc.).</p>`
+        },
+        {
+          titre: "🏛️ Modèles de contrôle d'accès : DAC, MAC, RBAC",
+          contenu: `<p>Une fois l'utilisateur authentifié, le système doit déterminer <strong>ce qu'il a le droit de faire</strong> (lire, écrire, exécuter). Il existe plusieurs modèles :</p>
+                    <div class="grid md:grid-cols-3 gap-4 my-5">
+                      <div class="bg-white rounded-xl shadow p-4 border-t-4 border-amber-500">
+                        <i class="fas fa-user-lock text-2xl text-amber-600 mb-2"></i>
+                        <h4 class="font-bold text-lg">DAC (Discretionary Access Control)</h4>
+                        <p class="text-sm text-gray-600">Le propriétaire d’un fichier décide qui peut y accéder. Très flexible (ex: permissions UNIX rwx).</p>
+                      </div>
+                      <div class="bg-white rounded-xl shadow p-4 border-t-4 border-red-500">
+                        <i class="fas fa-shield-alt text-2xl text-red-600 mb-2"></i>
+                        <h4 class="font-bold text-lg">MAC (Mandatory Access Control)</h4>
+                        <p class="text-sm text-gray-600">Système imposé par l'OS ou l'administrateur. Basé sur des étiquettes de sécurité (ex: SELinux, niveau secret / top secret).</p>
+                      </div>
+                      <div class="bg-white rounded-xl shadow p-4 border-t-4 border-green-600">
+                        <i class="fas fa-users text-2xl text-green-600 mb-2"></i>
+                        <h4 class="font-bold text-lg">RBAC (Role-Based Access Control)</h4>
+                        <p class="text-sm text-gray-600">Les droits sont attribués selon des rôles (responsable RH, administrateur, utilisateur standard). Très utilisé dans les entreprises.</p>
+                      </div>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg italic text-sm">💡 <strong>À retenir :</strong> Dans un système UNIX classique, on utilise souvent DAC avec <code>chmod</code>. Des extensions comme SELinux ou AppArmor apportent du MAC sur Linux.</div>`
+        },
+        {
+          titre: "📋 Listes de Contrôle d'Accès (ACL – Access Control Lists)",
+          contenu: `<p>Les ACL offrent un contrôle plus précis que les droits UNIX standards (lecture/écriture/exécution pour propriétaire/groupe/autres). Elles permettent d'attribuer des permissions à des utilisateurs ou groupes spécifiques.</p>
+                    <div class="my-4">
+                      <div class="code-block">
+                        # Exemple sous Linux (getfacl / setfacl)<br>
+                        $ setfacl -m u:alice:rw- document.txt<br>
+                        $ getfacl document.txt<br>
+                        # file: document.txt<br>
+                        # owner: bob<br>
+                        user::rw-<br>
+                        user:alice:rw-<br>
+                        group::r--<br>
+                        mask::rw-<br>
+                        other::---
+                      </div>
+                    </div>
+                    <p><i class="fas fa-check-circle text-green-600"></i> <strong>Avantages des ACL</strong> : donner un accès en lecture à un collègue sans le mettre dans un groupe spécifique, ou définir des permissions plus granulaires (ex: accès en écriture pour certains et lecture seule pour d’autres). Windows utilise également des ACL via l’onglet "Sécurité" des propriétés d’un fichier.</p>
+                    <div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400 mt-3">⚠️ Attention : une ACL trop complexe peut nuire à la lisibilité, mais reste un outil puissant dans les environnements multi-utilisateurs.</div>`
+        },
+        {
+          titre: "🛡️ Sécurité des mots de passe & bonnes pratiques",
+          contenu: `<p>Les mots de passe restent le mécanisme le plus commun. L'OS doit les stocker de façon sécurisée :</p>
+                    <ul class="list-disc pl-6 space-y-2">
+                      <li><strong>Hachage + sel</strong> : empêche l'utilisation de tables rainbow (ex: SHA-512, bcrypt).</li>
+                      <li><strong>Politique de mot de passe</strong> : longueur minimale, complexité (majuscules, chiffres).</li>
+                      <li><strong>Limitation des tentatives</strong> : après 3 échecs, temporisation ou verrouillage.</li>
+                    </ul>
+                    <p class="mt-3">Les OS modernes proposent aussi Windows Hello, Touch ID, ou encore l'authentification par clé de sécurité (FIDO2).</p>
+                    <div class="flex flex-wrap gap-3 mt-4">
+                      <span class="bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full">🔑 Ne jamais stocker en clair</span>
+                      <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">🧂 Ajouter un sel unique par utilisateur</span>
+                      <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full">🔄 Changer régulièrement</span>
+                    </div>`
+        },
+        {
+          titre: "📊 Tableau récapitulatif des modèles d'accès",
+          contenu: `<div class="overflow-x-auto">
+                      <table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-md text-sm">
+                        <thead class="bg-gray-100">
+                          <tr><th class="px-4 py-2 border">Modèle</th><th class="px-4 py-2 border">Flexibilité</th><th class="px-4 py-2 border">Sécurité</th><th class="px-4 py-2 border">Exemple OS</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr class="border-b"><td class="px-4 py-2 font-medium">DAC</td><td class="px-4 py-2">Élevée (utilisateur maître)</td><td class="px-4 py-2">Moyenne</td><td class="px-4 py-2">Linux, Windows</td></tr>
+                          <tr class="border-b"><td class="px-4 py-2 font-medium">MAC</td><td class="px-4 py-2">Forte (contrôle central)</td><td class="px-4 py-2">Très élevée</td><td class="px-4 py-2">SELinux, Trusted Solaris</td></tr>
+                          <tr><td class="px-4 py-2 font-medium">RBAC</td><td class="px-4 py-2">Moyenne (gestion par rôles)</td><td class="px-4 py-2">Élevée</td><td class="px-4 py-2">Windows AD, bases de données</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-4"><i class="fas fa-info-circle"></i> Les systèmes modernes combinent souvent plusieurs modèles : par exemple, Linux a des droits DAC de base + SELinux (MAC) et peut intégrer RBAC via des rôles.</p>`
+        },
+        {
+          titre: "🔎 En résumé & application pratique",
+          contenu: `<p>✔️ <strong>Authentification</strong> = Qui êtes-vous ? (pwd, biométrie, 2FA)<br>
+                    ✔️ <strong>Contrôle d'accès</strong> = Qu'avez-vous le droit de faire ?<br>
+                    ✔️ <strong>DAC</strong> : le propriétaire décide ; <strong>MAC</strong> : politique centrale obligatoire ; <strong>RBAC</strong> : basé sur des rôles métiers.<br>
+                    ✔️ <strong>ACL</strong> : liste détaillée de permissions par utilisateur/groupe.</p>
+                    <div class="bg-primary/10 p-4 rounded-xl mt-4">
+                      <p class="font-semibold"><i class="fas fa-tasks text-primary mr-2"></i> Exercice réflexe :</p>
+                      <p>Sur votre ordinateur, examinez les permissions d’un fichier. Sous Linux : <code class="bg-gray-200 px-1 rounded">ls -l</code> puis <code class="bg-gray-200 px-1 rounded">getfacl</code> s'il y a des ACL. Identifiez si c'est du DAC ou une surcouche MAC. Sur Windows, cliquez-droit > Propriétés > Sécurité. Observez les ACL.</p>
+                    </div>`
+        }
+      ]
+    };
+
+    // Construction des slides :
+    // Slide 1 : Titre principal + chapitre
+    // Slide 2 : Objectifs (les 3 objectifs de la leçon)
+    // Slides 3 à ... : sections de contenu définies plus haut.
+    const slides = [];
+
+    // Slide 1 : introduction / titre
+    slides.push({
+      type: "title",
+      content: `
+        <div class="text-center py-6 md:py-10">
+          <div class="inline-block bg-primary/10 rounded-full px-4 py-1 text-primary text-sm font-semibold mb-4">${lessonData.chapitre}</div>
+          <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">${lessonData.titre}</h1>
+          <div class="mt-6 flex justify-center gap-4 text-gray-600">
+            <span class="flex items-center"><i class="fas fa-shield-alt mr-2 text-secondary"></i> Sécurité système</span>
+            <span class="flex items-center"><i class="fas fa-fingerprint mr-2 text-secondary"></i> Authentification & ACL</span>
+          </div>
+          <div class="mt-8 w-24 h-1 bg-accent mx-auto rounded-full"></div>
+          <p class="mt-6 text-gray-500 max-w-lg mx-auto">Maîtrisez les bases de la protection des accès dans un OS.</p>
+        </div>
+      `
+    });
+
+    // Slide 2 : Objectifs pédagogiques (selon données du programme officiel)
+    slides.push({
+      type: "objectives",
+      content: `
+        <div class="p-2">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="bg-accent/20 p-3 rounded-full"><i class="fas fa-bullseye text-accent text-2xl"></i></div>
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+          </div>
+          <ul class="objective-list space-y-4">
+            ${lessonData.objectifs.map(obj => `<li class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-secondary"><i class="fas fa-check-circle text-secondary text-xl mr-3"></i><span class="text-gray-700">${obj}</span></li>`).join('')}
+          </ul>
+          <div class="mt-6 text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg">
+            <i class="fas fa-graduation-cap mr-1"></i> À la fin de cette leçon, vous saurez expliquer et différencier les mécanismes d'authentification et de contrôle d'accès.
+          </div>
+        </div>
+      `
+    });
+
+    // Slides de contenu : à partir des sections
+    lessonData.sections.forEach((section, idx) => {
+      slides.push({
+        type: "content",
+        title: section.titre,
+        body: section.contenu
+      });
+    });
+
+    // Ajout éventuel d'un slide de conclusion si besoin, mais déjà inclus dans la dernière section
+
+    // Rendu global des slides dans le DOM
+    let currentSlideIndex = 0;
+    let totalSlides = slides.length;
+
+    function renderSlides() {
+      const container = $("#slides-container");
+      container.empty();
+      slides.forEach((slide, i) => {
+        let slideHtml = '';
+        if (slide.type === 'title') {
+          slideHtml = `<div class="slide hidden-slide card-slide bg-white rounded-2xl p-6 md:p-10 shadow-xl transition-all" data-slide-index="${i}">${slide.content}</div>`;
+        } else if (slide.type === 'objectives') {
+          slideHtml = `<div class="slide hidden-slide card-slide bg-white rounded-2xl p-6 md:p-8 shadow-xl" data-slide-index="${i}">${slide.content}</div>`;
+        } else {
+          // content classique
+          slideHtml = `
+            <div class="slide hidden-slide card-slide bg-white rounded-2xl p-6 md:p-8 shadow-xl" data-slide-index="${i}">
+              <div class="flex items-center gap-3 mb-5 border-b pb-3 border-gray-200">
+                <i class="fas fa-chalkboard text-primary text-xl"></i>
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+              </div>
+              <div class="prose max-w-none text-gray-700 leading-relaxed">
+                ${slide.body}
+              </div>
+            </div>
+          `;
+        }
+        container.append(slideHtml);
+      });
+      updateSlideVisibility();
+      updatePagination();
+    }
+
+    function updateSlideVisibility() {
+      $(".slide").each(function(idx) {
+        const slideEl = $(this);
+        if (idx === currentSlideIndex) {
+          slideEl.removeClass("hidden-slide").css("display", "block");
+        } else {
+          slideEl.addClass("hidden-slide").css("display", "none");
+        }
+      });
+      // déclencher un event pour rafraîchir MathJax si jamais des formules apparaissent (optionnel)
+      if (window.MathJax) {
+        MathJax.typesetPromise && MathJax.typesetPromise();
+      }
+    }
+
+    function updatePagination() {
+      $("#current-slide-idx").text(currentSlideIndex + 1);
+      $("#total-slides").text(totalSlides);
+      // gestion disabled des boutons
+      $("#prev-slide").prop("disabled", currentSlideIndex === 0);
+      $("#next-slide").prop("disabled", currentSlideIndex === totalSlides - 1);
+    }
+
+    function goNext() {
+      if (currentSlideIndex < totalSlides - 1) {
+        currentSlideIndex++;
+        updateSlideVisibility();
+        updatePagination();
+        // scroll en haut pour le confort mobile
+        $('html, body').animate({ scrollTop: $("#slides-container").offset().top - 20 }, 200);
+      }
+    }
+
+    function goPrev() {
+      if (currentSlideIndex > 0) {
+        currentSlideIndex--;
+        updateSlideVisibility();
+        updatePagination();
+        $('html, body').animate({ scrollTop: $("#slides-container").offset().top - 20 }, 200);
+      }
+    }
+
+    // Événements clavier (gauche/droite)
+    $(document).on("keydown", function(e) {
+      if (e.key === "ArrowLeft") {
+        goPrev();
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        goNext();
+        e.preventDefault();
+      }
+    });
+
+    $("#next-slide").on("click", goNext);
+    $("#prev-slide").on("click", goPrev);
+
+    // dessin simple d'un petit schema pour illustrer? optionnel: mais nous ajoutons seulement une image minimaliste de type ACL?
+    // On peut dessiner via canvas un petit schema : pas obligatoire mais pour enrichir, on va insérer dans un slide un mini SVG
+    // Pour être conforme à la consigne "si nécessaire dessiner toi-même", dans un des slides nous allons ajouter un petit diagramme SVG simple pour le contrôle d'accès.
+    // On va insérer un petit schéma dans le slide des ACL (contenu slide index correspondant aux ACL).
+    // après render, injecter un mini diagramme dessiné maison.
+    setTimeout(() => {
+      // Trouver le slide qui contient "Listes de Contrôle d'Accès (ACL)" pour lui ajouter un dessin simple dans la partie basse
+      $(".slide").each(function(idx) {
+        const slideContent = $(this).html();
+        if (slideContent && slideContent.includes("Listes de Contrôle d'Accès (ACL)")) {
+          // on ajoute un SVG dessin simple représentant un ACL
+          const svgSchema = `
+            <div class="mt-6 bg-gray-50 p-4 rounded-lg text-center">
+              <p class="font-semibold text-sm mb-2"><i class="fas fa-diagram-project"></i> Illustration simplifiée d'une ACL :</p>
+              <svg width="100%" height="130" viewBox="0 0 500 100" xmlns="http://www.w3.org/2000/svg" class="mx-auto max-w-full">
+                <rect x="10" y="20" width="90" height="40" fill="#3b82f6" rx="8" />
+                <text x="55" y="45" fill="white" font-size="12" text-anchor="middle">Fichier X</text>
+                <line x1="100" y1="40" x2="140" y2="40" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+                <rect x="150" y="10" width="100" height="30" fill="#f97316" rx="6" />
+                <text x="200" y="30" fill="white" font-size="11" text-anchor="middle">Alice (rw-)</text>
+                <rect x="150" y="50" width="100" height="30" fill="#10b981" rx="6" />
+                <text x="200" y="70" fill="white" font-size="11" text-anchor="middle">Bob (r--)</text>
+                <rect x="320" y="30" width="100" height="40" fill="#8b5cf6" rx="8" />
+                <text x="370" y="55" fill="white" font-size="12" text-anchor="middle">Groupe dev (rwx)</text>
+                <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#333"/></marker></defs>
+              </svg>
+              <p class="text-xs text-gray-500 mt-2">Chaque entrée spécifie un utilisateur ou groupe avec ses droits.</p>
+            </div>
+          `;
+          // on l'ajoute à la fin du contenu du slide sans détruire l'existant
+          const existingBody = $(this).find('.prose');
+          if(existingBody.length) {
+            existingBody.append(svgSchema);
+          } else {
+            $(this).append(svgSchema);
+          }
+        }
+      });
+    }, 100);
+    
+    // Lancer le rendu initial
+    renderSlides();
+
+    // petite correction mobile pour éviter les débordements
+    $(window).on('resize', function() {
+      if (window.MathJax) MathJax.typesetPromise && MathJax.typesetPromise();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Node.js - Lesson 29 : Tests d'API avec Supertest</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax for LaTeX -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Custom transitions for slides */
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        /* Custom scrollbar for better UX */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Slides Container -->
+        <div id="slides-container" class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            
+            <!-- SLIDE 1 : Titre de la leçon -->
+            <div class="slide active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                    <span class="badge mb-4">Node.js • Backend</span>
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-700 mb-4">
+                        Tests d'API avec Supertest
+                    </h1>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                        Automatiser les tests de vos routes Express • Base de données de test • Cycle complet
+                    </p>
+                    <div class="mt-12 flex gap-3 text-sm text-gray-500">
+                        <span>🎯 Lesson 29</span>
+                        <span>⚡ Tester pour mieux déployer</span>
+                        <span>🧪 Backend robuste</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs pédagogiques -->
+            <div class="slide p-6 md:p-10" data-slide="1">
+                <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-4 mb-8">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-blue-50 p-5 rounded-xl">
+                        <div class="font-bold text-blue-800 text-lg mb-2">📌 1. Supertest & Express</div>
+                        <p class="text-gray-700">Tester les routes API avec <code class="bg-gray-200 px-1 rounded">supertest</code> sans avoir à lancer manuellement le serveur.</p>
+                    </div>
+                    <div class="bg-blue-50 p-5 rounded-xl">
+                        <div class="font-bold text-blue-800 text-lg mb-2">🗄️ 2. Base de données de test</div>
+                        <p class="text-gray-700">Configurer une base isolée (MongoDB ou PostgreSQL) pour les tests.</p>
+                    </div>
+                    <div class="bg-blue-50 p-5 rounded-xl">
+                        <div class="font-bold text-blue-800 text-lg mb-2">🔄 3. Cycle complet</div>
+                        <p class="text-gray-700">Tester l’authentification, les opérations CRUD et la validation des réponses.</p>
+                    </div>
+                    <div class="bg-blue-50 p-5 rounded-xl">
+                        <div class="font-bold text-blue-800 text-lg mb-2">✅ 4. Bonnes pratiques</div>
+                        <p class="text-gray-700">Isoler les tests, nettoyer la base après chaque test, utiliser des <em>hooks</em> (beforeEach, afterAll).</p>
+                    </div>
+                </div>
+                <div class="mt-8 p-4 bg-indigo-100 rounded-lg text-indigo-800 text-center">
+                    💡 Objectif final : Savoir écrire des tests automatisés fiables pour une API REST.
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Qu'est-ce que Supertest ? -->
+            <div class="slide p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🧪 Supertest : Tester les requêtes HTTP</h2>
+                <p class="text-gray-700 mb-4 leading-relaxed"><strong>Supertest</strong> est une bibliothèque qui permet de simuler des requêtes HTTP sur une application Express (ou tout autre serveur Node) sans avoir à écouter sur un port réel. Idéal pour les tests d'intégration.</p>
+                <div class="bg-gray-900 rounded-xl p-4 text-white font-mono text-sm overflow-x-auto mb-4">
+                    <pre>const request = require('supertest');
+const app = require('../app');
+
+describe('GET /api/users', () => {
+  it('retourne la liste des utilisateurs', async () => {
+    const res = await request(app)
+      .get('/api/users')
+      .expect(200);
+    expect(res.body).toBeInstanceOf(Array);
+  });
+});</pre>
+                </div>
+                <div class="flex flex-wrap gap-3 mt-4">
+                    <div class="bg-green-100 p-3 rounded-lg flex-1">✅ <strong>Avantage :</strong> Pas besoin de serveur réel</div>
+                    <div class="bg-green-100 p-3 rounded-lg flex-1">⚡ <strong>Rapide</strong> et facile à intégrer avec Jest</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : Mise en place d'une base de données de test -->
+            <div class="slide p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🗄️ Base de données de test</h2>
+                <p class="text-gray-700 mb-3">Pour ne pas polluer votre base de développement, on utilise une base dédiée (par exemple <code>mydb_test</code>).</p>
+                <div class="code-block">
+                    // config/testDB.js (avec Mongoose)
+                    const mongoose = require('mongoose');
+                    const { MongoMemoryServer } = require('mongodb-memory-server');
+                    
+                    let mongoServer;
+                    
+                    beforeAll(async () => {
+                      mongoServer = await MongoMemoryServer.create();
+                      const uri = mongoServer.getUri();
+                      await mongoose.connect(uri);
+                    });
+                    
+                    afterAll(async () => {
+                      await mongoose.disconnect();
+                      await mongoServer.stop();
+                    });
+                </div>
+                <p class="text-gray-700 mt-3">💡 <strong>Alternative :</strong> Une base de données PostgreSQL de test gérée avec <code>dotenv</code> et <code>NODE_ENV=test</code>.</p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3">
+                    <p class="text-yellow-800">✨ Astuce : Utilisez <code>.env.test</code> pour charger des variables spécifiques aux tests.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Tester le cycle complet (CRUD + Auth) -->
+            <div class="slide p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔄 Cycle complet : Authentification + CRUD</h2>
+                <p class="text-gray-700 mb-3">Exemple de test d'une API de gestion de tâches : création d'un utilisateur → connexion → création d'une tâche → récupération.</p>
+                <div class="code-block text-sm">
+                    <pre>describe('Todo API - Cycle complet', () => {
+  let token;
+  let userId;
+
+  test('Inscription utilisateur', async () => {
+    const res = await request(app).post('/api/register').send({
+      email: 'test@example.com',
+      password: '123456'
+    });
+    expect(res.statusCode).toBe(201);
+    userId = res.body.id;
+  });
+
+  test('Connexion et récupération du token JWT', async () => {
+    const res = await request(app).post('/api/login').send({
+      email: 'test@example.com',
+      password: '123456'
+    });
+    token = res.body.token;
+    expect(token).toBeDefined();
+  });
+
+  test('Créer une tâche avec le token', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Apprendre Supertest', completed: false });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.title).toBe('Apprendre Supertest');
+  });
+});</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Nettoyage et hooks Jest -->
+            <div class="slide p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🧹 Nettoyage entre les tests</h2>
+                <p class="text-gray-700 mb-3">Jest propose des hooks (beforeEach, afterEach) pour remettre la base dans un état connu.</p>
+                <div class="code-block">
+                    beforeEach(async () => {
+                      // Supprimer toutes les collections avant chaque test
+                      const collections = mongoose.connection.collections;
+                      for (const key in collections) {
+                        await collections[key].deleteMany();
+                      }
+                    });
+                    
+                    afterAll(async () => {
+                      await mongoose.connection.close();
+                    });
+                </div>
+                <div class="grid md:grid-cols-2 gap-4 mt-5">
+                    <div class="bg-gray-100 p-3 rounded">✅ <strong>beforeEach</strong> : exécuté avant chaque test → base propre</div>
+                    <div class="bg-gray-100 p-3 rounded">✅ <strong>afterAll</strong> : fermeture des connexions après tous les tests</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Exercice pratique -->
+            <div class="slide p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">✏️ Exercice : Tester une route protégée</h2>
+                <div class="bg-white border-2 border-dashed border-blue-300 rounded-xl p-5">
+                    <p class="font-semibold text-gray-800">Consigne : Écrire un test complet pour une route <code>GET /api/profile</code> qui nécessite un JWT valide.</p>
+                    <ul class="list-disc list-inside mt-3 space-y-2 text-gray-700">
+                        <li>1. Créer un utilisateur via <code>/register</code></li>
+                        <li>2. Récupérer le token via <code>/login</code></li>
+                        <li>3. Tester <code>/api/profile</code> avec le bon token → statut 200</li>
+                        <li>4. Tester <code>/api/profile</code> sans token → statut 401</li>
+                    </ul>
+                    <button id="showSolution" class="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition">🔍 Voir une solution type</button>
+                    <div id="solutionDiv" class="mt-4 hidden code-block text-sm">
+                        <pre>it('devrait retourner le profil utilisateur avec un token valide', async () => {
+  // 1. Inscription
+  await request(app).post('/api/register').send({ email: 'paul@mail.com', password: 'secret' });
+  // 2. Login
+  const loginRes = await request(app).post('/api/login').send({ email: 'paul@mail.com', password: 'secret' });
+  const token = loginRes.body.token;
+  // 3. Récupération du profil
+  const profileRes = await request(app)
+    .get('/api/profile')
+    .set('Authorization', `Bearer ${token}`);
+  expect(profileRes.statusCode).toBe(200);
+  expect(profileRes.body.email).toBe('paul@mail.com');
+  
+  // 4. Sans token
+  const failRes = await request(app).get('/api/profile');
+  expect(failRes.statusCode).toBe(401);
+});</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Récapitulatif -->
+            <div class="slide p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📌 Points clés à retenir</h2>
+                <div class="space-y-3">
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 text-xl">✅</span>
+                        <span><strong>Supertest</strong> + Jest = combinaison puissante pour tester une API Express.</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 text-xl">✅</span>
+                        <span>Utiliser une <strong>base de données de test</strong> (ou in-memory) pour éviter les effets de bord.</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 text-xl">✅</span>
+                        <span>Tester le <strong>cycle complet</strong> (authentification → requêtes authentifiées → validation des données).</span>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <span class="text-green-600 text-xl">✅</span>
+                        <span>Nettoyer l’état entre les tests avec <code>beforeEach</code> / <code>afterEach</code>.</span>
+                    </div>
+                </div>
+                <div class="mt-8 p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl text-center">
+                    🚀 Un code bien testé est un code fiable en production !
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center p-5 bg-gray-50 border-t border-gray-200">
+                <button id="prevBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-5 rounded-l-lg disabled:opacity-50 transition">⬅ Précédent</button>
+                <span id="slideCounter" class="text-sm text-gray-600">Slide 1 / 8</span>
+                <button id="nextBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-r-lg transition">Suivant ➡</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const totalSlides = slides.length;
+            
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentSlide]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentSlide+1} / ${totalSlides}`);
+                // Désactiver le bouton précédent si première slide
+                if (currentSlide === 0) {
+                    $('#prevBtn').prop('disabled', true).addClass('opacity-50');
+                } else {
+                    $('#prevBtn').prop('disabled', false).removeClass('opacity-50');
+                }
+                // Désactiver suivant si dernière slide
+                if (currentSlide === totalSlides - 1) {
+                    $('#nextBtn').prop('disabled', true).addClass('opacity-50');
+                } else {
+                    $('#nextBtn').prop('disabled', false).removeClass('opacity-50');
+                }
+                // Re-render MathJax sur le nouveau slide actif
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            }
+            
+            $('#nextBtn').click(function() {
+                if (currentSlide < totalSlides - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+            
+            $('#prevBtn').click(function() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+            
+            // Gestion de la solution dans l'exercice
+            $('#showSolution').click(function() {
+                $('#solutionDiv').toggleClass('hidden');
+                if(!$('#solutionDiv').hasClass('hidden')) {
+                    $(this).text('🙈 Cacher la solution');
+                } else {
+                    $(this).text('🔍 Voir une solution type');
+                }
+            });
+            
+            // Initialisation
+            updateSlides();
+        });
+    </script>
+
+    <!-- Petit pied de page -->
+    <div class="text-center text-gray-400 text-sm mt-6">
+        © Enseignant Cameroun - Cours Node.js | Tests API avec Supertest & Jest
+    </div>
+</body>
+</html>

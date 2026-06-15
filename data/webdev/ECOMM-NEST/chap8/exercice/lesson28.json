@@ -1,0 +1,127 @@
+[
+  {
+    "intitule": "Analyse des contraintes métier des avis clients",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Une plateforme e-commerce souhaite implémenter un système d'avis clients avec les règles métier suivantes :</p>\n<ul>\n<li>Un client ne peut laisser un avis que sur un produit qu'il a effectivement acheté (commande livrée).</li>\n<li>Un client ne peut laisser qu'un seul avis par produit (pas de doublon).</li>\n<li>L'avis doit contenir une note (rating) de 1 à 5 étoiles ($1 \\le rating \\le 5$).</li>\n<li>Le commentaire est optionnel mais ne peut pas dépasser 1000 caractères.</li>\n<li>Le client peut modifier ou supprimer son avis.</li>\n<li>Un administrateur ou le vendeur peut répondre à un avis (une seule réponse par avis).</li>\n</ul>\n<p>Analysez ces contraintes et répondez aux questions.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier la contrainte qui nécessite une vérification côté serveur avec accès à l'historique des commandes. Expliquer pourquoi elle ne peut pas être validée uniquement côté frontend.",
+        "niveau": "medium",
+        "reponse": "La contrainte \"un client ne peut laisser un avis que sur un produit qu'il a effectivement acheté\" nécessite une vérification côté serveur. Le frontend ne peut pas savoir si l'utilisateur a vraiment acheté le produit car cette information est stockée en base de données (entités Order et OrderItem). Un client malveillant pourrait modifier le code frontend ou envoyer une requête HTTP directe pour contourner une validation frontale. La vérification doit donc être faite dans le backend (ex: dans le service ReviewsService) en interrogeant les commandes passées par l'utilisateur.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une structure d'entité TypeORM pour Review et ReviewResponse respectant ces contraintes. Inclure les relations, les colonnes et les validations.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// review.entity.ts\nimport { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';\nimport { User } from '../../users/entities/user.entity';\nimport { Product } from '../../products/entities/product.entity';\n\nexport enum Rating {\n  ONE_STAR = 1,\n  TWO_STARS = 2,\n  THREE_STARS = 3,\n  FOUR_STARS = 4,\n  FIVE_STARS = 5,\n}\n\n@Entity('reviews')\n@Index(['user', 'product'], { unique: true }) // Un seul avis par (user, product)\nexport class Review {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @ManyToOne(() => User, (user) => user.reviews)\n  user: User;\n\n  @ManyToOne(() => Product, (product) => product.reviews)\n  product: Product;\n\n  @Column({ type: 'enum', enum: Rating })\n  rating: Rating;\n\n  @Column({ type: 'text', nullable: true, length: 1000 })\n  comment: string;\n\n  @Column({ type: 'simple-array', nullable: true })\n  images: string[]; // URLs des images uploadées\n\n  @Column({ default: false })\n  verifiedPurchase: boolean; // Indique si l'achat est vérifié\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n\n  @OneToOne(() => ReviewResponse, (response) => response.review, { nullable: true })\n  response: ReviewResponse;\n}\n\n// review-response.entity.ts\n@Entity('review_responses')\nexport class ReviewResponse {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @OneToOne(() => Review, (review) => review.response)\n  @JoinColumn()\n  review: Review;\n\n  @ManyToOne(() => User)\n  author: User; // admin ou seller qui répond\n\n  @Column({ type: 'text' })\n  message: string;\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation de la vérification d'achat",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans le service `ReviewsService`, vous devez implémenter la méthode `canUserReviewProduct(userId: number, productId: number): Promise<boolean>` qui vérifie si l'utilisateur a acheté et reçu le produit.</p>\n<p>Un achat est considéré valide si :</p>\n<ul>\n<li>L'utilisateur a une commande contenant ce produit.</li>\n<li>Le statut de la commande est `delivered` (livrée).</li>\n<li>La commande date de moins de 30 jours (période de rétractation).</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode `canUserReviewProduct` en utilisant le QueryBuilder de TypeORM. Expliquer pourquoi une requête SQL est plus efficace que de charger toutes les commandes de l'utilisateur.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// reviews.service.ts\nimport { Injectable } from '@nestjs/common';\nimport { InjectRepository } from '@nestjs/typeorm';\nimport { Repository, MoreThanOrEqual } from 'typeorm';\nimport { Order } from '../orders/entities/order.entity';\nimport { OrderStatus } from '../orders/enums/order-status.enum';\n\n@Injectable()\nexport class ReviewsService {\n  constructor(\n    @InjectRepository(Order)\n    private orderRepository: Repository<Order>,\n  ) {}\n\n  async canUserReviewProduct(userId: number, productId: number): Promise<boolean> {\n    const thirtyDaysAgo = new Date();\n    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);\n\n    const result = await this.orderRepository\n      .createQueryBuilder('order')\n      .innerJoin('order.items', 'item')\n      .where('order.userId = :userId', { userId })\n      .andWhere('item.productId = :productId', { productId })\n      .andWhere('order.status = :status', { status: OrderStatus.DELIVERED })\n      .andWhere('order.deliveredAt >= :thirtyDaysAgo', { thirtyDaysAgo })\n      .getCount();\n\n    return result > 0;\n  }\n}\n```\nExplication : Une requête SQL unique est plus efficace que de charger toutes les commandes de l'utilisateur en mémoire (qui pourrait être volumineux) puis de les parcourir. La base de données indexée (sur userId, status, deliveredAt) exécute cette requête en O(log n) au lieu de O(n) côté application, et évite le transfert de données inutiles.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Lors de la création d'un avis, que faire si l'utilisateur n'a pas acheté le produit ou si la commande n'est pas livrée ? Quel code HTTP renvoyer ?",
+        "niveau": "easy",
+        "reponse": "Il faut renvoyer une erreur HTTP 403 Forbidden avec un message clair : \"Vous ne pouvez laisser un avis que sur un produit que vous avez acheté et reçu.\" On ne doit pas renvoyer 404 (car le produit existe) ni 401 (car l'utilisateur est authentifié). La vérification doit être faite dans le service et le contrôleur doit lever une exception `ForbiddenException`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul de la note moyenne et mise à jour en temps réel",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Pour améliorer l'expérience utilisateur, le catalogue de produits doit afficher la note moyenne et le nombre d'avis pour chaque produit. Ces données doivent être mises à jour en temps réel lorsqu'un nouvel avis est ajouté, modifié ou supprimé.</p>\n<p>Le produit a actuellement les champs :</p>\n<ul>\n<li>`averageRating` (decimal, 2 décimales)</li>\n<li>`reviewsCount` (integer)</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer deux approches pour maintenir ces champs à jour. Comparer leurs avantages et inconvénients (performance, cohérence, complexité).",
+        "niveau": "hard",
+        "reponse": "Approche 1 - Recalcul à la demande (lors de l'affichage) : \n- Avantages : pas de stockage redondant, toujours à jour.\n- Inconvénients : coût élevé (requête d'agrégation sur chaque affichage de produit), non scalable.\n\nApproche 2 - Mise à jour incrémentale (trigger dans le service) :\n- Avantages : lecture instantanée (O(1)), pas de calcul au moment de l'affichage.\n- Inconvénients : risque de désynchronisation si plusieurs opérations concurrentes, complexité de gestion (mise à jour à la création, modification, suppression).\n\nApproche 3 - Utilisation d'un événement (Queue Bull) :\n- Avantages : découplage, évite les calculs synchrones dans la requête de création d'avis, garantit la cohérence finale.\n- Inconvénients : complexité supplémentaire, délai avant mise à jour.\n\nRecommandation : Approche 2 avec verrouillage pessimiste (`pessimistic_write`) sur le produit lors de la mise à jour pour éviter les conflits.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la méthode `updateProductRating(productId: number, transactionManager?: EntityManager)` qui recalcule la note moyenne et le nombre d'avis pour un produit donné.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// reviews.service.ts\nasync updateProductRating(productId: number, transactionManager?: EntityManager): Promise<void> {\n  const manager = transactionManager || this.dataSource.manager;\n  \n  const result = await manager\n    .createQueryBuilder(Review, 'review')\n    .select('AVG(review.rating)', 'average')\n    .addSelect('COUNT(review.id)', 'count')\n    .where('review.productId = :productId', { productId })\n    .getRawOne();\n\n  const averageRating = result.average ? parseFloat(result.average).toFixed(2) : 0;\n  const reviewsCount = parseInt(result.count);\n\n  await manager.update(Product, productId, {\n    averageRating,\n    reviewsCount,\n  });\n}\n\n// Dans la méthode create()\nasync create(userId: number, createReviewDto: CreateReviewDto): Promise<Review> {\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.connect();\n  await queryRunner.startTransaction();\n\n  try {\n    const review = queryRunner.manager.create(Review, {\n      ...createReviewDto,\n      userId,\n      verifiedPurchase: await this.canUserReviewProduct(userId, createReviewDto.productId),\n    });\n    const savedReview = await queryRunner.manager.save(review);\n    \n    // Mise à jour du produit dans la même transaction\n    await this.updateProductRating(createReviewDto.productId, queryRunner.manager);\n    \n    await queryRunner.commitTransaction();\n    return savedReview;\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Modération et signalement des avis",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Pour garantir la qualité des avis, l'équipe marketing souhaite un système de signalement :</p>\n<ul>\n<li>Un utilisateur peut signaler un avis inapproprié (langage vulgaire, spam, faux avis).</li>\n<li>Un avis signalé 5 fois est automatiquement masqué (statut 'hidden').</li>\n<li>Un administrateur peut consulter les avis signalés, les valider (restaurer) ou les supprimer définitivement.</li>\n<li>Un utilisateur ne peut signaler qu'une seule fois le même avis.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer le schéma de l'entité `ReviewFlag` (signalement) avec ses relations et contraintes d'unicité.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// review-flag.entity.ts\nimport { Entity, PrimaryGeneratedColumn, ManyToOne, Column, CreateDateColumn, Unique } from 'typeorm';\nimport { User } from '../../users/entities/user.entity';\nimport { Review } from './review.entity';\n\nexport enum FlagReason {\n  INAPPROPRIATE_LANGUAGE = 'langage_inapproprié',\n  SPAM = 'spam',\n  FAKE_REVIEW = 'avis_falsifié',\n  OFFENSIVE = 'contenu_offensant',\n  OTHER = 'autre',\n}\n\n@Entity('review_flags')\n@Unique(['user', 'review']) // Un utilisateur ne peut signaler qu'une seule fois le même avis\nexport class ReviewFlag {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @ManyToOne(() => User)\n  user: User;\n\n  @ManyToOne(() => Review, (review) => review.flags)\n  review: Review;\n\n  @Column({ type: 'enum', enum: FlagReason })\n  reason: FlagReason;\n\n  @Column({ type: 'text', nullable: true })\n  customReason: string;\n\n  @CreateDateColumn()\n  createdAt: Date;\n}\n\n// Ajouter à l'entité Review :\n// @Column({ default: 'visible' })\n// status: 'visible' | 'hidden' | 'deleted';\n// @OneToMany(() => ReviewFlag, (flag) => flag.review)\n// flags: ReviewFlag[];\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire une méthode qui vérifie automatiquement le nombre de signalements après l'ajout d'un nouveau flag et masque l'avis si le seuil (5) est atteint.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// reviews.service.ts\nasync flagReview(userId: number, reviewId: number, flagDto: CreateFlagDto): Promise<ReviewFlag> {\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.connect();\n  await queryRunner.startTransaction();\n\n  try {\n    // Vérifier que l'utilisateur n'a pas déjà signalé cet avis\n    const existingFlag = await queryRunner.manager.findOne(ReviewFlag, {\n      where: { user: { id: userId }, review: { id: reviewId } },\n    });\n    if (existingFlag) {\n      throw new BadRequestException('Vous avez déjà signalé cet avis');\n    }\n\n    // Créer le flag\n    const flag = queryRunner.manager.create(ReviewFlag, {\n      user: { id: userId },\n      review: { id: reviewId },\n      ...flagDto,\n    });\n    const savedFlag = await queryRunner.manager.save(flag);\n\n    // Compter les signalements de cet avis\n    const flagsCount = await queryRunner.manager.count(ReviewFlag, {\n      where: { review: { id: reviewId } },\n    });\n\n    // Si seuil atteint, masquer l'avis\n    if (flagsCount >= 5) {\n      await queryRunner.manager.update(Review, reviewId, {\n        status: 'hidden',\n      });\n    }\n\n    await queryRunner.commitTransaction();\n    return savedFlag;\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Tri et filtrage des produits par note",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Le catalogue produits doit permettre aux clients de trier et filtrer les produits par note moyenne. Voici les spécifications :</p>\n<ul>\n<li>Filtrer par note minimale (ex: produits avec note $\\ge 4$).</li>\n<li>Trier par note décroissante (les mieux notés en premier).</li>\n<li>Afficher la distribution des notes (nombre d'avis 1 étoile, 2 étoiles, etc.) pour chaque produit.</li>\n</ul>\n<p>La table `products` contient les colonnes `averageRating` (DECIMAL) et `reviewsCount` (INTEGER).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la requête TypeORM pour récupérer les produits ayant une note moyenne supérieure ou égale à 4, triés par note décroissante, avec pagination.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// products.service.ts\nasync findTopRatedProducts(page: number = 1, limit: number = 20): Promise<[Product[], number]> {\n  const skip = (page - 1) * limit;\n  \n  return this.productRepository.findAndCount({\n    where: {\n      averageRating: MoreThanOrEqual(4),\n      reviewsCount: MoreThan(0), // Exclure les produits sans avis\n    },\n    order: {\n      averageRating: 'DESC',\n      reviewsCount: 'DESC', // En cas d'égalité, le plus d'avis d'abord\n    },\n    skip,\n    take: limit,\n  });\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une méthode pour calculer la distribution des notes d'un produit (nombre d'avis pour chaque valeur 1-5). Quelle structure de données retourner ?",
+        "niveau": "hard",
+        "reponse": "```typescript\n// reviews.service.ts\nasync getRatingDistribution(productId: number): Promise<{ rating: number; count: number }[]> {\n  const distribution = await this.reviewRepository\n    .createQueryBuilder('review')\n    .select('review.rating', 'rating')\n    .addSelect('COUNT(review.id)', 'count')\n    .where('review.productId = :productId', { productId })\n    .andWhere('review.status = :status', { status: 'visible' })\n    .groupBy('review.rating')\n    .orderBy('review.rating', 'ASC')\n    .getRawMany();\n\n  // Compléter les notes manquantes (ex: 0 avis pour 2 étoiles)\n  const fullDistribution = [];\n  for (let rating = 1; rating <= 5; rating++) {\n    const found = distribution.find(d => parseInt(d.rating) === rating);\n    fullDistribution.push({\n      rating,\n      count: found ? parseInt(found.count) : 0,\n    });\n  }\n  return fullDistribution;\n}\n```\nRetour : un tableau d'objets `{ rating: 1, count: 3 }`, `{ rating: 2, count: 0 }`, etc. Cela permet d'afficher facilement la répartition des étoiles dans l'interface utilisateur.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

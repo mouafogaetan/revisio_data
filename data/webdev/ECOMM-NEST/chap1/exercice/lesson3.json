@@ -1,0 +1,116 @@
+[
+  {
+    "intitule": "Architecture par domaines : découpage du projet e-commerce",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous devez structurer un projet NestJS pour une plateforme e-commerce. L'application doit gérer :</p>\n<ul>\n  <li>L'authentification et les utilisateurs</li>\n  <li>Le catalogue de produits et catégories</li>\n  <li>Le panier d'achat</li>\n  <li>Les commandes et paiements</li>\n  <li>Les avis clients</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une arborescence de dossiers pour ce projet NestJS en respectant l'architecture par domaines (modules). Chaque domaine doit avoir ses propres contrôleurs, services, entités, DTO et repositories.",
+        "niveau": "easy",
+        "reponse": "```\nsrc/\n├── main.ts\n├── app.module.ts\n├── common/\n│   ├── guards/\n│   ├── interceptors/\n│   ├── decorators/\n│   ├── filters/\n│   └── dto/\n├── config/\n│   ├── database.config.ts\n│   └── jwt.config.ts\n├── modules/\n│   ├── auth/\n│   │   ├── auth.module.ts\n│   │   ├── auth.controller.ts\n│   │   ├── auth.service.ts\n│   │   ├── dto/\n│   │   └── strategies/\n│   ├── users/\n│   │   ├── users.module.ts\n│   │   ├── users.controller.ts\n│   │   ├── users.service.ts\n│   │   ├── entities/\n│   │   └── dto/\n│   ├── products/\n│   │   ├── products.module.ts\n│   │   ├── products.controller.ts\n│   │   ├── products.service.ts\n│   │   ├── entities/\n│   │   └── dto/\n│   ├── cart/\n│   │   ├── cart.module.ts\n│   │   ├── cart.controller.ts\n│   │   ├── cart.service.ts\n│   │   └── entities/\n│   ├── orders/\n│   │   ├── orders.module.ts\n│   │   ├── orders.controller.ts\n│   │   ├── orders.service.ts\n│   │   └── entities/\n│   └── reviews/\n│       ├── reviews.module.ts\n│       ├── reviews.controller.ts\n│       ├── reviews.service.ts\n│       └── entities/\n└── database/\n    ├── migrations/\n    └── seeds/\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez pourquoi il est important de séparer les modules `auth` et `users` alors qu'ils sont liés. Quel est le principe d'encapsulation dans cette architecture ?",
+        "niveau": "medium",
+        "reponse": "La séparation entre `auth` et `users` suit le principe de responsabilité unique (Single Responsibility). Le module `auth` est responsable de l'authentification (login, logout, refresh token, JWT), tandis que le module `users` gère le CRUD des utilisateurs, leurs profils et leurs rôles. Cette séparation permet :\n- Une meilleure maintenabilité (modifier l'authentification n'impacte pas la gestion des utilisateurs)\n- La réutilisabilité (le module `users` peut être utilisé par d'autres services sans l'authentification)\n- La testabilité (on peut tester indépendamment chaque module)\nL'encapsulation se manifeste par le fait que chaque module expose uniquement ce qui est nécessaire via ses exports, cachant les détails d'implémentation.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Organisation des modules partagés (Common)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une architecture NestJS e-commerce, plusieurs éléments sont réutilisés par tous les modules : guards (JwtAuthGuard, RolesGuard), interceptors (LoggingInterceptor, TransformInterceptor), decorators (`@Roles`, `@Public`), filters (GlobalExceptionFilter) et DTOs génériques (PaginationDto).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez un module `CommonModule` qui centralise et exporte ces éléments partagés. Expliquez comment l'importer dans les autres modules.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// common/common.module.ts\nimport { Module, Global } from '@nestjs/common';\nimport { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';\nimport { JwtAuthGuard } from './guards/jwt-auth.guard';\nimport { RolesGuard } from './guards/roles.guard';\nimport { LoggingInterceptor } from './interceptors/logging.interceptor';\nimport { TransformInterceptor } from './interceptors/transform.interceptor';\nimport { GlobalExceptionFilter } from './filters/global-exception.filter';\n\n@Global() // Rendre le module global (pas besoin de l'importer partout)\n@Module({\n  providers: [\n    // Guards globaux\n    { provide: APP_GUARD, useClass: JwtAuthGuard },\n    { provide: APP_GUARD, useClass: RolesGuard },\n    // Interceptors globaux\n    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },\n    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },\n    // Filter global\n    { provide: APP_FILTER, useClass: GlobalExceptionFilter },\n  ],\n  exports: [], // Les guards/interceptors sont déjà fournis globalement\n})\nexport class CommonModule {}\n\n// Dans app.module.ts\n@Module({\n  imports: [CommonModule, AuthModule, UsersModule, ProductsModule],\n})\nexport class AppModule {}\n```\nLe décorateur `@Global()` rend le module disponible dans toute l'application sans avoir à le réimporter dans chaque module.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Créez le décorateur `@Roles` personnalisé et le `RolesGuard` qui vérifie si l'utilisateur a le rôle requis.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// common/decorators/roles.decorator.ts\nimport { SetMetadata } from '@nestjs/common';\nexport const ROLES_KEY = 'roles';\nexport const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);\n\n// common/guards/roles.guard.ts\nimport { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';\nimport { Reflector } from '@nestjs/core';\nimport { ROLES_KEY } from '../decorators/roles.decorator';\n\n@Injectable()\nexport class RolesGuard implements CanActivate {\n  constructor(private reflector: Reflector) {}\n\n  canActivate(context: ExecutionContext): boolean {\n    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [\n      context.getHandler(),\n      context.getClass(),\n    ]);\n    if (!requiredRoles) {\n      return true;\n    }\n    const { user } = context.switchToHttp().getRequest();\n    return requiredRoles.some((role) => user.roles?.includes(role));\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Couche DTO, Service, Controller, Repository : application au produit",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez implémenter le module `Products` avec une architecture en couches complète : DTO pour les entrées/sorties, Service pour la logique métier, Controller pour les endpoints HTTP, Repository pour l'accès aux données (TypeORM).</p>\n<p>L'entité `Product` possède les champs : `id`, `name`, `description`, `price`, `stock`, `categoryId`, `createdAt`, `updatedAt`.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez le DTO `CreateProductDto` avec validation (class-validator) : `name` (string, min 3), `price` (number > 0), `stock` (int >= 0), `description` (optionnel), `categoryId` (number).",
+        "niveau": "easy",
+        "reponse": "```typescript\n// products/dto/create-product.dto.ts\nimport { ApiProperty } from '@nestjs/swagger';\nimport { IsString, IsNumber, IsOptional, Min, MinLength, IsInt } from 'class-validator';\n\nexport class CreateProductDto {\n  @ApiProperty()\n  @IsString()\n  @MinLength(3)\n  name: string;\n\n  @ApiProperty({ required: false })\n  @IsString()\n  @IsOptional()\n  description?: string;\n\n  @ApiProperty()\n  @IsNumber()\n  @Min(0.01)\n  price: number;\n\n  @ApiProperty()\n  @IsInt()\n  @Min(0)\n  stock: number;\n\n  @ApiProperty()\n  @IsNumber()\n  categoryId: number;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez le `ProductsService` avec les méthodes : `create(dto: CreateProductDto): Promise<Product>`, `findAll(): Promise<Product[]>`, `findOne(id: number): Promise<Product>`, `update(id: number, dto: UpdateProductDto): Promise<Product>`, `remove(id: number): Promise<void>`. Utilisez le `Repository` TypeORM injecté.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// products/products.service.ts\nimport { Injectable, NotFoundException } from '@nestjs/common';\nimport { InjectRepository } from '@nestjs/typeorm';\nimport { Repository } from 'typeorm';\nimport { Product } from './entities/product.entity';\nimport { CreateProductDto } from './dto/create-product.dto';\nimport { UpdateProductDto } from './dto/update-product.dto';\n\n@Injectable()\nexport class ProductsService {\n  constructor(\n    @InjectRepository(Product)\n    private productsRepository: Repository<Product>,\n  ) {}\n\n  async create(createProductDto: CreateProductDto): Promise<Product> {\n    const product = this.productsRepository.create(createProductDto);\n    return this.productsRepository.save(product);\n  }\n\n  async findAll(): Promise<Product[]> {\n    return this.productsRepository.find({ relations: ['category'] });\n  }\n\n  async findOne(id: number): Promise<Product> {\n    const product = await this.productsRepository.findOne({ \n      where: { id },\n      relations: ['category'] \n    });\n    if (!product) {\n      throw new NotFoundException(`Product with ID ${id} not found`);\n    }\n    return product;\n  }\n\n  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {\n    const product = await this.findOne(id);\n    Object.assign(product, updateProductDto);\n    return this.productsRepository.save(product);\n  }\n\n  async remove(id: number): Promise<void> {\n    const result = await this.productsRepository.delete(id);\n    if (result.affected === 0) {\n      throw new NotFoundException(`Product with ID ${id} not found`);\n    }\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Créez le `ProductsController` avec les endpoints REST standards : POST `/products`, GET `/products`, GET `/products/:id`, PATCH `/products/:id`, DELETE `/products/:id`. Protégez les routes d'écriture avec le guard d'authentification et le rôle `admin`.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// products/products.controller.ts\nimport { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';\nimport { ProductsService } from './products.service';\nimport { CreateProductDto } from './dto/create-product.dto';\nimport { UpdateProductDto } from './dto/update-product.dto';\nimport { JwtAuthGuard } from '../common/guards/jwt-auth.guard';\nimport { RolesGuard } from '../common/guards/roles.guard';\nimport { Roles } from '../common/decorators/roles.decorator';\nimport { Public } from '../common/decorators/public.decorator';\n\n@Controller('products')\nexport class ProductsController {\n  constructor(private readonly productsService: ProductsService) {}\n\n  @Post()\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @Roles('admin')\n  create(@Body() createProductDto: CreateProductDto) {\n    return this.productsService.create(createProductDto);\n  }\n\n  @Get()\n  @Public() // Accessible sans authentification\n  findAll() {\n    return this.productsService.findAll();\n  }\n\n  @Get(':id')\n  @Public()\n  findOne(@Param('id') id: string) {\n    return this.productsService.findOne(+id);\n  }\n\n  @Patch(':id')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @Roles('admin')\n  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {\n    return this.productsService.update(+id, updateProductDto);\n  }\n\n  @Delete(':id')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @Roles('admin')\n  remove(@Param('id') id: string) {\n    return this.productsService.remove(+id);\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Expliquez le rôle de chaque couche : Controller, Service, Repository, DTO. Pourquoi cette séparation est-elle bénéfique pour un projet e-commerce qui va évoluer ?",
+        "niveau": "medium",
+        "reponse": "**Rôles des couches :**\n- **Controller** : Gère les requêtes HTTP, valide les entrées (DTO), appelle le service, retourne les réponses. C'est la couche \"présentation\".\n- **Service** : Contient la logique métier (calculs, règles, appels à d'autres services). C'est le cœur de l'application.\n- **Repository** : Couche d'accès aux données (ORM). Abstraction de la base de données.\n- **DTO (Data Transfer Object)** : Définit la structure et la validation des données échangées entre client et API.\n\n**Bénéfices pour un e-commerce évolutif :**\n- **Testabilité** : On peut tester chaque couche indépendamment (service mockant le repository).\n- **Maintenabilité** : Changer de base de données (PostgreSQL → MySQL) ne modifie que le repository, pas le service.\n- **Réutilisabilité** : Le service peut être utilisé par d'autres contrôleurs (API admin, API vendeur).\n- **Sécurité** : La validation se fait dans les DTO et les guards au niveau controller, avant d'atteindre la logique métier.\n- **Évolutivité** : Ajouter une nouvelle fonctionnalité (ex: cache Redis) se fait au niveau service, sans impacter le controller.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Planification des modules et dépendances circulaires",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans un projet e-commerce, les modules suivants ont des dépendances :</p>\n<ul>\n  <li>Le module `Orders` a besoin du module `Products` pour vérifier les stocks et mettre à jour les quantités.</li>\n  <li>Le module `Products` a besoin du module `Categories` pour lier les produits à leurs catégories.</li>\n  <li>Le module `Cart` a besoin du module `Products` et du module `Orders` pour la validation.</li>\n  <li>Le module `Auth` a besoin du module `Users`.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Dessinez le graphe des dépendances entre modules. Identifiez les éventuelles dépendances circulaires et proposez une stratégie pour les résoudre (forwardRef, ou injection de service intermédiaire).",
+        "niveau": "very hard",
+        "reponse": "**Graphe des dépendances :**\n```\nAuth → Users\nProducts → Categories\nOrders → Products\nCart → Products, Orders\n```\nIl n'y a pas de cercle évident, mais si `Products` avait besoin de `Orders` (ex: afficher le nombre de commandes pour un produit), on aurait une dépendance circulaire : `Products ↔ Orders`.\n\n**Stratégies de résolution des dépendances circulaires :**\n\n1. **Utiliser `forwardRef()`** (solution rapide mais temporaire) :\n```typescript\n// products.module.ts\n@Module({\n  imports: [forwardRef(() => OrdersModule)],\n  exports: [ProductsService],\n})\nexport class ProductsModule {}\n\n// orders.module.ts\n@Module({\n  imports: [forwardRef(() => ProductsModule)],\n})\nexport class OrdersModule {}\n```\n\n2. **Refactoriser avec un module intermédiaire** (meilleure pratique) :\n   - Créer un module `Inventory` qui gère les stocks et est utilisé par `Products` et `Orders`.\n   - Extraire l'interface `IProductStockService` dans un module partagé.\n\n3. **Utiliser l'EventEmitter** : `Orders` émet un événement `order.created`, et `Products` écoute cet événement pour décrémenter les stocks, sans dépendance directe.\n\n```typescript\n// orders.service.ts\nthis.eventEmitter.emit('order.created', orderItems);\n\n// products.listener.ts\n@OnEvent('order.created')\nhandleOrderCreated(payload) { /* décrémenter stocks */ }\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Justifiez pourquoi l'utilisation de `forwardRef` peut être considérée comme un \"code smell\" et comment l'architecture par événements peut résoudre élégamment ces problèmes.",
+        "niveau": "hard",
+        "reponse": "`forwardRef` est un anti-pattern lorsqu'il est utilisé massivement car :\n- Il masque une mauvaise conception (modules trop couplés).\n- Il peut causer des problèmes d'initialisation et de performance.\n- Il rend le code plus difficile à comprendre et à tester.\n\n**L'architecture événementielle (Event-Driven Architecture)** résout ce problème :\n- Les modules deviennent découplés : un module émet des événements, les autres modules les consomment.\n- On peut ajouter de nouveaux consommateurs sans modifier l'émetteur.\n- Idéal pour les processus asynchrones (commande → email de confirmation → facturation → expédition).\n- Avec NestJS, on utilise `@nestjs/event-emitter` ou `@nestjs/cqrs`.\n\n**Exemple :**\n```typescript\n// orders.service.ts après création de commande\nthis.eventEmitter.emit('order.completed', { orderId, items });\n\n// products.service.ts\n@OnEvent('order.completed')\nasync updateStock(payload: { orderId: number; items: CartItem[] }) {\n  for (const item of payload.items) {\n    await this.productsService.decrementStock(item.productId, item.quantity);\n  }\n}\n\n// notification.service.ts\n@OnEvent('order.completed')\nsendConfirmationEmail(payload) { ... }\n```\nAucun module ne dépend directement d'un autre, uniquement des événements.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

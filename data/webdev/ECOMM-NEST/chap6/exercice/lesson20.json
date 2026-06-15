@@ -1,0 +1,130 @@
+[
+  {
+    "intitule": "Transformation du panier en commande - Logique métier",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce NestJS, vous devez implémenter la logique de transformation d'un panier (<code>Cart</code>) en commande (<code>Order</code>). Le processus comprend :</p><ul><li>La vérification des stocks pour chaque article</li><li>La création de la commande avec les items (snapshot des prix)</li><li>La décrémentation des stocks réels</li><li>La vidange du panier après transformation</li><li>L'envoi d'un email de confirmation (simulation)</li></ul><p>Voici les entités simplifiées :</p><pre><code>class Cart {
+  id: string;
+  items: CartItem[];
+  userId: string;
+}
+
+class CartItem {
+  productId: string;
+  quantity: number;
+  unitPrice: number; // prix au moment de l'ajout
+}
+
+class Product {
+  id: string;
+  name: string;
+  stock: number;
+  price: number;
+}
+
+class Order {
+  id: string;
+  userId: string;
+  items: OrderItem[];
+  total: number;
+  status: string;
+  createdAt: Date;
+}
+
+class OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number; // snapshot du prix
+}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez l'importance de faire un <strong>snapshot</strong> (copie) du prix et du nom du produit dans <code>OrderItem</code> plutôt que de simplement référencer le produit avec une clé étrangère.",
+        "niveau": "easy",
+        "reponse": "Le snapshot est essentiel car le prix ou le nom d'un produit peut changer après la commande (promotion, modification, suppression). La commande doit conserver les informations exactes du moment de l'achat pour des raisons légales (facturation) et historiques. Une simple référence étrangère perdrait cette trace.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la méthode TypeScript <code>validateStock(cart: Cart, products: Product[]): boolean</code> qui vérifie que tous les articles du panier sont disponibles en quantité suffisante.",
+        "niveau": "medium",
+        "reponse": "```typescript\nfunction validateStock(cart: Cart, products: Product[]): boolean {\n  const productMap = new Map(products.map(p => [p.id, p]));\n\n  for (const item of cart.items) {\n    const product = productMap.get(item.productId);\n    if (!product) {\n      throw new Error(`Produit ${item.productId} introuvable`);\n    }\n    if (product.stock < item.quantity) {\n      throw new Error(\n        `Stock insuffisant pour ${product.name}: ` +\n        `demandé ${item.quantity}, disponible ${product.stock}`\n      );\n    }\n  }\n  return true;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Implémentez la fonction <code>createOrderFromCart(cart: Cart, products: Product[]): Order</code> qui :<br>- Valide les stocks<br>- Crée les <code>OrderItem</code> avec snapshot (nom, prix)<br>- Calcule le total de la commande<br>- Retourne l'objet <code>Order</code> avec le statut 'pending'",
+        "niveau": "hard",
+        "reponse": "```typescript\nfunction createOrderFromCart(cart: Cart, products: Product[]): Order {\n  // Validation des stocks\n  validateStock(cart, products);\n\n  const productMap = new Map(products.map(p => [p.id, p]));\n  const orderItems: OrderItem[] = [];\n  let total = 0;\n\n  for (const item of cart.items) {\n    const product = productMap.get(item.productId)!;\n    \n    const orderItem: OrderItem = {\n      productId: product.id,\n      productName: product.name,   // Snapshot du nom\n      quantity: item.quantity,\n      unitPrice: product.price,     // Snapshot du prix actuel\n    };\n    \n    orderItems.push(orderItem);\n    total += product.price * item.quantity;\n  }\n\n  const order: Order = {\n    id: crypto.randomUUID(),\n    userId: cart.userId,\n    items: orderItems,\n    total: total,\n    status: 'pending',\n    createdAt: new Date(),\n  };\n\n  return order;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Complétez la méthode <code>updateStockAfterOrder(products: Product[], order: Order): Promise&lt;void&gt;</code> qui décrémente les stocks des produits commandés et lance une alerte si un stock devient inférieur à 5.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync function updateStockAfterOrder(\n  products: Product[],\n  order: Order\n): Promise&lt;void&gt; {\n  const productMap = new Map(products.map(p => [p.id, p]));\n\n  for (const item of order.items) {\n    const product = productMap.get(item.productId);\n    if (product) {\n      product.stock -= item.quantity;\n      \n      // Alerte stock bas (seuil = 5)\n      if (product.stock < 5) {\n        console.log(`ALERTE: Stock bas pour ${product.name} ` +\n                    `(plus que ${product.stock} unités)`);\n        // Ici on pourrait envoyer un email à l'admin\n      }\n    }\n  }\n\n  // Sauvegarde en base (simulation)\n  await saveProducts(products);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du checkout pour une boutique camerounaise",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous développez l'API backend pour <strong>AfriMarket</strong>, une plateforme e-commerce camerounaise. L'équipe a déjà implémenté le panier et souhaite maintenant gérer la <strong>validation de commande (checkout)</strong>.</p><p>Voici les règles métier spécifiques :</p><ul><li>Le stock doit être <strong>bloqué temporairement</strong> pendant 15 minutes le temps que le client finalise le paiement (pattern <em>Reserve Stock</em>)</li><li>Si le paiement échoue, le stock bloqué est <strong>libéré</strong></li><li>Si le paiement réussit, le stock est <strong>définitivement déduit</strong> et le panier est vidé</li><li>Un email de confirmation doit être envoyé <strong>en arrière-plan</strong> (queue asynchrone)</li><li>Le numéro de commande doit suivre le format : <code>AFR-YYYYMMDD-XXXX</code> (ex: AFR-20251215-0001)</li></ul><p>On vous fournit les services : <code>CartService</code>, <code>StockService</code>, <code>OrderService</code>, <code>EmailService</code> (injectables).</p>",
+      "images": [
+        "diagramme de séquence du processus de checkout avec réservation de stock et confirmation email",
+        "schéma de la table StockReservation avec les champs productId, quantity, expiresAt"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez une entité <code>StockReservation</code> pour gérer le blocage temporaire des stocks. Justifiez les champs choisis et les index nécessaires.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Entity()\nexport class StockReservation {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @Column()\n  productId: string;\n\n  @Column()\n  quantity: number;\n\n  @Column()\n  cartId: string; // ou orderId temporaire\n\n  @Column({ type: 'timestamp' })\n  expiresAt: Date; // Date d'expiration (now + 15min)\n\n  @CreateDateColumn()\n  createdAt: Date;\n}\n```\nJustification :\n- `productId` pour identifier le produit concerné\n- `quantity` : quantité réservée\n- `cartId` : lien avec le panier (permet de retrouver toutes les réservations d'un checkout)\n- `expiresAt` : expiration automatique (permet un nettoyage par cron)\n- Index sur (`productId`, `expiresAt`) pour les requêtes de nettoyage",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Écrivez une requête TypeORM pour libérer (supprimer) toutes les réservations expirées.",
+            "niveau": "easy",
+            "reponse": "```typescript\nawait this.reservationRepository\n  .createQueryBuilder()\n  .delete()\n  .where('expiresAt < :now', { now: new Date() })\n  .execute();\n```"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez la méthode <code>reserveStock(cartId: string, items: CartItem[]): Promise&lt;void&gt;</code> qui crée des réservations pour chaque produit. Vérifiez que le stock disponible (stock réel - réservations actives) est suffisant.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync reserveStock(cartId: string, items: CartItem[]): Promise&lt;void&gt; {\n  const productIds = items.map(i => i.productId);\n  \n  // 1. Récupérer les produits avec leurs stocks\n  const products = await this.productRepository.findByIds(productIds);\n  \n  // 2. Récupérer les réservations actives pour ces produits\n  const activeReservations = await this.reservationRepository\n    .createQueryBuilder('r')\n    .where('r.productId IN (:...productIds)', { productIds })\n    .andWhere('r.expiresAt > :now', { now: new Date() })\n    .getMany();\n  \n  // 3. Calculer le stock disponible (stock réel - réservations)\n  const reservedMap = new Map&lt;string, number&gt;();\n  for (const res of activeReservations) {\n    reservedMap.set(res.productId, (reservedMap.get(res.productId) || 0) + res.quantity);\n  }\n  \n  // 4. Vérifier la disponibilité\n  for (const item of items) {\n    const product = products.find(p => p.id === item.productId);\n    const reserved = reservedMap.get(item.productId) || 0;\n    const availableStock = product.stock - reserved;\n    \n    if (availableStock < item.quantity) {\n      throw new Error(`Stock insuffisant pour ${product.name}`);\n    }\n  }\n  \n  // 5. Créer les réservations\n  const reservations = items.map(item =>\n    this.reservationRepository.create({\n      productId: item.productId,\n      quantity: item.quantity,\n      cartId: cartId,\n      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // +15 min\n    })\n  );\n  \n  await this.reservationRepository.save(reservations);\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Analysez le problème de concurrence (race condition) lorsque deux clients tentent d'acheter le dernier produit en stock simultanément. Proposez une solution utilisant les <strong>transactions de base de données</strong> et <strong>pessimistic locking</strong> avec TypeORM.",
+        "niveau": "very hard",
+        "reponse": "Le problème : si deux clients réservent le dernier article en même temps, la vérification `availableStock = stock - reserved` peut être identique pour les deux, conduisant à une surréservation.\n\nSolution avec pessimistic locking :\n\n```typescript\nasync reserveStockWithLock(cartId: string, items: CartItem[]) {\n  // Démarrer une transaction\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.connect();\n  await queryRunner.startTransaction();\n\n  try {\n    for (const item of items) {\n      // Verrouiller la ligne du produit (FOR UPDATE)\n      const product = await queryRunner.manager\n        .createQueryBuilder(Product, 'product')\n        .setLock('pessimistic_write')\n        .where('product.id = :id', { id: item.productId })\n        .getOne();\n\n      // Récupérer les réservations actives pour ce produit\n      const reserved = await queryRunner.manager\n        .createQueryBuilder(StockReservation, 'res')\n        .where('res.productId = :productId', { productId: item.productId })\n        .andWhere('res.expiresAt > :now', { now: new Date() })\n        .getMany();\n\n      const reservedTotal = reserved.reduce((sum, r) => sum + r.quantity, 0);\n      const available = product.stock - reservedTotal;\n\n      if (available < item.quantity) {\n        throw new Error(`Stock insuffisant pour ${product.name}`);\n      }\n\n      // Créer la réservation\n      await queryRunner.manager.save(StockReservation, {\n        productId: item.productId,\n        quantity: item.quantity,\n        cartId,\n        expiresAt: new Date(Date.now() + 15 * 60 * 1000),\n      });\n    }\n\n    await queryRunner.commitTransaction();\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```\nLe `FOR UPDATE` verrouille la ligne du produit, forçant les transactions concurrentes à s'exécuter séquentiellement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Décrivez le flux complet du checkout en utilisant les méthodes que vous avez implémentées. Utilisez les verbes de la taxonomie de Bloom pour décrire chaque étape (identifier, organiser, exécuter, valider).",
+        "niveau": "hard",
+        "reponse": "<strong>Flux checkout (CheckoutService.checkout)</strong> :\n\n1. <strong>Identifier</strong> : Récupérer le panier actif de l'utilisateur via CartService.getActiveCart(userId)\n2. <strong>Valider</strong> : Vérifier que le panier n'est pas vide\n3. <strong>Réserver</strong> : Appeler StockService.reserveStock(cartId, cart.items) qui bloque les stocks temporairement\n4. <strong>Calculer</strong> : Calculer le total de la commande (intégrant TVA, livraison, coupons)\n5. <strong>Créer</strong> : Générer la commande avec OrderService.createOrderFromCart(cart, totals)\n6. <strong>Exécuter</strong> : Lancer le paiement via PaymentService.processPayment(order.total)\n   - Si succès : Appeler OrderService.confirmOrder(orderId) + StockService.confirmReservations(cartId) + CartService.clearCart(cartId)\n   - Si échec : Appeler StockService.releaseReservations(cartId) pour libérer les stocks\n7. <strong>Notifier</strong> : Envoyer un email en arrière-plan via EmailQueue.add('order-confirmation', order)\n8. <strong>Retourner</strong> : Renvoyer la commande confirmée au client",
+        "sousQuestions": [
+          {
+            "numero": "4.a",
+            "texte": "Comment géreriez-vous l'expiration des réservations si le client abandonne le paiement avant la fin ?",
+            "niveau": "medium",
+            "reponse": "Les réservations ont une date d'expiration (15 min). Un cron job s'exécute toutes les minutes pour supprimer les réservations expirées et remettre le stock disponible via StockService.releaseExpiredReservations(). Le frontend peut aussi afficher un timer au client."
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 4 : Conception de bases de données relationnelles | Cours WebDev</title>
+    <!-- Tailwind CSS + Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Style personnalisé pour slides et confort visuel -->
+    <style>
+        /* transitions douces, espacement, adaptabilité */
+        body {
+            background: #f8fafc;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #eef2ff;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        .objective-badge {
+            background: #eef2ff;
+            border-left: 5px solid #3b82f6;
+        }
+        /* code fictif si on voulait afficher des extraits */
+        .mock-code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.7rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+        /* style pour dessins SVG faits maison */
+        .diagram-svg {
+            background: #fefce8;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="slide-container px-4 py-6 md:py-10">
+        <!-- Carte principale du slide -->
+        <div class="slide-card p-5 md:p-8" id="slideCard">
+            <!-- Contenu dynamique via jQuery -->
+            <div id="slideContent">
+                <!-- sera rempli par JS -->
+            </div>
+        </div>
+
+        <!-- Navigation + indicateur -->
+        <div class="flex flex-wrap justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="btn-nav bg-white border border-gray-300 rounded-full px-5 py-2 font-medium shadow-sm text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" disabled>← Précédent</button>
+            <div class="flex flex-col items-center gap-1 flex-1 max-w-xs mx-auto">
+                <div class="progress-bar w-full">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span class="text-sm text-gray-500" id="slideCounter">Slide 1 / X</span>
+            </div>
+            <button id="nextBtn" class="btn-nav bg-blue-600 text-white rounded-full px-5 py-2 font-medium shadow-md hover:bg-blue-700 transition">Suivant →</button>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        // Données de la leçon 4 (lesson4) : chapitre 2, première leçon
+        // D'après le fichier JSON : chap2, lesson4 -> "Identifier les entités, attributs et associations" + cardinalités + DER
+        // Nous construisons un contenu pédagogique complet avec slides.
+        // --------------------------------------------------------------
+        
+        // Titre principal de la leçon (basé sur objectifs)
+        const lessonTitle = "Conception de bases de données relationnelles";
+        const subtitle = "Modélisation Entité-Association et clés";
+        
+        // Objectifs depuis lesson4 (chap2) : 
+        // 1. Identifier les entités, attributs et associations
+        // 2. Définir les cardinalités (1,1 - 0,n - 1,n - 0,1)
+        // 3. Créer un diagramme entité-association (DER)
+        // On ajoute également des notions de clé primaire/étrangère pour enrichir
+        
+        const objectivesList = [
+            "Identifier les entités, attributs et associations dans un problème",
+            "Définir les cardinalités (1,1 - 0,n - 1,n - 0,1) et comprendre leur signification",
+            "Créer un diagramme entité-association (DER) pour modéliser une base de données",
+            "(Bonus) Transformer un DER en schéma relationnel intuitif"
+        ];
+        
+        // Définition des slides : structure textes + contenu riche, diagrammes SVG faits maison
+        // Nous créons 6 slides : 1 titre, 2 objectifs, 3 contenu entités/attributs, 4 cardinalités, 5 diagramme DER, 6 résumé/pratique
+        const slides = [
+            { // slide 0 : titre
+                type: "title",
+                title: lessonTitle,
+                subtitle: "Comprendre la modélisation des données avec le modèle Entité-Association",
+                extra: "Chapitre 2 · Leçon 4 · Niveau débutant"
+            },
+            { // slide 1 : objectifs
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                items: objectivesList
+            },
+            { // slide 2 : Entités, attributs et associations
+                type: "content",
+                title: "📌 1. Entités, attributs et associations",
+                contentBlocks: [
+                    {
+                        heading: "Qu'est-ce qu'une entité ?",
+                        text: "Une entité est un objet ou un concept du monde réel que l'on souhaite stocker dans la base (ex: Étudiant, Livre, Commande). Elle possède des propriétés appelées attributs."
+                    },
+                    {
+                        heading: "Attributs",
+                        text: "Les attributs décrivent l'entité. Exemples : pour l'entité 'Étudiant' → matricule, nom, date_naissance. Chaque attribut a un type (texte, nombre, date)."
+                    },
+                    {
+                        heading: "Associations (relations)",
+                        text: "Une association est un lien logique entre deux entités (ou plus). Exemple : un Étudiant <inscrit> à un Cours. Les associations portent un verbe."
+                    },
+                    {
+                        heading: "Exemple concret",
+                        text: "📖 Bibliothèque : entités LIVRE et AUTEUR. Association 'écrit par' reliant ces entités. Chaque attribut (titre, ISBN, nom_auteur) complète le modèle."
+                    }
+                ],
+                illustration: "simple" // on affiche un mini schéma SVG
+            },
+            { // slide 3 : cardinalités 
+                type: "cardinalities",
+                title: "🔢 2. Les cardinalités (1,1 - 0,n - 1,n - 0,1)",
+                description: "Les cardinalités expriment le nombre de fois qu'une entité participe à une association.",
+                cardinalDetails: [
+                    { symbole: "(1,1)", signification: "Une et une seule occurrence obligatoire. Ex: une commande appartient à un seul client." },
+                    { symbole: "(0,n)", signification: "Zéro à plusieurs occurrences. Ex: un client peut passer 0 ou plusieurs commandes." },
+                    { symbole: "(1,n)", signification: "Au moins une occurrence, plusieurs possibles. Ex: un livre a au moins un auteur (peut en avoir plusieurs)." },
+                    { symbole: "(0,1)", signification: "Zéro ou une occurrence. Ex: un employé peut être manager d’au plus un département." }
+                ],
+                note: "La première valeur = cardinalité minimale, la seconde = maximale. 'n' signifie 'plusieurs'."
+            },
+            { // slide 4 : Diagramme Entité-Association (DER) et exemple visuel
+                type: "der_diagram",
+                title: "📐 3. Créer un diagramme entité-association (DER)",
+                explanation: "Un DER utilise des rectangles pour les entités, des losanges pour les associations, et des traits avec les cardinalités. Nous allons dessiner un exemple simple : 'Étudiant' et 'Cours'.",
+                // création d'un dessin SVG maison représentant un DER simple
+                drawSvg: true
+            },
+            { // slide 5 : Résumé + petit exercice interactif / conseils
+                type: "summary",
+                title: "✨ Pour retenir & s'exercer",
+                tips: [
+                    "🔍 Toujours commencer par lister les noms (entités) et verbes (associations).",
+                    "📌 Chaque entité doit avoir une clé candidate (identifiant unique).",
+                    "⚖️ Vérifier les cardinalités en se posant : 'un client peut-il avoir plusieurs commandes ?'",
+                    "🎨 Un DER bien conçu facilite la création des tables SQL."
+                ],
+                miniQuiz: "Question réflexe : Si un 'Professeur' enseigne plusieurs 'Cours', et chaque 'Cours' est enseigné par un seul Professeur. Quelle cardinalité entre Professeur et Cours ?",
+                answerHint: "Réponse : (1,n) du côté Cours → Professeur est (1,1) ? Non : côté Professeur (1,n), côté Cours (1,1). Le professeur peut avoir plusieurs cours, un cours n'a qu'un professeur."
+            }
+        ];
+        
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+        
+        // Fonction pour générer le SVG DER maison (slide 4)
+        function buildDERSVG() {
+            // On dessine un diagramme avec deux entités (ETUDIANT, COURS) et une association "SUIT"
+            // Cardinalités : (0,n) pour Etudiant → suit plusieurs cours ? plus réaliste: étudiant suit plusieurs cours, cours a plusieurs étudiants => (0,n) de chaque côté. 
+            // Mais pour montrer un exemple éducatif, on met (0,n) et (0,n) pour relation many-to-many.
+            // On affiche des boîtes, flèches, texte.
+            return `<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto diagram-svg" style="background:#f9f7f1;">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto">
+                                <polygon points="0 0, 8 4, 0 8" fill="#4b5563" />
+                            </marker>
+                        </defs>
+                        <!-- Rectangle Entité 1 : ETUDIANT -->
+                        <rect x="50" y="100" width="140" height="60" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" rx="10" />
+                        <text x="120" y="135" text-anchor="middle" font-weight="bold" fill="#1e3a8a" font-size="16">ÉTUDIANT</text>
+                        <text x="120" y="155" text-anchor="middle" fill="#334155" font-size="12">(matricule, nom, ...)</text>
+                        <!-- Rectangle Entité 2 : COURS -->
+                        <rect x="500" y="100" width="140" height="60" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" rx="10" />
+                        <text x="570" y="135" text-anchor="middle" font-weight="bold" fill="#1e3a8a" font-size="16">COURS</text>
+                        <text x="570" y="155" text-anchor="middle" fill="#334155" font-size="12">(code, titre, crédits)</text>
+                        <!-- Losange Association : SUIT -->
+                        <polygon points="380,120 430,165 380,210 330,165" fill="#FEF9C3" stroke="#CA8A04" stroke-width="2" />
+                        <text x="380" y="170" text-anchor="middle" font-weight="bold" fill="#854d0e" font-size="14">SUIT</text>
+                        <!-- Traits de liaison avec cardinalités -->
+                        <line x1="190" y1="130" x2="330" y2="145" stroke="#475569" stroke-width="2" />
+                        <line x1="500" y1="145" x2="430" y2="155" stroke="#475569" stroke-width="2" />
+                        <!-- Cardinalités -->
+                        <text x="220" y="115" fill="#b91c1c" font-weight="bold" font-size="16">0,n</text>
+                        <text x="460" y="115" fill="#b91c1c" font-weight="bold" font-size="16">0,n</text>
+                        <text x="280" y="190" fill="#6b21a5" font-size="13">(un étudiant suit plusieurs cours)</text>
+                        <text x="440" y="205" fill="#6b21a5" font-size="13">(un cours peut avoir plusieurs étudiants)</text>
+                        <text x="50" y="250" fill="#1e293b" font-size="13">→ Association many-to-many, nécessite une table de liaison.</text>
+                    </svg>`;
+        }
+        
+        // fonction pour générer le mini SVG illustration pour slide 2
+        function buildEntityAttributeSVG() {
+            return `<div class="mt-4 border border-gray-200 rounded-xl p-3 bg-gray-50">
+                        <svg viewBox="0 0 600 140" class="w-full" style="font-family: monospace;">
+                            <rect x="20" y="20" width="160" height="50" fill="#e0f2fe" stroke="#0284c7" rx="12" stroke-width="2" />
+                            <text x="100" y="52" text-anchor="middle" font-weight="bold" fill="#0c4a6e">LIVRE</text>
+                            <circle cx="210" cy="45" r="8" fill="#fde047" stroke="#a16207" />
+                            <text x="225" y="50" fill="#334155" font-size="12">ISBN (clé)</text>
+                            <circle cx="210" cy="75" r="6" fill="#fde047" stroke="#a16207" />
+                            <text x="225" y="80" fill="#334155" font-size="12">Titre</text>
+                            <circle cx="210" cy="105" r="6" fill="#fde047" stroke="#a16207" />
+                            <text x="225" y="110" fill="#334155" font-size="12">Année</text>
+                            <rect x="380" y="20" width="160" height="50" fill="#e0f2fe" stroke="#0284c7" rx="12" stroke-width="2" />
+                            <text x="460" y="52" text-anchor="middle" font-weight="bold" fill="#0c4a6e">AUTEUR</text>
+                            <path d="M180 48 L360 48" stroke="#475569" stroke-width="1.5" stroke-dasharray="4" />
+                            <text x="270" y="35" text-anchor="middle" fill="#b45309" font-size="11">écrit par</text>
+                        </svg>
+                        <p class="text-sm text-gray-600 mt-2">🔹 Entités : LIVRE et AUTEUR. Attributs : ISBN, Titre, Année. Association "écrit par".</p>
+                    </div>`;
+        }
+        
+        // fonction de rendu dynamique dans #slideContent
+        function renderSlide(index) {
+            const slide = slides[index];
+            let html = '';
+            
+            if (slide.type === 'title') {
+                html = `
+                    <div class="text-center py-8 md:py-12">
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">${escapeHtml(slide.title)}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${escapeHtml(slide.subtitle)}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="h-1 w-20 bg-blue-500 rounded-full"></div>
+                        </div>
+                        <p class="text-gray-500 mt-6 text-sm">${escapeHtml(slide.extra)}</p>
+                        <div class="mt-10 text-blue-500 text-sm">⬅️ ➡️ Navigation pour découvrir la leçon</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectives') {
+                let itemsHtml = '';
+                slide.items.forEach((item, idx) => {
+                    itemsHtml += `<div class="objective-badge p-4 rounded-xl mb-3 flex items-start gap-3">
+                                    <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">${idx+1}</span>
+                                    <span class="text-gray-700 text-lg">${escapeHtml(item)}</span>
+                                </div>`;
+                });
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b pb-3 border-blue-200">${escapeHtml(slide.title)}</h2>
+                        <div class="mt-6 space-y-3">${itemsHtml}</div>
+                        <div class="mt-8 p-4 bg-blue-50 rounded-xl text-blue-800 text-sm">
+                            💡 Après cette leçon, vous serez capable de concevoir une base de données relationnelle cohérente.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                let blocksHtml = '';
+                for (let block of slide.contentBlocks) {
+                    blocksHtml += `
+                        <div class="mb-6">
+                            <h3 class="text-xl font-semibold text-gray-800 flex items-center gap-2">📘 ${escapeHtml(block.heading)}</h3>
+                            <p class="text-gray-700 mt-2 leading-relaxed">${escapeHtml(block.text)}</p>
+                        </div>
+                    `;
+                }
+                let illustrationHtml = slide.illustration ? buildEntityAttributeSVG() : '';
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${escapeHtml(slide.title)}</h2>
+                        <div class="mt-5 space-y-4">${blocksHtml}</div>
+                        ${illustrationHtml}
+                        <div class="mt-6 p-3 bg-indigo-50 rounded-lg text-indigo-800 text-sm italic">✨ Pour bien modéliser, posez-vous la question : "Quels objets métier ? Quelles propriétés ? Comment s’associent-ils ?"</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'cardinalities') {
+                let cardsHtml = '';
+                for (let card of slide.cardinalDetails) {
+                    cardsHtml += `<div class="border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition">
+                                    <div class="text-2xl font-mono font-bold text-blue-700">${escapeHtml(card.symbole)}</div>
+                                    <p class="text-gray-700 mt-1">${escapeHtml(card.signification)}</p>
+                                </div>`;
+                }
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${escapeHtml(slide.title)}</h2>
+                        <p class="text-gray-600 mt-1">${escapeHtml(slide.description)}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">${cardsHtml}</div>
+                        <div class="mt-6 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded text-gray-700 text-sm">📌 ${escapeHtml(slide.note)}</div>
+                        <div class="mt-4 text-center bg-gray-100 p-3 rounded-lg">
+                            <span class="font-medium">Exemple concret :</span> Client (0,n) --- (1,1) Commande : chaque commande a un seul client, un client peut avoir 0 à plusieurs commandes.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'der_diagram') {
+                const derSvg = buildDERSVG();
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${escapeHtml(slide.title)}</h2>
+                        <p class="text-gray-700 mt-2">${escapeHtml(slide.explanation)}</p>
+                        <div class="mt-5 overflow-auto">${derSvg}</div>
+                        <div class="mt-4 bg-slate-100 p-4 rounded-xl">
+                            <p class="font-semibold">✏️ Étapes pour créer un DER :</p>
+                            <ul class="list-disc pl-5 mt-1 text-gray-700 space-y-1">
+                                <li>1. Lister les entités (noms).</li>
+                                <li>2. Définir les associations entre elles (verbes).</li>
+                                <li>3. Ajouter les attributs à chaque entité.</li>
+                                <li>4. Noter les cardinalités sur chaque branche d'association.</li>
+                                <li>5. Vérifier la cohérence !</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'summary') {
+                let tipsHtml = '<ul class="list-disc pl-5 space-y-2">';
+                slide.tips.forEach(t => { tipsHtml += `<li class="text-gray-700">${escapeHtml(t)}</li>`; });
+                tipsHtml += '</ul>';
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${escapeHtml(slide.title)}</h2>
+                        <div class="mt-5">${tipsHtml}</div>
+                        <div class="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
+                            <p class="font-bold text-green-800">🧠 ${escapeHtml(slide.miniQuiz)}</p>
+                            <p class="text-green-700 mt-2 text-sm">💬 ${escapeHtml(slide.answerHint)}</p>
+                        </div>
+                        <div class="mt-6 text-center text-gray-500 text-sm">📚 Prochaine étape : transformer ce DER en tables SQL avec clés primaires/étrangères.</div>
+                    </div>
+                `;
+            }
+            else {
+                html = `<div>Contenu non disponible</div>`;
+            }
+            
+            $("#slideContent").fadeOut(150, function() {
+                $(this).html(html);
+                // réactiver MathJax si besoin (aucune formule complexe, mais sécurité)
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+                $(this).fadeIn(150);
+            });
+            
+            // update progress et compteur
+            const progressPercent = ((currentSlide + 1) / totalSlides) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            $("#slideCounter").text(`Slide ${currentSlide+1} / ${totalSlides}`);
+            
+            // gestion état boutons
+            $("#prevBtn").prop("disabled", currentSlide === 0);
+            $("#nextBtn").text(currentSlide === totalSlides-1 ? "Terminer ✓" : "Suivant →");
+        }
+        
+        // helper escape
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        // navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                renderSlide(currentSlide);
+            } else {
+                // fin du cours, on peut afficher une petite notification félicitations
+                alert("🎉 Bravo ! Vous avez terminé la leçon sur la conception de bases de données relationnelles. Continuez à vous exercer avec des DER !");
+            }
+        }
+        
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide(currentSlide);
+            }
+        }
+        
+        $(document).ready(function(){
+            renderSlide(0);
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            // gestion clavier
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") nextSlide();
+                if (e.key === "ArrowLeft") prevSlide();
+            });
+        });
+    </script>
+</body>
+</html>

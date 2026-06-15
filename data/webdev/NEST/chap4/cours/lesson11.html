@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS - Cours : Entités & Relations TypeORM (Lesson 11)</title>
+    <!-- Tailwind CSS + jQuery + MathJax -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            transition: all 0.3s ease;
+            scroll-margin-top: 2rem;
+        }
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            color: #a5f3c3;
+            font-size: 0.8rem;
+        }
+        .badge {
+            background: #3b82f6;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .relation-card {
+            border-left: 4px solid #6366f1;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-3xl mx-auto px-4 py-6 md:py-10">
+        <!-- Navigation fixe -->
+        <div class="sticky top-4 z-10 bg-white/80 backdrop-blur-md rounded-full shadow-md p-2 flex justify-between items-center gap-2 mb-8">
+            <button id="prevSlide" class="nav-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-4 rounded-full text-sm shadow"><i class="fas fa-arrow-left mr-1"></i> Précédent</button>
+            <span id="slideCounter" class="text-xs font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">Slide 1 / 7</span>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full text-sm shadow">Suivant <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+
+        <!-- SLIDES -->
+        <div id="slidesContainer" class="space-y-8">
+            <!-- Slide 1 : Titre -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="0">
+                <div class="flex flex-col items-center text-center">
+                    <div class="bg-indigo-100 text-indigo-700 rounded-full p-3 w-16 h-16 flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">Créer des entités et relations avec TypeORM</h1>
+                    <p class="text-gray-500 mt-3">NestJS – Lesson 11 | Chapitre 4 : Base de données relationnelle</p>
+                    <div class="mt-6 border-t pt-5 w-full text-sm text-gray-500">
+                        <span class="badge">@Entity</span> <span class="badge bg-emerald-500">@Column</span> <span class="badge bg-amber-500">@PrimaryGeneratedColumn</span> <span class="badge bg-rose-500">@OneToMany</span> <span class="badge bg-purple-500">@ManyToOne</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="1">
+                <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-5">🎯 Objectifs de la leçon</h2>
+                <ul class="space-y-3 text-gray-700">
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold">✓</span> Créer des entités avec <code>@Entity()</code> dans NestJS/TypeORM.</li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold">✓</span> Définir les colonnes avec <code>@Column</code>, <code>@PrimaryGeneratedColumn</code>.</li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold">✓</span> Gérer les relations : <code>@OneToMany</code>, <code>@ManyToOne</code>, <code>@OneToOne</code>.</li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold">✓</span> Comprendre le schéma automatique et les jointures.</li>
+                </ul>
+                <div class="mt-6 bg-blue-50 p-4 rounded-xl text-sm text-blue-800">
+                    <i class="fas fa-database mr-2"></i> Une entité correspond à une table SQL. Chaque propriété décorée <code>@Column</code> devient une colonne.
+                </div>
+            </div>
+
+            <!-- Slide 3 : Définir une entité simple -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="2">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📄 Créer une entité basique</h2>
+                <p class="text-gray-600 mb-3">Exemple : une table <strong>User</strong> avec id auto-incrémenté, nom, email.</p>
+                <pre class="text-sm">// user.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column({ default: true })
+  isActive: boolean;
+}</pre>
+                <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span class="bg-gray-200 px-2 py-1 rounded-full">🔑 PrimaryGeneratedColumn → clé primaire auto-incrémentée</span>
+                    <span class="bg-gray-200 px-2 py-1 rounded-full">📌 Column → options : length, nullable, unique, default</span>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Relations ManyToOne & OneToMany -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔗 Relation OneToMany / ManyToOne</h2>
+                <p class="text-gray-600">Un utilisateur peut avoir plusieurs articles (posts). C’est la relation la plus courante.</p>
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-gray-50 p-3 rounded-xl relation-card">
+                        <p class="font-bold">User (côté "un")</p>
+                        <pre class="text-xs">@OneToMany(() => Post, post => post.author)
+posts: Post[];</pre>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl relation-card">
+                        <p class="font-bold">Post (côté "plusieurs")</p>
+                        <pre class="text-xs">@ManyToOne(() => User, user => user.posts)
+@JoinColumn()
+author: User;</pre>
+                    </div>
+                </div>
+                <div class="mt-4 bg-indigo-50 p-3 rounded-lg text-indigo-800 text-sm">
+                    <i class="fas fa-link"></i> <code>@JoinColumn()</code> est obligatoire du côté <code>@ManyToOne</code> pour définir la clé étrangère.
+                </div>
+            </div>
+
+            <!-- Slide 5 : Relation OneToOne -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">💍 Relation OneToOne</h2>
+                <p class="text-gray-600">Un utilisateur a un unique profil (ex: photo de profil, adresse).</p>
+                <pre>// user.entity.ts
+@OneToOne(() => Profile, profile => profile.user)
+@JoinColumn()  // la clé étrangère se trouve dans la table User
+profile: Profile;
+
+// profile.entity.ts
+@OneToOne(() => User, user => user.profile)
+user: User;</pre>
+                <p class="text-gray-500 text-sm mt-2">Astuce : <code>@JoinColumn()</code> définit la table qui possède la colonne de relation (côté propriétaire).</p>
+            </div>
+
+            <!-- Slide 6 : Bonnes pratiques et options -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚙️ Options avancées des colonnes</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li><code>@Column({ type: 'varchar', length: 255 })</code> → spécifie le type SQL.</li>
+                    <li><code>@Column({ nullable: true })</code> → champ optionnel en base.</li>
+                    <li><code>@Column({ update: false })</code> → la colonne n’est pas modifiable après création.</li>
+                    <li><code>@CreateDateColumn()</code> et <code>@UpdateDateColumn()</code> → dates automatiques.</li>
+                </ul>
+                <div class="mt-4 bg-green-50 p-3 rounded-lg text-green-700 text-sm">
+                    ✅ <strong>Exemple concret :</strong> 
+                    <code>@CreateDateColumn() createdAt: Date;</code> sera rempli automatiquement par TypeORM.
+                </div>
+            </div>
+
+            <!-- Slide 7 : Résumé / Schéma relationnel dessiné en HTML/CSS -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🗂️ Schéma simplifié (User ↔ Post)</h2>
+                <div class="flex flex-col md:flex-row justify-center items-stretch gap-6 mt-2">
+                    <div class="bg-slate-100 p-4 rounded-xl text-center flex-1">
+                        <p class="font-mono font-bold">users</p>
+                        <hr class="my-2">
+                        <p>id (PK)</p>
+                        <p>name</p>
+                        <p>email</p>
+                        <p class="text-indigo-600">→ posts[] (OneToMany)</p>
+                    </div>
+                    <div class="text-2xl self-center hidden md:block">⟷</div>
+                    <div class="bg-slate-100 p-4 rounded-xl text-center flex-1">
+                        <p class="font-mono font-bold">posts</p>
+                        <hr class="my-2">
+                        <p>id (PK)</p>
+                        <p>title</p>
+                        <p>content</p>
+                        <p class="text-rose-600">authorId (FK) → users.id</p>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-5 text-center">Cette organisation garantit l'intégrité référentielle et permet de faire des requêtes avec <code>relations</code> dans TypeORM.</p>
+                <div class="mt-4 text-center text-xs text-gray-400">
+                    <i class="fas fa-mobile-alt"></i> Lesson 11 – Chapitre 4 : "Intégrer une base de données relationnelle"
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-400 text-xs py-6">
+            Cours NestJS - Entités et relations TypeORM | Inspiré du programme officiel
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let currentIndex = 0;
+            const total = slides.length;
+
+            function updateVisibility() {
+                slides.each(function(index) {
+                    if (index === currentIndex) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${total}`);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function showNext() {
+                if (currentIndex < total - 1) {
+                    currentIndex++;
+                    updateVisibility();
+                } else {
+                    alert("Fin du cours. Vous pouvez revenir en arrière.");
+                }
+            }
+
+            function showPrev() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateVisibility();
+                } else {
+                    alert("Vous êtes au début de la leçon.");
+                }
+            }
+
+            $('#nextSlide').on('click', showNext);
+            $('#prevSlide').on('click', showPrev);
+
+            // Swipe pour mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $(document).on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $(document).on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 50) showNext();
+                if (touchEndX > touchStartX + 50) showPrev();
+            });
+
+            updateVisibility();
+        });
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</body>
+</html>

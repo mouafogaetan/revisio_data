@@ -1,0 +1,98 @@
+[
+  {
+    "questionText": "Dans une API e-commerce, pourquoi est-il important de vérifier la disponibilité des stocks au moment de l'ajout au panier ET au moment de la validation de la commande ?",
+    "options": [
+      "Pour augmenter les performances de la base de données",
+      "Pour éviter la vente d'un produit dont le stock a été épuisé entre l'ajout au panier et la finalisation de la commande",
+      "Pour permettre aux clients de commander plus que le stock disponible",
+      "Pour générer automatiquement des factures"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La double vérification est essentielle car le stock peut changer entre le moment où l'utilisateur ajoute un produit à son panier et le moment où il valide sa commande (un autre client peut avoir acheté le dernier exemplaire entretemps). La vérification à la validation permet de garantir l'intégrité de la commande."
+  },
+  {
+    "questionText": "Qu'est-ce qu'un 'lock temporaire' (ou réservation) de stock dans le contexte d'un panier d'achat ?",
+    "options": [
+      "Une augmentation permanente du stock pour faciliter les ventes",
+      "Une diminution fictive du stock qui n'affecte pas la base de données",
+      "Une réservation des produits pendant un temps limité pour garantir leur disponibilité le temps que l'utilisateur finalise sa commande",
+      "Un verrouillage physique de l'entrepôt"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "Le lock temporaire (ou réservation) consiste à diminuer temporairement le stock disponible lorsqu'un utilisateur ajoute un produit à son panier ou commence le processus de paiement. Si la commande n'est pas finalisée dans un délai imparti, le stock est libéré. Cela évite qu'un produit soit ajouté au panier par plusieurs utilisateurs simultanément alors qu'il n'en reste qu'un seul exemplaire."
+  },
+  {
+    "questionText": "Observez ce code TypeORM de vérification de stock :\n```typescript\nasync function checkStock(productId: number, requestedQuantity: number): Promise<boolean> {\n  const product = await productRepository.findOne({ where: { id: productId } });\n  if (!product) return false;\n  const availableStock = product.stock - product.reservedStock;\n  return availableStock >= requestedQuantity;\n}\n```\nQue représente la propriété `reservedStock` dans ce contexte ?",
+    "options": [
+      "Le nombre de produits déjà commandés et payés",
+      "Le nombre de produits actuellement dans les paniers des utilisateurs (réservés temporairement)",
+      "Le nombre de produits en promotion",
+      "Le nombre de produits retournés par les clients"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "`reservedStock` représente la quantité de produits qui a été temporairement réservée (par exemple, ajoutée au panier ou en cours de paiement). Le stock réellement disponible pour une nouvelle commande est donc `stock - reservedStock`. Une fois la commande validée, `reservedStock` est diminué et `stock` est définitivement réduit."
+  },
+  {
+    "questionText": "Pourquoi une stratégie de 'lock' (réservation) de stock est-elle complexe à implémenter avec un panier anonyme ?",
+    "options": [
+      "Parce que les paniers anonymes ont un stock infini",
+      "Parce que l'utilisateur anonyme peut fermer son navigateur sans finaliser la commande, laissant le stock réservé indéfiniment",
+      "Parce que les paniers anonymes sont interdits par la loi",
+      "Parce que les bases de données ne supportent pas les réservations pour les utilisateurs non authentifiés"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Avec un panier anonyme, on ne peut pas contacter l'utilisateur et on ne sait pas s'il reviendra. Sans mécanisme d'expiration, les produits resteraient réservés indéfiniment, rendant le stock indisponible pour d'autres clients. Il faut donc absolument implémenter une expiration automatique des réservations (ex: après 15-30 minutes d'inactivité)."
+  },
+  {
+    "questionText": "Quel mécanisme permet d'éviter qu'un panier reste actif indéfiniment et bloque du stock inutilement ?",
+    "options": [
+      "L'augmentation permanente du stock",
+      "La suppression manuelle quotidienne des paniers",
+      "L'implémentation d'une date d'expiration (expiresAt) avec une tâche planifiée (cron) nettoyant les paniers expirés",
+      "La désactivation de la gestion des stocks"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "La bonne pratique consiste à ajouter un champ `expiresAt` (ou `updatedAt` + durée de vie) à l'entité Cart. Une tâche planifiée (cron job) s'exécute régulièrement pour supprimer les paniers expirés ou libérer le stock réservé associé. On peut aussi vérifier l'expiration à chaque requête sur le panier."
+  },
+  {
+    "questionText": "Quelle est la conséquence d'une mauvaise gestion du lock de stock (par exemple, réservation sans expiration) sur une plateforme e-commerce à fort trafic ?",
+    "options": [
+      "Amélioration des performances du site",
+      "Réduction du nombre de commandes abandonnées",
+      "Indisponibilité artificielle de produits (fausses ruptures de stock) et perte de ventes",
+      "Augmentation automatique des prix"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "Si des utilisateurs ajoutent des produits à leur panier (réservant le stock) puis abandonnent sans finaliser, et que ces réservations n'expirent jamais, les produits deviennent indisponibles pour d'autres clients. Cela crée des 'ghost stocks' (stocks fantômes), frustre les clients et fait perdre des ventes à la plateforme."
+  },
+  {
+    "questionText": "Dans une architecture NestJS avec TypeORM et PostgreSQL, comment implémenter un lock optimiste pour éviter les problèmes de concurrence lors de la réservation de stock ?",
+    "options": [
+      "En utilisant `@VersionColumn()` et en gérant l'exception `OptimisticLockVersionMismatchError`",
+      "En désactivant toutes les transactions",
+      "En utilisant uniquement des locks pessimistes avec `SELECT FOR UPDATE` sans versionnement",
+      "En supprimant toute vérification de concurrence"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "very hard",
+    "explanation": "Le lock optimiste utilise une colonne de version (incrémentée à chaque mise à jour). Avant de mettre à jour le stock, on vérifie que la version n'a pas changé depuis la lecture. Si c'est le cas (une autre transaction a modifié l'enregistrement entre-temps), TypeORM lève `OptimisticLockVersionMismatchError` et on peut réessayer. C'est plus performant que les locks pessimistes pour les scénarios à faible concurrence."
+  },
+  {
+    "questionText": "Supposons qu'un produit ait un stock de 10 unités. Un utilisateur A ajoute 3 unités à son panier (réservation). Un utilisateur B ajoute 8 unités à son panier. Que doit faire le système si le stock disponible (`stock - reservedStock`) est insuffisant pour B ?",
+    "options": [
+      "Accepter la demande de B et annuler la réservation de A",
+      "Bloquer la demande de B et lui retourner une erreur indiquant le stock réellement disponible",
+      "Accepter partiellement la demande de B (ex: 7 unités au lieu de 8)",
+      "Vider automatiquement le panier de A"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "Le système doit refuser l'ajout de B avec un message clair du type 'Stock insuffisant. Seulement X unités disponibles'. On ne doit pas annuler la réservation de A (sauf expiration) ni accepter partiellement sans consentement explicite. L'utilisateur B doit décider s'il veut modifier sa quantité ou retirer le produit."
+  }
+]

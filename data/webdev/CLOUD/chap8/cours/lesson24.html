@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 24 : Introduction à Terraform (IaC) | Cours Cloud</title>
+    <!-- Tailwind CSS CDN + base styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles additionnels pour slides et transitions douces */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e3a8a;
+        }
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .dot-active {
+            background-color: #0f3b5c;
+            width: 2rem;
+        }
+        .dot-inactive {
+            background-color: #b9d0e7;
+            width: 0.75rem;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #1e6f5c;
+            border-radius: 4px;
+            width: 0%;
+        }
+        /* amélioration texte sur mobile */
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* Code blocks style */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .inline-code {
+            background: #eef2ff;
+            color: #0f2b3d;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="slide-container px-4 py-6 md:py-10">
+        <!-- slide wrapper -->
+        <div class="slide-card p-5 md:p-8">
+            <!-- Header avec progression et titre -->
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <div class="flex items-center space-x-2">
+                    <span class="bg-teal-100 text-teal-800 text-xs font-semibold px-3 py-1 rounded-full">📘 Leçon 24</span>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">Terraform · IaC</span>
+                </div>
+                <div class="text-sm text-gray-500">
+                    Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+                </div>
+            </div>
+            <div class="progress-bar w-full mb-5">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <!-- contenu dynamique des slides -->
+            <div id="slidesContent" class="min-h-[450px] md:min-h-[500px] transition-all duration-300"></div>
+
+            <!-- Navigation et indicateurs -->
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8 pt-4 border-t border-gray-200">
+                <div class="flex space-x-3">
+                    <button id="prevBtn" class="nav-btn bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-5 rounded-full shadow-md flex items-center gap-1">◀ Précédent</button>
+                    <button id="nextBtn" class="nav-btn bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2 px-5 rounded-full shadow-md flex items-center gap-1">Suivant ▶</button>
+                </div>
+                <div class="flex space-x-2 flex-wrap justify-center" id="dotsContainer"></div>
+                <div class="text-xs text-gray-400 italic">✨ Infrastructure as Code (IaC)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la lesson24: Terraform (provisionnement cloud)
+        // Nous allons créer plusieurs slides: titre + objectifs + contenu détaillé
+        const slides = [
+            {
+                type: "title",
+                title: "🔧 Terraform : Automatiser le provisionnement cloud",
+                subtitle: "Infrastructure as Code (IaC) · Déployez vos ressources comme du code",
+                icon: "🏗️",
+                description: "Découvrez comment Terraform révolutionne la gestion d'infrastructure dans le cloud (AWS, Azure, GCP...)."
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "📄 Écrire des fichiers de configuration Terraform (.tf) : provider, resource, variable",
+                    "⚙️ Maîtriser le workflow essentiel : init, plan, apply, destroy",
+                    "🗃️ Gérer l'état (state) : terraform.tfstate et utilisation des backends distants"
+                ]
+            },
+            {
+                type: "content",
+                title: "📁 Qu'est-ce qu'un fichier Terraform ?",
+                content: "<p>Un fichier avec l'extension <span class='inline-code'>.tf</span> écrit en langage HCL (HashiCorp Configuration Language). Il déclare les ressources cloud souhaitées.</p>",
+                code: `# Exemple: provisionner une instance AWS EC2 et un bucket S3
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "mon_serveur" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  tags = {
+    Name = "MonInstanceTerraform"
+  }
+}
+
+resource "aws_s3_bucket" "mon_bucket" {
+  bucket = "mon-bucket-terraform-2025"
+  acl    = "private"
+}`,
+                note: "🔍 Les blocs provider, resource, variable, output sont les briques de base."
+            },
+            {
+                type: "content",
+                title: "🚀 Workflow Terraform : Les commandes clés",
+                content: "<p>Le cycle de vie classique pour déployer et gérer l'infrastructure.</p>",
+                steps: [
+                    { cmd: "terraform init", desc: "Initialise le répertoire, télécharge les plugins des providers (AWS, Azure...)." },
+                    { cmd: "terraform plan", desc: "Affiche un aperçu des modifications à appliquer (ajout, modification, suppression)." },
+                    { cmd: "terraform apply", desc: "Applique les changements pour créer/mettre à jour les ressources. Demande confirmation." },
+                    { cmd: "terraform destroy", desc: "Supprime toutes les ressources gérées par la configuration." }
+                ],
+                tip: "💡 Utilisez 'terraform plan -out plan.tfplan' pour appliquer plus tard sans risque."
+            },
+            {
+                type: "content",
+                title: "📊 Gestion de l'état (State) : cœur de Terraform",
+                content: `<p>Terraform conserve un fichier <span class="inline-code">terraform.tfstate</span> qui enregistre le mapping entre votre configuration et les ressources réelles du cloud. Ce fichier est CRITIQUE.</p>
+                <ul class="list-disc pl-6 mt-3 space-y-2">
+                    <li><strong>Local state</strong> : Par défaut, le fichier .tfstate dans le dossier local (à versionner avec précaution).</li>
+                    <li><strong>Backend distant</strong> : Stockage sécurisé sur AWS S3 + DynamoDB, Azure Storage, Terraform Cloud... Permet le travail en équipe et le verrouillage.</li>
+                    <li>Ne jamais éditer manuellement le state sauf en cas d'intervention avancée via <span class="inline-code">terraform state</span> commandes.</li>
+                </ul>`,
+                codeExample: `# Configuration backend S3
+terraform {
+  backend "s3" {
+    bucket         = "mon-bucket-terraform-state"
+    key            = "prod/terraform.tfstate"
+    region         = "eu-west-3"
+    dynamodb_table = "terraform-locks"
+  }
+}`,
+                note: "🔐 Le backend distant garantit la cohérence en équipe."
+            },
+            {
+                type: "content",
+                title: "🧩 Variables et sorties pour plus de flexibilité",
+                content: `<p>Les variables permettent de paramétrer vos configurations sans coder en dur.</p>
+                <p class="mt-2">Utilisez <span class="inline-code">variable.tf</span> pour déclarer des variables et un fichier <span class="inline-code">terraform.tfvars</span> pour les valeurs.</p>`,
+                code: `# variables.tf
+variable "instance_type" {
+  description = "Type d'instance EC2"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "environment" {
+  type    = string
+}
+
+# main.tf
+resource "aws_instance" "example" {
+  instance_type = var.instance_type
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# output.tf
+output "instance_ip" {
+  value = aws_instance.example.public_ip
+}`,
+                extra: "🎯 Lancez : terraform apply -var='environment=dev' pour passer une variable."
+            },
+            {
+                type: "content",
+                title: "🔄 Bonnes pratiques & modules réutilisables",
+                content: `<p>Les modules Terraform permettent de mutualiser et organiser l'infrastructure.</p>
+                <ul class="list-disc pl-6 mt-2 space-y-1">
+                    <li>Structure de dossiers : modules/ , environments/dev/ , environments/prod/ </li>
+                    <li>Utiliser le <span class="inline-code">terraform fmt</span> pour formater le code.</li>
+                    <li>Validation avec <span class="inline-code">terraform validate</span> avant le plan.</li>
+                    <li>Modules publiques du Terraform Registry (ex: VPC, EKS, RDS).</li>
+                </ul>
+                <div class="bg-teal-50 p-3 rounded-xl mt-3">
+                📌 <strong>Exemple d'appel de module :</strong>
+                <pre class="mt-2">module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+  version = "5.0.0"
+  name = "mon-vpc"
+  cidr = "10.0.0.0/16"
+}</pre>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "⚡ Exercice pratique (simulé)",
+                content: `<p><strong>Mettez en pratique les concepts :</strong></p>
+                <ol class="list-decimal pl-6 space-y-2 mt-2">
+                    <li>Écrivez un fichier <span class="inline-code">main.tf</span> pour créer un bucket de stockage Azure ou AWS S3.</li>
+                    <li>Initialisez le projet avec <span class="inline-code">terraform init</span>.</li>
+                    <li>Générez un plan et observez les ressources ajoutées.</li>
+                    <li>Appliquez la configuration.</li>
+                    <li>Vérifiez le fichier d'état et détruisez les ressources.</li>
+                </ol>
+                <div class="bg-amber-50 p-3 rounded-lg mt-3 border-l-4 border-amber-500">
+                💡 <strong>Astuce :</strong> Utilisez un compte gratuit (AWS free tier / Azure) ou Terraform Cloud pour vous entraîner.
+                </div>`
+            }
+        ];
+
+        let currentIndex = 0;
+        const total = slides.length;
+
+        // Mise à jour des éléments UI
+        function updateSlide() {
+            const slide = slides[currentIndex];
+            const container = $("#slidesContent");
+            let html = "";
+
+            if (slide.type === "title") {
+                html = `
+                    <div class="text-center py-8 md:py-12">
+                        <div class="text-7xl mb-4">${slide.icon || "☁️"}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-teal-800 to-blue-800 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-xl md:text-2xl text-gray-700 mt-4 font-medium">${slide.subtitle}</p>
+                        <p class="text-gray-500 mt-6 max-w-2xl mx-auto">${slide.description}</p>
+                        <div class="mt-10 flex justify-center">
+                            <div class="bg-teal-100 rounded-full px-6 py-2 inline-flex items-center gap-2"><span class="font-mono">📁 infrastructure-as-code</span></div>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectifs") {
+                let objItems = "";
+                slide.objectives.forEach(obj => {
+                    objItems += `<li class="mb-3 flex items-start gap-3"><span class="text-teal-600 text-xl">🎯</span> <span class="text-gray-800 text-lg">${obj}</span></li>`;
+                });
+                html = `
+                    <div class="py-4">
+                        <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-500 pl-4 mb-6">${slide.title}</h2>
+                        <ul class="space-y-4 text-left max-w-3xl mx-auto">
+                            ${objItems}
+                        </ul>
+                        <div class="bg-blue-50 p-4 rounded-2xl mt-8 text-blue-800 text-center">
+                            💪 À la fin de cette leçon, vous serez capable d'écrire du Terraform et de déployer des ressources cloud en autonomie.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                let additionalCode = "";
+                if (slide.code) {
+                    additionalCode = `<pre><code>${escapeHtml(slide.code)}</code></pre>`;
+                }
+                if (slide.codeExample) {
+                    additionalCode += `<pre><code>${escapeHtml(slide.codeExample)}</code></pre>`;
+                }
+                let stepsHtml = "";
+                if (slide.steps) {
+                    stepsHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        ${slide.steps.map(step => `
+                            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+                                <div class="font-mono text-teal-800 font-bold">${step.cmd}</div>
+                                <p class="text-sm text-gray-600 mt-1">${step.desc}</p>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+                let extraBlock = slide.extra ? `<div class="mt-4 p-3 bg-indigo-50 rounded-lg text-indigo-800">${slide.extra}</div>` : "";
+                let tipBlock = slide.tip ? `<div class="mt-4 bg-green-50 p-3 rounded-lg border-l-4 border-green-500">✨ ${slide.tip}</div>` : "";
+                let noteBlock = slide.note ? `<div class="mt-4 text-sm bg-yellow-50 p-2 rounded-lg">📌 ${slide.note}</div>` : "";
+                
+                html = `
+                    <div class="py-2">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 flex items-center gap-2">📖 ${slide.title}</h2>
+                        <div class="prose prose-lg max-w-none text-gray-700">
+                            ${slide.content || ""}
+                        </div>
+                        ${stepsHtml}
+                        ${additionalCode}
+                        ${extraBlock}
+                        ${tipBlock}
+                        ${noteBlock}
+                        ${slide.extraContent ? `<div class="mt-3">${slide.extraContent}</div>` : ""}
+                    </div>
+                `;
+            }
+            
+            container.html(html);
+            $("#currentSlideIdx").text(currentIndex+1);
+            $("#totalSlides").text(total);
+            const progressPercent = ((currentIndex+1) / total) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            
+            // Mise à jour des dots
+            let dotsHtml = "";
+            for(let i=0; i<total; i++) {
+                const activeClass = (i === currentIndex) ? "dot-active w-8" : "dot-inactive w-3";
+                dotsHtml += `<button class="slide-dot h-2 rounded-full ${activeClass} mx-1 transition-all" data-index="${i}"></button>`;
+            }
+            $("#dotsContainer").html(dotsHtml);
+            
+            // Gérer état des boutons prev/next
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === total-1);
+            
+            // Appliquer MathJax sur le nouveau contenu (au cas où)
+            if(window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        // helper escape html pour affichage code
+        function escapeHtml(str) {
+            if(!str) return "";
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        function nextSlide() {
+            if(currentIndex < total-1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        
+        function prevSlide() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+        
+        // Event listeners
+        $(document).ready(function(){
+            updateSlide();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            $(document).on("click", ".slide-dot", function() {
+                const idx = $(this).data("index");
+                if(idx !== undefined && idx !== currentIndex) {
+                    currentIndex = idx;
+                    updateSlide();
+                }
+            });
+            // Swipe simplifié pour mobile (optionnel)
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesDiv = document.getElementById("slidesContent");
+            if(slidesDiv) {
+                slidesDiv.addEventListener('touchstart', function(e) {
+                    touchstartX = e.changedTouches[0].screenX;
+                }, false);
+                slidesDiv.addEventListener('touchend', function(e) {
+                    touchendX = e.changedTouches[0].screenX;
+                    if (touchendX < touchstartX - 40) nextSlide();
+                    if (touchendX > touchstartX + 40) prevSlide();
+                }, false);
+            }
+            // Keyboard navigation
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") nextSlide();
+                else if (e.key === "ArrowLeft") prevSlide();
+            });
+        });
+    </script>
+    <!-- dessin personnalisé SVG intégré à la fin pour illustration (aucune image externe, diagramme simple des commandes) -->
+    <div class="hidden md:block fixed bottom-4 right-4 opacity-40 pointer-events-none">
+        <svg width="80" height="80" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="30" width="60" height="40" rx="8" fill="#2c7a7b" fill-opacity="0.2" stroke="#2c7a7b" stroke-width="1.5"/>
+            <text x="35" y="55" font-size="12" fill="#1e3a8a" font-weight="bold">TF</text>
+            <path d="M50 20 L50 30 M50 70 L50 80" stroke="#0f5b7a" stroke-width="2" stroke-dasharray="3"/>
+            <circle cx="50" cy="18" r="3" fill="#0e7c7c"/>
+        </svg>
+    </div>
+    <footer class="text-center text-xs text-gray-400 pb-4 mt-2">
+        Leçon 24 - Terraform | Cours d'Initiation au Cloud Computing | Support pédagogique
+    </footer>
+</body>
+</html>

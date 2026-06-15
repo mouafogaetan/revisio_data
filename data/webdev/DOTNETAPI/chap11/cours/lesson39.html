@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 39 : Projet complet - API REST avec ASP.NET Core</title>
+    <!-- Tailwind CSS CDN + base styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules éventuelles) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police & personnalisations légères -->
+    <style>
+        /* Styles additionnels pour la navigation slides et lisibilité */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .card-slide {
+            backdrop-filter: blur(2px);
+            background-color: rgba(255, 255, 255, 0.96);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.03);
+            background-color: #1e3a8a;
+            color: white;
+        }
+        .progress-bar {
+            transition: width 0.4s ease;
+        }
+        /* code block style minimal */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            .card-slide {
+                border-radius: 1.5rem;
+            }
+        }
+        .badge-dot {
+            background-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10 min-h-screen flex flex-col justify-center items-center">
+        <!-- Conteneur principal slides -->
+        <div id="slidesContainer" class="w-full relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery -->
+        </div>
+
+        <!-- Navigation + indicateur de progression -->
+        <div class="w-full mt-8 flex flex-wrap justify-between items-center gap-4">
+            <button id="prevSlide" class="nav-btn bg-white/80 backdrop-blur-sm px-6 py-2 rounded-full shadow-md text-gray-800 font-medium border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition">◀ Précédent</button>
+            <div class="flex items-center gap-3 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+                <span id="slideCounter" class="text-sm font-semibold text-gray-700">Slide 1 / 1</span>
+                <div class="w-32 md:w-48 h-2 bg-gray-300 rounded-full overflow-hidden">
+                    <div id="progressFill" class="progress-bar h-full bg-blue-600 rounded-full" style="width: 0%;"></div>
+                </div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-full shadow-md font-medium transition">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Données de la Leçon 39 (basées sur le programme) ----------
+        // Titre principal de la leçon
+        const lessonTitle = "Projet final : Développement d'une API REST complète";
+        // Objectifs pédagogiques selon le fichier JSON (lesson39 -> objectifsLesson)
+        const objectives = [
+            "Choisir un domaine concret (blog, e-commerce, gestion de tâches, utilisateurs) et modéliser la base de données.",
+            "Mettre en place l'architecture complète : Controllers, Services, Repository, DTOs avec AutoMapper.",
+            "Implémenter les endpoints CRUD complets avec Entity Framework Core.",
+            "Ajouter l'authentification JWT et l'autorisation par rôles.",
+            "Intégrer validation des données, logs applicatifs et health checks.",
+            "Documenter l'API avec Swagger, rédiger des tests unitaires & d'intégration.",
+            "Déployer l'API sur Azure/AWS/Docker et présenter le projet final."
+        ];
+
+        // Contenu des slides supplémentaires (après la slide titre et objectifs)
+        // Slide 3 : Choix du domaine et modélisation
+        const slideModelisation = {
+            title: "📌 1. Choix du domaine & Modélisation",
+            content: `
+                <p class="text-gray-700 leading-relaxed">Avant de coder, on définit le périmètre métier. Exemples populaires :</p>
+                <ul class="list-disc list-inside mt-3 space-y-1 text-gray-800 bg-gray-50 p-4 rounded-xl">
+                    <li><strong>Blog :</strong> articles, commentaires, catégories, utilisateurs.</li>
+                    <li><strong>E-commerce :</strong> produits, commandes, panier, clients.</li>
+                    <li><strong>Gestion de tâches :</strong> projets, tâches, statuts, assignations.</li>
+                </ul>
+                <div class="mt-5 bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500">
+                    <p class="font-semibold">🗄️ Modélisation EF Core (exemple pour Blog) :</p>
+                    <pre class="mt-2 text-xs md:text-sm"><code>public class Article {
+    public int Id { get; set; }
+    public string Titre { get; set; }
+    public string Contenu { get; set; }
+    public DateTime DatePublication { get; set; }
+    public int AuteurId { get; set; }
+    public Utilisateur Auteur { get; set; }
+    public ICollection<Commentaire> Commentaires { get; set; }
+}</code></pre>
+                    <p class="text-sm text-gray-600 mt-2">✅ Relation One-to-Many, clés étrangères, DbContext avec DbSet.</p>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2 text-sm">
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">Code First</span>
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">Fluent API / Data Annotations</span>
+                </div>
+            `
+        };
+
+        // Slide 4 : Architecture (Services, Repository, DTOs)
+        const slideArchitecture = {
+            title: "🏗️ 2. Architecture professionnelle",
+            content: `
+                <p class="mb-3">Une API maintenable sépare les responsabilités :</p>
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-gray-100 p-3 rounded-lg"><span class="font-bold">🎯 Controllers</span> – endpoints, injection, validation, réponses HTTP.</div>
+                    <div class="bg-gray-100 p-3 rounded-lg"><span class="font-bold">🧠 Services</span> – logique métier, transactions, appels repository.</div>
+                    <div class="bg-gray-100 p-3 rounded-lg"><span class="font-bold">💾 Repository</span> – accès aux données (EF Core), requêtes réutilisables.</div>
+                    <div class="bg-gray-100 p-3 rounded-lg"><span class="font-bold">📦 DTOs</span> – transfert de données (évite l'exposition directe des entités).</div>
+                </div>
+                <div class="mt-5">
+                    <p class="font-semibold text-blue-800">✨ AutoMapper pour conversion Entité ⇄ DTO :</p>
+                    <pre class="mt-2"><code>// Profile
+CreateMap&lt;Article, ArticleDto&gt;().ReverseMap();
+// Dans controller : return Ok(_mapper.Map&lt;ArticleDto&gt;(article));</code></pre>
+                </div>
+                <div class="mt-4 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <p>💡 <strong>Injection de dépendances :</strong> on enregistre repository & service avec AddScoped().</p>
+                </div>
+            `
+        };
+
+        // Slide 5 : Implémentation CRUD + JWT + rôles
+        const slideCrudJwt = {
+            title: "🔐 3. CRUD complet & Sécurité JWT",
+            content: `
+                <div class="space-y-4">
+                    <div>
+                        <p class="font-semibold">📌 Endpoints REST typiques pour un article :</p>
+                        <pre class="mt-1"><code>GET    /api/articles
+GET    /api/articles/{id}
+POST   /api/articles
+PUT    /api/articles/{id}
+DELETE /api/articles/{id}</code></pre>
+                    </div>
+                    <div>
+                        <p class="font-semibold">🔑 Authentification JWT - étape clé :</p>
+                        <ul class="list-disc ml-6 text-gray-700 space-y-1">
+                            <li>Endpoint <span class="font-mono bg-gray-200 px-1">/api/auth/login</span> retourne un token.</li>
+                            <li>Utilisation de <span class="font-mono">[Authorize]</span> sur les endpoints privés.</li>
+                            <li>Rôles : <span class="font-mono">[Authorize(Roles = "Admin")]</span> pour l'administration.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <p>✅ Exemple de génération de token JWT avec <em>SecurityTokenDescriptor</em> et signature symétrique.</p>
+                        <p class="text-sm mt-1">Les mots de passe doivent être hachés avec <strong>BCrypt</strong>.</p>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-center">
+                    <div class="inline-flex items-center gap-2 bg-gray-800 text-white p-2 rounded-full px-4 text-xs">
+                        <span class="w-2 h-2 bg-green-400 rounded-full"></span> API sécurisée – Bonnes pratiques
+                    </div>
+                </div>
+            `
+        };
+
+        // Slide 6 : validation, logs et health checks
+        const slideValidationLogs = {
+            title: "📋 4. Validation, Logs & Health Checks",
+            content: `
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="bg-white shadow-sm p-4 rounded-xl border border-gray-200">
+                        <h3 class="font-bold text-indigo-700">✅ Validation des données</h3>
+                        <p class="text-sm mt-1">Attributs: <code>[Required]</code>, <code>[StringLength]</code>, <code>[Range]</code>. Grâce à <code>[ApiController]</code>, les erreurs sont automatiquement renvoyées en 400.</p>
+                        <pre class="mt-2 text-xs"><code>public class CreateArticleDto {
+    [Required] public string Titre { get; set; }
+    [MinLength(10)] public string Contenu { get; set; }
+}</code></pre>
+                    </div>
+                    <div class="bg-white shadow-sm p-4 rounded-xl border border-gray-200">
+                        <h3 class="font-bold text-indigo-700">📝 Logging avec ILogger</h3>
+                        <p class="text-sm">Injection <code>ILogger&lt;T&gt;</code> dans les controllers pour tracer erreurs, infos.</p>
+                        <pre class="mt-2 text-xs"><code>_logger.LogInformation("Création article {Titre}", dto.Titre);</code></pre>
+                    </div>
+                </div>
+                <div class="mt-5 bg-gray-100 p-4 rounded-xl">
+                    <p class="font-semibold">❤️ Health Checks :</p>
+                    <p>Dans <code>Program.cs</code> : <code>builder.Services.AddHealthChecks().AddDbContextCheck&lt;AppDbContext&gt;();</code><br> 
+                    Endpoint <code>/health</code> pour la supervision (monitoring). Idéal pour Azure App Service ou Docker.</p>
+                </div>
+            `
+        };
+
+        // Slide 7 : Swagger, Tests unitaires & intégration
+        const slideSwaggerTests = {
+            title: "🧪 5. Documentation & Tests (xUnit, Moq)",
+            content: `
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <p class="font-semibold">📖 Swagger / OpenAPI :</p>
+                        <p>Configuration automatique avec <code>AddSwaggerGen()</code> et <code>UseSwaggerUI()</code>. Permet aux front-end de tester l'API directement.</p>
+                        <div class="bg-gray-800 text-gray-100 p-2 rounded-lg mt-2 text-xs font-mono">👉 Documentation interactive : /swagger/index.html</div>
+                    </div>
+                    <div>
+                        <p class="font-semibold">🧪 Tests unitaires (xUnit + Moq) :</p>
+                        <pre class="text-xs"><code>var mockRepo = new Mock&lt;IArticleRepository&gt;();
+mockRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(article);
+var service = new ArticleService(mockRepo.Object);
+var result = await service.GetArticleAsync(1);
+Assert.NotNull(result);</code></pre>
+                    </div>
+                    <div>
+                        <p class="font-semibold">🔄 Tests d'intégration avec WebApplicationFactory :</p>
+                        <p>On utilise une base InMemory ou Testcontainer pour tester les endpoints complets, y compris l'authentification.</p>
+                        <span class="inline-block mt-1 bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">Couverture de code</span>
+                    </div>
+                </div>
+            `
+        };
+
+        // Slide 8 : Déploiement (Azure, AWS, Docker) et présentation finale
+        const slideDeploiement = {
+            title: "🚀 6. Déploiement en production & soutenance",
+            content: `
+                <div class="space-y-4">
+                    <p class="text-gray-700">Une fois l'API prête, il faut la livrer :</p>
+                    <ul class="list-decimal list-inside bg-white p-4 rounded-xl shadow space-y-2">
+                        <li><strong>Publication :</strong> <code class="bg-gray-200 px-1">dotnet publish -c Release</code></li>
+                        <li><strong>Containerisation Docker :</strong> écrire un Dockerfile multi-stage, utiliser docker-compose avec SQL Server.</li>
+                        <li><strong>Cloud :</strong> Azure App Service, AWS Elastic Beanstalk, ou container sur Azure Container Instances.</li>
+                        <li><strong>Variables d'environnement :</strong> chaînes de connexion, clés JWT (ne jamais les hardcoder).</li>
+                        <li><strong>CI/CD :</strong> GitHub Actions ou Azure DevOps pour automatiser build & déploy.</li>
+                    </ul>
+                    <div class="bg-green-100 border-l-4 border-green-600 p-3 rounded-r-xl">
+                        <p class="font-bold">🎓 Présentation finale du projet :</p>
+                        <p>Démontrer le CRUD, la sécurité, Swagger, les tests, et le déploiement cloud. <br>
+                        Le projet doit être fonctionnel, bien documenté et suivre les principes REST.</p>
+                    </div>
+                </div>
+                <div class="mt-4 text-center text-sm text-gray-500">
+                    💡 Astuce : Réaliser une démo vidéo ou partager un lien public de l'API déployée.
+                </div>
+            `
+        };
+
+        // --- Construction de toutes les slides ---
+        // Slide 0 : Titre principal
+        const slideTitle = {
+            type: "title",
+            html: `
+                <div class="text-center space-y-5">
+                    <div class="inline-block p-3 bg-blue-100 rounded-full mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">${lessonTitle}</h1>
+                    <p class="text-lg text-gray-600 max-w-xl mx-auto">API .NET ASP.NET Core – Synthèse & Projet final complet</p>
+                    <div class="flex justify-center gap-3 pt-4">
+                        <span class="px-4 py-1 bg-indigo-50 text-indigo-800 rounded-full text-sm">✅ RESTful</span>
+                        <span class="px-4 py-1 bg-indigo-50 text-indigo-800 rounded-full text-sm">🔐 JWT</span>
+                        <span class="px-4 py-1 bg-indigo-50 text-indigo-800 rounded-full text-sm">📦 EF Core</span>
+                    </div>
+                </div>
+            `
+        };
+        // Slide 1 : Objectifs pédagogiques (de la leçon 39)
+        const slideObjectives = {
+            type: "objectives",
+            html: `
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">🎯</div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4">
+                        ${objectives.map((obj, idx) => `<li class="flex items-start gap-3 bg-white/60 p-3 rounded-xl shadow-sm"><span class="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">${idx+1}</span><span class="text-gray-700">${obj}</span></li>`).join('')}
+                    </ul>
+                    <div class="mt-8 text-center text-sm text-gray-500 italic">✨ Ces objectifs couvrent l'intégralité du processus professionnel de création d'API.</div>
+                </div>
+            `
+        };
+        
+        // les slides de contenu détaillé
+        const contentSlides = [slideModelisation, slideArchitecture, slideCrudJwt, slideValidationLogs, slideSwaggerTests, slideDeploiement];
+        
+        // Liste finale de tous les slides (titre, objectifs, puis 6 slides de contenu)
+        const allSlides = [
+            { id: "titleSlide", html: slideTitle.html },
+            { id: "objectivesSlide", html: slideObjectives.html },
+            ...contentSlides.map((s, idx) => ({ id: `contentSlide${idx}`, title: s.title, htmlContent: s.content }))
+        ];
+        
+        let currentIndex = 0;
+        let totalSlides = allSlides.length;
+        
+        // Fonction pour rendre un slide à partir de son objet
+        function renderSlide(slideObj, index) {
+            let innerHtml = '';
+            if (index === 0) { // titre
+                innerHtml = slideObj.html;
+            } else if (index === 1) { // objectifs
+                innerHtml = slideObj.html;
+            } else {
+                // slide de contenu avec titre et contenu
+                innerHtml = `
+                    <div>
+                        <div class="border-b border-gray-200 pb-3 mb-5 flex items-center gap-2">
+                            <span class="text-3xl">📘</span>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slideObj.title}</h2>
+                        </div>
+                        <div class="prose prose-slate max-w-none">
+                            ${slideObj.htmlContent}
+                        </div>
+                    </div>
+                `;
+            }
+            // enveloppe commune pour le style de carte
+            return `
+                <div class="card-slide w-full p-5 md:p-8 transition-all duration-200">
+                    ${innerHtml}
+                    <div class="mt-8 pt-4 text-right text-xs text-gray-400 border-t border-gray-100">
+                        ${index+1} / ${totalSlides}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function updateSlide() {
+            const currentSlideData = allSlides[currentIndex];
+            const slideHtml = renderSlide(currentSlideData, currentIndex);
+            $("#slidesContainer").html(slideHtml);
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            
+            // Gestion état boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+            
+            // Si MathJax est présent sur la page, forcer le rendu (si des formules apparaissaient)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // Scroll en haut sur chaque slide pour le confort mobile
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Navigation
+        function next() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        function prev() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+        
+        $(document).ready(function() {
+            updateSlide();
+            $("#nextSlide").on("click", next);
+            $("#prevSlide").on("click", prev);
+            // navigation clavier
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowRight") {
+                    next();
+                    e.preventDefault();
+                } else if (e.key === "ArrowLeft") {
+                    prev();
+                    e.preventDefault();
+                }
+            });
+            // swipe simple pour mobile (optionnel)
+            let touchstartX = 0;
+            let touchendX = 0;
+            $("#slidesContainer").on("touchstart", function(e) {
+                touchstartX = e.originalEvent.changedTouches[0].screenX;
+            }).on("touchend", function(e) {
+                touchendX = e.originalEvent.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 40) next();
+                if (touchendX > touchstartX + 40) prev();
+            });
+        });
+    </script>
+    <!-- on ajoute un petit style pour préserver les couleurs lisibles  -->
+    <style>
+        /* adaptation pour les pre code */
+        pre code {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .card-slide {
+            min-height: 65vh;
+        }
+        @media (max-width: 640px) {
+            .card-slide {
+                padding: 1.25rem;
+                min-height: 70vh;
+            }
+        }
+        body {
+            background-attachment: fixed;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+            transform: none;
+        }
+    </style>
+</body>
+</html>

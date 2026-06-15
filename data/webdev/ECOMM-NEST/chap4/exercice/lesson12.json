@@ -1,0 +1,151 @@
+[
+  {
+    "intitule": "Analyse et correction d'un DTO produit",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un développeur junior a créé le DTO (Data Transfer Object) suivant pour la création d'un produit dans une API e-commerce. Analysez ce code et répondez aux questions.</p>\n<pre><code>// CreateProductDto.ts\nexport class CreateProductDto {\n  name: string;\n  price: number;\n  description: string;\n  stock: number;\n  categoryId: number;\n}</code></pre>\n<p>Actuellement, ce DTO ne comporte aucune validation. Un client malveillant pourrait envoyer des données invalides (prix négatif, stock négatif, chaînes vides).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier les trois problèmes de validation potentiels que ce DTO pourrait causer dans l'API.",
+        "niveau": "medium",
+        "reponse": "Trois problèmes potentiels : 1) Un prix négatif pourrait être enregistré, causant des incohérences financières. 2) Un stock négatif pourrait indiquer une rupture impossible physiquement. 3) Un nom de produit vide (chaîne vide) pourrait être enregistré, rendant le catalogue inutilisable.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Ajouter les décorateurs de validation nécessaires (class-validator) pour : rendre name obligatoire et non vide, price doit être positif, stock doit être un entier positif ou nul, description est optionnelle.",
+        "niveau": "hard",
+        "reponse": "Code corrigé : \n```typescript\nimport { IsString, IsNotEmpty, IsNumber, IsPositive, IsOptional, Min, IsInt } from 'class-validator';\n\nexport class CreateProductDto {\n  @IsString()\n  @IsNotEmpty()\n  name: string;\n\n  @IsNumber()\n  @IsPositive()\n  price: number;\n\n  @IsString()\n  @IsOptional()\n  description?: string;\n\n  @IsInt()\n  @Min(0)\n  stock: number;\n\n  @IsNumber()\n  categoryId: number;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer ce qui se passe lorsqu'une requête POST avec un prix négatif arrive sur le contrôleur utilisant ce DTO avec ValidationPipe.",
+        "niveau": "medium",
+        "reponse": "Le ValidationPipe de NestJS intercepte la requête avant qu'elle n'atteigne le contrôleur. Il valide automatiquement le DTO selon les décorateurs. Si le prix est négatif, la validation échoue (car @IsPositive() exige price > 0). NestJS renvoie alors une réponse HTTP 400 Bad Request avec un objet contenant les détails des erreurs de validation, sans que le code du contrôleur ne soit exécuté.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du CRUD produits",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous développez une API e-commerce pour <strong>\"MarketCamer\"</strong>. Le client souhaite une gestion complète des produits avec les contraintes suivantes :</p>\n<ul>\n<li>Seuls les administrateurs et les vendeurs peuvent créer, modifier et supprimer des produits.</li>\n<li>Un produit a un SKU (Stock Keeping Unit) unique qui ne peut pas être modifié après création.</li>\n<li>Le prix doit être un multiple de 50 FCFA (monnaie locale).</li>\n<li>Le stock ne peut jamais devenir négatif (refuser toute mise à jour qui le rendrait négatif).</li>\n<li>La suppression d'un produit doit être logique (soft delete) : on ne l'affiche plus dans le catalogue mais on conserve l'historique des commandes.</li>\n</ul>\n<p>Répondez aux questions suivantes en vous basant sur NestJS, TypeORM et class-validator.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer la structure du DTO de création (CreateProductDto) intégrant la validation du prix multiple de 50 FCFA et du SKU unique.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { IsString, IsNotEmpty, IsNumber, Min, IsOptional, Validate, registerDecorator, ValidationOptions } from 'class-validator';\n\n// Validateur personnalisé pour multiple de 50\nfunction IsMultipleOf(divisor: number, validationOptions?: ValidationOptions) {\n  return function (object: object, propertyName: string) {\n    registerDecorator({\n      name: 'isMultipleOf',\n      target: object.constructor,\n      propertyName: propertyName,\n      options: validationOptions,\n      validator: {\n        validate(value: number) {\n          return value % divisor === 0;\n        },\n        defaultMessage() {\n          return `Le prix doit être un multiple de ${divisor} FCFA`;\n        }\n      }\n    });\n  };\n}\n\nexport class CreateProductDto {\n  @IsString()\n  @IsNotEmpty()\n  name: string;\n\n  @IsNumber()\n  @Min(0)\n  @IsMultipleOf(50)\n  price: number;\n\n  @IsString()\n  @IsOptional()\n  description?: string;\n\n  @IsNumber()\n  @Min(0)\n  stock: number;\n\n  @IsString()\n  @IsNotEmpty()\n  sku: string; // L'unicité sera gérée par la base de données\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la méthode du contrôleur pour mettre à jour le stock d'un produit, en s'assurant que le nouveau stock n'est jamais négatif. Si la mise à jour échoue, retourner une erreur appropriée.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// products.controller.ts\n@Patch(':id/stock')\n@Roles('admin', 'seller')\n@UseGuards(JwtAuthGuard, RolesGuard)\nasync updateStock(\n  @Param('id', ParseIntPipe) id: number,\n  @Body('quantity', ParseIntPipe) quantity: number\n) {\n  const product = await this.productsService.findOne(id);\n  if (!product) {\n    throw new NotFoundException(`Produit avec l'id ${id} non trouvé`);\n  }\n  \n  const newStock = product.stock + quantity;\n  if (newStock < 0) {\n    throw new BadRequestException(\n      `Le stock ne peut pas devenir négatif. Stock actuel: ${product.stock}, modification demandée: ${quantity}`\n    );\n  }\n  \n  product.stock = newStock;\n  await this.productsService.save(product);\n  \n  return { message: 'Stock mis à jour avec succès', stock: newStock };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer comment implémenter la suppression logique (soft delete) avec TypeORM. Quelle annotation utiliser et comment filtrer les produits non supprimés dans les requêtes GET ?",
+        "niveau": "hard",
+        "reponse": "Pour le soft delete avec TypeORM, on utilise le décorateur `@DeleteDateColumn()` dans l'entité Product. \n```typescript\n// product.entity.ts\n@Entity()\nexport class Product {\n  @PrimaryGeneratedColumn()\n  id: number;\n  \n  @Column()\n  name: string;\n  \n  @DeleteDateColumn()\n  deletedAt: Date; // null = non supprimé\n}\n```\nPour filtrer automatiquement les produits non supprimés, on peut utiliser le FindOptions de TypeORM :\n```typescript\n// products.service.ts\nasync findAll(): Promise<Product[]> {\n  return this.productRepository.find({\n    where: { deletedAt: IsNull() }\n  });\n}\n\n// Pour la suppression logique\nasync softDelete(id: number): Promise<void> {\n  await this.productRepository.softDelete(id);\n}\n```\nTypeORM fournit aussi `softRemove()` et `restore()`. Les requêtes avec `find()` n'incluent pas automatiquement les soft-deleted, il faut utiliser `withDeleted()` pour les inclure.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Validation des types de prix dans une boutique camerounaise",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une boutique en ligne camerounaise, les prix sont exprimés en FCFA. La règlementation impose que tous les prix affichés soient des nombres entiers positifs (pas de centimes car la plus petite unité est 1 FCFA).</p>\n<p>Vous devez créer un validateur personnalisé pour s'assurer que le prix est un entier positif (pas de décimales).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un validateur personnalisé `@IsInteger()` avec class-validator qui vérifie qu'un nombre n'a pas de partie décimale.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';\n\nexport function IsInteger(validationOptions?: ValidationOptions) {\n  return function (object: object, propertyName: string) {\n    registerDecorator({\n      name: 'isInteger',\n      target: object.constructor,\n      propertyName: propertyName,\n      options: validationOptions,\n      validator: {\n        validate(value: any) {\n          return typeof value === 'number' && Number.isInteger(value);\n        },\n        defaultMessage(args: ValidationArguments) {\n          return `${args.property} doit être un nombre entier (pas de centimes FCFA)`;\n        }\n      }\n    });\n  };\n}\n\n// Utilisation\nexport class CreateProductDto {\n  @IsInteger()\n  @Min(1)\n  price: number;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Un vendeur tente d'ajouter un produit à 1500.50 FCFA. Décrire ce qui se passe quand la requête est traitée par l'API avec ce validateur.",
+        "niveau": "easy",
+        "reponse": "La validation échoue car 1500.50 n'est pas un nombre entier. Le ValidationPipe de NestJS intercepte la requête et retourne automatiquement une réponse HTTP 400 Bad Request avec un message d'erreur indiquant que la propriété 'price' doit être un nombre entier (pas de centimes). Le produit n'est pas créé et l'erreur est renvoyée au client.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Conception de l'endpoint d'upload d'images",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Votre API e-commerce doit permettre aux vendeurs d'uploader des images pour leurs produits. Les contraintes :</p>\n<ul>\n<li>Formats acceptés : JPEG, PNG, WebP</li>\n<li>Taille maximale : 5 Mo par image</li>\n<li>Maximum 5 images par produit</li>\n<li>Les images doivent être redimensionnées automatiquement en 3 formats (thumbnail, medium, large)</li>\n<li>Les images sont stockées sur Cloudinary</li>\n</ul>\n<p>Répondez aux questions suivantes.</p>",
+      "images": [
+        "Schéma d'un pipeline d'upload d'image avec multer, compression et stockage cloud",
+        "Diagramme de séquence de l'upload d'image multipart/form-data vers Cloudinary"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la configuration Multer dans NestJS pour accepter jusqu'à 5 fichiers, chacun limité à 5 Mo, avec les extensions autorisées (JPEG, PNG, WebP).",
+        "niveau": "hard",
+        "reponse": "```typescript\n// products.module.ts ou un fichier de configuration dédié\nimport { MulterModule } from '@nestjs/platform-express';\nimport { diskStorage } from 'multer';\nimport { extname } from 'path';\n\nMulterModule.register({\n  limits: {\n    fileSize: 5 * 1024 * 1024, // 5 Mo\n    files: 5, // maximum 5 fichiers\n  },\n  fileFilter: (req, file, cb) => {\n    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];\n    if (allowedMimes.includes(file.mimetype)) {\n      cb(null, true);\n    } else {\n      cb(new BadRequestException('Format non supporté. Utilisez JPEG, PNG ou WebP'), false);\n    }\n  },\n});\n\n// products.controller.ts\n@Post(':id/images')\n@UseInterceptors(FilesInterceptor('images', 5))\nasync uploadImages(\n  @Param('id', ParseIntPipe) id: number,\n  @UploadedFiles() files: Express.Multer.File[],\n) {\n  return this.productsService.uploadImages(id, files);\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une stratégie pour redimensionner les images en 3 formats (thumbnail 150x150, medium 500x500, large 1200x1200) avant de les envoyer à Cloudinary.",
+        "niveau": "very hard",
+        "reponse": "Stratégie recommandée : \n1. Utiliser le package `sharp` pour le traitement d'images côté serveur (plus performant que d'autres librairies).\n2. Créer un service `ImageProcessingService` avec une méthode `resizeAndUpload` qui :\n   - Pour chaque fichier reçu, crée 3 buffers/image avec les dimensions cibles.\n   - Upload chaque version vers Cloudinary avec des transformations natives (optionellement, Cloudinary peut redimensionner à la volée via des paramètres d'URL).\n3. Stocker en base de données un objet JSON contenant les URLs des 3 versions.\n\nExemple d'implémentation avec sharp :\n```typescript\nimport sharp from 'sharp';\n\nasync processImage(file: Express.Multer.File) {\n  const sizes = [\n    { name: 'thumbnail', width: 150, height: 150 },\n    { name: 'medium', width: 500, height: 500 },\n    { name: 'large', width: 1200, height: 1200 },\n  ];\n  \n  const results = {};\n  for (const size of sizes) {\n    const resizedBuffer = await sharp(file.buffer)\n      .resize(size.width, size.height, { fit: 'cover' })\n      .toBuffer();\n    const uploadResult = await cloudinary.uploader.upload(`data:image/jpeg;base64,${resizedBuffer.toString('base64')}`);\n    results[size.name] = uploadResult.secure_url;\n  }\n  return results;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décrire le flux complet d'un upload d'image, de la requête HTTP à l'enregistrement en base de données, en passant par les validations et le stockage Cloudinary.",
+        "niveau": "hard",
+        "reponse": "1. Le client envoie une requête POST multipart/form-data avec le(s) fichier(s) vers `/products/:id/images`.\n2. Le `FilesInterceptor` de Multer intercepte la requête et valide : nombre de fichiers (max 5), taille (5 Mo max), type MIME (image/jpeg, image/png, image/webp).\n3. Si validation échoue, Multer rejette la requête et NestJS renvoie 400 Bad Request.\n4. Sinon, le contrôleur reçoit les fichiers sous forme d'objets `Express.Multer.File`.\n5. Le service `ProductsService.uploadImages()` est appelé. Il vérifie d'abord que le produit existe (sinon 404).\n6. Pour chaque fichier, le `ImageProcessingService` utilise `sharp` pour redimensionner en 3 formats.\n7. Chaque version redimensionnée est uploadée vers Cloudinary via l'API REST.\n8. Cloudinary retourne une URL sécurisée pour chaque image.\n9. Les URLs sont stockées dans la base de données, liées au produit (généralement dans une table `ProductImage` ou un champ JSON dans `Product`).\n10. Le service retourne les URLs au contrôleur, qui les renvoie au client (code 201 Created).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Correction d'un endpoint CRUD buggé",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici un contrôleur NestJS buggé pour la gestion des produits. Identifiez et corrigez les erreurs.</p>\n<pre><code>// products.controller.ts (version buggée)\n@Controller('products')\nexport class ProductsController {\n  constructor(private productsService: ProductsService) {}\n\n  @Post()\n  @UseGuards(JwtAuthGuard)\n  create(@Body() createProductDto: any) {\n    return this.productsService.create(createProductDto);\n  }\n\n  @Get(':id')\n  findOne(@Param('id') id: number) {\n    return this.productsService.findOne(id);\n  }\n\n  @Patch(':id')\n  update(@Param('id') id: number, @Body() updateProductDto: any) {\n    return this.productsService.update(id, updateProductDto);\n  }\n\n  @Delete(':id')\n  remove(@Param('id') id: number) {\n    return this.productsService.remove(id);\n  }\n}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Lister au moins 5 problèmes dans ce code et expliquer pourquoi ils sont problématiques.",
+        "niveau": "medium",
+        "reponse": "1. `createProductDto: any` : perte du typage et de la validation (devrait être un DTO typé avec class-validator).\n2. `@Param('id') id: number` : le paramètre d'URL est une string, TypeScript le cast en number mais c'est dangereux. Utiliser `ParseIntPipe`.\n3. Absence de validation des rôles : `@Roles('admin', 'seller')` manquant sur POST, PATCH, DELETE.\n4. Absence de `ValidationPipe` global ou local : les DTO ne seront pas validés.\n5. Pas de gestion d'erreur explicite (404 si produit non trouvé).\n6. Dans `findOne`, si le produit n'existe pas, on retourne `undefined` (problème).\n7. Manque les décorateurs Swagger (`@ApiTags`, `@ApiOperation`, `@ApiResponse`) pour la documentation.\n8. `update` sans vérification que l'utilisateur a le droit de modifier ce produit (propriétaire ou admin).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une version corrigée du contrôleur avec les bonnes pratiques (DTO typés, ValidationPipe, ParseIntPipe, guards appropriés, gestion des erreurs 404).",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe, NotFoundException } from '@nestjs/common';\nimport { ProductsService } from './products.service';\nimport { CreateProductDto } from './dto/create-product.dto';\nimport { UpdateProductDto } from './dto/update-product.dto';\nimport { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';\nimport { RolesGuard } from '../auth/guards/roles.guard';\nimport { Roles } from '../auth/decorators/roles.decorator';\nimport { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';\n\n@ApiTags('products')\n@Controller('products')\nexport class ProductsController {\n  constructor(private readonly productsService: ProductsService) {}\n\n  @Post()\n  @Roles('admin', 'seller')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @ApiOperation({ summary: 'Créer un nouveau produit' })\n  @ApiResponse({ status: 201, description: 'Produit créé avec succès' })\n  @ApiResponse({ status: 403, description: 'Accès interdit' })\n  create(@Body() createProductDto: CreateProductDto) {\n    return this.productsService.create(createProductDto);\n  }\n\n  @Get(':id')\n  @ApiOperation({ summary: 'Récupérer un produit par son ID' })\n  @ApiResponse({ status: 200, description: 'Produit trouvé' })\n  @ApiResponse({ status: 404, description: 'Produit non trouvé' })\n  async findOne(@Param('id', ParseIntPipe) id: number) {\n    const product = await this.productsService.findOne(id);\n    if (!product) {\n      throw new NotFoundException(`Produit avec l'ID ${id} non trouvé`);\n    }\n    return product;\n  }\n\n  @Patch(':id')\n  @Roles('admin', 'seller')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @ApiOperation({ summary: 'Mettre à jour un produit' })\n  async update(\n    @Param('id', ParseIntPipe) id: number,\n    @Body() updateProductDto: UpdateProductDto\n  ) {\n    const product = await this.productsService.update(id, updateProductDto);\n    if (!product) {\n      throw new NotFoundException(`Produit avec l'ID ${id} non trouvé`);\n    }\n    return product;\n  }\n\n  @Delete(':id')\n  @Roles('admin')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @ApiOperation({ summary: 'Supprimer un produit (soft delete)' })\n  async remove(@Param('id', ParseIntPipe) id: number) {\n    const result = await this.productsService.remove(id);\n    if (!result) {\n      throw new NotFoundException(`Produit avec l'ID ${id} non trouvé`);\n    }\n    return { message: 'Produit supprimé avec succès' };\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

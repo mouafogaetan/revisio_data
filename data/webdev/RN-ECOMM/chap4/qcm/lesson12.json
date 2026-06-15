@@ -1,0 +1,146 @@
+[
+  {
+    "questionText": "Dans le contexte d'une application e-commerce React Native, que signifie la synchronisation du panier local avec le backend ?",
+    "options": [
+      "Sauvegarder le panier uniquement dans le state global de l'application",
+      "Copier périodiquement le panier du backend vers le stockage local",
+      "Maintenir la cohérence entre le panier stocké localement (AsyncStorage) et celui stocké sur le serveur après authentification",
+      "Supprimer le panier local dès qu'une connexion Internet est détectée"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "La synchronisation du panier local avec le backend consiste à maintenir la cohérence entre les deux sources de données : le panier stocké côté client (généralement dans AsyncStorage via Zustand persist) et le panier stocké côté serveur associé au compte utilisateur. Cette synchronisation permet à l'utilisateur de retrouver son panier sur tous ses appareils et de ne pas perdre ses articles même après déconnexion."
+  },
+  {
+    "questionText": "Quelle stratégie est recommandée pour gérer les conflits lors de la synchronisation panier local ↔ backend ?",
+    "options": [
+      "Toujours remplacer le panier local par le panier backend",
+      "Toujours remplacer le panier backend par le panier local",
+      "Fusionner les deux paniers en additionnant les quantités des produits identiques et conserver les articles uniques des deux côtés",
+      "Demander à l'utilisateur de choisir manuellement quel panier conserver à chaque connexion"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "La stratégie de fusion (merge) est recommandée : on combine les articles du panier local et du panier backend. Pour les produits présents dans les deux, on additionne les quantités. Pour les produits uniques à chaque panier, on les conserve. Cette approche évite la perte de données et offre la meilleure expérience utilisateur, car l'utilisateur retrouve tous ses articles, qu'ils aient été ajoutés avant ou après la dernière connexion."
+  },
+  {
+    "questionText": "Complétez le code suivant pour implémenter la fonction de fusion (merge) des paniers :\n```javascript\nconst mergeCarts = (localCart, serverCart) => {\n  const mergedItems = [...serverCart];\n  \n  localCart.forEach(localItem => {\n    const existingIndex = mergedItems.findIndex(\n      item => item.productId === localItem.productId\n    );\n    \n    if (existingIndex !== -1) {\n      // $\\text{......}$\n    } else {\n      mergedItems.push(localItem);\n    }\n  });\n  \n  return mergedItems;\n};\n```",
+    "options": [
+      "mergedItems[existingIndex].quantity = localItem.quantity",
+      "mergedItems.splice(existingIndex, 1)",
+      "mergedItems[existingIndex].quantity += localItem.quantity",
+      "mergedItems[existingIndex] = localItem"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "Lorsqu'un produit existe déjà dans le panier serveur (existingIndex !== -1), on doit additionner les quantités : `mergedItems[existingIndex].quantity += localItem.quantity`. Cela fusionne correctement les deux paniers en conservant les quantités des deux côtés. Si on remplaçait simplement par la quantité locale, on perdrait les articles ajoutés sur un autre appareil."
+  },
+  {
+    "questionText": "Quel est le moment idéal pour déclencher la synchronisation du panier local vers le backend ?",
+    "options": [
+      "Toutes les 5 minutes via un timer",
+      "Uniquement au démarrage de l'application",
+      "Après une connexion utilisateur réussie (login) et après chaque modification du panier lorsque l'utilisateur est connecté",
+      "Uniquement à la déconnexion de l'utilisateur"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "La synchronisation doit avoir lieu à deux moments clés : 1) Après une connexion réussie : on fusionne le panier local (ajouté hors ligne ou avant connexion) avec le panier serveur, puis on met à jour le serveur. 2) À chaque modification du panier (ajout, suppression, changement quantité) lorsque l'utilisateur est connecté : on envoie immédiatement les changements au backend pour maintenir la cohérence."
+  },
+  {
+    "questionText": "Comment gérer les modifications de panier effectuées hors ligne (sans connexion Internet) selon la leçon 12 ?",
+    "options": [
+      "Bloquer toutes les modifications tant que l'appareil est hors ligne",
+      "Permettre les modifications, les stocker localement et les synchroniser automatiquement au retour en ligne",
+      "Ignorer les modifications et afficher une erreur à l'utilisateur",
+      "Stocker les modifications dans un fichier JSON et demander à l'utilisateur de les rejouer manuellement"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La bonne approche consiste à permettre à l'utilisateur d'interagir avec son panier même hors ligne (ajout, suppression, modification). Les changements sont stockés localement (dans le store Zustand persistant). Lorsque la connexion est rétablie, une synchronisation automatique est déclenchée pour envoyer toutes les modifications accumulées au backend. Cela offre une expérience utilisateur fluide et résiliente."
+  },
+  {
+    "questionText": "Quelle bibliothèque peut être utilisée avec React Native pour détecter l'état de la connexion réseau et faciliter la synchronisation offline ?",
+    "options": [
+      "@react-native-community/netinfo",
+      "expo-network-addon",
+      "react-native-connection-manager",
+      "axios-intercept-network"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "`@react-native-community/netinfo` est la bibliothèque standard pour détecter l'état de la connexion réseau sur React Native. Elle permet de savoir si l'appareil est connecté, le type de connexion (WiFi, cellulaire), et d'écouter les changements d'état. Elle est essentielle pour implémenter la synchronisation automatique au retour en ligne."
+  },
+  {
+    "questionText": "Quelle approche permet de gérer les requêtes API en attente lorsque l'application est hors ligne ?",
+    "options": [
+      "Redux Persist avec queue automatique",
+      "Mettre en place une file d'attente (queue) de requêtes dans le service Axios avec persistance locale",
+      "React Query avec cache uniquement",
+      "AsyncStorage avec stockage des promesses"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La meilleure pratique consiste à créer une file d'attente (queue) de requêtes qui sont stockées localement (AsyncStorage ou une variable globale persistante). Lorsque l'appareil redevient en ligne, on vide la file d'attente en exécutant chaque requête dans l'ordre. On peut utiliser des bibliothèques comme `redux-offline-queue` ou implémenter manuellement ce mécanisme avec NetInfo et AsyncStorage."
+  },
+  {
+    "questionText": "Pourquoi est-il important de synchroniser le panier après connexion même si l'utilisateur avait déjà des articles hors ligne ?",
+    "options": [
+      "Pour vider le panier local et libérer de l'espace mémoire",
+      "Pour appliquer les promotions liées au compte utilisateur",
+      "Pour éviter la perte des articles ajoutés hors ligne et les fusionner avec le panier existant du compte",
+      "Pour forcer l'utilisateur à repasser commande"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "La synchronisation post-connexion est cruciale car elle permet de fusionner les articles ajoutés avant connexion (panier invité / hors ligne) avec le panier existant du compte utilisateur. Sans cette fusion, l'utilisateur perdrait tous les articles ajoutés avant de se connecter, ce qui serait une expérience très frustrante et entraînerait une perte de ventes."
+  },
+  {
+    "questionText": "Complétez le schéma de flux de synchronisation du panier :\n```\n1. Utilisateur non connecté ajoute des articles → stockage dans [______]\n2. Utilisateur se connecte → on récupère le panier serveur\n3. On [______] les deux paniers\n4. On envoie le résultat au backend\n5. On met à jour le [______] local\n```",
+    "options": [
+      "[sessionStorage] - [concilie] - [AsyncStorage]",
+      "[localStorage] - [compare] - [state]",
+      "[AsyncStorage] - [fusionne/merge] - [store Zustand]",
+      "[IndexedDB] - [remplace] - [Redux]"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "La séquence correcte est : stockage dans AsyncStorage (via Zustand persist) → fusion (merge) des paniers → mise à jour du store Zustand local. AsyncStorage est utilisé pour la persistance offline, la fusion est l'opération clé pour éviter les conflits, et le store Zustand maintient l'état réactif de l'application."
+  },
+  {
+    "questionText": "Un utilisateur a 3 articles dans son panier serveur (A, B, C). Hors ligne, il ajoute 2 articles (D, E) et supprime l'article B. En ligne, son panier local contient [A, C, D, E]. Quel sera le résultat après synchronisation avec merge ?",
+    "options": [
+      "[A, B, C, D, E] (tous les articles)",
+      "[A, C, D, E] (suppression de B conservée)",
+      "[B, C, D, E] (perte de A)",
+      "[D, E] (seulement les nouveaux)"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "Après fusion, le panier final sera [A, C, D, E]. La suppression de B est conservée car le panier local reflète l'état voulu par l'utilisateur. On ne réintroduit pas B depuis le serveur. Les articles A et C (présents sur le serveur mais non modifiés hors ligne) sont conservés. Les nouveaux articles D et E sont ajoutés. C'est le comportement attendu d'une fusion intelligente."
+  },
+  {
+    "questionText": "Dans un store Zustand avec persistence, comment implémenter la méthode `syncCartAfterLogin` qui fusionne le panier local avec le panier serveur ?",
+    "options": [
+      "Remplacer purement et simplement le panier local par le panier serveur",
+      "Appeler une fonction merge, envoyer le résultat au backend, puis mettre à jour le store",
+      "Supprimer le panier local puis télécharger le panier serveur",
+      "Attendre la prochaine ouverture de l'application pour fusionner"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "L'implémentation correcte est : 1) Récupérer le panier local actuel depuis le store, 2) Récupérer le panier serveur via API, 3) Fusionner les deux avec une fonction merge (addition quantités, union des articles), 4) Envoyer le panier fusionné au backend (PUT/POST), 5) Mettre à jour le store Zustand avec le nouveau panier. Cela garantit cohérence totale et persistance."
+  },
+  {
+    "questionText": "Que signifie $\\text{merge du panier après connexion}$ dans le contexte de l'application e-commerce ?",
+    "options": [
+      "La suppression définitive du panier local",
+      "L'addition des quantités des produits identiques et la conservation des produits uniques des deux sources (locale et serveur)",
+      "Le remplacement systématique du panier serveur par le panier local",
+      "La duplication des articles dans deux listes distinctes"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Le merge du panier consiste à combiner intelligemment les deux sources : pour chaque produit, si présent dans les deux paniers, on additionne les quantités ($q_{finale} = q_{locale} + q_{serveur}$) ; si présent uniquement dans un panier, on le conserve tel quel. Cela évite la perte d'articles et respecte les intentions d'achat de l'utilisateur, quelle que soit la source."
+  }
+]

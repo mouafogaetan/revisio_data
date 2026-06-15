@@ -1,0 +1,139 @@
+[
+  {
+    "intitule": "Principes de sécurité des paiements en ligne",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Lors de l'intégration d'un paiement en ligne dans une API e-commerce, plusieurs normes et bonnes pratiques doivent être respectées pour protéger les données sensibles des clients.</p><p><strong>Consigne :</strong> Répondez aux questions suivantes sur la sécurité des paiements.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer ce qu'est la norme <strong>PCI DSS</strong> et pourquoi elle est obligatoire pour toute plateforme acceptant des paiements par carte bancaire.",
+        "niveau": "easy",
+        "reponse": "PCI DSS (Payment Card Industry Data Security Standard) est un ensemble de règles de sécurité imposées par les émetteurs de cartes (Visa, Mastercard, etc.). Elle oblige les commerçants à protéger les données des titulaires de cartes (chiffrement, contrôle d'accès, audits). Le non-respect expose à des amendes et à l'interdiction d'accepter des paiements par carte.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Identifier la <strong>règle absolue</strong> concernant le stockage des données de cartes bancaires dans une base de données.",
+        "niveau": "easy",
+        "reponse": "On ne doit <strong>jamais stocker</strong> le CVV (cryptogramme visuel) ni les données de piste magnétique. Le numéro de carte peut être stocké uniquement si fortement chiffré et avec tokenisation. La meilleure pratique est de ne stocker aucun donnée sensible et d'utiliser un token fourni par le prestataire de paiement (Stripe, PayPal).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier pourquoi le protocole <strong>HTTPS</strong> est indispensable pour toutes les communications entre le navigateur, l'API et les fournisseurs de paiement.",
+        "niveau": "easy",
+        "reponse": "HTTPS chiffre les échanges (TLS) et empêche l'interception des données sensibles (numéro de carte, jetons d'authentification) par un attaquant sur le réseau (man-in-the-middle). C'est une exigence de base de PCI DSS et de tous les services de paiement (Stripe, PayPal rejettent les appels non HTTPS).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Tokenisation : principe et mise en œuvre",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un commerçant souhaite offrir un paiement rapide à ses clients réguliers sans leur demander de ressaisir leurs coordonnées bancaires à chaque commande.</p><p><strong>Consigne :</strong> Proposez une architecture utilisant la <strong>tokenisation</strong> pour répondre à ce besoin tout en respectant PCI DSS.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire le principe de la tokenisation appliqué aux paiements en ligne (rôle du prestataire, du commerçant, du client).",
+        "niveau": "medium",
+        "reponse": "La tokenisation remplace les données sensibles de carte par un token (chaîne aléatoire) généré par le prestataire de paiement. Le commerçant ne stocke que le token, jamais les données réelles. Lors d'un futur paiement, il envoie le token au prestataire qui le transforme en données de carte pour traiter la transaction. Le client n'a plus à ressaisir ses infos.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Analyser les avantages et les limites de la tokenisation par rapport au stockage chiffré des cartes en base.",
+        "niveau": "hard",
+        "reponse": "Avantages : pas de responsabilité PCI liée au stockage des données sensibles, réduction du périmètre d'audit, sécurité renforcée (token inutilisable hors du contexte du prestataire). Limites : dépendance au prestataire, impossibilité de traiter les paiements hors ligne, les tokens peuvent être à usage unique ou limités dans le temps selon le fournisseur.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédiger un exemple de flux pour créer un token avec Stripe (frontend JavaScript) puis l'utiliser côté backend pour effectuer un paiement.",
+        "niveau": "very hard",
+        "reponse": "Frontend : <code>stripe.createToken(cardElement).then(result => { fetch('/api/payment', { method: 'POST', body: JSON.stringify({ token: result.token.id }) }) });</code> Backend (NestJS) : <code>await stripe.charges.create({ amount, currency, source: token, description });</code>. Le token est à usage unique ou réutilisable selon l'option 'customer' de Stripe.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du 3D Secure",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le <strong>3D Secure (3DS)</strong> est une authentification forte du titulaire de la carte (code envoyé par SMS, application bancaire). Depuis 2021, il est obligatoire en Europe pour les transactions supérieures à 30 €.</p><p><strong>Consigne :</strong> Expliquez comment intégrer 3DS avec Stripe ou PayPal et décrivez le flux utilisateur.</p>",
+      "images": [
+        "diagramme de séquence du flux 3D Secure avec redirection bancaire et authentification par code SMS"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la différence entre 3DS v1 et 3DS v2 (avantages de la v2).",
+        "niveau": "medium",
+        "reponse": "3DS v1 : redirection vers une page bancaire externe (expérience utilisateur dégradée). 3DS v2 : authentification intégrée via popup ou iframe, échange de plus de données (appareil, historique) pour un parcours sans friction (exemption pour transactions à faible risque). V2 réduit l'abandon de panier.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire le flux complet d'une transaction avec 3DS via Stripe (création du PaymentIntent, gestion de l'authentification, confirmation finale).",
+        "niveau": "very hard",
+        "reponse": "1. Backend crée un PaymentIntent avec `payment_method_types: ['card']` et `confirmation_method: 'manual'`. 2. Frontend confirme le PaymentIntent avec `stripe.confirmCardPayment(clientSecret)`. 3. Si 3DS requis, Stripe affiche la modale bancaire. 4. Client s'authentifie (code SMS/application). 5. Stripe notifie le backend via webhook `payment_intent.succeeded`. 6. Backend valide la commande.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier pourquoi le 3D Secure réduit la responsabilité du commerçant en cas de fraude.",
+        "niveau": "medium",
+        "reponse": "Avec 3DS, la responsabilité de l'authentification incombe à la banque émettrice. Si une transaction authentifiée 3DS est contestée (chargeback), le commerçant est protégé (liability shift). Sans 3DS, le commerçant assume la perte en cas de fraude. Cela incite fortement à intégrer 3DS.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Audit de sécurité d'une API de paiement",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes consultant en sécurité. Un client vous demande d'auditer son API e-commerce qui traite les paiements. Il stocke en base les 4 derniers chiffres des cartes pour faciliter l'identification, mais pas les données complètes.</p><p><strong>Consigne :</strong> Identifiez les points de vigilance et proposez des améliorations.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Évaluer si stocker les 4 derniers chiffres des cartes est conforme à PCI DSS.",
+        "niveau": "medium",
+        "reponse": "Oui, PCI DSS autorise le stockage des 4 derniers chiffres (truncation) ainsi que le nom du titulaire et la date d'expiration. Il est interdit de stocker le CVV, la piste magnétique ou le PAN complet sans chiffrement fort. Les 4 derniers chiffres ne sont pas considérés comme sensibles seuls.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Identifier les risques si l'API transmet les informations de paiement en clair entre les microservices internes.",
+        "niveau": "hard",
+        "reponse": "Risques : interception sur le réseau interne (si un attaquant compromet un service ou écoute le trafic), fuite via les logs (certains services loguent les requêtes), violation PCI DSS (les données sensibles doivent être chiffrées en transit même en interne). Solution : utiliser TLS/mTLS entre services ou ne jamais transmettre les données brutes (tokenisation dès l'entrée).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une architecture sécurisée où le backend ne manipule jamais directement les données de carte (utilisant Stripe Elements ou PayPal JS SDK).",
+        "niveau": "very hard",
+        "reponse": "Le frontend charge Stripe Elements (iframe sécurisé) qui collecte les données de carte et génère un token ou un PaymentMethod ID. Ce token est envoyé au backend. Le backend ne voit jamais les données de carte. Le backend utilise ce token pour créer un PaymentIntent ou une charge. Stripe gère la conformité PCI DSS. Architecture dite 'PCI compliant out of the box'.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Évaluer l'importance d'utiliser un webhook secret (signature) pour les notifications de paiement.",
+        "niveau": "medium",
+        "reponse": "Les webhooks sont des endpoints publics. Sans vérification de signature, un attaquant peut envoyer de faux événements (paiement réussi alors qu'il ne l'est pas). La signature (ex: Stripe signature) permet de vérifier que la notification provient bien du prestataire et n'a pas été modifiée. C'est essentiel pour éviter la fraude.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

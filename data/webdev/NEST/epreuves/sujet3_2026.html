@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Évaluation NestJS - Séquence 3 | Validation et Transformation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Chart.js pour les diagrammes -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+        }
+        .question-card {
+            transition: all 0.2s ease;
+        }
+        .feedback-correct {
+            background-color: #dcfce7;
+            border-left: 4px solid #22c55e;
+        }
+        .feedback-incorrect {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+        .quiz-option {
+            transition: background-color 0.15s ease;
+            cursor: pointer;
+        }
+        .quiz-option:hover {
+            background-color: #e0e7ff;
+        }
+        .selected-option {
+            background-color: #c7d2fe;
+            border: 1px solid #4f46e5;
+        }
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .question-card {
+                padding: 1rem;
+            }
+            .quiz-option {
+                padding: 0.75rem !important;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+    <!-- En-tête de l'épreuve -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+        <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-8 text-white">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div>
+                    <div class="text-sm font-semibold uppercase tracking-wide opacity-80">Évaluation Séquentielle</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold mt-2">Séquence 3 : Validation et Transformation</h1>
+                    <p class="text-indigo-100 mt-2">NestJS - Framework Node.js progressif</p>
+                </div>
+                <div class="mt-4 md:mt-0 bg-white/20 rounded-xl px-4 py-2 text-center">
+                    <div class="text-2xl font-bold" id="current-score">0</div>
+                    <div class="text-xs opacity-80">points / 100</div>
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                <span class="bg-white/20 rounded-full px-3 py-1">📋 DTO & Validation</span>
+                <span class="bg-white/20 rounded-full px-3 py-1">✅ ValidationPipe</span>
+                <span class="bg-white/20 rounded-full px-3 py-1">🔄 class-transformer</span>
+                <span class="bg-white/20 rounded-full px-3 py-1">🧪 Tests unitaires</span>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-b flex flex-col md:flex-row justify-between gap-3">
+            <div class="flex items-center gap-4">
+                <span class="text-gray-600">📌 Classe : Développement Web</span>
+                <span class="text-gray-600">⏱️ Durée : 1h30</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="w-full md:w-64 bg-gray-200 rounded-full h-2">
+                    <div id="progress-bar" class="progress-bar-fill bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                </div>
+                <span id="progress-text" class="text-sm text-gray-500">0/7 questions</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteneur des questions -->
+    <div id="questions-container"></div>
+
+    <!-- Résultats finaux -->
+    <div id="results-container" class="hidden"></div>
+</div>
+
+<script>
+    // ==================== DONNÉES DES QUESTIONS ====================
+    // Basé sur le programme : Séquence 3 (chap3 : Validation et transformation des entrées)
+    const questions = [
+        {
+            id: 1,
+            type: "qcm",
+            text: "Quel package doit-on installer pour utiliser les décorateurs de validation comme @IsEmail() et @IsString() dans NestJS ?",
+            options: ["class-transformer", "class-validator", "joi", "yup"],
+            correct: 1, // index 1 = class-validator
+            points: 10,
+            explanation: "class-validator est le package qui fournit les décorateurs de validation. class-transformer est utilisé pour la transformation, tandis que Joi et Yup sont des alternatives mais ne sont pas intégrés nativement avec les décorateurs NestJS."
+        },
+        {
+            id: 2,
+            type: "qcm",
+            text: "Quelle est l'utilité principale de l'option `whitelist` dans la configuration de ValidationPipe ?",
+            options: [
+                "Elle autorise tous les champs supplémentaires dans la requête",
+                "Elle supprime automatiquement les propriétés non définies dans le DTO",
+                "Elle transforme les types de données automatiquement",
+                "Elle désactive complètement la validation"
+            ],
+            correct: 1,
+            points: 10,
+            explanation: "L'option `whitelist: true` permet d'éliminer automatiquement les propriétés qui ne sont pas explicitement déclarées dans le DTO, évitant ainsi l'injection de champs indésirables."
+        },
+        {
+            id: 3,
+            type: "qcm",
+            text: "Quel décorateur de class-transformer permet d'exclure une propriété de la sérialisation (ne pas l'inclure dans la réponse JSON) ?",
+            options: ["@Transform()", "@Type()", "@Exclude()", "@Expose()"],
+            correct: 2,
+            points: 10,
+            explanation: "@Exclude() est utilisé pour exclure une propriété lors de la transformation d'un objet en JSON. @Expose() fait l'inverse, @Type() définit le type pour la transformation imbriquée, et @Transform() applique une transformation personnalisée."
+        },
+        {
+            id: 4,
+            type: "fill",
+            text: "Complétez le code suivant pour créer un DTO UserDto avec validation d'email et de mot de passe (minimum 8 caractères) :",
+            code: "export class CreateUserDto {\n  @IsEmail()\n  ________: string;\n\n  @IsString()\n  @MinLength(8)\n  ________: string;\n}",
+            blanks: ["email", "password"],
+            correctAnswers: ["email", "password"],
+            points: 15,
+            explanation: "Les décorateurs @IsEmail() et @MinLength(8) s'appliquent respectivement aux propriétés email et password du DTO."
+        },
+        {
+            id: 5,
+            type: "code",
+            text: "Écrivez la configuration du ValidationPipe GLOBAL dans le fichier main.ts pour :<br>1. Supprimer les propriétés non définies dans le DTO<br>2. Rejeter les requêtes contenant des propriétés inattendues<br>3. Transformer automatiquement les types (ex: string '1' → number 1)",
+            correctKeywords: ["whitelist", "forbidNonWhitelisted", "transform"],
+            points: 20,
+            explanation: "La configuration complète est : app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));"
+        },
+        {
+            id: 6,
+            type: "match",
+            text: "Associez chaque décorateur à son utilité principale :",
+            items: [
+                { left: "@IsOptional()", right: "validation" },
+                { left: "@Transform(({ value }) => value.toUpperCase())", right: "transformation" },
+                { left: "@ApiProperty()", right: "documentation" },
+                { left: "@Type(() => Number)", right: "transformation de type" }
+            ],
+            points: 15,
+            explanation: "@IsOptional() est un validateur, @Transform() modifie la valeur, @ApiProperty() sert pour Swagger, @Type() indique le type pour la conversion."
+        },
+        {
+            id: 7,
+            type: "diagram",
+            text: "Complétez le diagramme de flux : placez les étapes dans l'ordre correct pour le traitement d'une requête POST avec validation.",
+            steps: ["Réception requête HTTP", "Application du ValidationPipe", "Vérification des règles de validation", "Transformation des types", "Exécution du contrôleur", "Retour de la réponse"],
+            correctOrder: [0, 1, 2, 3, 4, 5], // index dans steps
+            points: 20,
+            explanation: "L'ordre correct est : requête → ValidationPipe → validation règles → transformation types → contrôleur → réponse."
+        }
+    ];
+
+    let userAnswers = {};
+    let currentScore = 0;
+    let evaluated = false;
+
+    // Sauvegarde et chargement
+    function saveAnswer(questionId, answer) {
+        userAnswers[questionId] = answer;
+        if (!evaluated) updateProgressAndScore();
+    }
+
+    function loadAnswer(questionId) {
+        return userAnswers[questionId];
+    }
+
+    function updateProgressAndScore() {
+        const answered = Object.keys(userAnswers).length;
+        const total = questions.length;
+        const percent = (answered / total) * 100;
+        $("#progress-bar").css("width", percent + "%");
+        $("#progress-text").text(`${answered}/${total} questions répondues`);
+        
+        // Recalculer le score si déjà évalué
+        if (evaluated) {
+            recalcScore();
+        }
+    }
+
+    function recalcScore() {
+        let totalPoints = 0;
+        questions.forEach(q => {
+            const userAns = userAnswers[q.id];
+            if (!userAns) return;
+            if (q.type === "qcm") {
+                if (parseInt(userAns) === q.correct) totalPoints += q.points;
+            } else if (q.type === "fill") {
+                if (Array.isArray(userAns) && JSON.stringify(userAns) === JSON.stringify(q.correctAnswers)) totalPoints += q.points;
+                else if (typeof userAns === "string" && userAns.toLowerCase().trim() === q.correctAnswers[0].toLowerCase()) totalPoints += q.points;
+            } else if (q.type === "code") {
+                const kwOk = q.correctKeywords.every(kw => userAns.toLowerCase().includes(kw.toLowerCase()));
+                if (kwOk) totalPoints += q.points;
+                else if (userAns.length > 5) totalPoints += Math.floor(q.points * 0.5);
+            } else if (q.type === "match") {
+                if (userAns && Object.keys(userAns).length === q.items.length) {
+                    let correctMatches = 0;
+                    for (let i = 0; i < q.items.length; i++) {
+                        if (userAns[i] === q.items[i].right) correctMatches++;
+                    }
+                    totalPoints += (correctMatches / q.items.length) * q.points;
+                }
+            } else if (q.type === "diagram") {
+                if (userAns && JSON.stringify(userAns) === JSON.stringify(q.correctOrder)) totalPoints += q.points;
+            }
+        });
+        currentScore = Math.round(totalPoints);
+        $("#current-score").text(currentScore);
+    }
+
+    function evaluateAll() {
+        evaluated = true;
+        recalcScore();
+        // Afficher feedback sur chaque question
+        questions.forEach(q => {
+            const userAns = userAnswers[q.id];
+            let isCorrect = false;
+            if (q.type === "qcm") isCorrect = (parseInt(userAns) === q.correct);
+            else if (q.type === "fill") isCorrect = (Array.isArray(userAns) && JSON.stringify(userAns) === JSON.stringify(q.correctAnswers));
+            else if (q.type === "code") isCorrect = q.correctKeywords.every(kw => userAns && userAns.toLowerCase().includes(kw.toLowerCase()));
+            else if (q.type === "match") {
+                if (userAns && Object.keys(userAns).length === q.items.length) {
+                    let matchCount = 0;
+                    for (let i = 0; i < q.items.length; i++) if (userAns[i] === q.items[i].right) matchCount++;
+                    isCorrect = (matchCount === q.items.length);
+                }
+            } else if (q.type === "diagram") isCorrect = (userAns && JSON.stringify(userAns) === JSON.stringify(q.correctOrder));
+            
+            const $fb = $(`#fb-${q.id}`);
+            if ($fb.length) {
+                $fb.removeClass("hidden");
+                if (isCorrect) {
+                    $fb.addClass("feedback-correct").removeClass("feedback-incorrect");
+                    $fb.html(`<span class="font-semibold">✓ Correct !</span> ${q.explanation || ""}`);
+                } else {
+                    $fb.addClass("feedback-incorrect").removeClass("feedback-correct");
+                    $fb.html(`<span class="font-semibold">✗ Incorrect</span> ${q.explanation || "Réessayez ou consultez le cours."}`);
+                }
+            }
+        });
+        
+        // Afficher résultats globaux
+        $("#questions-container").slideUp(400, function() {
+            const percentTotal = (currentScore / 100) * 100;
+            let gradeLetter = "F";
+            if (percentTotal >= 90) gradeLetter = "A+";
+            else if (percentTotal >= 80) gradeLetter = "A";
+            else if (percentTotal >= 70) gradeLetter = "B";
+            else if (percentTotal >= 60) gradeLetter = "C";
+            else if (percentTotal >= 50) gradeLetter = "D";
+            
+            const resultsHtml = `
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-green-600 to-emerald-700 px-6 py-8 text-white text-center">
+                        <h2 class="text-3xl font-bold">📊 Résultats de l'évaluation</h2>
+                        <p class="text-green-100 mt-2">Séquence 3 - Validation et Transformation</p>
+                    </div>
+                    <div class="p-6 text-center">
+                        <div class="inline-block bg-indigo-100 rounded-full px-6 py-4 mb-4">
+                            <span class="text-5xl font-bold text-indigo-700">${currentScore}</span>
+                            <span class="text-xl text-indigo-500">/100</span>
+                        </div>
+                        <div class="text-2xl font-bold mb-2">Note : ${gradeLetter}</div>
+                        <div class="w-full bg-gray-200 rounded-full h-3 max-w-md mx-auto">
+                            <div class="bg-indigo-600 h-3 rounded-full" style="width: ${percentTotal}%"></div>
+                        </div>
+                        <p class="text-gray-600 mt-4">${percentTotal >= 70 ? "Félicitations ! Vous maîtrisez bien les concepts de validation NestJS." : "Revoyez les DTO, ValidationPipe et class-transformer pour améliorer votre score."}</p>
+                        <button id="restart-btn" class="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md transition">🔄 Reprendre l'épreuve</button>
+                    </div>
+                </div>
+            `;
+            $("#results-container").html(resultsHtml).removeClass("hidden").slideDown(400);
+            $("#restart-btn").on("click", function() {
+                location.reload();
+            });
+        });
+    }
+
+    // Génération des questions avec jQuery
+    function renderQuestions() {
+        let html = '';
+        questions.forEach((q, idx) => {
+            html += `<div class="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden question-card" id="q-${q.id}">`;
+            html += `<div class="bg-gray-50 px-5 py-3 border-b flex justify-between"><span class="font-bold text-indigo-700">Question ${idx+1}</span><span class="text-sm text-gray-500">${q.points} points</span></div>`;
+            html += `<div class="p-5 md:p-6">`;
+            html += `<p class="text-gray-800 font-medium mb-4">${q.text}</p>`;
+            
+            // Types de questions
+            if (q.type === "qcm") {
+                html += `<div class="space-y-2">`;
+                q.options.forEach((opt, optIdx) => {
+                    const selected = (loadAnswer(q.id) == optIdx);
+                    html += `<div class="quiz-option border rounded-xl p-3 ${selected ? 'selected-option' : 'border-gray-200'}" data-qid="${q.id}" data-val="${optIdx}">
+                                <span class="inline-block w-6 h-6 rounded-full border-2 ${selected ? 'border-indigo-600 bg-indigo-100' : 'border-gray-300'} text-center mr-2">${String.fromCharCode(65+optIdx)}</span>
+                                ${opt}
+                            </div>`;
+                });
+                html += `</div>`;
+            } 
+            else if (q.type === "fill") {
+                const saved = loadAnswer(q.id);
+                let fillHtml = `<div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm mb-4">${q.code.replace(/________/g, '<input type="text" class="fill-input bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 mx-1 w-28 text-center" data-qid="'+q.id+'" data-slot="0" value="">')}</div>`;
+                fillHtml = fillHtml.replace(/________/g, () => {
+                    const idx = Math.random(); // simplifié, on utilise un pattern
+                });
+                // reconstruction plus robuste
+                let finalHtml = `<div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm mb-4 overflow-x-auto">`;
+                let codeParts = q.code.split("________");
+                for (let i=0; i<codeParts.length; i++) {
+                    finalHtml += codeParts[i];
+                    if (i < q.blanks.length) {
+                        const savedVal = (saved && saved[i]) ? saved[i] : "";
+                        finalHtml += `<input type="text" class="fill-input bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 mx-1 w-32 text-center" data-qid="${q.id}" data-slot="${i}" value="${savedVal}">`;
+                    }
+                }
+                finalHtml += `</div>`;
+                html += finalHtml;
+            }
+            else if (q.type === "code") {
+                const saved = loadAnswer(q.id) || "";
+                html += `<textarea class="w-full h-32 border border-gray-300 rounded-xl p-3 font-mono text-sm" data-qid="${q.id}" placeholder="Écrivez votre code ici...">${saved}</textarea>`;
+                html += `<p class="text-xs text-gray-500 mt-2">💡 Indice : utilisez whitelist, forbidNonWhitelisted, transform</p>`;
+            }
+            else if (q.type === "match") {
+                html += `<div class="match-container space-y-3" data-qid="${q.id}">`;
+                q.items.forEach((item, idxItem) => {
+                    const savedMatch = loadAnswer(q.id);
+                    const selectedVal = savedMatch ? savedMatch[idxItem] : "";
+                    html += `<div class="flex flex-col md:flex-row gap-3 items-center bg-gray-50 p-3 rounded-xl">
+                                <div class="w-full md:w-1/2 font-mono font-bold">${item.left}</div>
+                                <div class="w-full md:w-1/2">
+                                    <select class="match-select w-full p-2 border rounded-lg" data-qid="${q.id}" data-idx="${idxItem}">
+                                        <option value="">-- Sélectionner --</option>
+                                        <option value="validation" ${selectedVal === "validation" ? "selected" : ""}>Validation</option>
+                                        <option value="transformation" ${selectedVal === "transformation" ? "selected" : ""}>Transformation</option>
+                                        <option value="documentation" ${selectedVal === "documentation" ? "selected" : ""}>Documentation / Swagger</option>
+                                        <option value="transformation de type" ${selectedVal === "transformation de type" ? "selected" : ""}>Transformation de type</option>
+                                    </select>
+                                </div>
+                            </div>`;
+                });
+                html += `</div>`;
+            }
+            else if (q.type === "diagram") {
+                const savedOrder = loadAnswer(q.id);
+                html += `<div class="diagram-container" data-qid="${q.id}">`;
+                html += `<div class="grid grid-cols-1 gap-2 mb-4" id="sortable-list-${q.id}">`;
+                q.steps.forEach((step, sIdx) => {
+                    const pos = savedOrder ? savedOrder.indexOf(sIdx) : sIdx;
+                    html += `<div class="bg-indigo-50 p-3 rounded-lg cursor-move border border-indigo-200 flex justify-between items-center" data-original-index="${sIdx}">
+                                <span>📌 ${step}</span>
+                                <span class="text-xs text-gray-400 handle">⋮⋮</span>
+                            </div>`;
+                });
+                html += `</div><p class="text-sm text-gray-500">Glissez-déposez les étapes dans l'ordre correct.</p>`;
+                html += `</div>`;
+            }
+            
+            html += `<div id="fb-${q.id}" class="hidden mt-4 p-3 rounded-lg text-sm"></div>`;
+            if (!evaluated) {
+                html += `<div class="mt-4 flex justify-end"><button class="eval-question-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg text-sm" data-id="${q.id}">✔ Vérifier cette question</button></div>`;
+            }
+            html += `</div></div>`;
+        });
+        
+        $("#questions-container").html(html);
+        
+        // Événements
+        $(".quiz-option").on("click", function() {
+            if (evaluated) return;
+            const qid = $(this).data("qid");
+            const val = $(this).data("val");
+            $(`#q-${qid} .quiz-option`).removeClass("selected-option");
+            $(this).addClass("selected-option");
+            saveAnswer(qid, val);
+        });
+        
+        $(".fill-input").on("input", function() {
+            if (evaluated) return;
+            const qid = $(this).data("qid");
+            const slot = $(this).data("slot");
+            let current = loadAnswer(qid) || [];
+            current[slot] = $(this).val();
+            saveAnswer(qid, current);
+        });
+        
+        $("textarea[data-qid]").on("input", function() {
+            if (evaluated) return;
+            const qid = $(this).data("qid");
+            saveAnswer(qid, $(this).val());
+        });
+        
+        $(".match-select").on("change", function() {
+            if (evaluated) return;
+            const qid = $(this).data("qid");
+            const idx = $(this).data("idx");
+            let current = loadAnswer(qid) || {};
+            current[idx] = $(this).val();
+            saveAnswer(qid, current);
+        });
+        
+        // Vérification unitaire
+        $(".eval-question-btn").on("click", function() {
+            const qid = $(this).data("id");
+            const q = questions.find(x => x.id == qid);
+            const userAns = userAnswers[qid];
+            if (!userAns && q.type !== "diagram") {
+                alert("Veuillez répondre à la question d'abord.");
+                return;
+            }
+            let correct = false;
+            if (q.type === "qcm") correct = (parseInt(userAns) === q.correct);
+            else if (q.type === "fill") correct = (Array.isArray(userAns) && JSON.stringify(userAns) === JSON.stringify(q.correctAnswers));
+            else if (q.type === "code") correct = q.correctKeywords.every(kw => userAns && userAns.toLowerCase().includes(kw.toLowerCase()));
+            else if (q.type === "match") {
+                if (userAns && Object.keys(userAns).length === q.items.length) {
+                    let matchCount = 0;
+                    for (let i = 0; i < q.items.length; i++) if (userAns[i] === q.items[i].right) matchCount++;
+                    correct = (matchCount === q.items.length);
+                }
+            } else if (q.type === "diagram") correct = (userAns && JSON.stringify(userAns) === JSON.stringify(q.correctOrder));
+            
+            const $fb = $(`#fb-${qid}`);
+            $fb.removeClass("hidden");
+            if (correct) {
+                $fb.addClass("feedback-correct").removeClass("feedback-incorrect");
+                $fb.html(`<span class="font-semibold">✓ Bonne réponse !</span> ${q.explanation}`);
+            } else {
+                $fb.addClass("feedback-incorrect").removeClass("feedback-correct");
+                $fb.html(`<span class="font-semibold">✗ Réponse incorrecte.</span> ${q.explanation}`);
+            }
+        });
+        
+        // Drag & drop simplifié (diagram)
+        $(".diagram-container").each(function() {
+            const container = $(this);
+            const qid = container.data("qid");
+            const list = $(`#sortable-list-${qid}`);
+            let items = list.children().get();
+            let order = loadAnswer(qid) || questions.find(q => q.id == qid).correctOrder;
+            
+            function updateOrder() {
+                let newOrder = [];
+                list.children().each(function() {
+                    newOrder.push(parseInt($(this).data("original-index")));
+                });
+                saveAnswer(qid, newOrder);
+            }
+            
+            list.sortable({
+                update: function() { updateOrder(); },
+                placeholder: "bg-gray-200 h-12 rounded-lg"
+            });
+            
+            // Réordonner initial selon order sauvegardé
+            if (order && order.length) {
+                items.sort((a,b) => {
+                    let aIdx = order.indexOf(parseInt($(a).data("original-index")));
+                    let bIdx = order.indexOf(parseInt($(b).data("original-index")));
+                    return aIdx - bIdx;
+                });
+                list.empty().append(items);
+            }
+        });
+        
+        if (!evaluated) {
+            if ($("#submit-eval").length === 0) {
+                $("#questions-container").after(`<div class="flex justify-center mt-6"><button id="submit-eval" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition">📝 Rendre copie et noter</button></div>`);
+                $("#submit-eval").on("click", function() {
+                    let allAnswered = true;
+                    questions.forEach(q => {
+                        if (!userAnswers[q.id] && q.type !== "match") allAnswered = false;
+                    });
+                    if (!allAnswered && !confirm("Certaines questions sont incomplètes. Voulez-vous quand même rendre la copie ?")) return;
+                    evaluateAll();
+                    $(this).remove();
+                });
+            }
+        }
+    }
+    
+    // activation du drag & drop jQuery UI (chargement dynamique)
+    function loadJQueryUI() {
+        if (typeof $.fn.sortable === "undefined") {
+            const script = document.createElement("script");
+            script.src = "https://code.jquery.com/ui/1.13.2/jquery-ui.min.js";
+            script.onload = () => {
+                renderQuestions();
+            };
+            document.head.appendChild(script);
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = "https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css";
+            document.head.appendChild(link);
+        } else {
+            renderQuestions();
+        }
+    }
+    
+    loadJQueryUI();
+</script>
+</body>
+</html>

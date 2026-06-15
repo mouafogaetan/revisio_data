@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 7 : Les contrôleurs - De la requête à la réponse | API .NET</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, bien que cette leçon n'en nécessite pas, on l'inclut par précaution) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition slides et styles personnalisés doux */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, opacity 0.3s ease;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            background-color: #ffffffcc;
+            backdrop-filter: blur(4px);
+        }
+        .nav-btn:hover {
+            background-color: #1e3a8a;
+            color: white;
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #2563eb, #38bdf8);
+            height: 4px;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .dot-active {
+            background-color: #2563eb;
+            width: 24px;
+            opacity: 1;
+        }
+        .dot-inactive {
+            background-color: #cbd5e1;
+            width: 10px;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* Amélioration contraste et lisibilité */
+        .text-soft-black {
+            color: #1e293b;
+        }
+        .bg-soft-mist {
+            background: #f8fafc;
+        }
+        .objective-badge {
+            background: #dbeafe;
+            border-left: 4px solid #2563eb;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9em;
+            color: #0f172a;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            overflow-x: auto;
+            padding: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        th {
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="slide-container px-4 py-6 md:py-10">
+        <!-- Slide principal : wrapper dynamique -->
+        <div id="slides-wrapper" class="relative">
+            <!-- Les slides seront injectées ici via jQuery -->
+        </div>
+
+        <!-- Navigation + progression -->
+        <div class="flex flex-col items-center mt-8 gap-4">
+            <div class="flex items-center justify-center gap-4 flex-wrap">
+                <button id="prevSlide" class="nav-btn px-6 py-3 rounded-full font-semibold shadow-md text-gray-800 border border-gray-200 flex items-center gap-2">
+                    ← Précédent
+                </button>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+                <button id="nextSlide" class="nav-btn px-6 py-3 rounded-full font-semibold shadow-md text-gray-800 border border-gray-200 flex items-center gap-2">
+                    Suivant →
+                </button>
+            </div>
+            <div class="w-full max-w-md bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressFill" class="progress-bar h-full w-0"></div>
+            </div>
+            <div class="text-sm text-gray-500" id="slideCounter">Slide 0 / 0</div>
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------------------------------------
+        // Données de la leçon 7 : "Les contrôleurs - De la requête à la réponse"
+        // Basé sur le JSON fourni (lesson7 du chapitre 2)
+        // Titre original : Capturer des paramètres dans l'URL avec [FromRoute],
+        // Récupérer les query strings, paramètres optionnels etc.
+        // Mais pour une leçon claire et complète, nous allons couvrir les 3 objectifs de la lesson7:
+        // 1. Capturer des paramètres dans l'URL avec [FromRoute]
+        // 2. Récupérer les query strings avec [FromQuery]
+        // 3. Paramètres optionnels et valeurs par défaut
+        // Ajoutons aussi notions de [FromBody] en lien avec lesson précédente mais focus sur la lesson7.
+        // Nous allons créer plusieurs slides : 
+        // Slide1: Titre de la leçon
+        // Slide2: Objectifs pédagogiques
+        // Slides 3-6: Contenu détaillé (théorie, exemples, bonnes pratiques)
+        // Slide7: Résumé / Exercice ou quiz léger
+        // Utilisation images minimales (diagramme schématique simple dessiné en HTML/CSS)
+        // Optimisation mobile, couleurs douces
+        // ------------------------------------------------------------
+
+        const courseData = {
+            title: "Leçon 7 : Contrôleurs avancés - Paramètres dynamiques",
+            subtitle: "Maîtriser [FromRoute], [FromQuery] et paramètres optionnels dans ASP.NET Core",
+            objectives: [
+                "✅ Capturer des paramètres dans l'URL avec l'attribut [FromRoute] (ex: /api/produits/5)",
+                "✅ Récupérer les paramètres de la chaîne de requête (query string) avec [FromQuery] (ex: ?page=2&nom=livre)",
+                "✅ Utiliser des paramètres optionnels et définir des valeurs par défaut pour des APIs plus flexibles",
+                "✅ Comprendre la différence entre les sources de liaisons (Route, Query, Body) et leur priorité"
+            ],
+            slidesContent: [
+                {
+                    type: "title",
+                    content: {
+                        mainTitle: "🔁 API .NET Core : Paramètres dynamiques",
+                        sub: "[FromRoute] • [FromQuery] • Options et valeurs par défaut",
+                        badge: "Lesson 7 | Niveau Intermédiaire"
+                    }
+                },
+                {
+                    type: "objectives",
+                    content: {
+                        title: "🎯 Objectifs de la leçon",
+                        list: [
+                            "Comprendre comment le moteur de liaison de modèles (Model Binding) extrait les données de la requête.",
+                            "Construire des routes RESTful avec des segments variables (ex: /api/commandes/{id})",
+                            "Implémenter des filtres, pagination, recherche via Query String.",
+                            "Rendre vos endpoints robustes avec paramètres optionnels et valeurs par défaut."
+                        ]
+                    }
+                },
+                {
+                    type: "concept",
+                    title: "📌 1. Lier des données depuis l'URL : [FromRoute]",
+                    body: `
+                        <p class="mb-3">L'attribut <code class="bg-gray-200 px-1 rounded">[FromRoute]</code> indique à ASP.NET Core de lire la valeur d’un <strong>paramètre dynamique</strong> dans le template de la route.</p>
+                        <div class="bg-blue-50 p-4 rounded-xl my-4 border-l-8 border-blue-500">
+                            <p class="font-semibold">🎯 Exemple typique :</p>
+                            <pre class="mt-2 text-sm"><code>[HttpGet("produits/{id:int}")]
+public IActionResult GetProduit([FromRoute] int id)
+{
+    return Ok($"Produit reçu avec l'ID {id}");
+}</code></pre>
+                            <p class="text-sm mt-1">📌 <strong>Requête :</strong> <span class="font-mono">GET /api/produits/42</span> → id = 42</p>
+                        </div>
+                        <p>✅ <strong>Bonnes pratiques :</strong> Validez toujours l’ID, gérez le cas 404 si non trouvé. Utilisez des contraintes de route comme <code>{id:int}</code> pour limiter le typage.</p>
+                        <div class="mt-3 flex flex-wrap gap-2 items-center">
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">📌 Routes nommées</span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">📌 Capture multiple</span>
+                        </div>
+                    `
+                },
+                {
+                    type: "concept",
+                    title: "🔍 2. Paramètres de requête (Query String) : [FromQuery]",
+                    body: `
+                        <p>Les <strong>query strings</strong> sont idéales pour les filtres, paginations ou données non essentielles. Utilisez <code class="bg-gray-200 px-1 rounded">[FromQuery]</code>.</p>
+                        <div class="bg-indigo-50 p-4 rounded-xl my-4">
+                            <pre><code>[HttpGet("recherche")]
+public IActionResult Search([FromQuery] string nom, [FromQuery] int page = 1)
+{
+    return Ok($"Recherche : {nom}, page {page}");
+}</code></pre>
+                            <p><strong>Requête :</strong> <span class="font-mono">GET /api/recherche?nom=aspnet&page=2</span><br>
+                            → Résultat : "Recherche : aspnet, page 2"</p>
+                        </div>
+                        <p>💡 <strong>Astuce :</strong> Vous pouvez également utiliser un objet DTO complexe avec des propriétés marquées <code>[FromQuery]</code> pour regrouper plusieurs paramètres.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            <div class="bg-white border rounded-lg p-3 shadow-sm"><span class="font-bold">✅ Avantage</span> : URL partageable, bookmarkable.</div>
+                            <div class="bg-white border rounded-lg p-3 shadow-sm"><span class="font-bold">⚠️ Limite</span> : Longueur max (généralement 2048 caractères).</div>
+                        </div>
+                    `
+                },
+                {
+                    type: "concept",
+                    title: "⚙️ 3. Paramètres optionnels et valeurs par défaut",
+                    body: `
+                        <p>Rendez vos endpoints plus flexibles en autorisant des paramètres optionnels ou en leur attribuant des valeurs par défaut.</p>
+                        <div class="bg-gray-100 p-4 rounded-xl my-3">
+                            <p class="font-semibold">Exemple avec paramètre nullable et valeur par défaut :</p>
+                            <pre><code>[HttpGet("articles")]
+public IActionResult GetArticles(
+    [FromQuery] string categorie = null,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+{
+    // si categorie n'est pas fournie, on retourne tout
+    return Ok($"Catégorie: {categorie ?? "toutes"}, page {page}, taille {pageSize}");
+}</code></pre>
+                        </div>
+                        <p>🎯 <strong>Route optionnelle :</strong> On peut aussi rendre un segment de route optionnel avec le point d'interrogation, ex: <code>[HttpGet("employes/{id?}")]</code>. Combiné avec <code>[FromRoute]</code> et type nullable (<code>int? id</code>).</p>
+                        <div class="bg-yellow-50 p-3 rounded-lg mt-2 text-sm italic">📘 Important : Les paramètres optionnels évitent de planter l'API lorsque l'utilisateur omet certaines informations.</div>
+                    `
+                },
+                {
+                    type: "concept",
+                    title: "🧩 4. Comparaison des sources de binding & bonnes pratiques",
+                    body: `
+                        <p>Dans ASP.NET Core, la liaison des données suit certaines règles. Par défaut, <code>[ApiController]</code> applique des conventions :</p>
+                        <ul class="list-disc list-inside space-y-2 my-3">
+                            <li><strong>[FromRoute]</strong> : paramètres dans le template de la route.</li>
+                            <li><strong>[FromQuery]</strong> : paramètres dans la chaîne de requête ?key=value.</li>
+                            <li><strong>[FromBody]</strong> : données JSON (POST, PUT).</li>
+                            <li><strong>[FromHeader]</strong> : en-têtes HTTP.</li>
+                        </ul>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead><tr><th>Attribut</th><th>Source</th><th>Exemple d'utilisation</th></tr></thead>
+                                <tbody>
+                                    <tr><td>[FromRoute]</td><td>URL path</td><td>/clients/100 → id=100</td></tr>
+                                    <tr><td>[FromQuery]</td><td>Query string</td><td>?tri=nom&ordre=asc</td></tr>
+                                    <tr><td>[FromBody]</td><td>Corps JSON</td><td>Création ressource</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-4">✅ <strong>Règle d'or</strong> : Utilisez [FromRoute] pour identifier une ressource (GET, PUT, DELETE), [FromQuery] pour filtres/pagination, [FromBody] pour les données complexes en écriture.</p>
+                    `
+                },
+                {
+                    type: "recap",
+                    title: "📝 Résumé & Mini-exercice",
+                    body: `
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-green-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-lg">🧠 Ce qu'il faut retenir</h3>
+                                <ul class="list-disc pl-5 mt-2 space-y-1">
+                                    <li>[FromRoute] lie les variables de la route.</li>
+                                    <li>[FromQuery] lie les paramètres après le ?.</li>
+                                    <li>Les paramètres optionnels simplifient l'API.</li>
+                                    <li>Combinez ces attributs pour des endpoints riches.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-lg">✏️ À toi de jouer</h3>
+                                <p>Crée un endpoint <code>GET /api/produits/filtre</code> qui accepte :</p>
+                                <ul class="list-decimal pl-5 mt-1 text-sm">
+                                    <li>prixMin (optionnel, décimal, défaut 0)</li>
+                                    <li>prixMax (optionnel, décimal)</li>
+                                    <li>categorie (string, optionnel)</li>
+                                </ul>
+                                <p class="mt-2 text-sm">Utilise [FromQuery] et des valeurs par défaut. Pense à la logique de filtrage !</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 text-center italic text-gray-500">💡 Indice : dotnet new webapi puis construisez votre contrôleur.</div>
+                    `
+                }
+            ]
+        };
+
+        // Génération des slides au format HTML
+        let slidesHtml = [];
+        let totalSlides = courseData.slidesContent.length;
+
+        courseData.slidesContent.forEach((slide, idx) => {
+            let inner = '';
+            if (slide.type === 'title') {
+                inner = `
+                    <div class="text-center py-6 md:py-12">
+                        <span class="inline-block bg-blue-100 text-blue-800 rounded-full px-4 py-1 text-sm font-semibold mb-4">${slide.content.badge}</span>
+                        <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-sky-600 bg-clip-text text-transparent mb-4">${slide.content.mainTitle}</h1>
+                        <p class="text-xl text-gray-700 max-w-2xl mx-auto">${slide.content.sub}</p>
+                        <div class="mt-8 flex justify-center">
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-blue-500 opacity-70"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/></svg>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectives') {
+                inner = `
+                    <div class="p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-4 border-blue-400 inline-block pb-1 mb-6">${slide.content.title}</h2>
+                        <div class="grid gap-4 mt-4">
+                            ${courseData.objectives.map(obj => `<div class="objective-badge p-4 rounded-xl shadow-sm bg-white"><span class="text-lg">${obj}</span></div>`).join('')}
+                        </div>
+                        <div class="mt-6 text-center text-sm text-gray-500">✨ Ces compétences vous rendront autonome sur la création d'API robustes.</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'concept') {
+                inner = `
+                    <div class="p-6 md:p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-5 flex items-center gap-2">📘 ${slide.title}</h2>
+                        <div class="prose prose-blue max-w-none text-gray-700">
+                            ${slide.body}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'recap') {
+                inner = `
+                    <div class="p-6 md:p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-5">${slide.title}</h2>
+                        ${slide.body}
+                        <div class="mt-8 p-4 bg-gray-100 rounded-2xl text-center">
+                            <p class="font-medium">🎉 Félicitations ! Vous maîtrisez la liaison de paramètres avancée dans ASP.NET Core. Passez à la pratique.</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            slidesHtml.push(`
+                <div class="slide-card w-full transition-all duration-300 mb-6" data-slide-index="${idx}">
+                    ${inner}
+                </div>
+            `);
+        });
+
+        // Injecter les slides dans le wrapper
+        $("#slides-wrapper").html(slidesHtml.join(''));
+
+        let currentIndex = 0;
+        const slidesCount = $(".slide-card").length;
+        
+        // Masquer tous les slides sauf le premier
+        function updateSlidesVisibility() {
+            $(".slide-card").each(function(index) {
+                if(index === currentIndex) {
+                    $(this).show().fadeIn(200);
+                } else {
+                    $(this).hide();
+                }
+            });
+            updateProgressAndDots();
+        }
+
+        function updateProgressAndDots() {
+            // Mettre à jour la barre de progression
+            const percent = ((currentIndex + 1) / slidesCount) * 100;
+            $("#progressFill").css("width", `${percent}%`);
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${slidesCount}`);
+            
+            // Mettre à jour les dots
+            let dotsHtml = '';
+            for(let i = 0; i < slidesCount; i++) {
+                const activeClass = (i === currentIndex) ? 'dot-active' : 'dot-inactive bg-gray-300';
+                dotsHtml += `<button class="dot-nav h-3 rounded-full transition-all mx-1 ${activeClass}" data-index="${i}"></button>`;
+            }
+            $("#dotsContainer").html(dotsHtml);
+        }
+
+        function goToSlide(index) {
+            if(index < 0) index = 0;
+            if(index >= slidesCount) index = slidesCount - 1;
+            currentIndex = index;
+            updateSlidesVisibility();
+        }
+
+        $("#nextSlide").on("click", function() {
+            if(currentIndex < slidesCount - 1) {
+                goToSlide(currentIndex + 1);
+            } else {
+                // Optionnel: petite animation feedback
+                $(this).css("transform","scale(0.98)");
+                setTimeout(()=> $(this).css("transform",""),150);
+            }
+        });
+
+        $("#prevSlide").on("click", function() {
+            if(currentIndex > 0) {
+                goToSlide(currentIndex - 1);
+            }
+        });
+
+        // Gestion des dots dynamiques
+        $(document).on("click", ".dot-nav", function() {
+            const idx = $(this).data("index");
+            if(idx !== undefined) goToSlide(idx);
+        });
+
+        // Gestion clavier (flèches gauche/droite pour meilleure accessibilité)
+        $(document).on("keydown", function(e) {
+            if(e.key === "ArrowLeft") {
+                $("#prevSlide").click();
+                e.preventDefault();
+            } else if(e.key === "ArrowRight") {
+                $("#nextSlide").click();
+                e.preventDefault();
+            }
+        });
+
+        // Initialisation
+        updateSlidesVisibility();
+
+        // petite aide diagramme dessiné maison pour le slide concept si besoin: on peut insérer un dessin svg simple mais aucun besoin trop graphique.
+        // Ajoutons un petit dessin SVG explicatif sur le slide [FromRoute] vs [FromQuery] si désiré, mais la leçon reste riche.
+        // Pour améliorer la clarté, on peut ajouter un petit bloc dessiné dans le slide 4 (concept query) mais déjà présent.
+        // De plus, nous créons une image illustrative simple: tableau comparatif déjà présent.
+        // Satisfait à la demande "si nécessaire dessiner soi-même", on va ajouter une petite illustration schématique d'une requête HTTP dans le premier slide concept 
+        // afin de représenter la route et query string sans image externe. 
+        // On injecte après chargement un petit élément graphique dans le slide 2 (concept "FromRoute") sans rompre le design.
+        // On utilise un pseudo élément dessiné en HTML/CSS
+        setTimeout(() => {
+            // Insérer un bloc SVG "Diagramme" dans le slide concept 1 (index 2 : le premier concept)
+            const targetSlide = $(".slide-card[data-slide-index='2']");
+            if(targetSlide.length) {
+                let extraDiv = $(`
+                    <div class="mt-6 bg-slate-50 rounded-xl p-3 border border-gray-200 flex flex-col items-center">
+                        <div class="text-sm font-mono mb-2">🌐 Exemple de structure d'URL</div>
+                        <div class="bg-white rounded-lg p-3 w-full overflow-x-auto text-sm">
+                            <code class="break-all">https://monsite.com/api<span class="text-blue-600 font-bold">/utilisateurs/154</span><span class="text-emerald-600">?role=admin&page=2</span></code>
+                            <div class="flex flex-wrap justify-between mt-2 text-xs">
+                                <span class="text-blue-600">🔵 [FromRoute] → id = 154</span>
+                                <span class="text-emerald-600">🟢 [FromQuery] → role=admin, page=2</span>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                targetSlide.find(".bg-blue-50.p-4").after(extraDiv);
+            }
+        }, 100);
+    </script>
+</body>
+</html>

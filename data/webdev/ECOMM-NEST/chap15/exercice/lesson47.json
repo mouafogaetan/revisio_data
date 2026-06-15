@@ -1,0 +1,194 @@
+[
+  {
+    "intitule": "Comprendre l’intérêt d’un Dockerfile multi-stage",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS, on souhaite containeriser l’application avec Docker. On envisage d’utiliser un <strong>Dockerfile multi-stage</strong>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer ce qu’est un build multi-stage et quel est son principal avantage par rapport à un Dockerfile classique.",
+        "niveau": "easy",
+        "reponse": "Un build multi-stage utilise plusieurs étapes (stages) dans le même Dockerfile. L’avantage principal est de réduire la taille de l’image finale en ne copiant que les artefacts nécessaires (ex: seulement les fichiers compilés et les dépendances de production, sans les outils de build).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Analyser les deux étapes suivantes : <code>builder</code> (avec <code>npm install</code> complet et <code>npm run build</code>) et <code>production</code> (copie du dossier <code>dist</code> et installation uniquement de <code>dependencies</code>). Quel est le rôle de chaque étape ?",
+        "niveau": "medium",
+        "reponse": "L’étape <code>builder</code> installe toutes les dépendances (y compris devDependencies) et compile le TypeScript en JavaScript. L’étape <code>production</code> part d’une image propre, copie les fichiers compilés et installe uniquement les dépendances de production, produisant une image légère et sécurisée.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier pourquoi on ne copie pas <code>node_modules</code> entier de l’étape builder vers l’étape production.",
+        "niveau": "hard",
+        "reponse": "L’étape builder contient les devDependencies (TypeScript, ESLint, etc.) inutiles en production. En installant uniquement les dépendances de production avec <code>npm ci --only=production</code> dans l’étape finale, on réduit la taille de l’image et on limite la surface d’attaque.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Écrire un Dockerfile multi-stage pour NestJS",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez écrire un Dockerfile multi-stage optimisé pour une API NestJS. L’application utilise TypeScript, des variables d’environnement (port, base de données), et doit être exécutée avec Node.js 20.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédiger le Dockerfile complet avec deux stages : <code>build</code> et <code>production</code>.",
+        "niveau": "hard",
+        "reponse": "<code>FROM node:20-alpine AS build<br>WORKDIR /app<br>COPY package*.json ./<br>RUN npm ci<br>COPY . .<br>RUN npm run build<br><br>FROM node:20-alpine AS production<br>WORKDIR /app<br>COPY --from=build /app/dist ./dist<br>COPY --from=build /app/package*.json ./<br>RUN npm ci --only=production<br>EXPOSE 3000<br>CMD [\"node\", \"dist/main\"]</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer pourquoi on utilise <code>npm ci</code> plutôt que <code>npm install</code> dans l’étape de build.",
+        "niveau": "medium",
+        "reponse": "<code>npm ci</code> est plus rapide et strict : il utilise le fichier <code>package-lock.json</code> pour installer exactement les versions spécifiées, garantissant une reproductibilité parfaite du build. Idéal pour les environnements CI/CD et la containerisation.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une optimisation supplémentaire (cache Docker) pour accélérer les rebuilds.",
+        "niveau": "hard",
+        "reponse": "Copier d’abord uniquement <code>package.json</code> et <code>package-lock.json</code>, exécuter <code>npm ci</code>, puis copier le reste du code. Ainsi, tant que les dépendances ne changent pas, Docker utilise le cache de l’étape d’installation.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer docker-compose pour l’API, PostgreSQL et Redis",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Votre API NestJS a besoin d’une base de données PostgreSQL et de Redis pour la gestion des files d’attente (Bull). Créez un fichier <code>docker-compose.yml</code> pour orchestrer les trois services.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le fichier docker-compose avec les services : <code>api</code> (construit à partir du Dockerfile), <code>postgres</code> et <code>redis</code>.",
+        "niveau": "medium",
+        "reponse": "<code>version: '3.8'<br>services:<br>  api:<br>    build: .<br>    ports:<br>      - \"3000:3000\"<br>    depends_on:<br>      - postgres<br>      - redis<br>    environment:<br>      - DB_HOST=postgres<br>      - REDIS_HOST=redis<br>  postgres:<br>    image: postgres:15<br>    environment:<br>      POSTGRES_USER: ecommerce<br>      POSTGRES_PASSWORD: secret<br>      POSTGRES_DB: ecommerce_db<br>    volumes:<br>      - pgdata:/var/lib/postgresql/data<br>  redis:<br>    image: redis:7-alpine<br>    ports:<br>      - \"6379:6379\"<br>volumes:<br>  pgdata:</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer le rôle du champ <code>depends_on</code> et pourquoi il ne garantit pas que PostgreSQL soit prêt à accepter les connexions au démarrage de l’API.",
+        "niveau": "hard",
+        "reponse": "<code>depends_on</code> ordonne le démarrage des services (postgres et redis avant l’api) mais n’attend pas que la base soit prête (health check). Pour résoudre ce problème, on peut utiliser un script d’attente (<code>wait-for-it.sh</code>) ou ajouter un healthcheck dans docker-compose.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une solution pour que l’API attende que PostgreSQL soit prêt avant de démarrer.",
+        "niveau": "hard",
+        "reponse": "Utiliser un <code>healthcheck</code> sur le service postgres (ex: <code>pg_isready -U ecommerce</code>) et ajouter <code>condition: service_healthy</code> dans <code>depends_on</code> (version 2.3+). Alternative : utiliser un script shell <code>wait-for-it.sh postgres:5432 -- node dist/main</code>.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gérer les variables d’environnement avec Docker",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>On souhaite passer les variables d’environnement (JWT_SECRET, DB_PASSWORD, etc.) à l’API sans les figer dans le Dockerfile ou docker-compose en clair.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citer deux méthodes pour injecter des variables d’environnement dans un conteneur Docker sans les écrire en dur dans <code>docker-compose.yml</code>.",
+        "niveau": "easy",
+        "reponse": "1) Utiliser un fichier <code>.env</code> et la directive <code>env_file</code> dans docker-compose. 2) Passer les variables via la ligne de commande <code>docker run -e JWT_SECRET=xxx</code> ou utiliser un orchestration comme Kubernetes avec Secrets.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment utiliser un fichier <code>.env.production</code> avec docker-compose et s’assurer qu’il n’est pas versionné dans Git.",
+        "niveau": "medium",
+        "reponse": "Ajouter <code>env_file: - .env.production</code> dans la configuration du service. Puis ajouter <code>.env.production</code> au fichier <code>.gitignore</code> pour éviter de le committer. Le fichier peut être généré par le pipeline CI/CD à partir de secrets sécurisés.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Identifier un risque de sécurité si on utilise <code>environment:</code> directement dans docker-compose et comment le mitiguer.",
+        "niveau": "medium",
+        "reponse": "Les variables sont en clair dans le fichier docker-compose, qui est souvent versionné. Un attaquant ayant accès au code voit les secrets. Mitigation : utiliser un fichier <code>.env</code> non versionné, ou utiliser Docker Secrets (Swarm) / Kubernetes Secrets.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Déployer l’API avec docker-compose sur un VPS",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous avez un VPS Ubuntu. Vous devez déployer l’application e-commerce (API + PostgreSQL + Redis) en utilisant docker-compose. Les données de la base doivent persister après redémarrage du conteneur.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes pour installer Docker et Docker Compose sur le VPS (commandes principales).",
+        "niveau": "medium",
+        "reponse": "<code>sudo apt update && sudo apt install docker.io docker-compose -y<br>sudo systemctl enable docker --now<br>sudo usermod -aG docker $USER (puis se déconnecter/reconnecter)</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment configurer les volumes pour que les données PostgreSQL persistent en dehors du conteneur.",
+        "niveau": "easy",
+        "reponse": "Dans docker-compose, déclarer un volume nommé (ex: <code>pgdata</code>) et l’attacher au service postgres avec <code>volumes: - pgdata:/var/lib/postgresql/data</code>. Ainsi, même si le conteneur est supprimé, les données restent sur le disque hôte.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer un script de déploiement simple (bash) qui récupère la dernière version du code, rebuild l’image et redémarre les services.",
+        "niveau": "very hard",
+        "reponse": "<code>#!/bin/bash<br>git pull origin main<br>docker-compose down<br>docker-compose build --no-cache api<br>docker-compose up -d<br>docker system prune -f</code>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser la différence entre CMD et ENTRYPOINT dans un Dockerfile",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un Dockerfile pour une API NestJS, on peut utiliser <code>CMD [\"node\", \"dist/main\"]</code>. Comparer avec <code>ENTRYPOINT</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la différence fondamentale entre <code>CMD</code> et <code>ENTRYPOINT</code>.",
+        "niveau": "easy",
+        "reponse": "ENTRYPOINT définit le programme principal qui sera exécuté (difficilement remplaçable). CMD fournit les arguments par défaut pour ENTRYPOINT, ou peut être entièrement remplacé si on utilise <code>CMD</code> seul. Pour une API, on utilise souvent <code>CMD [\"node\", \"dist/main\"]</code> pour permettre au développeur de remplacer le fichier de démarrage si besoin.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire une version utilisant ENTRYPOINT pour le même conteneur Node.js.",
+        "niveau": "easy",
+        "reponse": "<code>ENTRYPOINT [\"node\"]<br>CMD [\"dist/main\"]</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier pourquoi <code>CMD [\"node\", \"dist/main\"]</code> est plus flexible en développement/test.",
+        "niveau": "medium",
+        "reponse": "On peut facilement remplacer la commande au lancement du conteneur (ex: <code>docker run myapi node dist/seed</code> pour exécuter un script de seed). Avec un ENTRYPOINT fixe, remplacer totalement la commande est plus contraignant.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

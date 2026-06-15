@@ -1,0 +1,134 @@
+[
+  {
+    "intitule": "Calcul de la note moyenne d'un produit",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un produit a reçu les avis suivants : notes de 5, 4, 5, 3 et 2 (sur 5). Calculez la note moyenne arrondie à 2 décimales.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculez la moyenne des notes et expliquez la formule utilisée.",
+        "niveau": "easy",
+        "reponse": "La moyenne est : $\\frac{5+4+5+3+2}{5} = \\frac{19}{5} = 3.80$. Formule : $\\bar{x} = \\frac{\\sum_{i=1}^{n} x_i}{n}$",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez une requête TypeORM (QueryBuilder) qui calcule la note moyenne d'un produit dont l'ID est donné.",
+        "niveau": "medium",
+        "reponse": "```typescript\nconst result = await this.reviewRepo\n  .createQueryBuilder('review')\n  .select('AVG(review.rating)', 'average')\n  .where('review.productId = :productId', { productId })\n  .getRawOne();\nreturn result.average ? parseFloat(result.average) : 0;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Distribution des étoiles pour un produit",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour un produit donné, on souhaite connaître le nombre d'avis pour chaque note (1 à 5 étoiles). Cette distribution aide les clients à visualiser la répartition des notes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez une requête TypeORM (QueryBuilder) qui retourne pour chaque étoile (1 à 5) le nombre d'avis correspondant.",
+        "niveau": "medium",
+        "reponse": "```typescript\nconst distribution = await this.reviewRepo\n  .createQueryBuilder('review')\n  .select('review.rating', 'rating')\n  .addSelect('COUNT(*)', 'count')\n  .where('review.productId = :productId', { productId })\n  .groupBy('review.rating')\n  .getRawMany();\n// Résultat: [{ rating: 5, count: 3 }, { rating: 4, count: 2 }, ...]\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Complétez la fonction TypeScript suivante pour qu'elle retourne un tableau de 5 éléments (index 0 = note 1, index 4 = note 5) avec les nombres d'avis.",
+        "niveau": "hard",
+        "reponse": "```typescript\nfunction getStarDistribution(distribution: { rating: number; count: number }[]): number[] {\n  const result = [0, 0, 0, 0, 0];\n  for (const item of distribution) {\n    const index = item.rating - 1;\n    if (index >= 0 && index < 5) result[index] = item.count;\n  }\n  return result;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Tri des produits par note moyenne",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une page catalogue, vous devez afficher les produits triés par note moyenne décroissante. Les produits sans avis doivent apparaître en dernier (note moyenne = 0).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez une requête SQL (ou QueryBuilder) qui sélectionne les produits avec leur note moyenne et les trie par note moyenne décroissante.",
+        "niveau": "hard",
+        "reponse": "```sql\nSELECT p.*, COALESCE(AVG(r.rating), 0) AS averageRating\nFROM products p\nLEFT JOIN reviews r ON p.id = r.productId\nGROUP BY p.id\nORDER BY averageRating DESC;\n```\n\nEn TypeORM :\n```typescript\nconst products = await this.productRepo\n  .createQueryBuilder('product')\n  .leftJoin('product.reviews', 'review')\n  .addSelect('COALESCE(AVG(review.rating), 0)', 'averageRating')\n  .groupBy('product.id')\n  .orderBy('averageRating', 'DESC')\n  .getMany();\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Discutez des performances de cette requête si le nombre de produits et d'avis est très élevé. Proposez une optimisation.",
+        "niveau": "very hard",
+        "reponse": "La requête avec <code>LEFT JOIN</code> et <code>GROUP BY</code> peut devenir lente sur de grands volumes car elle agrège toutes les notes à la volée. Optimisations possibles :\n- Ajouter une colonne <code>averageRating</code> et <code>reviewCount</code> dans la table <code>products</code>.\n- Mettre à jour ces colonnes via un <strong>trigger</strong> SQL ou un <strong>événement</strong> après chaque ajout/modification/suppression d'avis.\n- Utiliser un <strong>cron job</strong> qui recalcule les moyennes périodiquement (par ex. toutes les heures).\n- Indexer la colonne <code>productId</code> dans la table <code>reviews</code>.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise à jour automatique de la note moyenne",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour éviter de recalculer la moyenne à chaque affichage, on stocke la note moyenne et le nombre d'avis dans l'entité <code>Product</code>. Ces champs doivent être mis à jour automatiquement lorsqu'un avis est créé, modifié ou supprimé.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez une méthode <code>updateProductStats(productId: number)</code> qui recalcule et sauvegarde la moyenne et le nombre d'avis pour un produit.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync updateProductStats(productId: number) {\n  const stats = await this.reviewRepo\n    .createQueryBuilder('review')\n    .select('AVG(review.rating)', 'avg')\n    .addSelect('COUNT(*)', 'count')\n    .where('review.productId = :productId', { productId })\n    .getRawOne();\n\n  await this.productRepo.update(productId, {\n    averageRating: stats.avg ? parseFloat(stats.avg) : 0,\n    reviewCount: parseInt(stats.count) || 0\n  });\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Où et quand appeler cette méthode pour garantir la cohérence des données ?",
+        "niveau": "hard",
+        "reponse": "Il faut l'appeler :\n- Après la <strong>création</strong> d'un avis (dans la méthode <code>createReview</code> du service)\n- Après la <strong>modification</strong> d'un avis (si le rating change)\n- Après la <strong>suppression</strong> d'un avis\n- Optionnellement dans un <strong>hook TypeORM</strong> (<code>@AfterInsert</code>, <code>@AfterUpdate</code>, <code>@AfterRemove</code>) sur l'entité Review, mais attention aux transactions et à la récursivité.",
+        "sousQuestions": []
+      },
+      {
+        "numero": "2.a",
+        "texte": "Quel problème pourrait survenir si on appelle cette méthode de manière synchrone dans le même événement ?",
+        "niveau": "very hard",
+        "reponse": "Un risque de <strong>boucle infinie</strong> si les hooks s'appellent réciproquement (par exemple, la mise à jour du produit déclenche un événement qui rappelle la mise à jour des statistiques). Aussi, cela peut causer des <strong>deadlocks</strong> en base de données. Une meilleure approche est d'utiliser une <strong>file d'attente</strong> (Bull) ou un <strong>événement asynchrone</strong> pour déporter le calcul.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Affichage frontend de la distribution des étoiles",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un produit a reçu : 3 avis 5 étoiles, 2 avis 4 étoiles, 1 avis 3 étoile, 0 avis 2 étoiles, 1 avis 1 étoile. Calculez le pourcentage de chaque note et déterminez la note la plus fréquente (mode).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Remplissez le tableau suivant : Note, Nombre d'avis, Pourcentage (total avis = 7).",
+        "niveau": "medium",
+        "reponse": "| Note | Nombre | Pourcentage |\n|------|--------|-------------|\n| 5    | 3      | $\\frac{3}{7} \\approx 42,9\\%$ |\n| 4    | 2      | $\\frac{2}{7} \\approx 28,6\\%$ |\n| 3    | 1      | $\\frac{1}{7} \\approx 14,3\\%$ |\n| 2    | 0      | $0\\%$ |\n| 1    | 1      | $\\frac{1}{7} \\approx 14,3\\%$ |",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Quelle est la note modale (la plus fréquente) ?",
+        "niveau": "easy",
+        "reponse": "La note 5 étoiles est la plus fréquente avec 3 occurrences.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

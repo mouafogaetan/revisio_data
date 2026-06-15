@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours : Allocation Mémoire - Initiation aux Systèmes d'exploitation</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* custom scroll pour code ou petits écrans */
+        .code-block {
+            background: #1e1e2f;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        /* amélioration contraste mobile */
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1rem 0.5rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .card-padding {
+                padding: 0.75rem;
+            }
+        }
+        body {
+            background: #f0f4f8;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-3 py-5 md:py-8">
+        <!-- Conteneur principal du carrousel -->
+        <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            
+            <!-- Slides dynamiques via JS -->
+            <div id="slides-wrapper" class="relative min-h-[60vh] md:min-h-[70vh]">
+                <!-- Le contenu sera injecté par jQuery -->
+            </div>
+
+            <!-- Navigation + indicateurs -->
+            <div class="bg-gray-50 px-4 py-3 flex flex-wrap items-center justify-between border-t border-gray-200 gap-3">
+                <button id="prevBtn" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+                    ◀ Précédent
+                </button>
+                <div id="slideIndicators" class="flex gap-2 flex-wrap justify-center"></div>
+                <button id="nextBtn" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+                    Suivant ▶
+                </button>
+            </div>
+        </div>
+        
+        <!-- petite note pédagogique -->
+        <p class="text-center text-gray-500 text-sm mt-4">✨ Utilisez les boutons pour naviguer entre les slides. Des algorithmes et schémas simples pour comprendre l'allocation mémoire.</p>
+    </div>
+
+    <script>
+        // Données de la leçon 9 : "Techniques d'allocation mémoire" issues du programme (lesson9)
+        // Chapitre 3 : Maîtriser les techniques d'allocation mémoire, lesson9 = "Comprendre les techniques de partitionnement fixe et variable"
+        // mais on inclut aussi les objectifs des lessons 8 à 11 pour richesse? Le programme exact lesson9 correspond à:
+        // "Comprendre les techniques de partitionnement fixe et variable, algorithmes d'allocation (first-fit, best-fit, worst-fit), fragmentation externe et interne"
+        // Nous allons produire un cours structuré en slides : 
+        // Slide1 : Titre + contexte
+        // Slide2 : Objectifs d'apprentissage
+        // Slide3 : Introduction à l'allocation mémoire & partitionnement fixe
+        // Slide4 : Partitionnement variable et algorithmes (first-fit, best-fit, worst-fit)
+        // Slide5 : Fragmentation externe et interne + exemples simples
+        // Slide6 : Exercice / Résumé interactif (astuces)
+        // On peut ajouter un slide avec petite animation de schéma dessiné en SVG (pas d'image externe)
+        
+        const slidesData = [
+            {
+                type: "title",
+                title: "📘 Allocation Mémoire : Partitionnement & Algorithmes",
+                subtitle: "Cours : Initiation aux Systèmes d'exploitation (Lesson 9)",
+                icon: "🧠",
+                description: "Comprendre comment le système d'exploitation gère la mémoire vive pour les processus."
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "🔹 Différencier partitionnement fixe et partitionnement variable.",
+                    "🔹 Maîtriser les algorithmes d'allocation : First-Fit, Best-Fit, Worst-Fit.",
+                    "🔹 Comprendre les phénomènes de fragmentation externe et interne.",
+                    "🔹 Savoir calculer et analyser l'efficacité de chaque stratégie.",
+                    "🔹 Appliquer ces concepts à des exemples concrets."
+                ]
+            },
+            {
+                type: "content",
+                title: "🧩 1. Allocation mémoire : Pourquoi ?",
+                content: `<p class="mb-3">Le système d'exploitation doit charger les programmes en mémoire RAM pour les exécuter. La <strong class="text-indigo-700">gestion de la mémoire</strong> consiste à allouer de l'espace aux processus de manière efficace, tout en évitant le gaspillage.</p>
+                <div class="bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500 my-3">
+                    <p class="font-semibold">💡 Deux grandes familles :</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Partitionnement fixe</strong> : La mémoire est divisée en partitions de tailles prédéfinies (statiques).</li>
+                        <li><strong>Partitionnement variable</strong> : Les partitions sont créées dynamiquement à la demande des processus.</li>
+                    </ul>
+                </div>
+                <p>Analysons ces techniques avec leurs avantages et inconvénients.</p>`
+            },
+            {
+                type: "content",
+                title: "🏛️ Partitionnement fixe (static partitioning)",
+                content: `<p>La mémoire principale est découpée en <strong>régions de taille fixe</strong> dès le démarrage. Chaque processus occupe une partition entière, même s'il a besoin de moins de place.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <p class="font-bold text-center">✅ Avantages</p>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li>Simple à implémenter</li>
+                            <li>Pas de surcoût complexe d'allocation</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <p class="font-bold text-center">⚠️ Inconvénients</p>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li><strong>Fragmentation interne</strong> : espace inutilisé dans une partition.</li>
+                            <li>Nombre maximal de processus actifs limité.</li>
+                            <li>Mauvaise utilisation si tailles mal adaptées.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="flex justify-center mt-2">
+                    <svg width="280" height="140" viewBox="0 0 300 160" class="border rounded-md bg-white shadow-sm">
+                        <rect x="20" y="10" width="60" height="120" fill="#A5D6FF" stroke="#1E3A8A" stroke-width="2" />
+                        <text x="25" y="70" font-size="10" fill="#1E3A8A">OS</text>
+                        <rect x="90" y="10" width="70" height="120" fill="#FFD966" stroke="#B45309" stroke-width="2" />
+                        <text x="105" y="70" font-size="10" fill="#92400E">Partition 100KB</text>
+                        <text x="110" y="85" font-size="8" fill="gray">(Processus 70KB)</text>
+                        <rect x="170" y="10" width="60" height="70" fill="#C3E6CB" stroke="#2F855A" stroke-width="2" />
+                        <text x="180" y="45" font-size="9" fill="#14532D">Partition 80KB</text>
+                        <rect x="170" y="85" width="60" height="45" fill="#E9B8B8" stroke="#9B2C2C" stroke-width="2" />
+                        <text x="185" y="110" font-size="8" fill="#7F1D1D">Espace perdu</text>
+                        <text x="195" y="125" font-size="8">(fragm. interne)</text>
+                    </svg>
+                </div>
+                <p class="text-center text-xs text-gray-500 mt-1">Illustration : Partition fixe avec perte d'espace (fragmentation interne).</p>`
+            },
+            {
+                type: "content",
+                title: "📐 Partitionnement variable (dynamique)",
+                content: `<p>La mémoire est considérée comme un <strong>ensemble de trous libres</strong>. À l'arrivée d'un processus, on lui alloue exactement l'espace nécessaire (ou presque). Cela réduit la fragmentation interne mais introduit la <strong>fragmentation externe</strong>.</p>
+                <div class="bg-amber-50 p-3 rounded-lg my-3">
+                    <p class="font-semibold">📌 Principe :</p>
+                    <p>Au fur et à mesure des allocations/libérations, des petits trous éparpillés apparaissent. Le défi est de choisir quel trou utiliser pour placer un nouveau processus.</p>
+                </div>
+                <p class="mt-2">Trois algorithmes classiques permettent de sélectionner l'emplacement :</p>
+                <ul class="list-disc pl-6 mt-1">
+                    <li><span class="font-mono font-bold">First-Fit</span> : choisir le premier trou suffisamment grand.</li>
+                    <li><span class="font-mono font-bold">Best-Fit</span> : choisir le trou dont la taille est la plus proche de la demande (minimise le gaspillage).</li>
+                    <li><span class="font-mono font-bold">Worst-Fit</span> : choisir le plus grand trou (pour laisser des morceaux utiles).</li>
+                </ul>`
+            },
+            {
+                type: "content",
+                title: "⚙️ Comparaison des algorithmes (First, Best, Worst)",
+                content: `<p>Prenons un état mémoire avec des blocs libres : <strong class="bg-gray-200 px-2 py-0.5 rounded">[20KB, 45KB, 15KB, 60KB]</strong> et une demande de <strong>25KB</strong>.</p>
+                <div class="overflow-x-auto my-3">
+                    <table class="min-w-full bg-white border text-sm">
+                        <thead class="bg-indigo-100"><tr><th class="border p-2">Algorithme</th><th class="border p-2">Bloc choisi</th><th class="border p-2">Reste libre</th><th class="border p-2">Rapidité</th></tr></thead>
+                        <tbody>
+                            <tr><td class="border p-2 font-medium">First-Fit</td><td class="border p-2">20KB ❌ (insuffisant) → puis 45KB ✅</td><td class="border p-2">20KB</td><td class="border p-2">Rapide</td></tr>
+                            <tr><td class="border p-2 font-medium">Best-Fit</td><td class="border p-2">45KB? non, 60KB trop grand, 15KB trop petit → 45KB (25KB utilisé, reste 20KB)</td><td class="border p-2">20KB</td><td class="border p-2">Recherche plus lente</td></tr>
+                            <tr><td class="border p-2 font-medium">Worst-Fit</td><td class="border p-2">60KB (reste 35KB)</td><td class="border p-2">35KB</td><td class="border p-2">Lent aussi</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-sm">⚠️ <strong>Best-Fit</strong> peut paradoxalement créer de nombreux petits trous inutilisables. <strong>First-Fit</strong> est souvent un bon compromis en pratique.</p>
+                <div class="bg-indigo-50 p-3 rounded mt-2 text-sm">
+                    📈 <strong>Expérience classique :</strong> First-Fit a tendance à être plus rapide et génère une fragmentation modérée, Best-Fit produit des micro-trous, Worst-Fit laisse de gros blocs mais peut rapidement saturer.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "💔 Fragmentation : Externe vs Interne",
+                content: `<div class="grid gap-3 md:grid-cols-2">
+                    <div class="bg-red-50 p-3 rounded-lg border-l-4 border-red-500">
+                        <h3 class="font-bold text-red-800">🧩 Fragmentation Interne</h3>
+                        <p>Espace inutilisé <strong>à l'intérieur</strong> d'une partition allouée. Exemple : partition fixe de 100KB reçoit un processus de 80KB → 20KB perdus.</p>
+                        <p class="text-xs mt-2">Se produit surtout dans le partitionnement fixe, ou l'allocation par bloc de taille fixe (pagination).</p>
+                    </div>
+                    <div class="bg-orange-50 p-3 rounded-lg border-l-4 border-orange-500">
+                        <h3 class="font-bold text-orange-800">🔲 Fragmentation Externe</h3>
+                        <p>Petits trous <strong>entre les zones allouées</strong> qui ne peuvent pas satisfaire une demande même si la somme des trous est suffisante (problème du "trou éparpillé").</p>
+                        <p class="text-xs mt-2">Caractérise le partitionnement variable, résolu en partie par le compactage (défragmentation) ou la pagination.</p>
+                    </div>
+                </div>
+                <div class="flex justify-center my-3">
+                    <svg width="320" height="150" viewBox="0 0 340 150" class="border rounded bg-gray-50">
+                        <rect x="10" y="15" width="60" height="30" fill="#90CDF4" stroke="#2B6CB0" stroke-width="1.5" />
+                        <text x="18" y="34" font-size="8">P1 (alloué)</text>
+                        <rect x="75" y="15" width="35" height="30" fill="#FBD38D" stroke="#C05621" stroke-width="1.5" />
+                        <text x="80" y="34" font-size="8">Trou 35K</text>
+                        <rect x="115" y="15" width="70" height="30" fill="#90CDF4" stroke="#2B6CB0" />
+                        <text x="125" y="34" font-size="8">P2 alloué 70K</text>
+                        <rect x="190" y="15" width="25" height="30" fill="#FBD38D" stroke="#C05621" />
+                        <text x="195" y="34" font-size="8">Trou 25K</text>
+                        <text x="20" y="70" font-size="11" fill="#7B2D26" font-weight="bold">Fragmentation externe :</text>
+                        <text x="20" y="88" font-size="10">La demande 45KB ne peut être satisfaite</text>
+                        <text x="20" y="103" font-size="10">bien que 35+25 = 60KB disponibles!</text>
+                    </svg>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🧪 Exemple interactif - Simulation d'allocation",
+                content: `<p>Essayons de visualiser avec un petit cas mental : mémoire libre initiale [50KB, 200KB, 70KB]. On alloue Processus A=60KB, B=30KB, puis C=80KB, D=40KB. Selon l'algorithme ?</p>
+                <div class="bg-gray-100 p-3 rounded text-sm my-2 font-mono">
+                    <strong>First-Fit :</strong> A(60) → 50? non → 200KB donne 140KB reste. B(30) → premier trou 50KB? mais 50KB est avant? en fait ordre : [50, 140,70] -> B prend 30 dans 50KB (reste 20KB). C(80) -> prend dans 140KB (reste 60). D(40) -> prend dans 70KB (reste 30). Résultat honnête.
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p><span class="font-bold">🌟 Astuce mémoire :</span> <em>First-Fit</em> rapide, <em>Best-Fit</em> veut optimiser mais parfois crée des miettes, <em>Worst-Fit</em> évite les petits trous mais peut gaspiller. En pratique, les OS modernes utilisent la pagination (leçon 11) qui résout la fragmentation externe.</p>
+                </div>`
+            },
+            {
+                type: "resume",
+                title: "✅ Récapitulatif & notions clés",
+                content: `<ul class="list-disc pl-6 space-y-2">
+                    <li><strong>Partitionnement fixe</strong> : découpage statique → fragmentation interne.</li>
+                    <li><strong>Partitionnement variable</strong> : allocation dynamique → fragmentation externe.</li>
+                    <li><strong>First-Fit</strong> : premier bloc adéquat – souvent le plus efficace en pratique.</li>
+                    <li><strong>Best-Fit</strong> : bloc le plus ajusté – peut créer des micro-trous.</li>
+                    <li><strong>Worst-Fit</strong> : plus grand bloc – laisse des gros restes.</li>
+                    <li>La <strong>fragmentation externe</strong> peut être réduite par compactage (défragmentation mémoire) ou par la pagination.</li>
+                </ul>
+                <div class="mt-4 p-3 bg-indigo-100 rounded-lg text-center text-indigo-900">
+                    🧠 Question réflexe : Pourquoi la fragmentation interne est-elle moins problématique que la fragmentation externe dans un OS avec mémoire virtuelle ? <br> (Réponse : la pagination gère l'espace par pages, élimine l'externe)
+                </div>`
+            }
+        ];
+        
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+        
+        function renderSlide(index) {
+            const data = slidesData[index];
+            let html = `<div class="slide slide-visible p-5 md:p-8 slide-content transition-all" id="slide-${index}">`;
+            
+            if (data.type === "title") {
+                html += `
+                    <div class="text-center my-8 md:my-12">
+                        <div class="text-6xl mb-4">${data.icon}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">${data.title}</h1>
+                        <p class="text-xl text-indigo-600 font-medium">${data.subtitle}</p>
+                        <p class="text-gray-600 mt-6 max-w-lg mx-auto">${data.description}</p>
+                        <div class="mt-10 text-sm text-gray-400">Classe: Développement Web | Matière: Systèmes d'exploitation</div>
+                    </div>
+                `;
+            } 
+            else if (data.type === "objectifs") {
+                html += `<h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-b-4 border-indigo-300 pb-2 inline-block mb-5">${data.title}</h2>
+                        <ul class="mt-4 space-y-3 text-gray-700">`;
+                data.objectives.forEach(obj => {
+                    html += `<li class="flex items-start gap-2 text-lg"><span class="text-indigo-600 text-xl">✓</span> ${obj}</li>`;
+                });
+                html += `</ul><div class="mt-8 bg-gray-50 p-4 rounded-xl text-sm text-gray-500">📌 Ces objectifs vous permettront de maîtriser les bases de l'allocation mémoire.</div>`;
+            }
+            else if (data.type === "content" || data.type === "resume") {
+                html += `<h2 class="text-2xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-3 mb-4">${data.title}</h2>
+                        <div class="prose max-w-none text-gray-700">${data.content}</div>`;
+            }
+            // Cas générique
+            else {
+                html += `<div>${data.content || ''}</div>`;
+            }
+            
+            html += `<div class="text-right text-xs text-gray-400 mt-6 pt-2">Slide ${index+1} / ${totalSlides}</div>`;
+            html += `</div>`;
+            return html;
+        }
+        
+        function updateSlides() {
+            let wrapper = $("#slides-wrapper");
+            let allHtml = "";
+            for(let i=0; i<slidesData.length; i++) {
+                let slideHtml = renderSlide(i);
+                let hiddenClass = (i !== currentSlide) ? "slide-hidden" : "slide-visible";
+                allHtml += `<div class="slide ${hiddenClass}" id="slide-${i}">${$(slideHtml).html()}</div>`;
+            }
+            wrapper.html(allHtml);
+            // Réafficher correctement les mathjax si besoin
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            updateIndicators();
+            updateButtons();
+        }
+        
+        function updateIndicators() {
+            let container = $("#slideIndicators");
+            container.empty();
+            for(let i=0; i<totalSlides; i++) {
+                let activeClass = (i === currentSlide) ? "bg-indigo-700 w-6" : "bg-gray-400 w-3";
+                let dot = $(`<button class="h-3 rounded-full ${activeClass} transition-all mx-1 focus:outline-none" data-slide-index="${i}"></button>`);
+                dot.on("click", function() {
+                    let idx = parseInt($(this).data("slide-index"));
+                    if(!isNaN(idx) && idx !== currentSlide) {
+                        goToSlide(idx);
+                    }
+                });
+                container.append(dot);
+            }
+        }
+        
+        function updateButtons() {
+            $("#prevBtn").prop("disabled", currentSlide === 0);
+            $("#nextBtn").prop("disabled", currentSlide === totalSlides-1);
+        }
+        
+        function goToSlide(index) {
+            if(index < 0 || index >= totalSlides) return;
+            // animation simple masquer/ montrer
+            $(`.slide`).addClass("slide-hidden").removeClass("slide-visible");
+            $(`#slide-${index}`).removeClass("slide-hidden").addClass("slide-visible");
+            currentSlide = index;
+            updateIndicators();
+            updateButtons();
+            // scroll en haut
+            $('html, body').animate({ scrollTop: $("#slides-container").offset().top - 20 }, 200);
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+        
+        function nextSlide() {
+            if(currentSlide < totalSlides-1) goToSlide(currentSlide+1);
+        }
+        
+        function prevSlide() {
+            if(currentSlide > 0) goToSlide(currentSlide-1);
+        }
+        
+        $(document).ready(function() {
+            updateSlides();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            // gestion clavier flèches
+            $(document).on("keydown", function(e) {
+                if(e.key === "ArrowRight") nextSlide();
+                if(e.key === "ArrowLeft") prevSlide();
+            });
+        });
+    </script>
+</body>
+</html>

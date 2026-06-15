@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 15 : Comprendre Docker - Conteneurs vs Machines Virtuelles | Cours DevOps</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes) + jQuery + MathJax -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation Tailwind pour améliorer le contraste et la lisibilité -->
+    <style>
+        /* styles additionnels pour slides + transitions douces */
+        body {
+            background: linear-gradient(135deg, #f5f7fc 0%, #eef2f6 100%);
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+        .slide {
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            display: none;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+            animation: fadeSlide 0.4s ease-out;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15);
+        }
+        /* Pour les listes et petits écrans */
+        @media (max-width: 640px) {
+            .prose-sm-mobile {
+                font-size: 0.95rem;
+            }
+        }
+        /* icônes faites main via SVG inline quand utile */
+        .comparison-icon {
+            background: #e0e7ff;
+            border-radius: 2rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête de progression et indicateur de slide -->
+        <div class="mb-6 flex justify-between items-center flex-wrap gap-2">
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-sm text-sm font-medium text-gray-700">
+                📘 <span id="slideCounter">Slide 1 / <span id="totalSlides"></span></span>
+            </div>
+            <div class="text-sm text-gray-500 bg-white/50 rounded-full px-3 py-1">
+                <i>Initiation au DevOps</i> — Leçon 15
+            </div>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" data-slide="0">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-6 py-12 md:py-16 text-center">
+                        <div class="inline-flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 mb-4 text-white text-sm font-semibold">
+                            🐳 Chapitre 5 · Maîtriser Docker
+                        </div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">Comprendre Docker</h1>
+                        <p class="text-indigo-100 text-lg md:text-2xl mt-4 max-w-2xl mx-auto">Conteneurs <span class="font-bold text-white">VS</span> Machines Virtuelles</p>
+                        <div class="mt-8 flex justify-center gap-3 text-indigo-100 text-sm">
+                            <span class="bg-indigo-900/40 px-3 py-1 rounded-full">📦 Légèreté</span>
+                            <span class="bg-indigo-900/40 px-3 py-1 rounded-full">⚡ Démarrage rapide</span>
+                            <span class="bg-indigo-900/40 px-3 py-1 rounded-full">🔄 Portabilité</span>
+                        </div>
+                    </div>
+                    <div class="p-6 md:p-8 text-center text-gray-600 border-t border-gray-100">
+                        <p class="italic">“Docker permet d’empaqueter une application avec tout son environnement pour qu’elle tourne partout de façon fiable.”</p>
+                        <div class="mt-5 text-sm text-gray-400">👨‍🏫 Enseignant : cours adapté au Cameroun — accessible & pratique</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide" data-slide="1">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-emerald-700 to-teal-700 px-6 py-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <ul class="space-y-4 text-gray-700 text-lg">
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Comprendre la différence fondamentale</strong> entre conteneurs Docker et machines virtuelles.</span></li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Installer Docker</strong> sur Linux, Windows et Mac (notions essentielles).</span></li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Découvrir l’architecture Docker</strong> : daemon, client, registries (Docker Hub).</span></li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Savoir pourquoi Docker</strong> est un outil incontournable pour le DevOps.</span></li>
+                        </ul>
+                        <div class="mt-8 bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500 text-blue-800">
+                            💡 À la fin de cette leçon, vous serez capable d’expliquer clairement pourquoi les conteneurs sont plus légers que les VM et comment démarrer avec Docker.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : CONTENEURS vs MACHINES VIRTUELLES (théorie + dessin simplifié) -->
+            <div class="slide" data-slide="2">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🐳 Conteneurs Docker vs Machines Virtuelles (VM)</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <p class="text-gray-700 mb-6">Les VM virtualisent tout un système d’exploitation avec son noyau, tandis que les conteneurs <strong>partagent le noyau de l’hôte</strong> et isolent seulement le processus et ses dépendances.</p>
+                        
+                        <!-- Dessin fait maison via SVG simple (diagramme comparatif) -->
+                        <div class="bg-gray-50 p-4 rounded-xl mb-6 overflow-x-auto">
+                            <svg viewBox="0 0 800 340" class="w-full h-auto max-w-full" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Titres -->
+                                <text x="200" y="25" text-anchor="middle" font-weight="bold" fill="#2c3e66">🔷 Machines Virtuelles</text>
+                                <text x="600" y="25" text-anchor="middle" font-weight="bold" fill="#0f5b2e">🐳 Conteneurs Docker</text>
+                                <!-- VM:  host OS layer -->
+                                <rect x="40" y="200" width="320" height="40" rx="8" fill="#a0c4ff" stroke="#1e3a8a" stroke-width="1.5"/>
+                                <text x="200" y="226" text-anchor="middle" fill="#1e3a8a" font-size="12">Système Hôte (OS + noyau)</text>
+                                <!-- Hyperviseur -->
+                                <rect x="40" y="160" width="320" height="36" rx="8" fill="#b2d8ff" stroke="#1e3a8a"/>
+                                <text x="200" y="183" text-anchor="middle" fill="#1e3a8a" font-size="12">Hyperviseur (Type 2 ou 1)</text>
+                                <!-- VMs -->
+                                <rect x="55" y="70" width="85" height="80" rx="10" fill="#e6f2ff" stroke="#2563eb" stroke-width="1.2"/>
+                                <text x="97" y="98" text-anchor="middle" font-size="10" fill="#1e3a8a">VM App1</text>
+                                <text x="97" y="115" text-anchor="middle" font-size="9" fill="#4b5563">Guest OS</text>
+                                <text x="97" y="132" text-anchor="middle" font-size="9" fill="#4b5563">Bins/libs</text>
+
+                                <rect x="160" y="70" width="85" height="80" rx="10" fill="#e6f2ff" stroke="#2563eb"/>
+                                <text x="202" y="98" text-anchor="middle" font-size="10" fill="#1e3a8a">VM App2</text>
+                                <text x="202" y="115" text-anchor="middle" font-size="9">Guest OS</text>
+                                <text x="202" y="132" text-anchor="middle" font-size="9">Bins/libs</text>
+
+                                <rect x="265" y="70" width="85" height="80" rx="10" fill="#e6f2ff" stroke="#2563eb"/>
+                                <text x="307" y="98" text-anchor="middle" font-size="10">VM App3</text>
+                                <text x="307" y="115" text-anchor="middle" font-size="9">Guest OS</text>
+                                <text x="307" y="132" text-anchor="middle" font-size="9">Bins/libs</text>
+                                
+                                <!-- Conteneurs côté droit -->
+                                <!-- Moteur Docker -->
+                                <rect x="440" y="200" width="320" height="40" rx="8" fill="#6ee7b7" stroke="#065f46" stroke-width="1.5"/>
+                                <text x="600" y="226" text-anchor="middle" fill="#064e3b" font-size="12">Système Hôte + Noyau Linux (ou Windows)</text>
+                                <!-- Docker Daemon -->
+                                <rect x="440" y="160" width="320" height="36" rx="8" fill="#a7f3d0" stroke="#047857"/>
+                                <text x="600" y="183" text-anchor="middle" fill="#065f46" font-size="12">🐳 Moteur Docker (Daemon)</text>
+                                
+                                <!-- Conteneurs -->
+                                <rect x="460" y="70" width="85" height="80" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+                                <text x="502" y="98" text-anchor="middle" font-weight="bold" fill="#065f46">App1</text>
+                                <text x="502" y="115" text-anchor="middle" font-size="9">Dépendances</text>
+                                <text x="502" y="132" text-anchor="middle" font-size="9">(bins/libs)</text>
+                                
+                                <rect x="560" y="70" width="85" height="80" rx="12" fill="#d1fae5" stroke="#059669"/>
+                                <text x="602" y="98" text-anchor="middle" font-weight="bold" fill="#065f46">App2</text>
+                                <text x="602" y="115" text-anchor="middle" font-size="9">Dépendances</text>
+                                <text x="602" y="132" text-anchor="middle" font-size="9">(bins/libs)</text>
+
+                                <rect x="660" y="70" width="85" height="80" rx="12" fill="#d1fae5" stroke="#059669"/>
+                                <text x="702" y="98" text-anchor="middle" font-weight="bold" fill="#065f46">App3</text>
+                                <text x="702" y="115" text-anchor="middle" font-size="9">Dépendances</text>
+                                <text x="702" y="132" text-anchor="middle" font-size="9">(bins/libs)</text>
+
+                                <!-- Légende -->
+                                <text x="400" y="290" text-anchor="middle" fill="#4b5563" font-size="11">Chaque VM = OS complet → lourd (Go). Conteneur = processus isolé → léger (Mo)</text>
+                            </svg>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-5 mt-4">
+                            <div class="bg-red-50 p-4 rounded-xl border border-red-200">
+                                <h3 class="font-bold text-red-800 text-lg">❌ Machines Virtuelles</h3>
+                                <ul class="list-disc pl-5 mt-2 space-y-1 text-red-700">
+                                    <li>Lourdes (plusieurs Go)</li>
+                                    <li>Démarrage lent (minutes)</li>
+                                    <li>Isolation forte mais coûteuse</li>
+                                    <li>Chaque VM consomme beaucoup RAM/CPU</li>
+                                </ul>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                                <h3 class="font-bold text-green-800 text-lg">✅ Conteneurs Docker</h3>
+                                <ul class="list-disc pl-5 mt-2 space-y-1 text-green-700">
+                                    <li>Ultra légers (quelques Mo)</li>
+                                    <li>Démarrage en millisecondes</li>
+                                    <li>Partagent le noyau hôte → économie de ressources</li>
+                                    <li>Parfaits pour le scaling horizontal</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INSTALLATION DE DOCKER (Linux/Windows/Mac) -->
+            <div class="slide" data-slide="3">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-sky-700 to-cyan-700 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">⚙️ Installation de Docker</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <p class="mb-4 text-gray-700">Docker s’installe facilement sur les principaux systèmes. Voici les méthodes simples :</p>
+                        <div class="space-y-5">
+                            <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-blue-500">
+                                <p class="font-mono text-sm md:text-base"><span class="font-bold text-blue-700">🐧 Linux (Ubuntu/Debian) :</span> <code class="bg-gray-200 px-2 py-1 rounded">curl -fsSL https://get.docker.com | sudo sh</code> puis <code class="bg-gray-200 px-2 py-1 rounded">sudo usermod -aG docker $USER</code></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-blue-500">
+                                <p class="font-mono text-sm md:text-base"><span class="font-bold text-blue-700">🪟 Windows :</span> Télécharge Docker Desktop (WSL2 requis) depuis <span class="bg-gray-200 px-1">docker.com/products/docker-desktop</span></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-blue-500">
+                                <p class="font-mono text-sm md:text-base"><span class="font-bold text-blue-700">🍎 Mac :</span> Docker Desktop pour Mac (Intel ou Apple Silicon). Installation par .dmg.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-indigo-50 p-4 rounded-xl">
+                            <p class="text-indigo-800"><strong>🔍 Vérification :</strong> Après installation, ouvrez un terminal et tapez <code class="bg-white px-2 py-0.5 rounded border">docker --version</code> et <code class="bg-white px-2 py-0.5 rounded border">docker run hello-world</code> pour tester.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : ARCHITECTURE DOCKER (daemon, client, registries) -->
+            <div class="slide" data-slide="4">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-purple-700 to-pink-700 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🏗️ Architecture Docker</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <p class="mb-4 text-gray-700">Docker utilise une architecture client-serveur moderne :</p>
+                        <ul class="list-disc pl-6 space-y-2 text-gray-700 mb-6">
+                            <li><strong>🐚 Docker Client</strong> (commande <span class="font-mono">docker</span>) : envoie des instructions au daemon.</li>
+                            <li><strong>⚙️ Docker Daemon (dockerd)</strong> : gère les conteneurs, images, réseaux, volumes.</li>
+                            <li><strong>📦 Docker Registries</strong> : entrepôts d’images (Docker Hub, registre privé).</li>
+                        </ul>
+                        <!-- Schéma simple en SVG -->
+                        <div class="bg-gray-50 p-4 rounded-lg flex justify-center">
+                            <svg width="550" height="160" viewBox="0 0 550 160" class="w-full max-w-md" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="20" y="60" width="110" height="50" rx="12" fill="#c7d2fe" stroke="#4338ca" stroke-width="1.5"/>
+                                <text x="75" y="90" text-anchor="middle" font-weight="bold" fill="#3730a3">Client Docker</text>
+                                <text x="75" y="105" text-anchor="middle" font-size="10">docker ps, run…</text>
+                                <path d="M135 85 L190 85" stroke="#1f2937" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+                                <rect x="200" y="40" width="170" height="70" rx="14" fill="#bbf7d0" stroke="#15803d" stroke-width="1.5"/>
+                                <text x="285" y="65" text-anchor="middle" font-weight="bold" fill="#14532d">Docker Daemon</text>
+                                <text x="285" y="85" text-anchor="middle" font-size="10">(dockerd)</text>
+                                <text x="285" y="100" text-anchor="middle" font-size="9">gère conteneurs/images/volumes</text>
+                                <path d="M375 75 L430 75" stroke="#1f2937" stroke-width="2" stroke-dasharray="5 3"/>
+                                <rect x="440" y="40" width="100" height="70" rx="12" fill="#fde68a" stroke="#b45309" stroke-width="1.5"/>
+                                <text x="490" y="65" text-anchor="middle" font-weight="bold" fill="#78350f">Registry</text>
+                                <text x="490" y="82" text-anchor="middle" font-size="10">Docker Hub</text>
+                                <text x="490" y="97" text-anchor="middle" font-size="9">pull / push</text>
+                                <defs>
+                                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#1f2937" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4 text-center">Exemple : <span class="font-mono">docker pull nginx</span> → client contacte daemon qui télécharge l’image depuis Docker Hub.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : POURQUOI DOCKER EST INDISPENSABLE (bénéfices) -->
+            <div class="slide" data-slide="5">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-800 to-blue-800 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🚀 Pourquoi Docker change le DevOps ?</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl card-hover transition-all">
+                                <span class="text-3xl">📦</span>
+                                <div><strong class="block text-gray-800">Portabilité</strong><span class="text-gray-600">“ça tourne sur ma machine” → fonctionne partout (cloud, on-premise).</span></div>
+                            </div>
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl card-hover">
+                                <span class="text-3xl">⚡</span>
+                                <div><strong class="block text-gray-800">Vitesse & agilité</strong><span class="text-gray-600">Déploiement en secondes, scaling horizontal ultra rapide.</span></div>
+                            </div>
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl card-hover">
+                                <span class="text-3xl">🔄</span>
+                                <div><strong class="block text-gray-800">Intégration CI/CD</strong><span class="text-gray-600">Docker s’intègre parfaitement dans Jenkins, GitHub Actions, GitLab CI.</span></div>
+                            </div>
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl card-hover">
+                                <span class="text-3xl">💸</span>
+                                <div><strong class="block text-gray-800">Économie de ressources</strong><span class="text-gray-600">Moins de serveurs nécessaires, meilleure densité.</span></div>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center text-sm bg-slate-100 p-3 rounded-xl">
+                            🌍 <strong>Exemple concret :</strong> Une startup camerounaise peut déployer son application Node.js + MongoDB avec Docker sur un VPS basique, sans installer manuellement tout l’environnement.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : RÉSUMÉ ET EXERCICE RAPIDE -->
+            <div class="slide" data-slide="6">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">📝 Récapitulons & petit défi</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="mb-5 space-y-2">
+                            <p class="text-gray-700">✅ Les conteneurs Docker partagent le noyau hôte → démarrage rapide, légèreté.</p>
+                            <p class="text-gray-700">✅ Docker fonctionne sur tous les OS principaux.</p>
+                            <p class="text-gray-700">✅ Architecture: <strong>client → daemon → registries</strong>.</p>
+                        </div>
+                        <div class="bg-yellow-50 border-l-8 border-yellow-400 p-4 rounded-xl mt-4">
+                            <h3 class="font-bold text-yellow-800">⚡ Mini-exercice (pour s’entraîner)</h3>
+                            <p class="text-yellow-800 text-sm">1. Installe Docker (si possible sur votre machine ou via un lab en ligne comme Play-with-Docker).<br>
+                            2. Lance la commande <span class="font-mono bg-yellow-100 px-1">docker run -d --name mon_nginx -p 8080:80 nginx</span><br>
+                            3. Ouvre ton navigateur sur http://localhost:8080 — Bravo ! Tu as lancé ton premier conteneur web. 🎉</p>
+                        </div>
+                        <div class="mt-6 text-center">
+                            <p class="text-gray-500 text-sm">Prochaine leçon : gestion des images et conteneurs (docker build, run, ps, exec)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation entre les slides (précédent / suivant) + indicateurs -->
+        <div class="flex justify-between items-center mt-8 gap-3">
+            <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2.5 px-5 rounded-xl shadow-md border border-gray-200 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                ◀ Précédent
+            </button>
+            <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2">
+                Suivant ▶
+            </button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            $('#totalSlides').text(totalSlides);
+            let currentIdx = 0;
+
+            function updateSlidesAndDots() {
+                // cacher toutes les slides, afficher celle active
+                slides.removeClass('active');
+                $(slides[currentIdx]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIdx+1} / ${totalSlides}`);
+                
+                // Mise à jour des dots
+                $('.dot').each(function(idx) {
+                    if(idx === currentIdx) {
+                        $(this).addClass('bg-indigo-600 w-6').removeClass('bg-gray-400 w-3');
+                    } else {
+                        $(this).removeClass('bg-indigo-600 w-6').addClass('bg-gray-400 w-3');
+                    }
+                });
+
+                // Gestion des boutons prev/next selon limites
+                if(currentIdx === 0) {
+                    $('#prevSlide').prop('disabled', true);
+                } else {
+                    $('#prevSlide').prop('disabled', false);
+                }
+                if(currentIdx === totalSlides-1) {
+                    $('#nextSlide').prop('disabled', true);
+                } else {
+                    $('#nextSlide').prop('disabled', false);
+                }
+            }
+
+            // générer les points (dots)
+            function generateDots() {
+                let dotsHtml = '';
+                for(let i=0; i<totalSlides; i++) {
+                    dotsHtml += `<button class="dot h-3 rounded-full transition-all mx-1 ${i===0 ? 'bg-indigo-600 w-6' : 'bg-gray-400 w-3'}" data-index="${i}"></button>`;
+                }
+                $('#dotsContainer').html(dotsHtml);
+                $('.dot').on('click', function() {
+                    let idx = parseInt($(this).data('index'));
+                    if(!isNaN(idx) && idx >=0 && idx < totalSlides) {
+                        currentIdx = idx;
+                        updateSlidesAndDots();
+                    }
+                });
+            }
+
+            $('#nextSlide').on('click', function() {
+                if(currentIdx < totalSlides-1) {
+                    currentIdx++;
+                    updateSlidesAndDots();
+                }
+            });
+            $('#prevSlide').on('click', function() {
+                if(currentIdx > 0) {
+                    currentIdx--;
+                    updateSlidesAndDots();
+                }
+            });
+
+            generateDots();
+            updateSlidesAndDots();
+
+            // Gestion du clavier (flèches droite/gauche) pour confort
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') {
+                    $('#nextSlide').click();
+                } else if(e.key === 'ArrowLeft') {
+                    $('#prevSlide').click();
+                }
+            });
+        });
+    </script>
+    <!-- petite optimisation pour le responsive : pas de barre horizontale -->
+</body>
+</html>

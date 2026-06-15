@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 6 : Serveur HTTP avec Node.js - Cours Développement Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour slides -->
+    <style>
+        /* Transition smooth entre slides */
+        .slide {
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        /* Style boutons navigation */
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* Couleurs douces mais lisibles */
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+        }
+        .card-slide {
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+        }
+        /* Scrollbar discrète */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery -->
+        </div>
+
+        <!-- Navigation et indicateurs de progression -->
+        <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+            <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Précédent
+            </button>
+            <div id="slideCounter" class="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-gray-700 shadow-sm">
+                Slide 1 / 1
+            </div>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-2">
+                Suivant
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+        </div>
+
+        <!-- Indicateur visuel (dots) -->
+        <div id="dotsIndicator" class="flex justify-center gap-2 mt-6 flex-wrap"></div>
+    </div>
+
+    <script>
+        // Contenu des slides basé sur la leçon 6 (backend Node.js - module HTTP)
+        // D'après le JSON fourni : chap2, lesson6 "Créer un serveur HTTP basique avec le module http"
+        // + objectifs: analyser requêtes (req.url, req.method, req.headers) + module url pour parser les paramètres
+        
+        const slidesData = [
+            {
+                type: "title",
+                titre: "Créer un serveur HTTP avec Node.js",
+                sousTitre: "Module Core HTTP · Serveur Web basique",
+                chapitre: "Chapitre 2 : Maîtriser les modules core",
+                lecon: "Leçon 6"
+            },
+            {
+                type: "objectifs",
+                titre: "Objectifs d'apprentissage",
+                objectifs: [
+                    "Créer un serveur HTTP basique avec le module natif `http` de Node.js",
+                    "Analyser les composants d'une requête : URL, méthode HTTP (GET/POST) et en-têtes (headers)",
+                    "Utiliser le module `url` pour parser les paramètres de requête (query string)",
+                    "Comprendre le cycle requête/réponse et envoyer des réponses adaptées"
+                ]
+            },
+            {
+                type: "content",
+                titre: "1. Introduction : Le module HTTP",
+                contenu: `
+                    <p class="mb-4">Node.js embarque un module <code class="bg-gray-100 px-1.5 py-0.5 rounded text-indigo-700">http</code> qui permet de créer un serveur sans aucune bibliothèque externe. Idéal pour comprendre le fonctionnement sous-jacent d'Express ou d'autres frameworks.</p>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-xl my-4 overflow-x-auto font-mono text-sm">
+                        <pre>const http = require('http');
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('Bonjour Cameroun !');
+});
+
+server.listen(3000, () => {
+  console.log('Serveur en écoute sur http://localhost:3000');
+});</pre>
+                    </div>
+                    <p class="mt-3">💡 <strong>Explication :</strong> <code>createServer()</code> accepte une fonction callback avec <code>req</code> (requête) et <code>res</code> (réponse). La méthode <code>listen</code> définit le port.</p>
+                `
+            },
+            {
+                type: "content",
+                titre: "2. Analyser la requête (req)",
+                contenu: `
+                    <p class="mb-3">L'objet <code>req</code> contient des informations précieuses sur la requête entrante :</p>
+                    <ul class="list-disc pl-6 space-y-2 mb-4">
+                        <li><strong>req.url</strong> : le chemin demandé (ex: <span class="bg-gray-100 px-1 rounded">/accueil?nom=jean</span>)</li>
+                        <li><strong>req.method</strong> : la méthode HTTP (GET, POST, PUT, DELETE...)</li>
+                        <li><strong>req.headers</strong> : objet contenant les en-têtes (user-agent, content-type, etc.)</li>
+                    </ul>
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-lg my-3">
+                        <p class="font-semibold">🎯 Exemple dynamique :</p>
+                        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg mt-2 overflow-x-auto text-sm"><code>const server = http.createServer((req, res) => {
+  console.log(\`Méthode : \${req.method}\`);
+  console.log(\`URL : \${req.url}\`);
+  console.log(\'Headers :\', req.headers);
+  res.end('Requête reçue !');
+});</code></pre>
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                titre: "3. Gérer les paramètres de requête (Query String)",
+                contenu: `
+                    <p>Les paramètres après <code>?</code> dans l'URL sont appelés <strong>query string</strong>. Ex: <span class="bg-gray-100 px-1">/produit?id=5&categorie=tech</span></p>
+                    <p class="mt-2">Node.js fournit le module <code>url</code> pour les analyser facilement.</p>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-xl my-4 overflow-x-auto font-mono text-sm">
+                        <pre>const url = require('url');
+
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url, true); // true => parse query string en objet
+  const queryParams = parsedUrl.query;
+  res.writeHead(200, {'Content-Type': 'application/json'});
+  res.end(JSON.stringify({ params: queryParams }));
+});</pre>
+                    </div>
+                    <p class="mt-2">🔍 <strong>Résultat :</strong> pour <span class="bg-gray-100 px-1">/recherche?nom=Alice&age=25</span> → <code>{ nom: "Alice", age: "25" }</code></p>
+                `
+            },
+            {
+                type: "content",
+                titre: "4. Analyser les en-têtes (headers)",
+                contenu: `
+                    <p>Les en-têtes HTTP fournissent des métadonnées (type de contenu, authentification, langue, etc.). Accès via <code>req.headers</code>.</p>
+                    <div class="bg-gray-100 p-4 rounded-xl my-3">
+                        <pre class="bg-white p-3 rounded border"><code>const server = http.createServer((req, res) => {
+  const userAgent = req.headers['user-agent'];
+  const langue = req.headers['accept-language'];
+  res.end(\`Votre navigateur : \${userAgent}\`);
+});</code></pre>
+                    </div>
+                    <p class="mt-2">✅ Utile pour personnaliser la réponse selon le client ou lire un token d'authentification.</p>
+                `
+            },
+            {
+                type: "content",
+                titre: "5. Répondre avec différents formats",
+                contenu: `
+                    <p>Avec <code>res.writeHead(statusCode, headers)</code> on définit le code HTTP et l'en-tête <code>Content-Type</code>. Puis <code>res.end()</code> termine la réponse.</p>
+                    <ul class="list-disc pl-6 space-y-2 my-3">
+                        <li><strong>Texte brut</strong> : <code>Content-Type: text/plain</code></li>
+                        <li><strong>HTML</strong> : <code>Content-Type: text/html</code></li>
+                        <li><strong>JSON</strong> : <code>Content-Type: application/json</code></li>
+                    </ul>
+                    <div class="bg-green-50 border border-green-200 p-4 rounded-lg">
+                        <p class="font-semibold">Exemple renvoyant du HTML :</p>
+                        <pre class="bg-gray-800 text-gray-100 p-3 rounded mt-2 text-sm"><code>res.writeHead(200, { 'Content-Type': 'text/html' });
+res.end('&lt;h1&gt;Bienvenue sur mon serveur Node.js&lt;/h1&gt;&lt;p&gt;Apprenez en vous amusant&lt;/p&gt;');</code></pre>
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                titre: "6. Routage basique (selon l'URL)",
+                contenu: `
+                    <p>On peut créer des routes en analysant <code>req.url</code> :</p>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-xl my-3 overflow-x-auto text-sm">
+                        <pre>const server = http.createServer((req, res) => {
+  const { url, method } = req;
+  if (url === '/' && method === 'GET') {
+    res.end('Page d'accueil');
+  } else if (url === '/about' && method === 'GET') {
+    res.end('À propos de nous');
+  } else {
+    res.writeHead(404);
+    res.end('Page non trouvée');
+  }
+});</pre>
+                    </div>
+                    <p class="mt-2">🎯 C'est ainsi que fonctionnent les frameworks modernes comme Express, mais en natif.</p>
+                `
+            },
+            {
+                type: "content",
+                titre: "7. Exercice pratique & Résumé",
+                contenu: `
+                    <div class="bg-amber-50 p-5 rounded-2xl border border-amber-200">
+                        <h3 class="font-bold text-amber-800 text-lg">✏️ À vous de jouer !</h3>
+                        <p class="mt-2">Créez un serveur HTTP qui écoute sur le port 3000 et qui :</p>
+                        <ul class="list-decimal pl-6 mt-2 space-y-1">
+                            <li>Retourne "Bonjour Cameroun 🚀" pour la route <code>/hello</code></li>
+                            <li>Affiche tous les paramètres query pour la route <code>/search</code> (ex: /search?q=nodejs)</li>
+                            <li>Renvoie une page 404 personnalisée si la route n'existe pas</li>
+                        </ul>
+                        <p class="mt-3 font-medium">💡 Indice : utilisez <code>url.parse(req.url, true)</code> et vérifiez <code>req.url</code> avec des conditions.</p>
+                    </div>
+                    <div class="mt-5 p-3 bg-indigo-100 rounded-lg">
+                        <p class="text-indigo-900 font-semibold">📌 Rétention clé : Le module HTTP est la base de toute application web Node.js. Comprendre req/res permet de mieux maîtriser les frameworks.</p>
+                    </div>
+                `
+            }
+        ];
+        
+        let currentSlideIndex = 0;
+        let totalSlides = slidesData.length;
+        
+        // Fonction pour générer le HTML d'une slide selon son type
+        function renderSlide(slide, idx) {
+            const isActive = idx === currentSlideIndex;
+            const hiddenClass = isActive ? '' : 'slide-hidden';
+            
+            let contentHtml = '';
+            
+            if (slide.type === 'title') {
+                contentHtml = `
+                    <div class="text-center space-y-5">
+                        <div class="inline-block bg-indigo-100 text-indigo-800 px-4 py-1 rounded-full text-sm font-semibold">${slide.lecon}</div>
+                        <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">${slide.titre}</h1>
+                        <p class="text-xl text-gray-600 mt-2">${slide.sousTitre}</p>
+                        <div class="border-t border-gray-200 w-24 mx-auto my-4"></div>
+                        <p class="text-gray-500 italic">${slide.chapitre}</p>
+                        <div class="flex justify-center mt-8">
+                            <span class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm">🎯 Module HTTP natif</span>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectifs') {
+                let listItems = '';
+                slide.objectifs.forEach(obj => {
+                    listItems += `<li class="flex items-start gap-3 mb-3"><span class="text-indigo-600 font-bold text-xl">✓</span><span class="text-gray-700">${obj}</span></li>`;
+                });
+                contentHtml = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-6">${slide.titre}</h2>
+                        <ul class="space-y-3 text-lg">
+                            ${listItems}
+                        </ul>
+                        <div class="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl">
+                            <p class="text-center text-indigo-800">🎓 À la fin de cette leçon, vous saurez créer votre propre serveur HTTP !</p>
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                contentHtml = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-b-2 border-indigo-200 pb-2 mb-5">${slide.titre}</h2>
+                        <div class="prose prose-indigo max-w-none text-gray-800 leading-relaxed">
+                            ${slide.contenu}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="slide ${hiddenClass} w-full card-slide p-6 md:p-10 rounded-2xl transition-all duration-300" data-slide-idx="${idx}">
+                    ${contentHtml}
+                </div>
+            `;
+        }
+        
+        // Mettre à jour l'affichage : afficher seulement la slide active
+        function updateSlidesDisplay() {
+            $('.slide').each(function() {
+                const idx = parseInt($(this).data('slide-idx'));
+                if (idx === currentSlideIndex) {
+                    $(this).removeClass('slide-hidden').hide().fadeIn(300);
+                } else {
+                    $(this).addClass('slide-hidden').hide();
+                }
+            });
+            // Mise à jour compteur
+            $('#slideCounter').text(`Slide ${currentSlideIndex+1} / ${totalSlides}`);
+            
+            // Mise à jour des dots
+            updateDots();
+            
+            // Gestion état boutons navigation
+            $('#prevSlide').prop('disabled', currentSlideIndex === 0);
+            $('#nextSlide').prop('disabled', currentSlideIndex === totalSlides - 1);
+        }
+        
+        // Générer les points (dots)
+        function updateDots() {
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                const activeClass = (i === currentSlideIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+                dotsHtml += `<button class="dot-btn h-3 rounded-full ${activeClass} transition-all duration-200 mx-1" data-slide="${i}"></button>`;
+            }
+            $('#dotsIndicator').html(dotsHtml);
+            // click sur dot
+            $('.dot-btn').on('click', function() {
+                const slideIndex = parseInt($(this).data('slide'));
+                if (!isNaN(slideIndex) && slideIndex >= 0 && slideIndex < totalSlides) {
+                    currentSlideIndex = slideIndex;
+                    updateSlidesDisplay();
+                }
+            });
+        }
+        
+        // Initialisation
+        function initSlides() {
+            const container = $('#slides-container');
+            container.empty();
+            slidesData.forEach((slide, idx) => {
+                const slideHtml = renderSlide(slide, idx);
+                container.append(slideHtml);
+            });
+            // s'assurer que toutes les slides sauf la première sont cachées
+            $('.slide').each(function() {
+                const idx = parseInt($(this).data('slide-idx'));
+                if (idx !== 0) $(this).addClass('slide-hidden');
+                else $(this).removeClass('slide-hidden');
+            });
+            currentSlideIndex = 0;
+            updateSlidesDisplay();
+        }
+        
+        // Navigation
+        $('#nextSlide').on('click', function() {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                updateSlidesDisplay();
+                // Scroll en douceur vers le haut pour mobile
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        });
+        
+        $('#prevSlide').on('click', function() {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                updateSlidesDisplay();
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        });
+        
+        // Gestion du clavier (flèches)
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') {
+                $('#nextSlide').click();
+            } else if (e.key === 'ArrowLeft') {
+                $('#prevSlide').click();
+            }
+        });
+        
+        // Lancer l'application
+        initSlides();
+        
+        // Un petit dessin SVG pour illustrer le serveur HTTP (dessin simple, pas d'image externe nécessaire)
+        // on peut injecter un mini schéma dans la slide 3 ou 4 - pour enrichir le contenu sans alourdir
+        // On va améliorer la slide "Analyser la requête" en insérant un petit schéma SVG maison (serveur/client)
+        // Pour coller à la consigne "dessiner toi-même si nécessaire" : ajoutons un diagramme simple dans la slide 3 (index 3)
+        // Mais il vaut mieux insérer après initialisation, de manière non intrusive.
+        // On attend que le DOM soit prêt pour ajouter un schéma SVG dans la slide qui parle de requête.
+        function ajouterSchemaRequete() {
+            // slide index 3 correspond au contenu "2. Analyser la requête (req)"
+            const targetSlideDiv = $('.slide[data-slide-idx="3"]');
+            if (targetSlideDiv.length && !targetSlideDiv.find('.custom-schema').length) {
+                const schemaHtml = `
+                    <div class="custom-schema my-6 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <p class="font-semibold text-center text-gray-700 mb-2">🔄 Schéma d'une requête HTTP classique :</p>
+                        <svg viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-md mx-auto">
+                            <rect x="10" y="30" width="100" height="50" fill="#4f46e5" rx="8" fill-opacity="0.9" />
+                            <text x="55" y="65" text-anchor="middle" fill="white" font-size="12">Client</text>
+                            <path d="M120 55 L180 55" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            <rect x="190" y="20" width="130" height="70" fill="#10b981" rx="8" fill-opacity="0.9" />
+                            <text x="255" y="55" text-anchor="middle" fill="white" font-size="12">Serveur Node.js</text>
+                            <text x="255" y="75" text-anchor="middle" fill="white" font-size="9">(http module)</text>
+                            <path d="M330 55 L390 55" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            <rect x="400" y="30" width="90" height="50" fill="#f59e0b" rx="8" fill-opacity="0.9" />
+                            <text x="445" y="65" text-anchor="middle" fill="white" font-size="12">Base</text>
+                            <defs>
+                                <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                                    <polygon points="0 0, 8 4, 0 8" fill="#333" />
+                                </marker>
+                            </defs>
+                        </svg>
+                        <p class="text-xs text-center text-gray-500 mt-1">Requête → analyse (url, méthode, headers) → réponse</p>
+                    </div>
+                `;
+                // Insérer après le premier paragraphe
+                targetSlideDiv.find('.prose').append(schemaHtml);
+            }
+        }
+        
+        // Ajouter un second schéma pour les query string dans la slide 4
+        function ajouterSchemaQuery() {
+            const slideQuery = $('.slide[data-slide-idx="4"]');
+            if (slideQuery.length && !slideQuery.find('.schema-query').length) {
+                const querySvg = `
+                    <div class="schema-query mt-5 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
+                        <p class="text-sm font-semibold text-indigo-800">🔍 Exemple visuel d’une query string :</p>
+                        <svg viewBox="0 0 500 70" class="w-full my-2">
+                            <text x="20" y="30" font-size="14" fill="#1f2937">https://monsite.com</text>
+                            <text x="190" y="30" font-size="14" fill="#dc2626">/recherche</text>
+                            <text x="285" y="30" font-size="20" fill="#f97316">?</text>
+                            <text x="300" y="30" font-size="13" fill="#3b82f6">nom=Jean</text>
+                            <text x="370" y="30" font-size="13" fill="#6b7280">&</text>
+                            <text x="385" y="30" font-size="13" fill="#3b82f6">age=30</text>
+                            <path d="M20 45 L470 45" stroke="#cbd5e1" stroke-dasharray="3" />
+                            <text x="20" y="62" font-size="11" fill="#4b5563">Partie fixe</text>
+                            <text x="220" y="62" font-size="11" fill="#b91c1c">Chemin</text>
+                            <text x="310" y="62" font-size="11" fill="#ea580c">Query</text>
+                        </svg>
+                        <p class="text-xs">Le module `url` convertit tout ceci en un objet JavaScript exploitable.</p>
+                    </div>
+                `;
+                slideQuery.find('.prose').append(querySvg);
+            }
+        }
+        
+        // Légère temporisation pour que le DOM soit bien présent
+        setTimeout(() => {
+            ajouterSchemaRequete();
+            ajouterSchemaQuery();
+            // Re-initialiser MathJax au cas où il y aurait des formules (pas présent ici, mais reste générique)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }, 200);
+        
+        // Amélioration pour petits écrans : on ajuste la taille du texte dans les slides
+        $(window).on('resize', function() {
+            if ($(window).width() < 640) {
+                $('.slide pre').css('font-size', '12px');
+            } else {
+                $('.slide pre').css('font-size', '14px');
+            }
+        }).trigger('resize');
+        
+    </script>
+</body>
+</html>

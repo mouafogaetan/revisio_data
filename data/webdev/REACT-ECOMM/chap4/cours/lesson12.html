@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 12 - Filtres et état produits | React E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            transition: opacity 0.35s ease-in-out, transform 0.3s ease;
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .slide-inactive {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        body {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+                    <div class="mb-6 inline-flex items-center justify-center bg-indigo-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 tracking-tight">🎛️ Leçon 12</h1>
+                    <p class="text-indigo-600 text-lg md:text-xl font-semibold mt-2">État des produits, filtres & pagination</p>
+                    <div class="h-1 w-20 bg-indigo-400 rounded-full my-6 mx-auto"></div>
+                    <p class="text-gray-600 max-w-lg mx-auto text-base md:text-lg">Centraliser les produits, gérer la recherche, les filtres (prix, catégorie) et la pagination avec Zustand.</p>
+                    <div class="mt-10 text-sm text-gray-400 italic">👨‍🏫 Classe: Développement Web | React · Interface e-commerce</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="1">
+                <div class="flex flex-col h-full">
+                    <div class="border-b border-indigo-100 pb-4 mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full inline-flex items-center justify-center text-lg">🎯</span>
+                            Objectifs de la leçon
+                        </h2>
+                    </div>
+                    <ul class="space-y-5 text-gray-700 text-base md:text-lg">
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Gérer l'état des <strong>produits et catégories</strong> avec Zustand</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Implémenter des <strong>filtres dynamiques</strong> (prix, catégorie, recherche, tri)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Mettre en place la <strong>pagination client-side</strong> ou via API</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Persister les filtres dans l'URL pour le partage</span></li>
+                    </ul>
+                    <div class="mt-8 bg-indigo-50 rounded-xl p-4 border-l-8 border-indigo-400">
+                        <p class="text-indigo-800 font-medium">💡 À la fin, vous aurez une expérience de filtrage fluide et performante comme sur les grands sites e-commerce !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : STORE PRODUITS + FILTRES (ZUSTAND) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3 flex gap-2">📦 <span>Store produits avec Zustand</span></h2>
+                <p>Un store central qui contient : la liste des produits, les filtres actifs, et des actions pour les modifier.</p>
+                <div class="code-block mt-3">
+                    <pre>// stores/productStore.ts
+import { create } from 'zustand';
+
+interface Filters {
+  search: string;
+  category: string;
+  minPrice: number;
+  maxPrice: number;
+  sortBy: 'price_asc' | 'price_desc' | 'name_asc';
+}
+
+interface ProductState {
+  products: any[];
+  filters: Filters;
+  currentPage: number;
+  setProducts: (products: any[]) => void;
+  updateFilters: (newFilters: Partial&lt;Filters&gt;) => void;
+  resetFilters: () => void;
+  setPage: (page: number) => void;
+}
+
+export const useProductStore = create&lt;ProductState&gt;((set) => ({
+  products: [],
+  filters: { search: '', category: '', minPrice: 0, maxPrice: 10000, sortBy: 'name_asc' },
+  currentPage: 1,
+  setProducts: (products) => set({ products }),
+  updateFilters: (newFilters) => set((state) => ({ 
+    filters: { ...state.filters, ...newFilters },
+    currentPage: 1  // réinitialiser la page à chaque filtre
+  })),
+  resetFilters: () => set({ 
+    filters: { search: '', category: '', minPrice: 0, maxPrice: 10000, sortBy: 'name_asc' },
+    currentPage: 1
+  }),
+  setPage: (page) => set({ currentPage: page })
+}));</pre>
+                </div>
+                <p class="text-gray-600 mt-2">Ce store sera utilisé dans les composants pour lire et modifier les filtres, déclenchant le re-filtrage.</p>
+            </div>
+
+            <!-- SLIDE 4 : APPLICATION DES FILTRES (DERIVED STATE) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚡ Filtrer et trier les produits</h2>
+                <p>On crée un hook personnalisé ou un selector pour obtenir les produits filtrés en temps réel.</p>
+                <div class="code-block mt-2">
+                    <pre>// hooks/useFilteredProducts.ts
+import { useMemo } from 'react';
+import { useProductStore } from '@/stores/productStore';
+
+export const useFilteredProducts = () => {
+  const { products, filters } = useProductStore();
+  
+  const filtered = useMemo(() => {
+    let result = [...products];
+    // Filtre par recherche (nom)
+    if (filters.search) {
+      result = result.filter(p => p.name.toLowerCase().includes(filters.search.toLowerCase()));
+    }
+    // Filtre catégorie
+    if (filters.category) {
+      result = result.filter(p => p.category === filters.category);
+    }
+    // Filtre prix
+    result = result.filter(p => p.price >= filters.minPrice && p.price <= filters.maxPrice);
+    // Tri
+    if (filters.sortBy === 'price_asc') result.sort((a,b) => a.price - b.price);
+    if (filters.sortBy === 'price_desc') result.sort((a,b) => b.price - a.price);
+    if (filters.sortBy === 'name_asc') result.sort((a,b) => a.name.localeCompare(b.name));
+    return result;
+  }, [products, filters]);
+  
+  return filtered;
+};</pre>
+                </div>
+                <p class="mt-2 text-gray-600">Ce hook réagit aux changements de filtres et met à jour l'affichage sans effort.</p>
+            </div>
+
+            <!-- SLIDE 5 : PAGINATION CLIENT-SIDE -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📄 Pagination côté client</h2>
+                <p>On ajoute la pagination dans le même composant en utilisant le store.</p>
+                <div class="code-block">
+                    <pre>// Composant ProductsList.tsx (extrait)
+import { useProductStore } from '@/stores/productStore';
+import { useFilteredProducts } from '@/hooks/useFilteredProducts';
+
+const ProductsList = () => {
+  const filteredProducts = useFilteredProducts();
+  const { currentPage, setPage } = useProductStore();
+  const itemsPerPage = 9;
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const paginated = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  return (
+    &lt;div&gt;
+      &lt;div className="grid grid-cols-1 md:grid-cols-3 gap-4"&gt;
+        {paginated.map(product => &lt;ProductCard key={product.id} {...product} /&gt;)}
+      &lt;/div&gt;
+      &lt;Pagination current={currentPage} total={totalPages} onPageChange={setPage} /&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <p class="mt-2">La pagination est automatiquement réinitialisée à 1 quand les filtres changent (déjà géré dans le store).</p>
+            </div>
+
+            <!-- SLIDE 6 : COMPOSANT SIDEBAR FILTRES -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🎨 Sidebar filtres interactive</h2>
+                <p>Exemple de composant qui met à jour le store à chaque interaction.</p>
+                <div class="code-block">
+                    <pre>// components/FilterSidebar.tsx
+import { useProductStore } from '@/stores/productStore';
+
+export const FilterSidebar = () => {
+  const { filters, updateFilters, resetFilters } = useProductStore();
+  
+  return (
+    &lt;div className="space-y-4 p-4 bg-gray-50 rounded-xl"&gt;
+      &lt;input 
+        type="text" placeholder="Rechercher..."
+        value={filters.search}
+        onChange={(e) => updateFilters({ search: e.target.value })}
+        className="w-full border rounded p-2"
+      /&gt;
+      &lt;select value={filters.category} onChange={(e) => updateFilters({ category: e.target.value })}&gt;
+        &lt;option value=""&gt;Toutes catégories&lt;/option&gt;
+        &lt;option value="electronics"&gt;Électronique&lt;/option&gt;
+        &lt;option value="clothing"&gt;Vêtements&lt;/option&gt;
+      &lt;/select&gt;
+      &lt;div&gt;
+        &lt;label&gt;Prix min: {filters.minPrice}&lt;/label&gt;
+        &lt;input type="range" min="0" max="500" step="10"
+          value={filters.minPrice}
+          onChange={(e) => updateFilters({ minPrice: Number(e.target.value) })}
+        /&gt;
+      &lt;/div&gt;
+      &lt;button onClick={resetFilters} className="bg-gray-200 px-4 py-2 rounded"&gt;Réinitialiser&lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <p class="text-sm text-gray-500 mt-1">Chaque modification déclenche <code>updateFilters</code> et la liste se met à jour en temps réel !</p>
+            </div>
+
+            <!-- SLIDE 7 : SYNC URL & FILTRES (BONUS) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔗 Synchronisation avec l'URL</h2>
+                <p>Permet de partager un lien avec les filtres actifs. On utilise <code>useSearchParams</code> de React Router.</p>
+                <div class="code-block">
+                    <pre>// hooks/useSyncFiltersWithUrl.ts
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useProductStore } from '@/stores/productStore';
+
+export const useSyncFiltersWithUrl = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { filters, updateFilters } = useProductStore();
+
+  // Lecture initiale depuis l'URL
+  useEffect(() => {
+    const urlFilters = {
+      search: searchParams.get('search') || '',
+      category: searchParams.get('category') || '',
+      minPrice: Number(searchParams.get('minPrice')) || 0,
+      maxPrice: Number(searchParams.get('maxPrice')) || 10000,
+      sortBy: (searchParams.get('sortBy') as any) || 'name_asc'
+    };
+    updateFilters(urlFilters);
+  }, []);
+
+  // Écriture dans l'URL quand les filtres changent
+  useEffect(() => {
+    setSearchParams({
+      search: filters.search,
+      category: filters.category,
+      minPrice: String(filters.minPrice),
+      maxPrice: String(filters.maxPrice),
+      sortBy: filters.sortBy
+    });
+  }, [filters]);
+};</pre>
+                </div>
+                <p class="mt-2 text-sm">✅ Ainsi, un client peut envoyer un lien de recherche filtrée à un ami, parfait pour l'UX !</p>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES PERFORMANCE -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🚀 Optimisations & astuces</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">📌 Debounce sur recherche</span>
+                        <p class="text-sm">Utilisez <code>useDebounce</code> pour éviter trop de ré-rendus lors de la frappe.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🧩 Mémorisation</span>
+                        <p class="text-sm"><code>useMemo</code> pour les produits filtrés évite des recalculs inutiles.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🌐 Pagination API</span>
+                        <p class="text-sm">Pour des milliers de produits, préférez une pagination côté serveur avec React Query.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">💾 Persistance</span>
+                        <p class="text-sm">Sauvegarder les filtres dans <code>localStorage</code> ou sessionStorage ? Utile pour retour utilisateur.</p>
+                    </div>
+                </div>
+                <div class="mt-4 bg-indigo-50 p-3 rounded-lg text-center text-indigo-800">
+                    🧪 Résumé : Un store Zustand gère l'état, des hooks dérivent les données filtrées, et l'UI reste simple et réactive.
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : RÉCAPITULATIF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="8">
+                <div class="flex flex-col h-full justify-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Résumé – Ce qu'il faut retenir</h2>
+                    <ul class="space-y-3">
+                        <li class="flex gap-2">✅ <span><strong>Zustand</strong> centralise produits, filtres et pagination.</span></li>
+                        <li class="flex gap-2">✅ <span>Les filtres (recherche, catégorie, prix, tri) sont réactifs et déclenchent le re-filtrage.</span></li>
+                        <li class="flex gap-2">✅ <span>La <strong>pagination client-side</strong> est simple pour des catalogues de taille modérée.</span></li>
+                        <li class="flex gap-2">✅ <span>Synchroniser l'URL avec les filtres améliore le partage et l'UX.</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-100 p-4 rounded-xl">
+                        <p class="font-medium">🎯 Exercice pratique : Ajoutez un filtre "Note moyenne" et un tri par popularité dans votre store. Utilisez le hook useFilteredProducts.</p>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="recapButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm shadow transition">✅ Valider la leçon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation entre slides -->
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                    ← Précédent
+                </button>
+                <div class="text-sm text-gray-500">
+                    Slide <span id="slideCounter">1</span> / <span id="totalSlides">9</span>
+                </div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+        <div class="text-center text-gray-400 text-xs mt-6">
+            📘 Leçon 12 : Gestion des produits, filtres & pagination avec Zustand | React E-commerce
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            function updateSlides() {
+                slides.each(function(index) {
+                    if (index === currentSlide) {
+                        $(this).removeClass('slide-inactive').addClass('slide-active');
+                    } else {
+                        $(this).removeClass('slide-active').addClass('slide-inactive');
+                    }
+                });
+                $('#slideCounter').text(currentSlide + 1);
+                $('#prevSlide').prop('disabled', currentSlide === 0);
+                $('#nextSlide').prop('disabled', currentSlide === total - 1);
+            }
+
+            $('#prevSlide').on('click', function() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+            $('#nextSlide').on('click', function() {
+                if (currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+
+            // Navigation clavier
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowLeft' && currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                } else if (e.key === 'ArrowRight' && currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+
+            // Swipe pour mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('.slide').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('.slide').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40 && currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                } else if (touchEndX > touchStartX + 40 && currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+
+            $('#recapButton').on('click', function() {
+                alert("✅ Félicitations ! Vous savez gérer les filtres et la pagination. Implémentez ces concepts dans votre propre boutique React !");
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Cloud Computing | Leçon 6 : Découverte de Google Cloud Platform (GCP)</title>
+    <!-- Tailwind CSS + base UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, mais présent pour formules futures) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police & ajustements personnalisés -->
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        /* style personnalisé pour lisibilité */
+        body {
+            background: #f4f7fc;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            transition: transform 0.2s;
+        }
+        /* toolbar responsive */
+        @media (max-width: 640px) {
+            .nav-text {
+                font-size: 0.75rem;
+            }
+            h1 {
+                font-size: 1.7rem;
+            }
+        }
+        /* pour slides avec défilement si contenu long */
+        .slide-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+        .slide-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .slide-content::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .slide-content::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- EN-TÊTE FIXE (indicateur slide) -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-3 mb-5 sticky top-2 z-10 border border-blue-100">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-2 text-sm md:text-base font-medium text-gray-700">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">📘 Cloud Computing</span>
+                    <span class="text-gray-500">Leçon 6 / 35</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="prevSlide" class="bg-white border border-blue-300 hover:bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl transition flex items-center gap-1 text-sm md:text-base shadow-sm">◀ Précédent</button>
+                    <button id="nextSlide" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-xl transition flex items-center gap-1 text-sm md:text-base shadow-md">Suivant ▶</button>
+                </div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-3">
+                <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%;"></div>
+            </div>
+            <div class="text-xs text-gray-500 text-right mt-1">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+            </div>
+        </div>
+
+        <!-- CONTENEUR DES SLIDES -->
+        <div id="slidesContainer" class="relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery, mais nous écrivons l'HTML structuré ci-dessous pour plus de clarté -->
+        </div>
+    </div>
+
+    <script>
+        // Définition des données du cours pour la lesson6 : Google Cloud Platform (GCP)
+        // D'après le programme : "Découvrir les atouts de GCP (big data, IA/ML, réseau global)" + régions/services phares
+        const lessonData = {
+            title: "Google Cloud Platform (GCP) – puissance Data & IA",
+            objectives: [
+                "🌍 Découvrir les atouts majeurs de GCP : big data, intelligence artificielle, réseau global ultra-rapide.",
+                "🗺️ Comprendre l'architecture des régions, zones et points de présence Google.",
+                "⚙️ Identifier les services phares : Compute Engine, Cloud Storage, BigQuery, Kubernetes Engine (GKE)."
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "☁️ Pourquoi Google Cloud ? Atouts différenciants",
+                    content: `
+                        <p class="mb-3 text-gray-700">Google Cloud Platform (GCP) tire parti de l'infrastructure mondiale de Google (recherche, YouTube, Gmail). Ses principaux atouts sont :</p>
+                        <ul class="list-disc pl-6 space-y-2 text-gray-800">
+                            <li><strong>🔬 Big Data & Analytics</strong> : avec <span class="font-mono bg-gray-100 px-1 rounded">BigQuery</span>, un entrepôt de données serverless ultra-rapide qui analyse des pétaoctets en secondes.</li>
+                            <li><strong>🤖 IA/ML de pointe</strong> : services comme Vertex AI, AutoML, et API de vision, langage (BERT, LLM) utilisés par des millions d'utilisateurs.</li>
+                            <li><strong>🌐 Réseau global privé</strong> : Google possède l'un des plus grands réseaux de fibre optique au monde avec des <strong>points de présence (edge locations)</strong> et des câbles sous-marins, offrant faible latence et hauts débits.</li>
+                            <li><strong>⚡ Open source et portabilité</strong> : Kubernetes est né chez Google ! GKE (Google Kubernetes Engine) est la référence pour les conteneurs.</li>
+                        </ul>
+                        <div class="mt-5 bg-blue-50 p-4 rounded-xl border-l-8 border-blue-400">
+                            <p class="text-sm font-semibold text-blue-800">💡 À retenir : GCP est particulièrement prisé pour les projets Data Science, Machine Learning et les applications globales nécessitant une mise à l'échelle massive.</p>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🗺️ Régions, zones de disponibilité et edge locations",
+                    content: `
+                        <p class="mb-2">Comme AWS et Azure, GCP déploie ses ressources dans des <strong>régions</strong> (ex: us-central1, europe-west1, asia-southeast1). Chaque région contient plusieurs <strong>zones</strong> (a,b,c) isolées des pannes.</p>
+                        <div class="my-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white border rounded-xl p-3 shadow-sm">
+                                <span class="font-bold text-indigo-700">🌍 Région :</span> Ensemble de zones avec faible latence.
+                            </div>
+                            <div class="bg-white border rounded-xl p-3 shadow-sm">
+                                <span class="font-bold text-indigo-700">⚡ Zone de dispo :</span> Infrastructure indépendante (réseau, alimentation).
+                            </div>
+                            <div class="bg-white border rounded-xl p-3 shadow-sm">
+                                <span class="font-bold text-indigo-700">🚀 Edge locations :</span> Points de présence Cloud CDN & Cloud Load Balancing.
+                            </div>
+                            <div class="bg-white border rounded-xl p-3 shadow-sm">
+                                <span class="font-bold text-indigo-700">🔁 Réplication :</span> Stockage multi-régional pour haute disponibilité.
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">Exemple : La région <strong>europe-west9 (Paris)</strong> permet aux entreprises françaises de respecter la souveraineté des données. GCP compte plus de 40 régions et 120+ zones dans le monde.</p>
+                        <div class="mt-4 p-3 bg-gray-100 rounded-lg text-center text-gray-700">
+                            🖌️ <em>Illustration simplifiée : [Région] → [Zone A, Zone B, Zone C] → services redondants.</em>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚙️ Services phares de GCP – Calcul & Stockage",
+                    content: `
+                        <div class="space-y-5">
+                            <div class="border-b pb-3">
+                                <h3 class="text-xl font-semibold text-green-700">🖥️ Compute Engine (IaaS)</h3>
+                                <p>Machines virtuelles personnalisables (vCPU, RAM, disques). Idéal pour migrer des workloads classiques. Tarif à la seconde, remises pour instances préemptibles (jusqu’à 80% moins cher).</p>
+                            </div>
+                            <div class="border-b pb-3">
+                                <h3 class="text-xl font-semibold text-green-700">📦 Cloud Storage (Object storage)</h3>
+                                <p>Buckets pour stocker images, vidéos, sauvegardes. Classes : Standard, Nearline, Coldline, Archive. Compatible S3.</p>
+                            </div>
+                            <div class="border-b pb-3">
+                                <h3 class="text-xl font-semibold text-green-700">📊 BigQuery (Data Warehouse)</h3>
+                                <p>Analyse SQL serverless, traitement de données massives avec séparation stockage/compute. Pay-as-you-query. Indispensable pour le Big Data.</p>
+                            </div>
+                            <div class="pb-2">
+                                <h3 class="text-xl font-semibold text-green-700">☸️ Google Kubernetes Engine (GKE)</h3>
+                                <p>Orchestration de conteneurs Kubernetes managée. Auto-scaling, mise à jour automatique, intégration avec Cloud Logging et monitoring.</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 bg-green-50 p-3 rounded-lg text-green-800 text-sm">✨ <strong>À savoir</strong> : GKE est considéré comme le service Kubernetes le plus mature du marché.</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧠 Spécialités Data & IA (BigQuery ML, Vertex AI)",
+                    content: `
+                        <p class="mb-3">Google Cloud investit énormément dans l'IA et l'apprentissage automatique. Quelques services puissants :</p>
+                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 list-disc pl-5">
+                            <li><strong>Vertex AI</strong> : plateforme unifiée pour construire, entraîner et déployer des modèles ML.</li>
+                            <li><strong>BigQuery ML</strong> : créer et exécuter des modèles ML directement en SQL sur BigQuery.</li>
+                            <li><strong>AutoML</strong> : générer des modèles personnalisés sans écrire de code complexe.</li>
+                            <li><strong>Cloud Vision, Natural Language API</strong> : prédictions via API pré-entraînées.</li>
+                            <li><strong>TensorFlow Enterprise</strong> : support optimisé pour le framework d'IA open source.</li>
+                        </ul>
+                        <div class="mt-4 bg-purple-50 p-3 rounded-xl flex flex-wrap gap-2 items-center">
+                            <span class="font-bold">📈 Cas concret :</span> Une entreprise de e-commerce utilise BigQuery pour analyser des millions d'achats et Vertex AI pour recommander des produits → hausse des ventes.
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔗 Réseau global & services innovants",
+                    content: `
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h4 class="font-bold text-indigo-800">🌐 Cloud CDN & Load Balancing</h4>
+                                <p class="text-sm">Distribution de contenu via le réseau mondial de Google. Load balancing global (HTTP/S, TCP/SSL) avec une seule IP anycast.</p>
+                            </div>
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h4 class="font-bold text-indigo-800">🔐 Cloud Armor</h4>
+                                <p class="text-sm">Sécurité WAF, protection DDoS au niveau du réseau et des applications.</p>
+                            </div>
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h4 class="font-bold text-indigo-800">⏱️ Cloud Functions & Cloud Run</h4>
+                                <p class="text-sm">Serverless : exécutez du code (Node.js, Python, Go) ou des conteneurs sans provisionner de serveurs.</p>
+                            </div>
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h4 class="font-bold text-indigo-800">🗄️ Cloud Spanner / Firestore</h4>
+                                <p class="text-sm">Base de données relationnelle globalement distribuée (Spanner) ou NoSQL mobile (Firestore).</p>
+                            </div>
+                        </div>
+                        <p class="mt-4 text-gray-600 text-sm bg-gray-50 p-3 rounded-lg">L'atout réseau : les services GCP communiquent via le backbone privé de Google, sans passer par l'Internet public → sécurité et performances accrues.</p>
+                    `
+                },
+                {
+                    type: "conclusion",
+                    title: "✅ Récapitulatif et bonnes pratiques",
+                    content: `
+                        <p class="font-medium">Ce qu'il faut retenir sur Google Cloud Platform :</p>
+                        <ul class="list-check space-y-1 mt-2">
+                            <li>✔️ <strong>Leadership en Data & IA</strong> → BigQuery, Vertex AI, outils d'analyse puissants.</li>
+                            <li>✔️ <strong>Réseau global et infrastructure hautement performante</strong> avec régions et zones multiples.</li>
+                            <li>✔️ <strong>Services phares</strong> : Compute Engine (VM), Cloud Storage (objets), GKE (conteneurs), Cloud Run (serverless).</li>
+                            <li>✔️ <strong>Modèle économique flexible</strong> : paiement à l'usage, remises pour engagements, instances préemptibles.</li>
+                            <li>✔️ <strong>Open source et standardisation</strong> : Kubernetes, Terraform, compatibilité multi-cloud.</li>
+                        </ul>
+                        <div class="mt-5 flex flex-wrap gap-2 justify-center">
+                            <div class="bg-teal-100 text-teal-800 px-4 py-2 rounded-full text-sm">🎯 Pour projets Big Data</div>
+                            <div class="bg-teal-100 text-teal-800 px-4 py-2 rounded-full text-sm">🤖 IA / Machine Learning</div>
+                            <div class="bg-teal-100 text-teal-800 px-4 py-2 rounded-full text-sm">🌐 Applications mondiales</div>
+                        </div>
+                        <p class="italic text-sm text-gray-500 mt-4">📘 Prochaine étape : comparer GCP avec AWS/Azure et choisir selon les besoins métier.</p>
+                    `
+                }
+            ]
+        };
+
+        // Construction des slides (diapos) : Slide 1 = Titre, Slide 2 = Objectifs, puis les slides de contenu de la lessonData.slides
+        const slidesArray = [];
+        
+        // Slide de titre
+        slidesArray.push({
+            id: "title_slide",
+            html: `
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl shadow-xl p-6 md:p-10 text-center">
+                    <div class="mb-4 inline-block bg-white/70 rounded-full px-4 py-1 text-blue-700 text-sm font-semibold">📖 Initiation au Cloud Computing</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">☁️ Google Cloud Platform (GCP)</h1>
+                    <p class="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">Découvrir les atouts, régions et services phares du cloud de Google</p>
+                    <div class="mt-8 flex justify-center gap-3 text-sm text-gray-500">
+                        <span>👩‍🏫 Leçon 6</span>
+                        <span>🎯 Cloud Computing</span>
+                        <span>🌍 Niveau débutant</span>
+                    </div>
+                    <div class="mt-10 w-24 h-1 bg-blue-400 mx-auto rounded-full"></div>
+                    <p class="text-xs text-gray-400 mt-6">⬅️ Utilisez les boutons "Précédent / Suivant" pour naviguer</p>
+                </div>
+            `
+        });
+        
+        // Slide des objectifs (comprenant les objectifs de la lesson6 depuis le programme)
+        const objList = lessonData.objectives.map(obj => `<li class="mb-2 flex items-start gap-2"><span class="text-green-600 text-xl">✓</span> <span>${obj}</span></li>`).join('');
+        slidesArray.push({
+            id: "objectives_slide",
+            html: `
+                <div class="bg-white rounded-3xl shadow-xl p-6 md:p-8 border-t-8 border-green-500">
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="text-3xl">🎯</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs d'apprentissage</h2>
+                    </div>
+                    <ul class="space-y-3 text-gray-700 text-base md:text-lg pl-2">
+                        ${objList}
+                    </ul>
+                    <div class="mt-6 bg-green-50 p-4 rounded-xl text-green-800">
+                        💪 Après cette leçon, vous saurez décrire les forces uniques de GCP et identifier ses services principaux.
+                    </div>
+                </div>
+            `
+        });
+        
+        // Ajouter les slides de contenu à partir de lessonData.slides
+        lessonData.slides.forEach((slide, idx) => {
+            let extraClass = "";
+            if (slide.type === "conclusion") extraClass = "border-l-8 border-purple-400 bg-purple-50/30";
+            slidesArray.push({
+                id: `content_slide_${idx}`,
+                html: `
+                    <div class="bg-white rounded-3xl shadow-xl overflow-hidden ${extraClass}">
+                        <div class="p-6 md:p-8">
+                            <div class="flex items-center gap-2 border-b pb-3 mb-5 border-gray-200">
+                                <span class="text-2xl">📌</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+                            </div>
+                            <div class="slide-content text-gray-700 leading-relaxed space-y-3">
+                                ${slide.content}
+                            </div>
+                        </div>
+                    </div>
+                `
+            });
+        });
+        
+        // Mise à jour du compteur total dans le DOM
+        let totalSlides = slidesArray.length;
+        $("#totalSlidesCount").text(totalSlides);
+        
+        // Injecter les slides dans le conteneur
+        function renderSlides() {
+            let container = $("#slidesContainer");
+            container.empty();
+            slidesArray.forEach((slide, index) => {
+                let slideDiv = $("<div>").addClass("slide slide-hidden").attr("data-slide-index", index).html(slide.html);
+                container.append(slideDiv);
+            });
+            // Afficher la première slide
+            currentIndex = 0;
+            updateSlidesVisibility();
+            updateProgress();
+        }
+        
+        let currentIndex = 0;
+        
+        function updateSlidesVisibility() {
+            $(".slide").each(function(idx) {
+                if (idx === currentIndex) {
+                    $(this).removeClass("slide-hidden").css("display", "block");
+                } else {
+                    $(this).addClass("slide-hidden").css("display", "none");
+                }
+            });
+            $("#currentSlideIdx").text(currentIndex + 1);
+            updateProgress();
+        }
+        
+        function updateProgress() {
+            let percent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $("#progressBar").css("width", `${percent}%`);
+        }
+        
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlidesVisibility();
+                // scroll en haut pour meilleure ergonomie
+                $("html, body").animate({ scrollTop: 0 }, 200);
+            } else {
+                // Option petit toast
+                showToast("✨ Fin du cours ! Bravo, vous avez terminé la leçon GCP.");
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlidesVisibility();
+                $("html, body").animate({ scrollTop: 0 }, 200);
+            } else {
+                showToast("📘 Ceci est la première slide. Commencez l'apprentissage !");
+            }
+        }
+        
+        function showToast(msg) {
+            let toast = $(`<div class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2 rounded-full shadow-lg z-50 text-sm">${msg}</div>`);
+            $("body").append(toast);
+            setTimeout(() => toast.fadeOut(300, function(){ $(this).remove(); }), 2000);
+        }
+        
+        // Événements boutons
+        $("#nextSlide").on("click", nextSlide);
+        $("#prevSlide").on("click", prevSlide);
+        
+        // Gestion clavier (flèches)
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+                e.preventDefault();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+                e.preventDefault();
+            }
+        });
+        
+        // Initialisation
+        renderSlides();
+        
+        // Ajout d'une classe supplémentaire pour améliorer lisibilité des listes dans les derniers slides
+        // Ajouter un favicon invisible? optionnel
+        $("<style>").text(`
+            .list-check li { margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+            .list-check li::before { content: "✅"; font-size: 1rem; }
+        `).appendTo("head");
+    </script>
+    <!-- Pied de page léger -->
+    <div class="max-w-5xl mx-auto px-4 pb-6 text-center text-xs text-gray-400 mt-4">
+        📍 Cours d'Initiation au Cloud Computing - Enseignant au Cameroun | Leçon 6 : Google Cloud Platform (GCP)
+    </div>
+</body>
+</html>

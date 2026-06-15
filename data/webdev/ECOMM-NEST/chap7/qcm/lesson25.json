@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Quel est l'objectif principal du pattern Strategy dans le contexte des paiements d'une API e-commerce ?",
+    "options": [
+      "Augmenter la vitesse de traitement des paiements",
+      "Permettre de basculer dynamiquement entre plusieurs fournisseurs de paiement (Stripe, PayPal, Virement) sans modifier le code client",
+      "Centraliser tous les paiements sur un seul fournisseur",
+      "Remplacer les webhooks par des appels synchrones"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Le pattern Strategy permet de définir une famille d'algorithmes (ici les différents providers de paiement), de les encapsuler chacun dans sa propre classe, et de les rendre interchangeables. Ainsi, le service client peut utiliser Stripe, PayPal ou un virement bancaire sans que le code appelant ait à connaître les détails d'implémentation de chaque fournisseur."
+  },
+  {
+    "questionText": "Dans une implémentation du pattern Strategy pour les paiements, quelle est la responsabilité de la classe `PaymentStrategy` (abstraite ou interface) ?",
+    "options": [
+      "Stocker les clés API de tous les fournisseurs",
+      "Définir le contrat commun que tous les providers doivent implémenter (ex: `processPayment(order: Order): Promise<PaymentResult>`)",
+      "Choisir automatiquement le fournisseur le moins cher",
+      "Gérer les logs de toutes les transactions"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La classe ou interface `PaymentStrategy` définit le contrat (les signatures de méthodes) que toutes les stratégies concrètes doivent respecter. Par exemple : `processPayment(amount, currency, metadata)`. Cela permet au contexte (`PaymentService`) d'appeler la même méthode indépendamment du provider utilisé (Stripe, PayPal, etc.)."
+  },
+  {
+    "questionText": "Quel est l'avantage d'utiliser une factory ou un registre dynamique pour instancier les stratégies de paiement ?",
+    "options": [
+      "Cela permet d'ajouter un nouveau fournisseur de paiement sans modifier le code existant (Open/Closed Principle)",
+      "Cela rend le code plus lent à l'exécution",
+      "Cela oblige à recompiler l'application à chaque ajout de fournisseur",
+      "Cela supprime la nécessité d'utiliser des variables d'environnement"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Une factory ou un registre permet de centraliser la création des stratégies. En respectant le principe Open/Closed (ouvert à l'extension, fermé à la modification), on peut ajouter un nouveau provider (ex: `CryptoPaymentStrategy`) sans toucher au code existant du `PaymentService`. Il suffit d'enregistrer la nouvelle stratégie et de configurer le type correspondant."
+  },
+  {
+    "questionText": "Voici un extrait de code d'une entité `Payment`. Quel champ est OBLIGATOIRE pour respecter les normes PCI DSS ?",
+    "options": [
+      "`cardNumber: string`",
+      "`cvv: string`",
+      "`paymentIntentId: string`",
+      "`rawCardData: object`"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "PCI DSS interdit de stocker les données sensibles (numéro de carte, CVV, date d'expiration). On ne doit stocker que des identifiants de transaction ou des tokens. `paymentIntentId` (ou `transactionId`, `chargeId`) est un identifiant côté fournisseur qui permet de référencer la transaction sans exposer les données de la carte."
+  },
+  {
+    "questionText": "Dans l'entité `Payment`, pourquoi stocke-t-on le `paymentMethod` sous forme de chaîne (ex: 'stripe', 'paypal', 'bank_transfer') ?",
+    "options": [
+      "Pour des raisons de performance uniquement",
+      "Pour pouvoir tracer quel fournisseur a été utilisé pour chaque paiement et faciliter les remboursements/rapports",
+      "Parce que la base de données ne supporte pas les enums",
+      "Pour que l'utilisateur puisse modifier son moyen de paiement après la transaction"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Stocker la méthode de paiement permet d'auditer la transaction, de savoir quel provider a été utilisé, et en cas de remboursement, de savoir quelle API appeler. Sans cette information, on ne saurait pas si le paiement a été fait via Stripe, PayPal ou un virement."
+  },
+  {
+    "questionText": "Quelle propriété de l'entité `Payment` est essentielle pour gérer le cycle de vie complet d'une transaction (confirmation, échec, remboursement) ?",
+    "options": [
+      "`customerEmail`",
+      "`status` (ex: pending, succeeded, failed, refunded)",
+      "`shippingAddress`",
+      "`couponCode`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Le champ `status` permet de suivre l'état de la transaction : `pending` (en attente de confirmation), `succeeded` (payé), `failed` (échec), `refunded` (remboursé). C'est indispensable pour la gestion des commandes et des webhooks."
+  },
+  {
+    "questionText": "Comment le service de paiement peut-il déterminer quelle stratégie concrète utiliser en fonction de la requête utilisateur ?",
+    "options": [
+      "En analysant l'adresse IP du client",
+      "En lisant le champ `paymentMethod` envoyé par le frontend dans la requête (ex: `{ method: 'paypal' }`)",
+      "En testant aléatoirement tous les fournisseurs jusqu'à trouver un qui fonctionne",
+      "En utilisant toujours Stripe par défaut"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Le frontend doit indiquer le moyen de paiement choisi par le client (carte, PayPal, etc.). Le contrôleur reçoit cette information (généralement dans le DTO) et l'utilise pour sélectionner la stratégie appropriée via une factory ou un dictionnaire `{ 'stripe': StripeStrategy, 'paypal': PayPalStrategy }`."
+  },
+  {
+    "questionText": "Quelle méthode est généralement utilisée par les stratégies de paiement pour créer une intention de paiement (ex: Stripe PaymentIntent, PayPal Order) ?",
+    "options": [
+      "`refund()`",
+      "`createPaymentIntent(amount, currency, metadata)`",
+      "`getPaymentStatus(id)`",
+      "`webhookHandler(req)`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La méthode `createPaymentIntent` (ou `createOrder` selon le provider) est celle qui initie le paiement. Elle retourne un `clientSecret` (Stripe) ou un `approvalUrl` (PayPal) pour que le frontend puisse rediriger l'utilisateur ou confirmer le paiement."
+  },
+  {
+    "questionText": "Pour gérer plusieurs providers, on peut utiliser un pattern Factory. Laquelle de ces implémentations est la plus flexible ?",
+    "options": [
+      "`if (method === 'stripe') return new StripeStrategy();` avec des `else if`",
+      "Un registre (Map) où les stratégies s'enregistrent dynamiquement via un décorateur `@RegisterStrategy('stripe')`",
+      "Un switch case avec 50 providers potentiels",
+      "Toujours appeler les deux providers en parallèle"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "L'utilisation d'un registre dynamique avec décorateur (ou inscription manuelle dans un module) permet d'ajouter de nouvelles stratégies sans modifier la factory. C'est l'implémentation la plus flexible et la plus conforme au principe Open/Closed. Les `if/else` ou `switch` nécessitent de modifier la factory à chaque ajout de provider."
+  },
+  {
+    "questionText": "Quel est le principal risque si on ne stocke pas le `paymentIntentId` dans l'entité `Payment` ?",
+    "options": [
+      "Impossible de savoir le montant payé",
+      "Impossible de contacter l'API du fournisseur pour vérifier le statut, rembourser ou capturer un paiement ultérieurement",
+      "Impossible d'afficher la date du paiement",
+      "La transaction sera plus lente"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Le `paymentIntentId` (Stripe) ou `orderId` (PayPal) est l'identifiant unique côté fournisseur. Sans lui, on ne peut pas interroger le fournisseur pour connaître le statut final (webhooks ratés), ni effectuer un remboursement partiel ou total, ni capturer un paiement autorisé. C'est une donnée critique pour l'intégrité des transactions."
+  }
+]

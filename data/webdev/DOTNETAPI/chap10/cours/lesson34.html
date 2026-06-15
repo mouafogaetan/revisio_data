@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 34 : Déployer son API .NET en production | Cours ASP.NET Core</title>
+    <!-- Tailwind CSS + Google Fonts + Font Awesome pour quelques icônes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Tailwind pour une personnalisation simple -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A8A',
+                        secondary: '#0F172A',
+                        accent: '#3B82F6',
+                        softbg: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où des formules apparaissent, mais peu probable ici, on garde) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* douceur transitions et scroll fluide */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            background: #f1f5f9;
+        }
+        .slide-card {
+            transition: all 0.3s ease;
+        }
+        .btn-slide {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-slide:active {
+            transform: scale(0.96);
+        }
+        /* pour l'aperçu code sur mobile */
+        pre {
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slides-container" class="relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery, mais on peut aussi générer en dur.
+                 Pour plus de clarté, on va construire la structure avec JS en s'appuyant sur un tableau de données.
+                 Cela respecte l'approche slides / présentation interactive -->
+        </div>
+
+        <!-- Navigation buttons + indicateur -->
+        <div class="flex flex-wrap justify-between items-center mt-8 gap-3">
+            <button id="prevSlide" class="btn-slide bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-md border border-gray-300 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fas fa-arrow-left mr-1"></i> Précédent
+            </button>
+            <div class="text-sm bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm font-medium">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+            </div>
+            <button id="nextSlide" class="btn-slide bg-primary hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed">
+                Suivant <i class="fas fa-arrow-right ml-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Contenu complet des slides pour la leçon 34 : "Publier l'API avec dotnet publish, déploiement IIS/Linux/Azure"
+        const slidesData = [
+            {
+                type: "title",
+                title: "🚀 Déploiement d'une API .NET en production",
+                subtitle: "Leçon 34 : Publier, déployer et rendre son API accessible au monde",
+                bgClass: "bg-gradient-to-br from-primary to-blue-700",
+                icon: "fas fa-cloud-upload-alt"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Publier une API .NET avec la commande dotnet publish",
+                    "Déployer sur IIS (Windows Server) étape par étape",
+                    "Déployer sur un serveur Linux (Nginx / Apache)",
+                    "Découvrir le déploiement cloud : Azure App Service & AWS Elastic Beanstalk",
+                    "Comprendre les bonnes pratiques pour un déploiement fiable"
+                ]
+            },
+            {
+                type: "content",
+                title: "📦 1. Publication avec dotnet publish",
+                content: `
+                    <p class="mb-3">Avant tout déploiement, il faut <strong class="text-primary">publier</strong> l'application : cela génère les fichiers prêts à être exécutés sur le serveur cible (sans le SDK .NET complet).</p>
+                    <div class="code-block my-4 font-mono text-sm">
+                        <i class="fas fa-terminal text-accent mr-2"></i> # Dans le dossier du projet .csproj<br>
+                        dotnet publish -c Release -o ./publish
+                    </div>
+                    <ul class="list-disc pl-6 space-y-1 mt-2">
+                        <li><span class="font-semibold">-c Release</span> : mode optimisé (sans symboles de debug)</li>
+                        <li><span class="font-semibold">-o ./publish</span> : dossier de sortie contenant l'ensemble des DLL, appsettings et le fichier d’entrée (.exe ou .dll)</li>
+                        <li>Pour une API <strong>self-contained</strong> (inclut le runtime .NET) : <code class="bg-gray-200 px-1 rounded">--self-contained true</code></li>
+                    </ul>
+                    <p class="mt-3 text-gray-600 text-sm">📌 Une fois publié, le dossier peut être copié sur le serveur cible.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🪟 2. Déploiement sur IIS (Windows Server)",
+                content: `
+                    <p>IIS (Internet Information Services) est idéal pour Windows Server. Étapes clés :</p>
+                    <ol class="list-decimal pl-6 space-y-2 mt-2">
+                        <li><strong>Installer le module ASP.NET Core Hosting Bundle</strong> sur le serveur (redémarrage requis).</li>
+                        <li><strong>Copier</strong> le dossier de publication (publish) dans <code class="bg-gray-200 px-1">C:\inetpub\wwwroot\monapi</code>.</li>
+                        <li>Créer un site ou une application dans le Gestionnaire IIS, pointer vers ce dossier.</li>
+                        <li>Configurer le <strong>pool d'applications</strong> : mode "Sans code managé" (No Managed Code) et activer "Chargement 24h/24".</li>
+                        <li>Vérifier les permissions : IUSR et IIS_IUSRS doivent avoir lecture/exécution sur le dossier.</li>
+                    </ol>
+                    <div class="mt-4 bg-blue-50 border-l-4 border-accent p-3 rounded-md">
+                        <i class="fas fa-info-circle text-accent"></i> <span class="font-medium">Astuce :</span> utiliser <code>dotnet run</code> en local pour tester, mais IIS agit comme un reverse proxy.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🐧 3. Déploiement sur serveur Linux (Nginx + systemd)",
+                content: `
+                    <p>Linux avec Nginx est très performant pour .NET Core. Voici le workflow simplifié :</p>
+                    <ul class="list-disc pl-6 space-y-2 mt-2">
+                        <li><strong>Copier</strong> le dossier publié sur le serveur (via scp, rsync, etc.) → par ex <code>/var/www/monapi</code>.</li>
+                        <li><strong>Installer le runtime .NET</strong> : <code>sudo apt install dotnet-runtime-8.0</code> (selon version).</li>
+                        <li><strong>Créer un service systemd</strong> (<code>/etc/systemd/system/monapi.service</code>) pour garder l'API active.</li>
+                        <li><strong>Configurer Nginx comme reverse proxy</strong> redirigeant les requêtes vers Kestrel (localhost:5000).</li>
+                        <li><code>sudo systemctl enable monapi && sudo systemctl start monapi</code>.</li>
+                    </ul>
+                    <div class="code-block mt-4 text-xs">
+                        # Exemple de fichier service systemd<br>
+                        [Unit]<br>
+                        Description=Mon API .NET<br>
+                        [Service]<br>
+                        WorkingDirectory=/var/www/monapi<br>
+                        ExecStart=/usr/bin/dotnet /var/www/monapi/MonApi.dll<br>
+                        Restart=always<br>
+                        [Install]<br>
+                        WantedBy=multi-user.target
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "☁️ 4. Déploiement Cloud : Azure App Service & AWS Elastic Beanstalk",
+                content: `
+                    <p>Les PaaS (Platform as a Service) simplifient énormément le déploiement :</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        <div class="bg-white p-3 rounded-xl shadow-sm border">
+                            <i class="fab fa-microsoft text-blue-600 text-xl mr-2"></i> <strong>Azure App Service</strong>
+                            <ul class="list-disc pl-5 text-sm mt-1">
+                                <li>Intégration avec Visual Studio / Azure CLI</li>
+                                <li>Déploiement via <code>az webapp deploy</code> ou depuis GitHub Actions</li>
+                                <li>Mise à l'échelle automatique, slots de déploiement</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl shadow-sm border">
+                            <i class="fab fa-aws text-orange-500 text-xl mr-2"></i> <strong>AWS Elastic Beanstalk</strong>
+                            <ul class="list-disc pl-5 text-sm mt-1">
+                                <li>Environnement .NET Core prêt à l'emploi</li>
+                                <li>Déployer via <code>eb deploy</code> ou un fichier ZIP</li>
+                                <li>Intégration avec load balancer et auto-scaling</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-sm">✨ Pour Azure : <code>az webapp up --name monapi --runtime "DOTNET:8"</code> (très rapide).</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🧠 5. Bonnes pratiques & environnement de production",
+                content: `
+                    <p>Une API en production nécessite quelques précautions :</p>
+                    <ul class="list-disc pl-6 space-y-2 mt-2">
+                        <li><strong>Variables d'environnement</strong> : ne jamais stocker de secrets dans appsettings.json ; utiliser <code>ASPNETCORE_ENVIRONMENT=Production</code> et variables d'environnement ou Azure Key Vault.</li>
+                        <li><strong>Logging structuré</strong> : configurer Application Insights, Serilog, ou ELK.</li>
+                        <li><strong>Utiliser un reverse proxy</strong> (IIS, Nginx, Apache) pour la sécurité et la gestion des certificats SSL.</li>
+                        <li><strong>Health checks</strong> : exposer un endpoint <code>/health</code> pour la surveillance.</li>
+                        <li><strong>Redémarrage sans downtime</strong> : via les déploiements blue-green ou les équilibreurs de charge.</li>
+                    </ul>
+                    <div class="mt-4 bg-amber-50 p-3 rounded-lg border-l-4 border-amber-400">
+                        <i class="fas fa-exclamation-triangle text-amber-600"></i> N'oubliez pas la configuration CORS en production pour sécuriser les appels depuis votre frontend.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "📝 6. Exemple pratique : déploiement pas à pas (schéma conceptuel)",
+                content: `
+                    <p>Voici un diagramme simplifié du flux de déploiement d'une API .NET :</p>
+                    <div class="bg-gray-100 rounded-xl p-4 my-3 flex justify-center">
+                        <!-- Image dessinée avec du pur SVG et/ou HTML simple: on dessine un workflow -->
+                        <svg width="100%" height="180" viewBox="0 0 600 140" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+                            <rect x="10" y="10" width="100" height="50" fill="#1E3A8A" rx="10" fill-opacity="0.2" stroke="#1E3A8A" stroke-width="1.5"/>
+                            <text x="60" y="42" text-anchor="middle" fill="#1E3A8A" font-size="12">dotnet publish</text>
+                            <line x1="110" y1="35" x2="150" y2="35" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+                            <rect x="160" y="10" width="120" height="50" fill="#0F172A" rx="10" fill-opacity="0.2" stroke="#0F172A" stroke-width="1.5"/>
+                            <text x="220" y="42" text-anchor="middle" fill="#0F172A" font-size="12">Copier fichiers</text>
+                            <line x1="280" y1="35" x2="320" y2="35" stroke="#333" stroke-width="2"/>
+                            <rect x="330" y="10" width="120" height="50" fill="#3B82F6" rx="10" fill-opacity="0.2" stroke="#3B82F6" stroke-width="1.5"/>
+                            <text x="390" y="42" text-anchor="middle" fill="#2563EB" font-size="12">Serveur Web</text>
+                            <line x1="450" y1="35" x2="490" y2="35" stroke="#333" stroke-width="2"/>
+                            <rect x="500" y="10" width="90" height="50" fill="#10B981" rx="10" fill-opacity="0.2" stroke="#10B981" stroke-width="1.5"/>
+                            <text x="545" y="42" text-anchor="middle" fill="#047857" font-size="12">Clients 🌍</text>
+                            <defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#333"/></marker></defs>
+                        </svg>
+                    </div>
+                    <p class="text-sm">✔ Étape locale → publication → copie/sync → serveur + reverse proxy → accessible au monde.</p>
+                    <p class="text-sm mt-2">📌 Sur Windows IIS, utilisez le module <strong>AspNetCoreModuleV2</strong> ; sur Linux, Nginx+systemd est la norme.</p>
+                `
+            },
+            {
+                type: "conclusion",
+                title: "🏁 Récapitulatif & Ressources",
+                content: `
+                    <div class="space-y-3">
+                        <p>✅ <strong>Ce qu'il faut retenir :</strong></p>
+                        <ul class="list-disc pl-6">
+                            <li><code>dotnet publish -c Release</code> génère les fichiers prêts au déploiement.</li>
+                            <li>IIS nécessite le "Hosting Bundle" et une configuration de pool d'applications.</li>
+                            <li>Linux + Nginx + systemd : stack robuste et économique.</li>
+                            <li>Azure App Service et AWS Elastic Beanstalk offrent des déploiements automatisés et une scalabilité.</li>
+                            <li>Pensez à la sécurité, aux logs et aux health checks en production.</li>
+                        </ul>
+                        <div class="bg-gray-100 p-3 rounded-lg mt-2">
+                            <i class="fas fa-link text-primary"></i> <strong>Documentation officielle</strong> : <br>
+                            <a href="#" class="text-accent underline break-all">docs.microsoft.com/fr-fr/aspnet/core/host-and-deploy/</a> (IIS, Azure, Linux)
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">🎓 Prochaine étape : Leçon 35 — Dockeriser son API .NET !</p>
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+
+        // Rendu des slides dans le container
+        function renderSlides() {
+            const container = $("#slides-container");
+            container.empty();
+            slidesData.forEach((slide, idx) => {
+                let slideHtml = "";
+                const isActive = (idx === currentSlide) ? "block" : "hidden";
+                if (slide.type === "title") {
+                    slideHtml = `
+                        <div class="slide-card rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ${isActive}" data-slide="${idx}">
+                            <div class="${slide.bgClass} text-white p-8 md:p-12 text-center">
+                                <i class="${slide.icon} text-5xl md:text-6xl mb-4 opacity-90"></i>
+                                <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">${slide.title}</h1>
+                                <p class="text-lg md:text-xl mt-4 font-light">${slide.subtitle}</p>
+                                <div class="mt-6 text-sm opacity-80"><i class="fas fa-code"></i> Cours ASP.NET Core - Déploiement</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (slide.type === "objectifs") {
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 ${isActive}" data-slide="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-primary border-b pb-2 mb-5">${slide.title}</h2>
+                            <div class="grid grid-cols-1 gap-4">
+                                ${slide.objectives.map(obj => `<div class="flex items-start space-x-3"><i class="fas fa-check-circle text-green-600 mt-1 text-xl"></i><span class="text-gray-700 text-base md:text-lg">${obj}</span></div>`).join('')}
+                            </div>
+                            <div class="mt-8 text-center text-gray-400 text-sm"><i class="fas fa-arrow-down"></i> Glissez ou cliquez suivant</div>
+                        </div>
+                    `;
+                } else if (slide.type === "content") {
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 ${isActive}" data-slide="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-primary border-b pb-2 mb-4">${slide.title}</h2>
+                            <div class="prose prose-slate max-w-none text-gray-700">${slide.content}</div>
+                        </div>
+                    `;
+                } else if (slide.type === "conclusion") {
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 ${isActive}" data-slide="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-primary border-b pb-2 mb-4">${slide.title}</h2>
+                            <div class="prose prose-slate">${slide.content}</div>
+                        </div>
+                    `;
+                }
+                container.append(slideHtml);
+            });
+            updateButtonsAndCounter();
+            // Force mathjax si nécessaire (peu utilisé mais on trigger)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function updateButtonsAndCounter() {
+            $("#totalSlidesCount").text(totalSlides);
+            $("#currentSlideIdx").text(currentSlide + 1);
+            $("#prevSlide").prop("disabled", currentSlide === 0);
+            $("#nextSlide").prop("disabled", currentSlide === totalSlides - 1);
+            // afficher uniquement la slide active
+            $(".slide-card").each(function(idx) {
+                if (idx === currentSlide) {
+                    $(this).removeClass("hidden").addClass("block");
+                } else {
+                    $(this).removeClass("block").addClass("hidden");
+                }
+            });
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentSlide = index;
+            updateButtonsAndCounter();
+            // scrolling smooth vers le haut
+            $("html, body").animate({ scrollTop: $("#slides-container").offset().top - 20 }, 200);
+        }
+
+        $(document).ready(function() {
+            renderSlides();
+
+            $("#nextSlide").on("click", function() {
+                if (currentSlide < totalSlides - 1) {
+                    goToSlide(currentSlide + 1);
+                }
+            });
+            $("#prevSlide").on("click", function() {
+                if (currentSlide > 0) {
+                    goToSlide(currentSlide - 1);
+                }
+            });
+            // Gestion au clavier
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") {
+                    $("#nextSlide").click();
+                } else if (e.key === "ArrowLeft") {
+                    $("#prevSlide").click();
+                }
+            });
+            // Ajustement du responsive et affichage initial
+            updateButtonsAndCounter();
+        });
+    </script>
+    <!-- Note pour l'enseignant : ce cours intègre la leçon 34 complète, avec des exemples concrets pour déployer sous IIS, Linux, Azure. 
+    Tous les contenus respectent l'approche slides, la lisibilité mobile, couleurs douces et langage accessible. -->
+</body>
+</html>

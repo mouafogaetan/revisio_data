@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 9 : Gestion des paquets npm | Node.js</title>
+  <!-- Tailwind CSS + Font Awesome (pour icônes légères) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (au cas où, pour formules éventuelles) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transition douce entre slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+    }
+    .slide-hidden {
+      display: none;
+      opacity: 0;
+    }
+    body {
+      background: #f8fafc;
+    }
+    /* Amélioration des boutons tactiles */
+    button, .nav-btn {
+      touch-action: manipulation;
+    }
+    /* personnalisation scrollbar discrète */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-slate-100">
+
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+    <!-- Carte principale qui contient toutes les slides -->
+    <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+      
+      <!-- En-tête fixe avec progression slide -->
+      <div class="bg-indigo-700 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-mono bg-indigo-800 px-2 py-1 rounded-md">📦 Leçon 9</span>
+          <span class="text-sm font-medium hidden sm:inline">npm · package-lock.json · versioning</span>
+        </div>
+        <div class="text-sm bg-indigo-800 px-3 py-1 rounded-full font-semibold">
+          <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+        </div>
+      </div>
+      
+      <!-- Zone dynamique des slides -->
+      <div id="slidesContainer" class="relative min-h-[550px] md:min-h-[600px] bg-white">
+        <!-- Les slides seront injectées ici par jQuery -->
+      </div>
+      
+      <!-- Navigation pied de page (boutons précédent/suivant) -->
+      <div class="bg-gray-50 px-5 py-4 border-t border-slate-200 flex justify-between items-center">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-5 rounded-xl shadow-sm border border-gray-300 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+          ← Précédent
+        </button>
+        <div class="text-xs text-gray-500 hidden md:block">
+          💡 Glisser ou cliquer sur les boutons
+        </div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-xl shadow-md transition flex items-center gap-1">
+          Suivant →
+        </button>
+      </div>
+    </div>
+    
+    <!-- petit pied de page pédagogique -->
+    <p class="text-center text-xs text-gray-500 mt-6">
+      Cours Node.js — Écosystème npm : installer, gérer, comprendre package.json & semver
+    </p>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // Données de la Leçon 9 (Basé sur le programme : lesson9)
+    // Titre : Installation de paquets, node_modules, package-lock.json, semver
+    // --------------------------------------------------------------
+    const lessonData = {
+      titreLecon: "📦 Gestion des dépendances avec npm",
+      sousTitre: "Installer, mettre à jour, comprendre package-lock.json et versioning sémantique",
+      objectifs: [
+        "Installer des paquets avec npm install (local vs global)",
+        "Comprendre le rôle de node_modules et du fichier package-lock.json",
+        "Mettre à jour et désinstaller des paquets efficacement"
+      ],
+      contenuSlides: [
+        {
+          type: "intro",
+          titre: "Bienvenue dans l'univers npm",
+          content: "<p class='text-lg text-gray-700'>npm (Node Package Manager) est le gestionnaire de paquets officiel de Node.js. Il permet d'installer, partager et gérer des bibliothèques tierces (Express, Mongoose, etc.) qui accélèrent le développement.</p><div class='mt-6 p-4 bg-indigo-50 rounded-xl border-l-8 border-indigo-500'><p class='font-semibold'>🎯 Pourquoi npm est essentiel ?</p><p class='text-sm mt-1'>• Évite de réinventer la roue<br>• Gère automatiquement les versions des dépendances<br>• Permet de partager facilement votre code via npm publish</p></div>"
+        },
+        {
+          type: "normal",
+          titre: "📥 npm install : installation locale vs globale",
+          content: "<p class='mb-3'><span class='font-bold'>Local (projet)</span> : <code class='bg-gray-100 px-2 py-0.5 rounded'>npm install &lt;package&gt;</code> → installe dans <code>node_modules/</code> et ajoute dans <code>dependencies</code> du package.json.</p><p class='mb-3'><span class='font-bold'>Globale (système)</span> : <code class='bg-gray-100 px-2 py-0.5 rounded'>npm install -g &lt;package&gt;</code> → accessible partout (ex: nodemon, pm2). Utile pour des outils CLI.</p><div class='bg-amber-50 p-3 rounded-lg text-amber-800 text-sm mt-2'>⚠️ Bonne pratique: privilégier les installations locales pour que chaque projet ait ses propres versions.</div><div class='mt-4 p-3 bg-gray-800 text-gray-100 rounded-md font-mono text-sm'>$ npm install express<br/>$ npm install -g nodemon</div>"
+        },
+        {
+          type: "normal",
+          titre: "🗂️ Comprendre node_modules et package-lock.json",
+          content: "<ul class='list-disc pl-5 space-y-2'><li><strong>node_modules/</strong> : dossier contenant TOUTES les dépendances (et sous-dépendances). Il peut être très lourd → on ne le versionne pas (gitignore).</li><li><strong>package-lock.json</strong> : enregistre l'arbre exact des versions installées (avec leurs checksums). Garantit que tous les développeurs aient la même arborescence.</li><li><code>npm ci</code> utilise package-lock.json pour une installation plus rapide et fiable en environnement CI/CD.</li></ul><div class='mt-4 p-2 border border-dashed border-gray-300 rounded bg-gray-50 text-sm'>📌 Astuce : Toujours versionner package-lock.json dans le dépôt Git pour éviter des surprises de versions.</div>"
+        },
+        {
+          type: "normal",
+          titre: "🔄 Mettre à jour & désinstaller des paquets",
+          content: "<p>🆙 <strong>Mettre à jour un paquet</strong> : <code class='bg-gray-100 px-1 rounded'>npm update &lt;package&gt;</code> → met à jour dans les limites des règles semver définies dans package.json.<br/>➡️ Pour forcer la dernière version : <code class='bg-gray-100 px-1 rounded'>npm install &lt;package&gt;@latest</code></p><p class='mt-3'>❌ <strong>Désinstaller</strong> : <code class='bg-gray-100 px-1 rounded'>npm uninstall &lt;package&gt;</code> supprime le paquet et met à jour package.json & lock-file.</p><div class='mt-4 flex flex-wrap gap-3 text-sm'><span class='bg-green-100 px-3 py-1 rounded-full'>✅ npm outdated → liste les paquets obsolètes</span><span class='bg-red-100 px-3 py-1 rounded-full'>⚠️ npm prune → supprime les paquets inutiles</span></div>"
+        },
+        {
+          type: "normal",
+          titre: "🏷️ Versioning sémantique (SemVer) — règles ^ et ~",
+          content: "<p>npm utilise SemVer : <strong>MAJEUR.MINEUR.PATCH</strong> (ex: 4.18.2)</p><ul class='mt-2 space-y-2'><li>🔴 <strong>^4.18.2</strong> : accepte toutes les versions compatibles avec l'API majeure 4 (>=4.18.2 <5.0.0) → mises à jour mineures & correctives.</li><li>🟡 <strong>~4.18.2</strong> : accepte uniquement les correctifs (>=4.18.2 <4.19.0) → plus restrictif.</li><li>🟢 Version exacte <strong>4.18.2</strong> : pas de mise à jour automatique.</li></ul><div class='bg-slate-100 p-3 rounded-lg mt-4'><code class='text-sm'>Ex: \"express\": \"^4.18.0\" → npm update installera la 4.19.x mais jamais la 5.x.x</code></div><p class='mt-3 text-sm italic'>💡 Dans package-lock.json, les versions exactes sont figées. Le versioning sémantique évite les breaking changes inattendus.</p>"
+        },
+        {
+          type: "normal",
+          titre: "📝 Exercice pratique",
+          content: "<div class='border-2 border-indigo-200 rounded-xl p-4 bg-indigo-50'><p class='font-bold'>🧪 À vous de jouer !</p><ol class='list-decimal pl-5 mt-2 space-y-2 text-sm'><li>Initialisez un projet : <code>npm init -y</code></li><li>Installez <code>lodash</code> en local</li><li>Observez <code>node_modules</code> et <code>package-lock.json</code></li><li>Installez une version spécifique : <code>npm install chalk@4.1.2</code></li><li>Mettez à jour <code>chalk</code> avec <code>npm update chalk</code></li><li>Désinstallez un paquet avec <code>npm uninstall lodash</code></li></ol><p class='mt-3 text-center text-indigo-700 text-sm'>✨ Ces gestes deviennent naturels au fil de la pratique.</p></div>"
+        },
+        {
+          type: "resume",
+          titre: "Récapitulatif de la leçon 9",
+          content: "<ul class='space-y-2 list-check'><li>✅ npm install --save (par défaut) : ajoute à dependencies.</li><li>✅ npm install -g : commandes globales.</li><li>✅ package-lock.json = photographie exacte des dépendances.</li><li>✅ Mettre à jour avec npm update ou réinstaller une version.</li><li>✅ SemVer : ^ (mineur/patch), ~ (patch uniquement).</li></ul><div class='mt-5 bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200'><p class='font-medium'>🎯 Prochaine étape : création de scripts npm (start, dev) et utilisation de nodemon (Leçon 10).</p></div>"
+        }
+      ]
+    };
+
+    // Construction des slides HTML
+    let slidesHtml = [];
+    let total = 0;
+
+    // 1) Slide titre + présentation leçon
+    slidesHtml.push(`
+      <div class="slide slide-active p-6 md:p-8">
+        <div class="flex flex-col justify-center min-h-[450px] md:min-h-[500px]">
+          <div class="mb-4 inline-flex items-center gap-2 text-indigo-600 font-semibold">
+            <span class="text-3xl">📦</span> <span>Node.js · npm</span>
+          </div>
+          <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-800 to-sky-700 bg-clip-text text-transparent">${lessonData.titreLecon}</h1>
+          <p class="text-gray-600 text-lg mt-3 border-l-4 border-indigo-400 pl-4">${lessonData.sousTitre}</p>
+          <div class="mt-8 flex flex-wrap gap-3 text-sm text-gray-500">
+            <span class="bg-gray-100 px-3 py-1 rounded-full">🟢 35 min de cours</span>
+            <span class="bg-gray-100 px-3 py-1 rounded-full">🧠 Pratique incluse</span>
+          </div>
+        </div>
+      </div>
+    `);
+    
+    // 2) Slide objectifs
+    let objList = lessonData.objectifs.map(obj => `<li class="flex gap-2 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>${obj}</span></li>`).join('');
+    slidesHtml.push(`
+      <div class="slide slide-hidden p-6 md:p-8">
+        <div class="min-h-[450px] md:min-h-[500px]">
+          <h2 class="text-2xl font-bold text-indigo-800 border-b-2 border-indigo-200 pb-2 inline-block">🎯 Objectifs pédagogiques</h2>
+          <ul class="mt-6 space-y-3 text-gray-700 text-lg">
+            ${objList}
+          </ul>
+          <div class="mt-8 bg-slate-50 p-4 rounded-lg text-center text-slate-600">
+            💡 Après cette leçon, vous saurez gérer les dépendances comme un pro !
+          </div>
+        </div>
+      </div>
+    `);
+    
+    // 3) Slides contenu générique
+    lessonData.contenuSlides.forEach(slide => {
+      let titleHtml = `<h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2 border-b border-indigo-100 pb-2 mb-5">${slide.titre}</h2>`;
+      let bgStyle = "";
+      if (slide.type === "resume") bgStyle = "bg-gradient-to-br from-indigo-50 to-white";
+      slidesHtml.push(`
+        <div class="slide slide-hidden p-6 md:p-8 ${bgStyle}">
+          <div class="min-h-[450px] md:min-h-[500px] overflow-y-auto pr-1">
+            ${titleHtml}
+            <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+              ${slide.content}
+            </div>
+          </div>
+        </div>
+      `);
+    });
+
+    // Slide final (complément bonus)
+    slidesHtml.push(`
+      <div class="slide slide-hidden p-6 md:p-8">
+        <div class="min-h-[450px] md:min-h-[500px] flex flex-col justify-center text-center">
+          <div class="text-6xl mb-4">🏁</div>
+          <h2 class="text-3xl font-bold text-gray-800">Bravo !</h2>
+          <p class="text-gray-600 mt-4 max-w-md mx-auto">Vous avez terminé la leçon 9 sur la gestion des paquets npm.</p>
+          <div class="mt-6 p-4 bg-indigo-50 rounded-xl inline-block mx-auto">
+            <p class="font-mono text-sm">npm est un outil puissant. Continuez à explorer ! 🚀</p>
+          </div>
+          <button id="restartQuizBtn" class="mt-8 mx-auto bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full text-sm transition">⟳ Revoir la leçon</button>
+        </div>
+      </div>
+    `);
+
+    // Injecter dans le DOM
+    const container = $("#slidesContainer");
+    container.html(slidesHtml.join(''));
+    
+    let currentIndex = 0;
+    const slides = $(".slide");
+    const totalSlidesCount = slides.length;
+    $("#totalSlides").text(totalSlidesCount);
+    
+    function updateSlideVisibility() {
+      slides.each(function(idx) {
+        if (idx === currentIndex) {
+          $(this).removeClass("slide-hidden").addClass("slide-active").css("display", "block");
+        } else {
+          $(this).addClass("slide-hidden").removeClass("slide-active").css("display", "none");
+        }
+      });
+      $("#slideCounter").text(currentIndex + 1);
+      // Gérer l'état des boutons prev/next
+      $("#prevSlide").prop("disabled", currentIndex === 0);
+      $("#nextSlide").prop("disabled", currentIndex === totalSlidesCount - 1);
+      // Scroll en haut pour meilleure UX (petite animation)
+      $('html, body').animate({ scrollTop: $("#slidesContainer").offset().top - 20 }, 100);
+    }
+    
+    // Navigation
+    $("#nextSlide").on("click", function() {
+      if (currentIndex < totalSlidesCount - 1) {
+        currentIndex++;
+        updateSlideVisibility();
+      }
+    });
+    $("#prevSlide").on("click", function() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlideVisibility();
+      }
+    });
+    
+    // Revoir la leçon (retour slide 0) depuis le dernier slide
+    $(document).on("click", "#restartQuizBtn", function() {
+      currentIndex = 0;
+      updateSlideVisibility();
+    });
+    
+    // Swipe tactile simplifié avec jQuery (pour mobiles)
+    let touchStartX = 0;
+    let touchEndX = 0;
+    $("#slidesContainer").on("touchstart", function(e) {
+      touchStartX = e.originalEvent.touches[0].clientX;
+    });
+    $("#slidesContainer").on("touchend", function(e) {
+      touchEndX = e.originalEvent.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          // swipe gauche -> next
+          if (currentIndex < totalSlidesCount - 1) currentIndex++;
+        } else {
+          // swipe droite -> prev
+          if (currentIndex > 0) currentIndex--;
+        }
+        updateSlideVisibility();
+      }
+    });
+    
+    // Support clavier (flèches)
+    $(document).on("keydown", function(e) {
+      if (e.key === "ArrowRight") {
+        if (currentIndex < totalSlidesCount - 1) currentIndex++;
+        updateSlideVisibility();
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft") {
+        if (currentIndex > 0) currentIndex--;
+        updateSlideVisibility();
+        e.preventDefault();
+      }
+    });
+    
+    // Initialisation
+    updateSlideVisibility();
+    
+    // Ajout d'un petit style personnalisé pour améliorer code et lisibilité
+    $("head").append(`
+      <style>
+        code {
+          background-color: #f1f5f9;
+          padding: 0.2rem 0.4rem;
+          border-radius: 0.375rem;
+          font-size: 0.9rem;
+          font-family: monospace;
+          color: #1e293b;
+        }
+        .list-check li::marker {
+          color: #4f46e5;
+        }
+        .prose p, .prose ul, .prose ol {
+          margin-bottom: 1rem;
+        }
+        .slide {
+          word-break: break-word;
+        }
+        @media (max-width: 640px) {
+          .slide {
+            padding: 1.25rem;
+          }
+          h2 {
+            font-size: 1.5rem;
+          }
+          button.nav-btn {
+            padding: 0.5rem 1rem;
+          }
+        }
+      </style>
+    `);
+  </script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+[
+  {
+    "intitule": "Identifier le rôle de @nestjs/config",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS, le module <code>@nestjs/config</code> est utilisé pour gérer les variables d'environnement.</p><p>Expliquez son rôle principal et citez deux avantages de son utilisation par rapport à la lecture directe de <code>process.env</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire le rôle de @nestjs/config et énumérer deux avantages.",
+        "niveau": "easy",
+        "reponse": "Le module @nestjs/config permet de centraliser et structurer la gestion des variables d'environnement.\nAvantages :\n1. Injection des variables via le service ConfigService\n2. Possibilité de validation des variables avec Joi\n3. Support natif des fichiers .env multiples (dev, staging, prod)\n4. Rechargement à chaud possible",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Créer et organiser les fichiers .env",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Pour une API e-commerce, on souhaite gérer trois environnements : <strong>développement</strong>, <strong>staging</strong> (pré-production) et <strong>production</strong>.</p><p>Donnez la liste des fichiers .env typiquement utilisés et expliquez brièvement leur rôle.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Lister les fichiers .env pour les trois environnements et expliquer leur utilité respective.",
+        "niveau": "easy",
+        "reponse": "- .env.development : utilisé en local, contient les variables de développement (base de données locale, debug activé)\n- .env.staging : environnement de test avant production, simule la production avec données anonymisées\n- .env.production : environnement réel, contient les vraies clés API, credentials sécurisés\n- .env (fichier par défaut) ou .env.example : sert de template/documentation",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer le module ConfigModule",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS, vous devez importer et configurer <code>ConfigModule</code> pour qu'il charge automatiquement le fichier <code>.env.development</code> lorsque l'application tourne en développement, et <code>.env.production</code> en production.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la configuration du ConfigModule dans le fichier app.module.ts permettant de charger le bon fichier selon NODE_ENV.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { Module } from '@nestjs/common';\nimport { ConfigModule } from '@nestjs/config';\n\n@Module({\n  imports: [\n    ConfigModule.forRoot({\n      envFilePath: process.env.NODE_ENV === 'production' \n        ? '.env.production' \n        : '.env.development',\n      isGlobal: true,\n    }),\n  ],\n})\nexport class AppModule {}\n```\nOn peut aussi utiliser un tableau pour charger plusieurs fichiers : `envFilePath: ['.env', '.env.local']`",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Valider les variables d'environnement avec Joi",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour sécuriser l'API e-commerce, on doit valider que toutes les variables d'environnement essentielles sont présentes et au bon format.</p><p>Variables attendues :</p><ul><li><code>PORT</code> : nombre entre 3000 et 9000</li><li><code>DB_HOST</code> : chaîne non vide</li><li><code>DB_PORT</code> : nombre entre 1 et 65535</li><li><code>JWT_SECRET</code> : chaîne d'au moins 32 caractères</li><li><code>NODE_ENV</code> : une des valeurs 'development', 'staging', 'production'</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le schéma de validation Joi correspondant et l'intégrer dans ConfigModule.forRoot().",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as Joi from 'joi';\n\nConfigModule.forRoot({\n  validationSchema: Joi.object({\n    PORT: Joi.number().min(3000).max(9000).default(3000),\n    DB_HOST: Joi.string().required(),\n    DB_PORT: Joi.number().min(1).max(65535).default(5432),\n    JWT_SECRET: Joi.string().min(32).required(),\n    NODE_ENV: Joi.string().valid('development', 'staging', 'production').default('development'),\n  }),\n})\n```\nLe `validationSchema` lance une erreur au démarrage si une variable requise est manquante ou invalide.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Injecter et utiliser ConfigService",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Une fois le <code>ConfigModule</code> configuré, on peut injecter <code>ConfigService</code> dans n'importe quel provider pour lire les variables.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un service `DatabaseConfigService` qui utilise `ConfigService` pour fournir les paramètres de connexion à la base de données (host, port, username, password, database).",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { Injectable } from '@nestjs/common';\nimport { ConfigService } from '@nestjs/config';\n\n@Injectable()\nexport class DatabaseConfigService {\n  constructor(private configService: ConfigService) {}\n\n  getHost(): string {\n    return this.configService.get<string>('DB_HOST');\n  }\n\n  getPort(): number {\n    return this.configService.get<number>('DB_PORT');\n  }\n\n  getUsername(): string {\n    return this.configService.get<string>('DB_USERNAME');\n  }\n\n  getPassword(): string {\n    return this.configService.get<string>('DB_PASSWORD');\n  }\n\n  getDatabase(): string {\n    return this.configService.get<string>('DB_NAME');\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Détecter une variable manquante",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous travaillez sur une API e-commerce pour une startup camerounaise. Au démarrage, l'application plante avec l'erreur : <code>ValidationError: \"STRIPE_SECRET_KEY\" is required</code>.</p><p>Le fichier <code>.env.production</code> existe mais la variable <code>STRIPE_SECRET_KEY</code> n'est pas définie.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la cause de l'erreur et proposer deux solutions pour l'éviter.",
+        "niveau": "medium",
+        "reponse": "La cause est l'absence de la variable `STRIPE_SECRET_KEY` dans le fichier `.env.production`, alors que le schéma de validation Joi l'exige comme `required()`.\n\nSolutions :\n1. Ajouter la variable manquante dans `.env.production` avec la bonne valeur\n2. Modifier le schéma Joi pour la rendre optionnelle (`.optional()`) si elle n'est pas indispensable au démarrage\n3. Fournir une valeur par défaut avec `.default('valeur_par_defaut')` si applicable",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sécuriser les clés API sensibles",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, vous devez intégrer Stripe et PayPal. Les clés secrètes (secret keys) ne doivent jamais être exposées dans le code ou les logs.</p><p>Le fichier <code>.env</code> contient :</p><pre><code>STRIPE_SECRET_KEY=sk_live_xxxxx\nPAYPAL_CLIENT_SECRET=xxxxxxxx</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer comment @nestjs/config et Joi aident à protéger ces clés. Proposer une règle Joi pour s'assurer que ces clés ne sont pas logguées.",
+        "niveau": "hard",
+        "reponse": "@nestjs/config charge les variables depuis .env et les rend accessibles via ConfigService, sans les exposer dans le code source. Joi peut valider leur présence sans les afficher.\n\nPour éviter le logging des clés, on peut :\n1. Ne jamais logger directement `process.env` ou `ConfigService` en entier\n2. Désactiver le logging des erreurs Joi détaillées en production\n3. Utiliser une validation personnalisée qui ne révèle pas les valeurs\n\n```typescript\nJoi.object({\n  STRIPE_SECRET_KEY: Joi.string().pattern(/^sk_(test|live)_/).required(),\n  PAYPAL_CLIENT_SECRET: Joi.string().min(16).required(),\n}).unknown(false)\n```\nLa validation vérifie le format sans afficher la valeur réelle.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer plusieurs environnements pour une équipe",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous êtes lead développeur d'une équipe de 5 personnes au Cameroun. Chaque développeur a sa propre base de données locale. Vous utilisez Git pour le versioning.</p><p>Problème : les fichiers <code>.env</code> avec les credentials locaux ne doivent pas être commités, mais chaque membre a besoin d'un fichier fonctionnel.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une stratégie de gestion des fichiers .env en équipe : nommage des fichiers, fichiers à versionner, fichiers à ignorer (.gitignore), variables par défaut.",
+        "niveau": "very hard",
+        "reponse": "Stratégie recommandée :\n\n1. **Versionner** : `.env.example` ou `.env.template` contenant toutes les variables nécessaires sans valeurs sensibles (ex: `DB_PASSWORD=changeme`)\n2. **Ignorer dans .gitignore** :\n   - `.env`\n   - `.env.local`\n   - `.env.development.local`\n   - `.env.test.local`\n   - `.env.production.local`\n3. **Chaque développeur** copie `.env.example` vers `.env.development` et y met ses propres credentials\n4. **ConfigModule** : charger plusieurs fichiers par ordre de priorité\n   ```typescript\n   envFilePath: ['.env.development.local', '.env.development', '.env']\n   ```\n5. **Documentation** : expliquer dans le README comment configurer son environnement\n\nCette approche permet à chacun d'avoir sa config sans conflit Git.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Utiliser les valeurs par défaut intelligemment",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour l'API e-commerce, certaines variables peuvent avoir des valeurs par défaut raisonnables :</p><ul><li><code>PORT</code> : 3000</li><li><code>DB_PORT</code> : 5432</li><li><code>RATE_LIMIT_TTL</code> : 60 (secondes)</li><li><code>RATE_LIMIT_MAX</code> : 100 (requêtes)</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le schéma Joi avec des valeurs par défaut pour ces variables. Expliquer l'intérêt de cette approche.",
+        "niveau": "medium",
+        "reponse": "```typescript\nJoi.object({\n  PORT: Joi.number().min(1000).max(9999).default(3000),\n  DB_PORT: Joi.number().min(1).max(65535).default(5432),\n  RATE_LIMIT_TTL: Joi.number().min(1).default(60),\n  RATE_LIMIT_MAX: Joi.number().min(1).default(100),\n})\n```\n\nIntérêt :\n- Réduit la configuration obligatoire : les développeurs n'ont pas à spécifier ces variables si les valeurs par défaut conviennent\n- Évite les erreurs \"variable manquante\" pour les paramètres non critiques\n- Permet de démarrer rapidement un projet sans fichier .env complet\n- La valeur par défaut est utilisée uniquement si la variable n'existe pas du tout",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Debugger les variables chargées",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>En développement, vous suspectez que le mauvais fichier <code>.env</code> est chargé car votre <code>DB_HOST</code> n'est pas celui attendu.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une méthode pour afficher (uniquement en développement) la liste des variables chargées et leur provenance, sans exposer les secrets en production.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// Dans le fichier de configuration ou app.module.ts\nif (process.env.NODE_ENV !== 'production') {\n  const configService = app.get(ConfigService);\n  console.log('📁 Variables chargées :');\n  console.log('- PORT:', configService.get('PORT'));\n  console.log('- DB_HOST:', configService.get('DB_HOST'));\n  console.log('- Fichier .env utilisé:', process.env.NODE_ENV === 'development' ? '.env.development' : '.env');\n}\n```\n\nAutre méthode : utiliser l'option `expandVariables` et logger les noms des variables sans leurs valeurs sensibles. On peut aussi créer une route admin (protégée) qui expose les noms des variables définies, mais pas leurs valeurs en production.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

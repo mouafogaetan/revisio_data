@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Évaluation Séquentielle - Node.js (Séquence 1) | Développement Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Chart.js pour les graphiques (statistiques de performance des serveurs) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- MathJax (formules techniques) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Style perso -->
+    <style>
+        /* Transition douce pour les sections */
+        .question-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge-points {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            font-weight: 600;
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+        }
+        input[type="text"], textarea, select {
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .quiz-option {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        .quiz-option.selected {
+            background-color: #eef2ff;
+            border-color: #4f46e5;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .quiz-option:hover:not(.disabled-opt) {
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .disabled-opt {
+            cursor: default;
+            opacity: 0.7;
+        }
+        .feedback-correct {
+            background-color: #dcfce7;
+            border-left: 4px solid #16a34a;
+        }
+        .feedback-wrong {
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 font-sans antialiased pb-12">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        <!-- En-tête de l'épreuve -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-indigo-100 mb-6">
+            <div class="bg-indigo-800 px-6 py-5">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div>
+                        <span class="text-indigo-200 text-sm font-semibold tracking-wide">🚀 DÉVELOPPEMENT WEB | BACKEND AVEC NODE.JS</span>
+                        <h1 class="text-white text-2xl md:text-3xl font-bold mt-1">Évaluation Séquentielle – Séquence 1</h1>
+                        <p class="text-indigo-100 text-sm mt-1">Chapitre 1 : Écosystème Node.js, installation, modules & asynchrone</p>
+                    </div>
+                    <div class="bg-indigo-900 rounded-full px-4 py-2 text-white text-sm font-mono">
+                        ⏱️ Durée : 1h30 | 📋 Coef. 2
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-2 text-indigo-800">
+                    <span class="font-semibold">👨‍🏫 Enseignant :</span> 
+                    <span>M. NDE Thomas (Cameroun)</span>
+                </div>
+                <div class="flex items-center gap-2 text-indigo-800">
+                    <span class="font-semibold">📌 Barème :</span> 
+                    <span id="totalPointsSpan">0</span> / 60 points
+                </div>
+            </div>
+        </div>
+
+        <!-- Consignes générales -->
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl mb-8 text-amber-800 text-sm">
+            <p class="font-bold">📖 Consignes :</p>
+            <ul class="list-disc ml-5 mt-1 space-y-1">
+                <li>Répondez aux questions dans les champs prévus. Les réponses sont enregistrées localement (vous pouvez actualiser).</li>
+                <li>Pour les QCM, cliquez sur la bonne réponse. Une seule réponse par question.</li>
+                <li>Pour les exercices pratiques, écrivez directement le code ou la commande.</li>
+                <li>À la fin, cliquez sur "Soumettre l’épreuve" pour voir votre score et les corrections.</li>
+                <li>Bonne chance ! 📈</li>
+            </ul>
+        </div>
+
+        <!-- Conteneur des questions généré dynamiquement avec jQuery -->
+        <div id="questionsContainer" class="space-y-6"></div>
+
+        <!-- Actions & Résultats -->
+        <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <button id="submitExam" class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 px-8 rounded-xl shadow-md transition transform hover:scale-105 w-full sm:w-auto">
+                ✅ Soumettre l’épreuve
+            </button>
+            <button id="resetExam" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-6 rounded-xl transition w-full sm:w-auto">
+                🔄 Réinitialiser mes réponses
+            </button>
+        </div>
+
+        <!-- Zone d'affichage du résultat final -->
+        <div id="resultZone" class="mt-8 hidden p-5 rounded-xl bg-white border shadow-md"></div>
+
+        <!-- Graphique de performance (exemple: comparatif de performance serveur Node.js) -->
+        <div class="mt-12 bg-white rounded-xl shadow-md p-5 border border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><span class="text-indigo-600">📊</span> Analyse des performances : modèle asynchrone vs synchrone</h3>
+            <p class="text-sm text-gray-500 mb-3">Temps de réponse moyen (ms) pour 1000 requêtes simultanées – Simulation pédagogique</p>
+            <canvas id="perfChart" width="400" height="200" style="max-height: 260px; width:100%"></canvas>
+            <p class="text-xs text-center text-gray-400 mt-3">Source : données simulées (environnement Node.js avec event loop)</p>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // --------------------------------------------------------------
+            // STRUCTURE DES QUESTIONS (Séquence 1)
+            // Corresponde au programme: Node.js, installation, modules, event loop
+            // --------------------------------------------------------------
+            const questionsData = [
+                {   // Q1 - QCM
+                    id: "q1",
+                    type: "qcm",
+                    text: "❓ 1. Node.js est principalement :",
+                    points: 4,
+                    options: [
+                        "Un framework front-end JavaScript",
+                        "Un environnement d’exécution JavaScript côté serveur basé sur V8",
+                        "Une base de données NoSQL",
+                        "Un gestionnaire de paquets"
+                    ],
+                    correct: 1, // index 1
+                    userAnswer: null
+                },
+                {
+                    id: "q2",
+                    type: "qcm",
+                    text: "❓ 2. Dans Node.js, quel module permet de créer un serveur HTTP basique ?",
+                    points: 4,
+                    options: ["fs", "path", "http", "events"],
+                    correct: 2,
+                    userAnswer: null
+                },
+                {
+                    id: "q3",
+                    type: "text",
+                    text: "💻 3. Écrivez la commande npm permettant d’initialiser un fichier package.json de manière interactive.",
+                    points: 5,
+                    correctAnswer: "npm init",
+                    userAnswer: "",
+                    placeholder: "ex: npm init"
+                },
+                {
+                    id: "q4",
+                    type: "text",
+                    text: "📦 4. Complétez le code CommonJS suivant pour exporter une fonction 'addition' :<br><div class='code-block mt-2'>// math.js<br>function addition(a,b) { return a+b; }<br>______.exports = addition;</div>",
+                    points: 5,
+                    correctAnswer: "module",
+                    userAnswer: "",
+                    placeholder: "mot-clé manquant"
+                },
+                {
+                    id: "q5",
+                    type: "text",
+                    text: "⚙️ 5. Écrire la ligne de code pour importer le module 'fs' en utilisant require() dans un fichier Node.js.",
+                    points: 4,
+                    correctAnswer: "const fs = require('fs');",
+                    userAnswer: "",
+                    placeholder: "ex: const fs = require('fs');"
+                },
+                {
+                    id: "q6",
+                    type: "qcm",
+                    text: "❓ 6. Que signifie l’expression « asynchrone non-bloquante » dans Node.js ?",
+                    points: 5,
+                    options: [
+                        "Les opérations s'exécutent en parallèle grâce au multithreading",
+                        "Les opérations lentes (I/O) n'arrêtent pas l'exécution du programme principal",
+                        "Node.js bloque toutes les requêtes jusqu'à la fin des opérations",
+                        "Les callbacks sont interdits"
+                    ],
+                    correct: 1,
+                    userAnswer: null
+                },
+                {
+                    id: "q7",
+                    type: "code",
+                    text: "🐍 7. Vous devez lire un fichier 'data.txt' de façon asynchrone. Écrivez le code Node.js avec le module 'fs' (version callback ou promises au choix).",
+                    points: 8,
+                    userAnswer: "",
+                    placeholder: "Écrivez votre code ici...",
+                    correctKeywords: ["require('fs')", "readFile", "data.txt"] // évaluation approximative
+                },
+                {
+                    id: "q8",
+                    type: "qcm",
+                    text: "❓ 8. Quel est le rôle de l'Event Loop ?",
+                    points: 5,
+                    options: [
+                        "Exécuter le code JavaScript de manière synchrone uniquement",
+                        "Gérer les opérations asynchrones et les files d'attente",
+                        "Compiler le code en bytecode",
+                        "Gérer les connexions TCP"
+                    ],
+                    correct: 1,
+                    userAnswer: null
+                },
+                {
+                    id: "q9",
+                    type: "text",
+                    text: "📁 9. Quelle est l'extension de fichier utilisée pour activer les ES Modules sans modifier le package.json ?",
+                    points: 5,
+                    correctAnswer: ".mjs",
+                    userAnswer: "",
+                    placeholder: "ex: .mjs"
+                },
+                {
+                    id: "q10",
+                    type: "text",
+                    text: "🔧 10. Quelle variable globale donne accès aux arguments de la ligne de commande ?",
+                    points: 5,
+                    correctAnswer: "process.argv",
+                    userAnswer: "",
+                    placeholder: "process.argv"
+                }
+            ];
+
+            let totalPoints = 0;
+            let userResponses = {};
+
+            // Charger depuis localStorage
+            function loadResponsesFromStorage() {
+                const saved = localStorage.getItem("node_seq1_responses");
+                if(saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        for(let q of questionsData) {
+                            if(parsed[q.id] !== undefined) {
+                                q.userAnswer = parsed[q.id];
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // Sauvegarder dans localStorage
+            function saveResponses() {
+                const toStore = {};
+                questionsData.forEach(q => { toStore[q.id] = q.userAnswer; });
+                localStorage.setItem("node_seq1_responses", JSON.stringify(toStore));
+            }
+
+            // Rendu des questions dans le DOM
+            function renderQuestions() {
+                const container = $("#questionsContainer");
+                container.empty();
+                questionsData.forEach((q, idx) => {
+                    let cardHtml = `<div class="question-card bg-white rounded-xl shadow-md p-5 border border-gray-200" data-id="${q.id}">
+                                    <div class="flex justify-between items-start mb-3 flex-wrap gap-2">
+                                        <h3 class="font-bold text-indigo-800 text-lg">Question ${idx+1}</h3>
+                                        <span class="badge-points">${q.points} pts</span>
+                                    </div>
+                                    <div class="text-gray-800 mb-4 leading-relaxed">${q.text}</div>`;
+                    if(q.type === "qcm") {
+                        cardHtml += `<div class="qcm-options mt-2 space-y-2" data-qid="${q.id}">`;
+                        q.options.forEach((opt, optIdx) => {
+                            let isSelected = (q.userAnswer !== null && q.userAnswer !== undefined && q.userAnswer == optIdx);
+                            let selectedClass = isSelected ? "selected" : "";
+                            cardHtml += `<div class="quiz-option ${selectedClass}" data-opt-index="${optIdx}">
+                                            <span class="inline-block w-6 font-bold">${String.fromCharCode(65+optIdx)}.</span> ${opt}
+                                        </div>`;
+                        });
+                        cardHtml += `</div><input type="hidden" class="qcm-hidden" value="${q.userAnswer !== null ? q.userAnswer : ''}">`;
+                    } 
+                    else if(q.type === "text") {
+                        cardHtml += `<textarea class="text-answer mt-2" rows="2" placeholder="${q.placeholder || 'Votre réponse'}">${q.userAnswer || ''}</textarea>`;
+                    }
+                    else if(q.type === "code") {
+                        cardHtml += `<textarea class="code-answer font-mono text-sm mt-2" rows="5" placeholder="${q.placeholder || 'Écrivez votre code Node.js'}">${q.userAnswer || ''}</textarea>`;
+                    }
+                    cardHtml += `</div>`;
+                    container.append(cardHtml);
+                });
+
+                // Événements QCM
+                $(".quiz-option").on("click", function(e) {
+                    if($(this).hasClass("disabled-opt")) return;
+                    const parentDiv = $(this).closest(".question-card");
+                    const qid = parentDiv.data("id");
+                    const selectedIdx = parseInt($(this).data("opt-index"));
+                    const question = questionsData.find(q => q.id === qid);
+                    if(question) {
+                        question.userAnswer = selectedIdx;
+                        saveResponses();
+                        // Mettre à jour l'affichage
+                        parentDiv.find(".quiz-option").removeClass("selected");
+                        $(this).addClass("selected");
+                        parentDiv.find(".qcm-hidden").val(selectedIdx);
+                    }
+                });
+
+                // Événements inputs text / code
+                $(".text-answer, .code-answer").on("input", function() {
+                    const parentCard = $(this).closest(".question-card");
+                    const qid = parentCard.data("id");
+                    const question = questionsData.find(q => q.id === qid);
+                    if(question) {
+                        question.userAnswer = $(this).val();
+                        saveResponses();
+                    }
+                });
+            }
+
+            // CORRECTION
+            function evaluateExam() {
+                let score = 0;
+                const detailedFeedback = [];
+                for(let q of questionsData) {
+                    let isCorrect = false;
+                    let pointsEarned = 0;
+                    if(q.type === "qcm") {
+                        if(q.userAnswer !== null && q.userAnswer !== undefined && q.userAnswer == q.correct) {
+                            isCorrect = true;
+                            pointsEarned = q.points;
+                        } else {
+                            pointsEarned = 0;
+                        }
+                    } 
+                    else if(q.type === "text") {
+                        let userResp = (q.userAnswer || "").trim().toLowerCase().replace(/\s+/g, ' ');
+                        let expected = q.correctAnswer.toLowerCase().trim();
+                        if(userResp === expected) {
+                            isCorrect = true;
+                            pointsEarned = q.points;
+                        } else {
+                            pointsEarned = 0;
+                        }
+                    }
+                    else if(q.type === "code") {
+                        let code = (q.userAnswer || "").toLowerCase();
+                        // Vérification clés pour la question readFile
+                        let hasFs = code.includes("require('fs')") || code.includes('require("fs")');
+                        let hasReadFile = code.includes("readfile");
+                        let hasDataTxt = code.includes("data.txt");
+                        if(hasFs && hasReadFile && hasDataTxt) {
+                            isCorrect = true;
+                            pointsEarned = q.points;
+                        } else {
+                            pointsEarned = 0;
+                        }
+                    }
+
+                    score += pointsEarned;
+                    detailedFeedback.push({
+                        id: q.id,
+                        correct: isCorrect,
+                        earned: pointsEarned,
+                        max: q.points,
+                        expectedAnswer: q.type === "qcm" ? q.options[q.correct] : (q.correctAnswer || "voir code requis")
+                    });
+                }
+                return { score, detailedFeedback };
+            }
+
+            // Afficher résultat final
+            function displayResult() {
+                const { score, detailedFeedback } = evaluateExam();
+                totalPoints = score;
+                $("#totalPointsSpan").text(totalPoints);
+                const maxPossible = questionsData.reduce((acc, q) => acc + q.points, 0);
+                const percent = Math.round((totalPoints / maxPossible) * 100);
+                let mention = "";
+                if(percent >= 80) mention = "🌟 Excellent ! Solides compétences Node.js";
+                else if(percent >= 60) mention = "👍 Bien, révisez certains concepts asynchrones.";
+                else if(percent >= 40) mention = "📘 Peut mieux faire. Revoyez les modules et l'installation.";
+                else mention = "📚 Revoir le cours : écosystème Node.js et modules essentiels.";
+
+                let html = `<h2 class="text-xl font-bold mb-3">📝 Résultat de l'évaluation</h2>
+                           <p class="text-2xl font-bold">${totalPoints} / ${maxPossible} points (${percent}%)</p>
+                           <p class="mt-2 p-2 rounded-lg ${percent>=60 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${mention}</p>
+                           <div class="mt-4 max-h-96 overflow-y-auto text-sm border-t pt-3">`;
+                for(let i=0; i<questionsData.length; i++) {
+                    const fb = detailedFeedback[i];
+                    const qText = questionsData[i].text.substring(0, 80);
+                    const statusIcon = fb.correct ? "✅" : "❌";
+                    const bgClass = fb.correct ? "feedback-correct" : "feedback-wrong";
+                    html += `<div class="p-2 my-2 rounded ${bgClass}">
+                                <div><strong>Question ${i+1}:</strong> ${statusIcon} ${qText}... (${fb.earned}/${fb.max} pts)</div>
+                                ${!fb.correct ? `<div class="text-xs mt-1 text-gray-600">✔️ Réponse attendue : ${fb.expectedAnswer}</div>` : ''}
+                            </div>`;
+                }
+                html += `</div><button id="closeResultBtn" class="mt-4 bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg">Fermer</button>`;
+                $("#resultZone").html(html).removeClass("hidden");
+                $("#closeResultBtn").on("click", function() {
+                    $("#resultZone").addClass("hidden");
+                });
+                // Scroll vers résultat
+                $('html, body').animate({ scrollTop: $("#resultZone").offset().top - 20 }, 400);
+            }
+
+            // Réinitialiser toutes les réponses
+            function resetExam() {
+                if(confirm("Réinitialiser toutes vos réponses ? Les données seront effacées définitivement.")) {
+                    localStorage.removeItem("node_seq1_responses");
+                    questionsData.forEach(q => {
+                        q.userAnswer = (q.type === "qcm") ? null : "";
+                    });
+                    renderQuestions();
+                    $("#totalPointsSpan").text("0");
+                    $("#resultZone").addClass("hidden");
+                    alert("✅ Réponses réinitialisées.");
+                }
+            }
+
+            // Initialisation + graphique Chart.js
+            function initChart() {
+                const ctx = document.getElementById('perfChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Modèle Synchrone (bloquant)', 'Node.js Asynchrone (Non-bloquant)'],
+                        datasets: [{
+                            label: 'Temps moyen (ms) pour 1000 requêtes',
+                            data: [2450, 340],
+                            backgroundColor: ['#f97316', '#3b82f6'],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { callbacks: { label: (ctx) => `${ctx.raw} ms` } }
+                        }
+                    }
+                });
+            }
+
+            // Soumission
+            $("#submitExam").on("click", function() {
+                displayResult();
+            });
+            $("#resetExam").on("click", resetExam);
+
+            // Chargement
+            loadResponsesFromStorage();
+            renderQuestions();
+            initChart();
+
+            // Mettre à jour l'affichage du total pendant la saisie sans forcer
+            function updateTotalDisplay() {
+                const { score } = evaluateExam();
+                $("#totalPointsSpan").text(score);
+            }
+            // mise à jour périodique simple
+            setInterval(() => {
+                const { score } = evaluateExam();
+                $("#totalPointsSpan").text(score);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

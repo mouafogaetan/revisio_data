@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 27 : Déploiement continu & Livraison continue | Génie Logiciel</title>
+    <!-- Tailwind CSS + Google Fonts pour lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin, mais optionnel ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisation légère pour renforcer accessibilité + slides fluides */
+        body {
+            background: #f4f7fc;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        /* transitions douces entre slides */
+        .slide-container {
+            transition: all 0.3s ease-in-out;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* petite aide pour les dessins SVG inline (simples) */
+        .simple-svg svg {
+            max-width: 100%;
+            height: auto;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- en-tête de contexte (matière / classe) -->
+        <div class="text-sm text-gray-600 mb-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+                📘 <span class="font-semibold">Développement Web</span> · Initiation au Génie logiciel
+            </div>
+            <div class="bg-indigo-100 text-indigo-800 rounded-full px-3 py-1 text-xs font-medium">
+                Chapitre 7 : Outils versioning & CI/CD
+            </div>
+        </div>
+
+        <!-- Conteneur principal slide -->
+        <div id="slidesWrapper" class="relative">
+            <!-- slides ajoutés dynamiquement par jQuery -->
+            <div id="slidesContainer" class="slide-container"></div>
+
+            <!-- Navigation flèches + pagination -->
+            <div class="flex justify-between items-center mt-6 gap-3">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-md flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsPagination"></div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    Suivant →
+                </button>
+            </div>
+            <!-- barre de progression -->
+            <div class="mt-5 bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressBar" class="progress-bar bg-indigo-500 h-full rounded-full" style="width: 0%;"></div>
+            </div>
+            <!-- petit compteur -->
+            <div class="text-center text-xs text-gray-500 mt-2" id="slideCounter"></div>
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu de la Lesson 27 : "Déploiement continu & Livraison continue"
+        // On structure les slides: 
+        // Slide 0 : Titre de la leçon
+        // Slide 1 : Objectifs pédagogiques (à partir des objectifs lesson27 du JSON)
+        // Slides 2...n : contenu détaillé expliquant notions clés (distinction CD/CI, automatisation, feature flags, etc.)
+        
+        const lessonData = {
+            title: "Déploiement continu et Livraison continue",
+            objectives: [
+                "Distinguer déploiement continu et livraison continue",
+                "Automatiser le déploiement vers des environnements (dev, staging, prod)",
+                "Utiliser les feature flags pour le déploiement sécurisé"
+            ],
+            contentSlides: [
+                {
+                    subtitle: "🎯 1. Rappel : Intégration continue (CI) vs Continu Delivery (CD)",
+                    paragraphs: [
+                        "L'intégration continue (CI) automatise la construction et les tests à chaque modification du code. La <strong>livraison continue (Continuous Delivery)</strong> va plus loin : après les tests, le logiciel est prêt à être déployé en production, mais le passage en production reste manuel (déclenché par une décision humaine).",
+                        "Le <strong>déploiement continu (Continuous Deployment)</strong> est l'étape ultime : chaque changement validé par les tests est automatiquement déployé en production sans intervention humaine."
+                    ],
+                    visualType: "comparison"
+                },
+                {
+                    subtitle: "⚙️ 2. Différence clé : Livraison continue vs Déploiement continu",
+                    paragraphs: [
+                        "✔️ <span class='font-semibold text-indigo-700'>Livraison continue (CD)</span> : Le pipeline livre automatiquement une version prête à être déployée (artefact déployable), mais un responsable clique sur 'déployer en production'. Idéal pour les entreprises régulées ou nécessitant validation métier.",
+                        "✔️ <span class='font-semibold text-emerald-700'>Déploiement continu</span> : Tout commit passé les tests unitaires, d'intégration et de bout en bout est automatiquement mis en production. Très utilisé par les startups et équipes matures (Netflix, Amazon, etc.).",
+                        "✔️ En résumé : La livraison continue = prêt à déployer ; le déploiement continu = déployé automatiquement."
+                    ],
+                    visualType: "simpleText"
+                },
+                {
+                    subtitle: "🏗️ 3. Environnements de déploiement (dev, staging, prod)",
+                    paragraphs: [
+                        "Pour automatiser le déploiement, on définit plusieurs environnements :",
+                        "🔹 <strong>Dev</strong> : environnement de développement, mises à jour fréquentes, validation initiale.",
+                        "🔹 <strong>Staging (pré-prod)</strong> : réplique de la production, tests finaux (performance, sécurité, recette).",
+                        "🔹 <strong>Production</strong> : environnement réel utilisé par les utilisateurs finaux.",
+                        "Un pipeline CI/CD typique : Build → Tests unitaires → Déploiement sur dev → Tests d'intégration → Déploiement sur staging → Tests acceptation → (optionnel) Déploiement sur prod."
+                    ],
+                    visualType: "pipeline"
+                },
+                {
+                    subtitle: "🚩 4. Feature flags : déploiement sécurisé",
+                    paragraphs: [
+                        "Les <strong>feature flags (ou toggles)</strong> permettent d'activer/désactiver une fonctionnalité sans redéployer le code. Utile pour :",
+                        "▪️ Tester en production avec un groupe restreint (canary release).",
+                        "▪️ Désactiver une fonctionnalité défaillante instantanément.",
+                        "▪️ Réaliser du A/B testing sans pression.",
+                        "Exemples d'outils : LaunchDarkly, ConfigCat, ou simple fichier de configuration."
+                    ],
+                    visualType: "toggle"
+                },
+                {
+                    subtitle: "🔁 5. Automatisation du pipeline CD (exemple workflow)",
+                    paragraphs: [
+                        "Un workflow typique (GitHub Actions, GitLab CI, Jenkins) :",
+                        "1. Déclenchement sur push sur la branche principale (main).",
+                        "2. Exécution des tests (unitaires, intégration).",
+                        "3. Construction de l'image Docker / artefact.",
+                        "4. Déploiement automatique sur l'environnement de staging.",
+                        "5. Lancement des tests end-to-end sur staging.",
+                        "6. Si succès → déploiement continu ou livraison manuelle vers prod (selon stratégie)."
+                    ],
+                    visualType: "diagram"
+                },
+                {
+                    subtitle: "🧪 6. Bonnes pratiques pour le déploiement continu",
+                    paragraphs: [
+                        "✅ <strong>Surveillance et monitoring</strong> : dashboards, alertes (Datadog, Prometheus).",
+                        "✅ <strong>Rollback automatisé</strong> : possibilité de revenir à la version précédente rapidement.",
+                        "✅ <strong>Tests canaries</strong> : déployer la version sur 1% des serveurs, observer, puis progressif.",
+                        "✅ <strong>Blue/Green deployment</strong> : deux environnements prod identiques, bascule instantanée.",
+                        "✅ <strong>Documentation et stratégie de feature flags</strong>."
+                    ]
+                },
+                {
+                    subtitle: "📦 7. Outillage courant pour CI/CD (liens avec le déploiement)",
+                    paragraphs: [
+                        "Outils d'automatisation : GitHub Actions, GitLab CI, Jenkins, CircleCI, Azure DevOps.",
+                        "Gestionnaires d'environnement : Docker, Kubernetes (pour orchestrer les déploiements).",
+                        "Pour les feature flags : LaunchDarkly, Flagsmith, ou toggles dans le code."
+                    ],
+                    visualType: "tools"
+                }
+            ]
+        };
+
+        // Construction des slides (structure HTML)
+        let slides = [];
+
+        // Slide 0 : TITRE
+        slides.push(`
+            <div class="slide p-6 md:p-8 mb-4" data-index="0">
+                <div class="flex flex-col justify-center min-h-[50vh] md:min-h-[55vh]">
+                    <div class="text-center">
+                        <div class="inline-block bg-indigo-100 text-indigo-700 rounded-full px-4 py-1 text-sm font-semibold mb-4">Lesson 27 · CI/CD avancé</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-4">${escapeHtml(lessonData.title)}</h1>
+                        <div class="w-20 h-1 bg-indigo-400 mx-auto my-4 rounded-full"></div>
+                        <p class="text-gray-600 text-lg max-w-xl mx-auto">Automatiser le déploiement, maîtriser les environnements et sécuriser les mises en production avec les feature flags.</p>
+                        <div class="mt-8 text-sm text-gray-500">⬇️ Glissez ou cliquez sur Suivant ⬇️</div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        // Slide 1 : Objectifs (basé sur les objectifs fournis)
+        let objHtml = `<div class="slide p-6 md:p-8 mb-4" data-index="1">
+            <div class="flex flex-col h-full">
+                <div class="flex items-center gap-2 text-indigo-600 font-semibold mb-4"><span class="text-2xl">🎯</span> Objectifs de la leçon</div>
+                <ul class="space-y-4 mt-2">`;
+        lessonData.objectives.forEach(obj => {
+            objHtml += `<li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> <span class="text-gray-700 text-base md:text-lg">${escapeHtml(obj)}</span></li>`;
+        });
+        objHtml += `</ul>
+                <div class="mt-6 p-4 bg-indigo-50 rounded-xl text-indigo-800 text-sm italic">À la fin de cette leçon, vous saurez mettre en place une stratégie de déploiement fiable.</div>
+            </div>
+        </div>`;
+        slides.push(objHtml);
+
+        // Slides de contenu : génération à partir de lessonData.contentSlides
+        lessonData.contentSlides.forEach((block, idx) => {
+            let extraVisual = "";
+            // dessins simples (SVG) pour certains types
+            if (block.visualType === "comparison") {
+                extraVisual = `
+                <div class="mt-6 bg-gray-50 p-4 rounded-xl border border-gray-200 simple-svg">
+                    <svg viewBox="0 0 500 180" class="w-full max-w-md mx-auto" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="10" y="20" width="140" height="60" rx="10" fill="#E0E7FF" stroke="#4F46E5" stroke-width="2"/>
+                        <text x="80" y="55" text-anchor="middle" fill="#1E293B" font-size="12">Intégration</text>
+                        <text x="80" y="70" text-anchor="middle" fill="#1E293B" font-size="12">Continue (CI)</text>
+                        <path d="M160 50 L200 50" stroke="#4F46E5" stroke-width="2" marker-end="url(#arrow)"/>
+                        <rect x="210" y="20" width="140" height="60" rx="10" fill="#D1FAE5" stroke="#10B981" stroke-width="2"/>
+                        <text x="280" y="55" text-anchor="middle" fill="#1E293B" font-size="12">Livraison</text>
+                        <text x="280" y="70" text-anchor="middle" fill="#1E293B" font-size="12">Continue (CD)</text>
+                        <path d="M360 50 L400 50" stroke="#10B981" stroke-width="2"/>
+                        <rect x="410" y="20" width="80" height="60" rx="10" fill="#FEE2E2" stroke="#EF4444" stroke-width="2"/>
+                        <text x="450" y="55" text-anchor="middle" fill="#1E293B" font-size="11">Déploiement</text>
+                        <text x="450" y="70" text-anchor="middle" fill="#1E293B" font-size="11">Continu</text>
+                        <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4F46E5"/></marker></defs>
+                    </svg>
+                    <p class="text-center text-xs text-gray-500 mt-2">Du code à la production : CI → Livraison continue → Déploiement continu</p>
+                </div>`;
+            } 
+            else if (block.visualType === "pipeline") {
+                extraVisual = `
+                <div class="mt-6 bg-white border border-indigo-100 rounded-2xl p-3 simple-svg">
+                    <svg viewBox="0 0 500 100" class="w-full" fill="none" stroke="#334155">
+                        <rect x="10" y="25" width="70" height="40" rx="8" fill="#C7D2FE" stroke="#4F46E5" stroke-width="1.5"/>
+                        <text x="45" y="49" text-anchor="middle" font-size="10" fill="#1E1B4B">Dev</text>
+                        <line x1="80" y1="45" x2="110" y2="45" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+                        <rect x="115" y="25" width="80" height="40" rx="8" fill="#A7F3D0" stroke="#10B981" stroke-width="1.5"/>
+                        <text x="155" y="49" text-anchor="middle" font-size="10">Staging</text>
+                        <line x1="195" y1="45" x2="225" y2="45" stroke="#475569" stroke-width="2" marker-end="url(#arrow2)"/>
+                        <rect x="230" y="25" width="90" height="40" rx="8" fill="#FDE68A" stroke="#F59E0B" stroke-width="1.5"/>
+                        <text x="275" y="49" text-anchor="middle" font-size="10">Prod (CD)</text>
+                        <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#334155"/></marker></defs>
+                    </svg>
+                    <p class="text-center text-xs text-gray-500">Pipeline typique: déploiement automatisé vers chaque environnement</p>
+                </div>`;
+            }
+            else if (block.visualType === "toggle") {
+                extraVisual = `
+                <div class="mt-5 bg-gradient-to-r from-indigo-50 to-slate-50 p-4 rounded-xl border border-indigo-200 text-center">
+                    <div class="flex justify-center gap-6 items-center flex-wrap">
+                        <div class="bg-white rounded-lg p-2 shadow-sm"><span class="font-mono">feature_flag = ON</span> 🟢 → nouvelle fonctionnalité active</div>
+                        <div class="bg-white rounded-lg p-2 shadow-sm"><span class="font-mono">feature_flag = OFF</span> 🔴 → fonctionnalité désactivée</div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3">🔁 <strong>Feature toggle</strong> : déployer du code inactif, l'activer sans redéploiement</p>
+                </div>`;
+            }
+            else if (block.visualType === "diagram") {
+                extraVisual = `<div class="mt-5 bg-gray-100 p-3 rounded-xl text-center border">
+                    <div class="flex flex-col items-center gap-1 text-sm font-mono text-indigo-800">
+                        <div class="bg-white rounded-md px-3 py-1 shadow w-fit">📦 Build & Test ✅</div>
+                        <span>⬇️</span>
+                        <div class="bg-white rounded-md px-3 py-1 shadow w-fit">🚀 Déploiement staging</div>
+                        <span>⬇️</span>
+                        <div class="bg-white rounded-md px-3 py-1 shadow w-fit">🧪 Tests E2E / non-régression</div>
+                        <span>⬇️</span>
+                        <div class="bg-white rounded-md px-3 py-1 shadow w-fit border-l-4 border-green-500">✅ Livraison continue / déclenchement manuel</div>
+                        <span class="text-green-600">OU → 🔁 Déploiement continu automatique</span>
+                    </div>
+                </div>`;
+            }
+            else if (block.visualType === "tools") {
+                extraVisual = `<div class="mt-5 flex flex-wrap gap-2 justify-center">
+                    <span class="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-xs">⚙️ GitHub Actions</span>
+                    <span class="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-xs">⚙️ GitLab CI</span>
+                    <span class="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-xs">⚙️ Jenkins</span>
+                    <span class="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-xs">🐳 Docker/K8s</span>
+                    <span class="bg-gray-200 text-gray-800 rounded-full px-3 py-1 text-xs">🚩 LaunchDarkly</span>
+                </div>`;
+            }
+
+            let paraHtml = "";
+            block.paragraphs.forEach(p => {
+                paraHtml += `<p class="text-gray-700 mb-3 leading-relaxed">${p}</p>`;
+            });
+
+            slides.push(`
+                <div class="slide p-6 md:p-8 mb-4" data-index="${slides.length}">
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-3 mb-5">${escapeHtml(block.subtitle)}</h2>
+                    <div class="space-y-3">
+                        ${paraHtml}
+                    </div>
+                    ${extraVisual ? extraVisual : ''}
+                    <div class="mt-5 text-xs text-gray-400 border-t pt-3">🔁 Concept clé pour passer à l'échelle</div>
+                </div>
+            `);
+        });
+
+        // Slide récapitulatif / vérification des acquis
+        slides.push(`
+            <div class="slide p-6 md:p-8 mb-4" data-index="${slides.length}">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4">📌 Points clés à retenir</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>La <strong>livraison continue</strong> produit un artefact prêt à déployer ; le <strong>déploiement continu</strong> déploie automatiquement en production.</li>
+                    <li>Environnements : Dev → Staging → Production, chaque étape automatisée.</li>
+                    <li>Les <strong>feature flags</strong> offrent un déploiement sécurisé : activer/désactiver sans redéploiement.</li>
+                    <li>Bonnes pratiques : monitoring, rollback, blue/green, canary.</li>
+                </ul>
+                <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800">
+                    💡 <span class="font-semibold">Question réflexe :</span> Quelle est la différence entre livraison continue et déploiement continu ?
+                </div>
+            </div>
+        `);
+
+        // Rendre les slides dans le conteneur
+        const $container = $("#slidesContainer");
+        slides.forEach(slideHtml => {
+            $container.append(slideHtml);
+        });
+
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+        
+        function updateUI() {
+            $(".slide").hide();
+            $(`.slide[data-index="${currentIndex}"]`).fadeIn(200);
+            // mise à jour des dots
+            let dotsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                dotsHtml += `<button class="dot w-2.5 h-2.5 rounded-full transition-all mx-1 ${i === currentIndex ? 'bg-indigo-600 w-6' : 'bg-gray-300 hover:bg-gray-400'}" data-slide="${i}"></button>`;
+            }
+            $("#dotsPagination").html(dotsHtml);
+            // barre progression
+            let percent = ((currentIndex + 1) / totalSlides) * 100;
+            $("#progressBar").css("width", `${percent}%`);
+            $("#slideCounter").text(`${currentIndex+1} / ${totalSlides}`);
+            // gestion désactivation boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+        }
+
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateUI();
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateUI();
+            }
+        }
+
+        // événements
+        $("#nextSlide").on("click", nextSlide);
+        $("#prevSlide").on("click", prevSlide);
+        $(document).on("click", ".dot", function() {
+            let idx = parseInt($(this).attr("data-slide"));
+            if (!isNaN(idx) && idx >=0 && idx < totalSlides) {
+                currentIndex = idx;
+                updateUI();
+            }
+        });
+
+        // navigation clavier droite/gauche (accessibilité)
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+
+        // initialisation
+        updateUI();
+
+        // fonction utilitaire pour éviter XSS
+        function escapeHtml(str) {
+            if (!str) return "";
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // petit ajustement pour les slides responsives : on lance également MathJax si besoin (aucune formule complexe requise)
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+    </script>
+</body>
+</html>

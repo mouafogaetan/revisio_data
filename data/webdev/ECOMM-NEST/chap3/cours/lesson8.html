@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 8 : Authentification JWT - Inscription, Hachage et Tokens</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f0ff 0%, #e9e4ff 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .slide-container { transition: transform 0.4s ease-in-out; }
+        .slide { min-width: 100%; box-sizing: border-box; scroll-snap-align: start; }
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slides-wrapper::-webkit-scrollbar { height: 6px; }
+        .slides-wrapper::-webkit-scrollbar-track { background: #d9c8ff; border-radius: 10px; }
+        .slides-wrapper::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 10px; }
+        .card-hover { transition: all 0.2s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15); }
+        .btn-nav:active { transform: scale(0.96); }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85em;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            background: #7c3aed;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .step {
+            background: white;
+            border-left: 4px solid #7c3aed;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-5xl mx-auto px-3 md:px-6 py-5 md:py-8">
+    <!-- Header progression -->
+    <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-5 sticky top-2 z-10 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="text-purple-700 font-bold text-lg">🔐 Authentification</span>
+            <span class="text-gray-500 text-sm">Lesson 8 - Chap 3</span>
+        </div>
+        <div class="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+            <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+        </div>
+    </div>
+
+    <!-- Slides wrapper -->
+    <div class="slides-wrapper relative flex overflow-x-auto rounded-2xl shadow-xl bg-white" id="slidesWrapper">
+        <div class="slide-container flex" id="slideContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="text-center space-y-5">
+                    <div class="inline-block bg-purple-100 text-purple-800 rounded-full px-5 py-1.5 text-sm font-semibold">🔐 Sécurisation des comptes</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent">Inscription, Hachage et JWT</h1>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">Valider les emails, hacher les mots de passe avec bcrypt, générer des tokens JWT</p>
+                    <div class="pt-6 flex justify-center gap-4 text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1">📧 <span>Validation email</span></span>
+                        <span class="flex items-center gap-1">🔒 <span>bcrypt</span></span>
+                        <span class="flex items-center gap-1">🎫 <span>JWT</span></span>
+                    </div>
+                    <div class="mt-8 animate-bounce text-purple-500 text-sm">👆 Glissez ou utilisez les boutons 👆</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-purple-500 pl-5 mb-8">🎯 Objectifs</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex gap-3 items-start"><span class="text-purple-500 text-xl">✔️</span> Implémenter l'inscription avec validation d'email</li>
+                        <li class="flex gap-3 items-start"><span class="text-purple-500 text-xl">✔️</span> Hacher les mots de passe avec <code class="text-sm">bcrypt</code></li>
+                        <li class="flex gap-3 items-start"><span class="text-purple-500 text-xl">✔️</span> Générer et valider les tokens <strong>JWT</strong> (access + refresh)</li>
+                        <li class="flex gap-3 items-start"><span class="text-purple-500 text-xl">✔️</span> Comprendre le flux complet d'authentification</li>
+                    </ul>
+                    <div class="mt-10 bg-purple-50 p-4 rounded-xl italic text-gray-700 border border-purple-200">
+                        💡 <strong>Pourquoi ?</strong> La sécurité des mots de passe et l'authentification par token sont essentielles pour toute application e-commerce.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : INSCRIPTION AVEC VALIDATION EMAIL -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Étape 1</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📝 Inscription et validation d'email</h2>
+                    <pre><code>// DTO d'inscription
+export class RegisterDto {
+  @IsEmail()
+  email: string;
+
+  @MinLength(8)
+  password: string;
+
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  lastName: string;
+}
+
+// Dans le service
+async register(registerDto: RegisterDto) {
+  // Vérifier si l'utilisateur existe déjà
+  const existingUser = await this.userRepository.findOne({
+    where: { email: registerDto.email }
+  });
+  if (existingUser) {
+    throw new ConflictException('Email déjà utilisé');
+  }
+
+  // Hachage du mot de passe (voir slide suivante)
+  const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+
+  // Création de l'utilisateur
+  const user = this.userRepository.create({
+    ...registerDto,
+    password: hashedPassword,
+  });
+
+  await this.userRepository.save(user);
+  
+  // Envoyer email de confirmation (Nodemailer)
+  await this.sendConfirmationEmail(user.email);
+  
+  return { message: 'Inscription réussie. Vérifiez votre email.' };
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : HACHAGE AVEC BCRYPT -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Étape 2</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔒 Hachage des mots de passe avec bcrypt</h2>
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <p class="font-mono text-sm">npm install bcrypt<br>npm install -D @types/bcrypt</p>
+                    </div>
+                    <pre><code>import * as bcrypt from 'bcrypt';
+
+// Hachage (salt rounds = 10)
+const saltRounds = 10;
+const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+// Comparaison lors de la connexion
+const isMatch = await bcrypt.compare(plainPassword, hashedPassword);
+if (!isMatch) {
+  throw new UnauthorizedException('Mot de passe incorrect');
+}</code></pre>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <div class="bg-green-50 p-3 rounded-lg">✅ <strong>Avantages</strong> : Hash salé, résistant aux attaques par force brute</div>
+                        <div class="bg-amber-50 p-3 rounded-lg">⚠️ <strong>Important</strong> : Ne jamais stocker les mots de passe en clair !</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : TOKENS JWT - ACCESS & REFRESH -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Étape 3</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🎫 Génération des tokens JWT</h2>
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <p class="font-mono text-sm">npm install @nestjs/jwt @nestjs/passport passport-jwt</p>
+                    </div>
+                    <pre><code>// auth.service.ts
+async login(user: User) {
+  const payload = { sub: user.id, email: user.email, roles: user.roles };
+  
+  return {
+    access_token: this.jwtService.sign(payload, {
+      expiresIn: '15m'  // Access token : 15 minutes
+    }),
+    refresh_token: this.jwtService.sign(payload, {
+      expiresIn: '7d'   // Refresh token : 7 jours
+    })
+  };
+}
+
+// Validation du token
+async validateToken(token: string) {
+  try {
+    return this.jwtService.verify(token);
+  } catch (error) {
+    throw new UnauthorizedException('Token invalide ou expiré');
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : SCHÉMA DU FLUX JWT -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Compréhension</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔄 Flux d'authentification JWT</h2>
+                    <div class="relative bg-gray-50 p-5 rounded-xl">
+                        <div class="space-y-4 text-sm">
+                            <div class="step p-3 rounded">1️⃣ <strong>Client</strong> → envoie email/mot de passe à <code>/auth/login</code></div>
+                            <div class="step p-3 rounded">2️⃣ <strong>Serveur</strong> → vérifie bcrypt + génère access_token + refresh_token</div>
+                            <div class="step p-3 rounded">3️⃣ <strong>Client</strong> → stocke les tokens (localStorage ou httpOnly cookie)</div>
+                            <div class="step p-3 rounded">4️⃣ <strong>Client</strong> → envoie access_token dans l'en-tête <code>Authorization: Bearer &lt;token&gt;</code></div>
+                            <div class="step p-3 rounded">5️⃣ <strong>Serveur</strong> → valide le token via JwtStrategy</div>
+                            <div class="step p-3 rounded">6️⃣ <strong>Refresh</strong> → si access_token expire, client utilise refresh_token pour obtenir un nouveau access_token</div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-lg mt-4 border-l-4 border-purple-500">
+                        📘 <strong>Bonnes pratiques</strong> : Stocker le refresh token en base de données pour pouvoir le révoquer.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : STRATÉGIE JWT NESTJS -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Implémentation NestJS</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">⚙️ JwtStrategy et Guards</h2>
+                    <pre><code>// jwt.strategy.ts
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(private configService: ConfigService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: configService.get('JWT_SECRET'),
+    });
+  }
+
+  async validate(payload: any) {
+    return { userId: payload.sub, email: payload.email, roles: payload.roles };
+  }
+}
+
+// Dans le contrôleur
+@UseGuards(JwtAuthGuard)
+@Get('profile')
+getProfile(@Req() req) {
+  return req.user;
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : TABLEAU RÉCAPITULATIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh] flex items-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">📋 Récapitulatif</h2>
+                    <div class="grid gap-4">
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-purple-700">1️⃣ Inscription</div>
+                            <p>Validation email, vérification unicité, hachage bcrypt</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-purple-700">2️⃣ Connexion</div>
+                            <p>Vérification bcrypt.compare, génération JWT (access + refresh)</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-purple-700">3️⃣ Protection des routes</div>
+                            <p>JwtAuthGuard, extraction du token depuis le header Bearer</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-purple-700">4️⃣ Refresh token</div>
+                            <p>Nouvel access_token sans reconnexion, stockage sécurisé</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXERCICE INTERACTIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-5">🧪 Exercice - Code à compléter</h2>
+                    <div class="bg-gray-50 p-5 rounded-2xl shadow-inner">
+                        <p class="font-medium">Complétez la méthode de connexion :</p>
+                        <pre id="codeEditor" contenteditable="true" class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm my-4 whitespace-pre-wrap outline-none" style="caret-color: white;">async login(loginDto: LoginDto) {
+  const user = await this.userRepository.findOne({
+    where: { email: loginDto.email }
+  });
+  
+  if (!user) {
+    throw new UnauthorizedException('Identifiants incorrects');
+  }
+  
+  // 1. Vérifier le mot de passe avec bcrypt
+  // 2. Générer access_token et refresh_token
+  // 3. Retourner les tokens
+  
+}</pre>
+                        <button id="checkAnswerBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-full btn-nav transition">✅ Vérifier</button>
+                        <div id="feedbackMsg" class="mt-4 text-sm hidden p-3 rounded-lg"></div>
+                        <div class="text-xs text-gray-400 mt-3">💡 Indices : bcrypt.compare(), jwtService.sign()</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm btn-nav disabled:opacity-40">← Précédent</button>
+        <div class="flex gap-2 overflow-x-auto pb-1" id="dotsContainer"></div>
+        <button id="nextBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-5 rounded-full shadow-sm btn-nav">Suivant →</button>
+    </div>
+    <div class="text-center text-gray-500 text-xs mt-6">
+        📘 Leçon 8 : Inscription, hachage bcrypt et tokens JWT - Chapitre 3 (Authentification)
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const $wrapper = $('.slides-wrapper');
+    let slides = $('.slide');
+    let totalSlides = slides.length;
+    let currentIndex = 0;
+    let isScrolling = false;
+
+    $('#totalSlides').text(totalSlides);
+    updateDots();
+
+    function updateDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            let activeClass = (i === currentIndex) ? 'bg-purple-600 w-8' : 'bg-gray-300 w-3';
+            dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('#currentSlide').text(currentIndex + 1);
+    }
+
+    function scrollToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= totalSlides) index = totalSlides - 1;
+        currentIndex = index;
+        const slideWidth = slides.first().outerWidth();
+        $wrapper.animate({ scrollLeft: slideWidth * currentIndex }, 300, 'swing');
+        updateDots();
+        $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+        $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+    }
+
+    $wrapper.on('scroll', function() {
+        if (!isScrolling) {
+            requestAnimationFrame(() => {
+                const scrollPos = $wrapper.scrollLeft();
+                const slideWidth = slides.first().outerWidth();
+                let newIndex = Math.round(scrollPos / slideWidth);
+                if (newIndex !== currentIndex && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    updateDots();
+                    $('#currentSlide').text(currentIndex + 1);
+                    $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+                    $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+                }
+                isScrolling = false;
+            });
+            isScrolling = true;
+        }
+    });
+
+    $('#nextBtn').click(() => { if (currentIndex < totalSlides - 1) scrollToSlide(currentIndex + 1); });
+    $('#prevBtn').click(() => { if (currentIndex > 0) scrollToSlide(currentIndex - 1); });
+    $(document).on('click', '.dot', function() { scrollToSlide($(this).data('index')); });
+
+    let resizeTimer;
+    $(window).on('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            let slideWidth = slides.first().outerWidth();
+            $wrapper.scrollLeft(slideWidth * currentIndex);
+        }, 100);
+    });
+
+    // Exercice interactif
+    $('#checkAnswerBtn').click(function() {
+        let userCode = $('#codeEditor').text();
+        let hasBcryptCompare = /bcrypt\.compare/.test(userCode);
+        let hasJwtSign = /jwtService\.sign/.test(userCode);
+        let $feedback = $('#feedbackMsg');
+        $feedback.removeClass('hidden');
+        
+        if (hasBcryptCompare && hasJwtSign) {
+            $feedback.removeClass('bg-red-100').addClass('bg-green-100 text-green-800');
+            $feedback.html('🎉 Excellent ! Vous avez bien utilisé bcrypt.compare() pour vérifier le mot de passe et jwtService.sign() pour générer les tokens.');
+        } else {
+            let missing = [];
+            if (!hasBcryptCompare) missing.push('bcrypt.compare() pour vérifier le mot de passe');
+            if (!hasJwtSign) missing.push('jwtService.sign() pour générer les tokens');
+            $feedback.removeClass('bg-green-100').addClass('bg-red-100 text-red-800');
+            $feedback.html(`❌ Il manque : ${missing.join(', ')}.<br>Révisez les slides sur bcrypt et JWT.`);
+        }
+    });
+
+    setTimeout(() => {
+        let slideWidth = slides.first().outerWidth();
+        $wrapper.scrollLeft(slideWidth * currentIndex);
+        $('#prevBtn').addClass('opacity-40');
+    }, 100);
+});
+</script>
+</body>
+</html>

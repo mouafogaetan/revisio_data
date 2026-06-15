@@ -1,0 +1,83 @@
+[
+  {
+    "intitule": "Validation et application des coupons de réduction",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce NestJS, vous devez implémenter la logique de validation et d'application des coupons de réduction. Voici l'entité <code>Coupon</code> :</p><pre><code>enum CouponType {\n  PERCENT = 'percent',  // réduction en pourcentage\n  FIXED = 'fixed'       // réduction montant fixe (FCFA)\n}\n\n@Entity()\nexport class Coupon {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @Column({ unique: true })\n  code: string;\n\n  @Column({ type: 'enum', enum: CouponType })\n  type: CouponType;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  value: number; // pourcentage (ex: 20) ou montant (ex: 5000)\n\n  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })\n  minAmount: number; // montant minimum d'achat\n\n  @Column({ type: 'timestamp' })\n  validFrom: Date;\n\n  @Column({ type: 'timestamp' })\n  validUntil: Date;\n\n  @Column({ default: 0 })\n  usageCount: number;\n\n  @Column({ nullable: true })\n  maxUses: number; // utilisation maximale totale\n\n  @Column({ default: true })\n  isActive: boolean;\n}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez la différence entre un coupon de type <code>PERCENT</code> et <code>FIXED</code>. Donnez un exemple concret pour chacun.",
+        "niveau": "easy",
+        "reponse": "Un coupon <code>PERCENT</code> applique une réduction en pourcentage sur le sous-total (ex: 20% de réduction). Un coupon <code>FIXED</code> applique une réduction d'un montant fixe en FCFA (ex: 5000 FCFA de réduction).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la méthode <code>validateCoupon(coupon: Coupon, cartTotal: number, currentDate: Date): { valid: boolean; message?: string }</code> qui vérifie :<br>- La période de validité<br>- Le montant minimum d'achat<br>- Le nombre maximal d'utilisations<br>- L'état actif du coupon",
+        "niveau": "medium",
+        "reponse": "```typescript\nfunction validateCoupon(\n  coupon: Coupon,\n  cartTotal: number,\n  currentDate: Date\n): { valid: boolean; message?: string } {\n  // Vérifier si le coupon est actif\n  if (!coupon.isActive) {\n    return { valid: false, message: 'Ce coupon n\\'est plus actif' };\n  }\n\n  // Vérifier la période de validité\n  if (currentDate < coupon.validFrom) {\n    return { valid: false, message: 'Ce coupon n\\'est pas encore valide' };\n  }\n  if (currentDate > coupon.validUntil) {\n    return { valid: false, message: 'Ce coupon a expiré' };\n  }\n\n  // Vérifier le montant minimum\n  if (coupon.minAmount && cartTotal < coupon.minAmount) {\n    return {\n      valid: false,\n      message: `Montant minimum requis : ${coupon.minAmount} FCFA`,\n    };\n  }\n\n  // Vérifier la limite d'utilisation\n  if (coupon.maxUses && coupon.usageCount >= coupon.maxUses) {\n    return { valid: false, message: 'Ce coupon a atteint sa limite d\\'utilisation' };\n  }\n\n  return { valid: true };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Implémentez la fonction <code>applyCoupon(coupon: Coupon, subtotal: number): number</code> qui retourne le montant après réduction. Gérez les cas particuliers (réduction qui dépasse le sous-total).",
+        "niveau": "medium",
+        "reponse": "```typescript\nfunction applyCoupon(coupon: Coupon, subtotal: number): number {\n  if (!coupon || !coupon.isActive) {\n    return subtotal;\n  }\n\n  let discount = 0;\n\n  if (coupon.type === CouponType.PERCENT) {\n    discount = subtotal * (coupon.value / 100);\n  } else if (coupon.type === CouponType.FIXED) {\n    discount = coupon.value;\n  }\n\n  // La réduction ne peut pas dépasser le sous-total\n  const finalDiscount = Math.min(discount, subtotal);\n\n  return subtotal - finalDiscount;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Campagne marketing : génération de coupons pour le Black Friday",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes développeur backend pour <strong>AfriShop</strong>, une plateforme e-commerce camerounaise. L'équipe marketing souhaite lancer une campagne pour le <strong>Black Friday</strong> avec les caractéristiques suivantes :</p><ul><li>Coupon <code>BLACKFRIDAY20</code> : 20% de réduction, valable du 25 au 30 novembre, montant minimum d'achat 20000 FCFA</li><li>Coupon <code>BLACKFRIDAY50</code> : 5000 FCFA de réduction, valable uniquement le 29 novembre, montant minimum 50000 FCFA</li><li>Coupon <code>BLACKFRIDAY100</code> : 10000 FCFA de réduction, valable uniquement pour les clients premium (ayant dépensé plus de 100000 FCFA sur l'année)</li><li>Coupon <code>FLASHMOB</code> : 15% de réduction, valable uniquement pour les 100 premiers utilisateurs (maxUses = 100)</li></ul>",
+      "images": [
+        "calendrier des offres Black Friday avec les dates de validité des coupons",
+        "schéma de la table Coupon avec les champs conditions spécifiques"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analysez les besoins pour chaque coupon et déterminez les attributs supplémentaires nécessaires dans l'entité <code>Coupon</code> pour gérer :<br>- Les clients premium (vérification des achats antérieurs)<br>- Les produits spécifiques (ex: réduction uniquement sur l'électronique)<br>- Un usage unique par utilisateur (<code>perUser</code>)",
+        "niveau": "hard",
+        "reponse": "Attributs supplémentaires à ajouter :\n\n```typescript\n@Entity()\nexport class Coupon {\n  // ... attributs existants\n\n  @Column({ default: false })\n  requiresPremium: boolean; // Réservé aux clients premium\n\n  @Column('simple-array', { nullable: true })\n  applicableProductIds: string[]; // IDs des produits concernés (null = tous)\n\n  @Column('simple-array', { nullable: true })\n  applicableCategoryIds: string[]; // IDs des catégories concernées\n\n  @Column({ nullable: true })\n  perUserLimit: number; // Nombre d'utilisations par utilisateur\n\n  @Column('json', { nullable: true })\n  usageByUser: Record<string, number>; // Stockage des utilisations par userId\n}\n```\n\nPour la gestion <code>perUser</code>, on peut aussi créer une table <code>CouponUsage</code> :\n```typescript\n@Entity()\nexport class CouponUsage {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @ManyToOne(() => Coupon)\n  coupon: Coupon;\n\n  @Column()\n  userId: string;\n\n  @Column({ type: 'timestamp' })\n  usedAt: Date;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  appliedAmount: number;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Créez une méthode <code>generateUniqueCoupons(campaignId: string, count: number, baseCoupon: Partial<Coupon>)</code> qui génère <code>count</code> coupons uniques pour une campagne emailing (chacun avec un code aléatoire).",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync generateUniqueCoupons(\n  campaignId: string,\n  count: number,\n  baseCoupon: Partial<Coupon>\n): Promise<Coupon[]> {\n  const coupons: Coupon[] = [];\n  const generatedCodes = new Set<string>();\n\n  for (let i = 0; i < count; i++) {\n    let code: string;\n    let isUnique = false;\n\n    while (!isUnique) {\n      // Générer un code aléatoire (ex: BF-ABCD-1234)\n      const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();\n      code = `${baseCoupon.prefix || 'PROMO'}-${randomPart}`;\n\n      if (!generatedCodes.has(code)) {\n        const existing = await this.couponRepository.findOne({\n          where: { code },\n        });\n        if (!existing) {\n          isUnique = true;\n          generatedCodes.add(code);\n        }\n      }\n    }\n\n    const coupon = this.couponRepository.create({\n      ...baseCoupon,\n      code,\n      campaignId,\n      usageCount: 0,\n      isActive: true,\n      validFrom: baseCoupon.validFrom || new Date(),\n      validUntil: baseCoupon.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 jours\n    });\n\n    coupons.push(coupon);\n  }\n\n  await this.couponRepository.save(coupons);\n  return coupons;\n}\n```\nOn peut aussi utiliser un job Bull pour générer de grands volumes de coupons en arrière-plan.",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Proposez un algorithme de génération de code plus robuste (8 caractères alphanumériques).",
+            "niveau": "easy",
+            "reponse": "```typescript\nfunction generateRandomCode(length: number = 8): string {\n  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';\n  let result = '';\n  for (let i = 0; i < length; i++) {\n    result += chars.charAt(Math.floor(Math.random() * chars.length));\n  }\n  return result;\n}\n```"
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Évaluez la performance d'une vérification de coupon avec des conditions complexes (minAmount, validité, premium, perUserLimit, spécificité produit). Proposez des optimisations (index, cache, pré-calcul).",
+        "niveau": "very hard",
+        "reponse": "<strong>Problèmes potentiels :</strong>\n- Vérification en base de données à chaque requête panier\n- Calcul des totaux d'achat antérieurs pour le statut premium\n- Vérification des produits spécifiques (jointure)\n\n<strong>Optimisations :</strong>\n\n1. <strong>Indexation SQL</strong> :\n```sql\nCREATE INDEX idx_coupon_code_active ON coupon(code, isActive);\nCREATE INDEX idx_coupon_validity ON coupon(validFrom, validUntil);\nCREATE INDEX idx_coupon_min_amount ON coupon(minAmount);\n```\n\n2. <strong>Cache Redis</strong> :\n```typescript\nasync validateCouponWithCache(code: string, userId: string, cartTotal: number) {\n  const cacheKey = `coupon:${code}:user:${userId}`;\n  const cached = await this.redis.get(cacheKey);\n  if (cached) return JSON.parse(cached);\n\n  const result = await this.validateCoupon(code, userId, cartTotal);\n  await this.redis.setex(cacheKey, 300, JSON.stringify(result)); // TTL 5 min\n  return result;\n}\n```\n\n3. <strong>Pré-calcul du statut premium</strong> :\n- Ajouter une colonne <code>isPremium</code> dans User, mise à jour périodiquement par cron job\n- Ou stocker le total dépensé dans une colonne <code>totalSpent</code>\n\n4. <strong>Dénormalisation</strong> pour les coupons produits :\n- Stocker les productIds applicables dans un champ JSON/indexé\n- Ou utiliser une table pivot avec index composite\n\n5. <strong>Limitation de la fréquence</strong> :\n- Ajouter un rate limiting sur l'endpoint de validation\n- Cache local (in-memory) pour les coupons très sollicités",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Concevez le flux complet d'application d'un coupon lors du checkout, de la validation initiale à la décrémentation du compteur d'utilisation après paiement réussi.",
+        "niveau": "hard",
+        "reponse": "<strong>Flux complet :</strong>\n\n1. <strong>Validation pré-checkout</strong> (côté client)\n   - Utilisateur saisit le code\n   - API <code>POST /cart/validate-coupon</code> vérifie la validité\n   - Retourne le montant après réduction (sans engagement)\n\n2. <strong>Temporisation</strong> (optionnel)\n   - On peut \"réserver\" le coupon pour éviter la double utilisation\n   - Stocker <code>pendingCouponId</code> dans la session/cart avec expiration (10 min)\n\n3. <strong>Validation finale au checkout</strong>\n   ```typescript\n   async applyCouponToOrder(orderId: string, couponCode: string) {\n     const order = await this.orderRepository.findOne(orderId);\n     const coupon = await this.couponRepository.findOne({ where: { code: couponCode } });\n\n     // Re-vérifier la validité (au moment du paiement)\n     const validation = await this.validateCoupon(coupon, order.subtotal, new Date());\n     if (!validation.valid) {\n       throw new BadRequestException(validation.message);\n     }\n\n     // Appliquer la réduction\n     const discountedTotal = this.applyCoupon(coupon, order.subtotal);\n\n     // Démarrer une transaction\n     const queryRunner = this.dataSource.createQueryRunner();\n     await queryRunner.startTransaction();\n\n     try {\n       // Décrémenter le compteur d'utilisation\n       await queryRunner.manager.increment(Coupon, { id: coupon.id }, 'usageCount', 1);\n\n       // Enregistrer l'utilisation (table CouponUsage)\n       await queryRunner.manager.save(CouponUsage, {\n         couponId: coupon.id,\n         orderId: order.id,\n         userId: order.userId,\n         usedAt: new Date(),\n         appliedAmount: order.subtotal - discountedTotal,\n       });\n\n       // Mettre à jour la commande\n       order.discountAmount = order.subtotal - discountedTotal;\n       order.finalTotal = discountedTotal;\n       order.appliedCouponId = coupon.id;\n       await queryRunner.manager.save(order);\n\n       await queryRunner.commitTransaction();\n     } catch (error) {\n       await queryRunner.rollbackTransaction();\n       throw error;\n     } finally {\n       await queryRunner.release();\n     }\n\n     return { success: true, finalTotal: discountedTotal };\n   }\n   ```\n\n4. <strong>En cas d'échec de paiement</strong>\n   - Remonter la transaction (rollback)\n   - Le coupon reste disponible pour l'utilisateur\n\n5. <strong>En cas de remboursement</strong>\n   - Recrémenter le compteur d'utilisation si le coupon était de type montant fixe/pourcentage\n   - Marquer l'usage comme annulé dans CouponUsage",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

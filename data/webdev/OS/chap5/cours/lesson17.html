@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 17 : Organisation des données sur disque - Systèmes de fichiers</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules (utile si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour améliorer la lisibilité et l'adaptation mobile -->
+    <style>
+        /* Transition fluide pour les slides */
+        .slide {
+            transition: opacity 0.4s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Personnalisation des boutons de navigation */
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* Meilleur contraste et confort visuel */
+        body {
+            background: #f8fafc;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* Personnalisation pour les titres de diapos */
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* Pour les petits écrans, ajuster les padding */
+        @media (max-width: 640px) {
+            .container-slide {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased font-sans">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête de la leçon avec titre principal -->
+        <div class="text-center mb-6 md:mb-8">
+            <span class="text-sm font-semibold tracking-wide text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Module 5 : Systèmes de fichiers</span>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mt-3">📁 Organisation des données sur disque</h1>
+            <p class="text-gray-500 mt-2">Leçon 17 : Comprendre la structure, l’allocation et les types de systèmes de fichiers</p>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div class="relative bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
+            <!-- Barre de progression en haut -->
+            <div class="h-1.5 bg-gray-100 w-full">
+                <div id="progressBar" class="progress-bar h-full bg-indigo-500 rounded-r-full" style="width: 0%;"></div>
+            </div>
+
+            <!-- Zone d'affichage des slides -->
+            <div id="slidesContainer" class="p-5 md:p-8 min-h-[480px] flex flex-col">
+                <!-- Les slides seront générées dynamiquement via jQuery -->
+            </div>
+
+            <!-- Contrôles de navigation (flèches + indicateur + compteur) -->
+            <div class="flex items-center justify-between p-4 bg-gray-50 border-t border-gray-100 flex-wrap gap-3">
+                <button id="prevBtn" class="nav-btn bg-white hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm border border-gray-200 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    ← Précédent
+                </button>
+                <div class="flex items-center gap-3">
+                    <span id="slideCounter" class="text-sm text-gray-600 bg-white px-3 py-1 rounded-full shadow-sm">Slide 1 / ?</span>
+                    <div class="flex gap-1">
+                        <!-- Indicateurs de slides (dots) générés dynamiquement -->
+                        <div id="dotsIndicator" class="flex gap-1.5"></div>
+                    </div>
+                </div>
+                <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+
+        <!-- Pied de page informatif -->
+        <div class="text-center text-xs text-gray-400 mt-6">
+            Cours d'initiation aux Systèmes d'exploitation — Enseignant : Classe Développement Web (Cameroun)
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu des slides selon la leçon 17 : "Systèmes de fichiers" (organisation des données sur disque)
+        // Les objectifs de la leçon sont explicitement dans le slide 2, les autres slides expliquent le contenu.
+        const slidesData = [
+            {
+                type: "title",
+                title: "📀 Organisation des données sur disque",
+                subtitle: "Systèmes de fichiers : stockage, indexation et gestion des fichiers",
+                icon: "💾",
+                bgClass: "bg-gradient-to-br from-indigo-50 to-white"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "✅ Définir un fichier et ses attributs (nom, taille, permissions, dates)",
+                    "✅ Comprendre les opérations sur fichiers (création, lecture, écriture, suppression)",
+                    "✅ Distinguer les types de fichiers (réguliers, répertoires, liens, périphériques)",
+                    "✅ Comprendre l'organisation d’un système de fichiers (blocs, inodes, superbloc)",
+                    "✅ Distinguer les systèmes (FAT32, exFAT, NTFS, ext2/ext3/ext4, APFS)",
+                    "✅ Comprendre la journalisation (journaling) pour la résilience"
+                ]
+            },
+            {
+                type: "content",
+                title: "🗂️ Qu'est-ce qu'un fichier ?",
+                content: "<p>Un <strong class='text-indigo-700'>fichier</strong> est une collection nommée d'informations stockées sur un support (disque dur, SSD, clé USB). Chaque fichier possède des <strong class='text-indigo-700'>attributs</strong> qui permettent au système d'exploitation de le gérer :</p>\
+                <ul class='list-disc pl-6 mt-3 space-y-1 text-gray-700'>\
+                    <li><span class='font-semibold'>Nom</span> : identifiant du fichier (ex: rapport.pdf)</li>\
+                    <li><span class='font-semibold'>Taille</span> : en octets, kilo-octets...</li>\
+                    <li><span class='font-semibold'>Permissions</span> : droits de lecture, écriture, exécution (propriétaire, groupe, autres)</li>\
+                    <li><span class='font-semibold'>Dates</span> : création, dernière modification, dernier accès</li>\
+                    <li><span class='font-semibold'>Emplacement</span> : chemin dans l'arborescence</li>\
+                </ul>\
+                <div class='mt-4 bg-indigo-50 p-3 rounded-lg border-l-4 border-indigo-400 text-sm'>\
+                    💡 <span class='font-medium'>À retenir :</span> le système d'exploitation offre des appels système (open, read, write, close) pour manipuler les fichiers.\
+                </div>"
+            },
+            {
+                type: "content",
+                title: "📂 Opérations et types de fichiers",
+                content: "<p><strong>Opérations de base :</strong> créer, ouvrir, lire, écrire, fermer, supprimer, tronquer, renommer, modifier les permissions.</p>\
+                <p class='mt-3'><strong>Types de fichiers :</strong></p>\
+                <ul class='list-disc pl-6 mt-1 space-y-1 text-gray-700'>\
+                    <li><span class='font-medium'>📄 Fichiers réguliers</span> : textes, images, exécutables, données.</li>\
+                    <li><span class='font-medium'>📁 Répertoires</span> : contiennent d'autres fichiers (dossiers).</li>\
+                    <li><span class='font-medium'>🔗 Liens</span> : liens symboliques (raccourcis) ou liens physiques (hard links).</li>\
+                    <li><span class='font-medium'>🖨️ Périphériques</span> : représentent des périphériques (/dev/sda, /dev/tty).</li>\
+                </ul>\
+                <div class='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>\
+                    <div class='bg-gray-50 p-2 rounded border'><code class='text-indigo-800'>touch fichier.txt</code> → créer vide</div>\
+                    <div class='bg-gray-50 p-2 rounded border'><code class='text-indigo-800'>cat > fichier.txt</code> → écrire</div>\
+                    <div class='bg-gray-50 p-2 rounded border'><code class='text-indigo-800'>rm fichier.txt</code> → supprimer</div>\
+                    <div class='bg-gray-50 p-2 rounded border'><code class='text-indigo-800'>ls -l</code> → voir attributs</div>\
+                </div>"
+            },
+            {
+                type: "content",
+                title: "🏗️ Organisation interne : Superbloc, inodes, blocs",
+                content: "<p>Un système de fichiers organise les données avec trois concepts clés :</p>\
+                <ul class='list-disc pl-6 mt-2 space-y-2'>\
+                    <li><strong class='text-indigo-700'>Superbloc</strong> : structure maîtresse contenant des métadonnées globales : nombre total de blocs, taille du système, nombre d'inodes libres, etc.</li>\
+                    <li><strong class='text-indigo-700'>Inodes</strong> (index node) : chaque fichier/répertoire possède un inode unique qui stocke les attributs (taille, permissions, dates) et les pointeurs vers les blocs de données.</li>\
+                    <li><strong class='text-indigo-700'>Blocs de données</strong> : unités de stockage (typiquement 4 Ko). Les données des fichiers sont réparties sur ces blocs. Les inodes référencent les numéros de bloc.</li>\
+                </ul>\
+                <div class='mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200'>\
+                    <p class='font-mono text-sm'>🧩 Exemple simplifié : un fichier de 10 Ko occupe 3 blocs (4+4+2). L'inode contient [bloc#102, bloc#205, bloc#312].</p>\
+                </div>\
+                <p class='mt-3 text-sm text-gray-600'>Les répertoires sont des fichiers spéciaux qui associent noms de fichiers → numéros d'inodes.</p>"
+            },
+            {
+                type: "content",
+                title: "⚙️ Comparaison des systèmes de fichiers populaires",
+                content: "<div class='overflow-x-auto'>\
+                <table class='min-w-full bg-white border border-gray-200 rounded-lg text-sm'>\
+                    <thead class='bg-gray-100'>\
+                        <tr><th class='px-4 py-2 border'>Système</th><th class='px-4 py-2 border'>Caractéristiques</th><th class='px-4 py-2 border'>Utilisation typique</th></tr>\
+                    </thead>\
+                    <tbody>\
+                        <tr><td class='px-4 py-2 border font-semibold'>FAT32</td><td class='px-4 py-2 border'>Simple, compatible, taille max fichier 4 Go, sans journalisation</td><td class='px-4 py-2 border'>Clés USB, cartes mémoire, anciens systèmes</td></tr>\
+                        <tr><td class='px-4 py-2 border font-semibold'>exFAT</td><td class='px-4 py-2 border'>Fichiers > 4 Go, bonne compatibilité, pas de journalisation</td><td class='px-4 py-2 border'>Disques externes, cartes SD haute capacité</td></tr>\
+                        <tr><td class='px-4 py-2 border font-semibold'>NTFS</td><td class='px-4 py-2 border'>Journalisation, ACLs, compression, quotas, fichiers volumineux</td><td class='px-4 py-2 border'>Windows (disques système, stockage)</td></tr>\
+                        <tr><td class='px-4 py-2 border font-semibold'>ext4</td><td class='px-4 py-2 border'>Journalisation, support jusqu'à 1 exbioctet, performant, Linux standard</td><td class='px-4 py-2 border'>Distributions Linux (Ubuntu, Debian, etc.)</td></tr>\
+                        <tr><td class='px-4 py-2 border font-semibold'>APFS</td><td class='px-4 py-2 border'>Moderne, chiffrement natif, clones, snapshots</td><td class='px-4 py-2 border'>macOS, iOS, iPadOS</td></tr>\
+                    </tbody>\
+                </table>\
+                </div>\
+                <div class='mt-4 text-sm bg-green-50 p-3 rounded-lg'>✨ <strong>Journalisation (journaling)</strong> : Enregistre les modifications avant de les appliquer, évite la corruption après une panne. NTFS, ext4, APFS intègrent cette fonction.</div>"
+            },
+            {
+                type: "content",
+                title: "📊 Allocation de l'espace : contiguë, chaînée, indexée",
+                content: "<p>Comment le système attribue les blocs physiques aux fichiers ? Trois grandes méthodes :</p>\
+                <ul class='list-disc pl-6 mt-2 space-y-2'>\
+                    <li><span class='font-semibold'>Allocation contiguë</span> : Les blocs d'un fichier sont stockés de façon continue sur le disque. Avantage : accès rapide. Inconvénient : fragmentation externe, difficile à faire varier la taille.</li>\
+                    <li><span class='font-semibold'>Allocation chaînée</span> : Chaque bloc contient un pointeur vers le bloc suivant. Avantage : pas de fragmentation externe. Inconvénient : accès séquentiel lent (doit suivre les pointeurs).</li>\
+                    <li><span class='font-semibold'>Allocation indexée</span> (Unix/Linux) : Un bloc spécial (inode) contient la liste de tous les blocs du fichier. Accès direct et efficace, gère la fragmentation.</li>\
+                </ul>\
+                <div class='mt-4 flex justify-center p-3 bg-gray-100 rounded-xl'>\
+                    <img src='' alt='schéma expliquant allocation contiguë, chaînée et indexée pour un système de fichiers' class='w-full max-w-md rounded shadow-sm'>\
+                    <p class='text-xs text-gray-500 mt-1 text-center'>* Illustration : types d'allocation (image de référence)</p>\
+                </div>\
+                <p class='mt-2 text-sm'>Dans ext4, on utilise une combinaison d'indexation avec arborescence (extents) pour les gros fichiers.</p>"
+            },
+            {
+                type: "content",
+                title: "🧹 Gestion des blocs libres & fragmentation",
+                content: "<p>Le système de fichiers doit suivre les blocs non utilisés pour pouvoir les attribuer à de nouveaux fichiers. Méthodes courantes :</p>\
+                <ul class='list-disc pl-6 mt-2'>\
+                    <li><strong>Bitmap (table de bits)</strong> : un bit par bloc (1=libre, 0=occupé). Simple et rapide.</li>\
+                    <li><strong>Liste chaînée de blocs libres</strong> : chaque bloc libre pointe vers le suivant. Plus lent pour chercher de l'espace contigu.</li>\
+                </ul>\
+                <p class='mt-3'><strong>🧩 Fragmentation :</strong></p>\
+                <ul class='list-disc pl-6'>\
+                    <li><span class='font-medium'>Fragmentation externe</span> : petits espaces libres éparpillés, empêchant l'allocation de gros fichiers contigus.</li>\
+                    <li><span class='font-medium'>Fragmentation interne</span> : espace perdu à l'intérieur du dernier bloc du fichier (ex: fichier 10.5 Ko dans blocs 4 Ko → perte de 1.5 Ko).</li>\
+                </ul>\
+                <div class='mt-3 bg-indigo-50 p-3 rounded-lg'>\
+                    🛠️ <strong>Défragmentation</strong> : réorganiser les blocs fragmentés pour améliorer les performances. Sur SSD, c'est inutile (accès uniforme) et même nocif.\
+                </div>"
+            },
+            {
+                type: "content",
+                title: "🔐 Permissions UNIX et arborescence",
+                content: "<p>Dans les systèmes UNIX/Linux, chaque fichier appartient à un propriétaire et un groupe. Les permissions classiques :</p>\
+                <div class='bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-sm overflow-x-auto my-3'>\
+                    -rw-r--r--  1  user  group  1024  janv. 12  document.txt<br>\
+                    drwxr-xr-x  2  user  group  4096  janv. 10  MonDossier/
+                </div>\
+                <p><strong>Lecture (r)</strong> : voir le contenu ; <strong>Écriture (w)</strong> : modifier ; <strong>Exécution (x)</strong> : traverser répertoire / exécuter fichier.</p>\
+                <p class='mt-2'>Commandes essentielles : <code class='bg-gray-100 p-1 rounded'>chmod 755 fichier</code>, <code class='bg-gray-100 p-1 rounded'>chown user:groupe fichier</code>.</p>\
+                <p class='mt-3'><strong>ACL (Access Control Lists)</strong> : permettent des permissions plus fines (plusieurs utilisateurs ou groupes spécifiques). Les capacités Linux étendent les privilèges.</p>\
+                <div class='bg-yellow-50 p-2 rounded mt-2 text-sm border-l-4 border-yellow-400'>\
+                    🌟 La hiérarchie des répertoires : racine '/', chemins absolus (/home/etudiant/cours.txt), relatifs (./cours.txt).\
+                </div>"
+            },
+            {
+                type: "summary",
+                title: "📌 Résumé - Points essentiels",
+                content: "<ul class='list-disc pl-6 space-y-2 text-gray-800'>\
+                    <li>Un fichier est une entité nommée avec attributs (permissions, dates, taille).</li>\
+                    <li>Les systèmes de fichiers structurent les données via <strong>superbloc, inodes, blocs</strong>.</li>\
+                    <li>Les types courants : FAT32 (compatible), NTFS (Windows), ext4 (Linux), APFS (Apple).</li>\
+                    <li>La <strong>journalisation</strong> protège contre les corruptions après coupure électrique.</li>\
+                    <li>Allocation : contiguë, chaînée ou indexée. Les inodes utilisent l'indexation.</li>\
+                    <li>Permissions UNIX (rwx) et ACL pour la sécurité.</li>\
+                </ul>\
+                <div class='mt-5 text-center italic text-indigo-700'>🎓 La maîtrise des systèmes de fichiers est cruciale pour administrer et sécuriser les données.</div>"
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction de rendu d'un slide en fonction de son type
+        function renderSlide(slide, idx) {
+            const isActive = (idx === currentIndex);
+            const baseClasses = "slide transition-all duration-300 " + (isActive ? "slide-visible" : "slide-hidden");
+            if (slide.type === "title") {
+                return `<div class="${baseClasses}" data-index="${idx}">
+                            <div class="text-center ${slide.bgClass} rounded-xl p-6 md:p-10">
+                                <div class="text-5xl md:text-7xl mb-4">${slide.icon}</div>
+                                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h2>
+                                <p class="text-lg text-gray-600 mt-4">${slide.subtitle}</p>
+                                <div class="mt-8 h-1 w-20 bg-indigo-300 mx-auto rounded-full"></div>
+                                <p class="text-sm text-gray-500 mt-6">Classe Développement Web - Initiation OS</p>
+                            </div>
+                        </div>`;
+            } 
+            else if (slide.type === "objectives") {
+                let objHtml = `<div class="${baseClasses}" data-index="${idx}">
+                                    <div class="bg-white rounded-xl">
+                                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-b pb-3 mb-4">${slide.title}</h2>
+                                        <div class="space-y-2">`;
+                slide.objectives.forEach(obj => {
+                    objHtml += `<div class="flex items-start gap-2 text-gray-700 text-base md:text-lg p-2"><span class="text-indigo-500 text-xl">📌</span> <span>${obj}</span></div>`;
+                });
+                objHtml += `</div><div class="mt-6 bg-indigo-50 p-3 rounded-lg text-gray-600">💡 Ces objectifs seront abordés dans les diapositives suivantes avec des exemples concrets.</div></div></div>`;
+                return objHtml;
+            }
+            else if (slide.type === "content") {
+                return `<div class="${baseClasses}" data-index="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-4">${slide.title}</h2>
+                            <div class="prose prose-indigo max-w-none text-gray-700 leading-relaxed">
+                                ${slide.content}
+                            </div>
+                        </div>`;
+            }
+            else if (slide.type === "summary") {
+                return `<div class="${baseClasses}" data-index="${idx}">
+                            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
+                                <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-2">📖 ${slide.title}</h2>
+                                <div class="mt-4 text-gray-700">
+                                    ${slide.content}
+                                </div>
+                                <div class="mt-6 text-center text-sm text-gray-500">👨‍🏫 Félicitations ! Vous avez terminé la leçon sur les systèmes de fichiers.</div>
+                            </div>
+                        </div>`;
+            }
+            return `<div class="${baseClasses}">Contenu non disponible</div>`;
+        }
+
+        // Mettre à jour l'affichage des slides et la progression
+        function updateDisplay() {
+            // Générer tous les slides dans le container
+            let slidesHtml = '';
+            for (let i = 0; i < slidesData.length; i++) {
+                slidesHtml += renderSlide(slidesData[i], i);
+            }
+            $("#slidesContainer").html(slidesHtml);
+            
+            // Afficher/Masquer selon l'index
+            $(".slide").each(function() {
+                let idxSlide = parseInt($(this).data("index"));
+                if (idxSlide === currentIndex) {
+                    $(this).removeClass("slide-hidden").addClass("slide-visible");
+                } else {
+                    $(this).removeClass("slide-visible").addClass("slide-hidden");
+                }
+            });
+            
+            // Mise à jour compteur et barre
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            let progressPercent = ((currentIndex) / (totalSlides-1)) * 100;
+            $("#progressBar").css("width", progressPercent + "%");
+            
+            // Gérer l'état des boutons
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === totalSlides-1);
+            
+            // Générer les indicateurs (dots)
+            let dotsHtml = '';
+            for (let i=0; i<totalSlides; i++) {
+                let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-6' : 'bg-gray-300 w-2';
+                dotsHtml += `<button class="dot-indicator h-2 rounded-full transition-all ${activeClass} hover:bg-indigo-400" data-slide="${i}"></button>`;
+            }
+            $("#dotsIndicator").html(dotsHtml);
+            
+            // Événement pour les dots
+            $(".dot-indicator").on("click", function() {
+                let newIdx = parseInt($(this).data("slide"));
+                if (!isNaN(newIdx) && newIdx !== currentIndex && newIdx >=0 && newIdx < totalSlides) {
+                    currentIndex = newIdx;
+                    updateDisplay();
+                }
+            });
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateDisplay();
+            }
+        }
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+        
+        // Événements boutons
+        $("#nextBtn").on("click", nextSlide);
+        $("#prevBtn").on("click", prevSlide);
+        
+        // Gestion clavier pour accessibilité
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+        
+        // Initialisation
+        updateDisplay();
+    </script>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Versioning d'API - ASP.NET Core | Cours WebDev</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (utile si formules, mais surtout pour cohérence) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: all 0.3s ease-in-out;
+        }
+        body {
+            background: #f8fafc;
+        }
+        .swipe-area {
+            touch-action: pan-y pinch-zoom;
+        }
+        /* masquer scrollbar si nécessaire, mais garder fonctionnel */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-gray-100">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slidesContainer" class="relative overflow-hidden rounded-2xl shadow-xl bg-white border border-gray-200">
+            <!-- Slides générés dynamiquement avec jQuery -->
+        </div>
+
+        <!-- Navigation buttons + indicateur de slide -->
+        <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+            <button id="prevBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Précédent
+            </button>
+            <div class="flex gap-2 flex-wrap justify-center" id="dotsIndicator"></div>
+            <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                Suivant
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+        </div>
+        <p class="text-center text-xs text-gray-500 mt-4">↻ Glisser/défiler pour naviguer entre les slides</p>
+    </div>
+
+    <script>
+        // -------------------- DONNÉES DE LA LEÇON 33 (versioning) --------------------
+        // D'après le programme: chap9, lesson33 : versioning API (Asp.Versioning.Mvc, URL ou header, dépréciation)
+        const lessonData = {
+            title: "Leçon 33 : Versioning des API REST",
+            subtitle: "Gérer l'évolution de votre API sans casser les clients",
+            objectives: [
+                "Installer et configurer Asp.Versioning.Mvc dans ASP.NET Core",
+                "Versionner par URL (ex: api/v1/produits) ou par en-tête HTTP",
+                "Gérer la dépréciation des versions anciennes avec des avertissements"
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "📌 Pourquoi versionner une API ?",
+                    content: `
+                        <p class="mb-3">Quand votre API évolue, de nouvelles fonctionnalités apparaissent ou des changements cassants surviennent. Le <strong class="text-indigo-700">versioning</strong> permet de :</p>
+                        <ul class="list-disc pl-6 space-y-1 mb-4">
+                            <li>✅ Faire cohabiter plusieurs versions de l’API simultanément.</li>
+                            <li>✅ Assurer la compatibilité avec les applications clientes déjà existantes.</li>
+                            <li>✅ Annoncer des dépréciations (<span class="italic">deprecated</span>) avant suppression.</li>
+                            <li>✅ Améliorer l'API sans forcer la migration immédiate des utilisateurs.</li>
+                        </ul>
+                        <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 text-sm">
+                            💡 <strong>Bonnes pratiques :</strong> Versionner lorsque vous modifiez le contrat (suppression de champ, nouveau format de réponse, changement de comportement métier).
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚙️ Installation du package",
+                    content: `
+                        <p class="mb-2 font-semibold">ASP.NET Core ne gère pas nativement le versionning d'API. Il faut installer le package officiel :</p>
+                        <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            dotnet add package Asp.Versioning.Mvc
+                        </div>
+                        <p class="mb-2">(Pour le versionning avec lien hypermédia, utiliser <code>Asp.Versioning.Mvc.ApiExplorer</code> mais concentrons-nous sur l'essentiel).</p>
+                        <p class="mt-2">Une fois installé, on configure le service dans <code class="bg-gray-100 px-1 rounded">Program.cs</code>.</p>
+                        <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            builder.Services.AddApiVersioning(options =><br>
+                            &nbsp;&nbsp;{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;options.DefaultApiVersion = new ApiVersion(1, 0);<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;options.AssumeDefaultVersionWhenUnspecified = true;<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;options.ReportApiVersions = true;<br>
+                            &nbsp;&nbsp;});
+                        </div>
+                        <p class="text-gray-600 text-sm"><code>ReportApiVersions = true</code> ajoutera les en-têtes "api-supported-versions" et "api-deprecated-versions".</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔖 Versioning par URL (le plus courant)",
+                    content: `
+                        <p class="mb-3">La méthode la plus intuitive pour les développeurs : inclure la version dans le chemin (<span class="italic">route</span>).</p>
+                        <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            // Contrôleur v1<br>
+                            [ApiController]<br>
+                            [Route("api/v{version:apiVersion}/[controller]")]<br>
+                            public class ProduitsController : ControllerBase<br>
+                            {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;[HttpGet]<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;public IActionResult Get() => Ok(new[] { "Produit A v1" });<br>
+                            }
+                        </div>
+                        <p>Le placeholder <code>{version:apiVersion}</code> est automatiquement résolu. On peut aussi définir la version du contrôleur avec l'attribut <code class="bg-gray-100 px-1">[ApiVersion("1.0")]</code>.</p>
+                        <div class="bg-amber-50 p-3 rounded my-3 text-sm border-l-4 border-amber-400">
+                            ✨ <strong>URL finale :</strong> <span class="font-mono">/api/v1/produits</span> → version 1.<br>
+                            Pour créer la version 2, on ajoute un nouveau contrôleur ou on utilise le même avec <code>[ApiVersion("2.0")]</code> et on adapte la route.
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "📨 Versioning par en-tête HTTP (Header)",
+                    content: `
+                        <p>Pour des URLs propres sans numéro de version, on peut passer la version dans un en-tête personnalisé. Configuration :</p>
+                        <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            options.ApiVersionReader = new HeaderApiVersionReader("api-version");<br>
+                            // ou bien combiner URL + header : new QueryStringOrHeaderApiVersionReader()
+                        </div>
+                        <p class="mt-2">Dans le contrôleur, même logique d'attribut <code>[ApiVersion("1.0")]</code>. Le client envoie :</p>
+                        <div class="bg-gray-100 p-2 rounded border font-mono text-sm">GET /api/produits<br>api-version: 1.0</div>
+                        <p class="mt-3 text-gray-700">Avantages : URLs canoniques, idéal pour REST puristes. Inconvénient : moins évident pour les tests dans le navigateur.</p>
+                        <div class="bg-green-50 p-3 rounded mt-2 text-sm">💡 On peut aussi utiliser la <strong>querystring</strong> : <code class="bg-white">?api-version=1.0</code> avec <code>QueryStringApiVersionReader()</code>.</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚠️ Gérer la dépréciation (deprecation)",
+                    content: `
+                        <p>Quand une version n'est plus recommandée ou sera supprimée, on peut la marquer comme <strong>dépréciée</strong>.</p>
+                        <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            [ApiVersion("1.0", Deprecated = true)]<br>
+                            [Route("api/v{version:apiVersion}/produits")]<br>
+                            public class ProduitsV1Controller : ControllerBase { ... }
+                        </div>
+                        <ul class="list-disc pl-6 space-y-1 mt-2">
+                            <li>L'en-tête de réponse inclut <code>api-deprecated-versions: 1.0</code></li>
+                            <li>Les clients peuvent afficher un avertissement.</li>
+                            <li>Permet une transition en douceur vers la version supérieure.</li>
+                        </ul>
+                        <div class="bg-red-50 p-3 rounded mt-3 text-sm border-l-4 border-red-400">
+                            🔔 <strong>Bon à savoir :</strong> Combiner plusieurs mécanismes (URL par défaut + en-tête) est possible avec <code>ApiVersionReader.Combine(...)</code>.
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧪 Exemple complet avec mapping multiple",
+                    content: `
+                        <p>Imaginons un contrôleur de produits avec deux versions :</p>
+                        <div class="bg-gray-100 rounded-lg p-3 text-sm font-mono overflow-x-auto">
+                            // V1 : retourne Id + Nom<br>
+                            [ApiVersion("1.0")]<br>
+                            [Route("api/v{version:apiVersion}/produits")]<br>
+                            public class ProduitsV1Controller : ControllerBase { ... }<br><br>
+                            // V2 : ajoute le prix et la catégorie<br>
+                            [ApiVersion("2.0")]<br>
+                            [Route("api/v{version:apiVersion}/produits")]<br>
+                            public class ProduitsV2Controller : ControllerBase { ... }
+                        </div>
+                        <p class="mt-2">Pour que la découverte fonctionne avec Swagger, ajoutez également :</p>
+                        <div class="bg-gray-900 text-gray-100 p-2 rounded font-mono text-xs">
+                            services.AddVersionedApiExplorer();
+                        </div>
+                        <p class="mt-3">Cette configuration permet de générer une documentation Swagger distincte pour chaque version.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "📝 Résumé & bonnes pratiques Cameroun 🇨🇲",
+                    content: `
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-indigo-50 p-4 rounded-lg">
+                                <h3 class="font-bold text-indigo-800">✅ À retenir</h3>
+                                <ul class="list-disc pl-5 space-y-1 text-sm mt-1">
+                                    <li>Versionner évite de casser les apps mobiles / sites déjà déployés.</li>
+                                    <li>URL versioning : simple et transparent.</li>
+                                    <li>Header versioning : plus "RESTful" mais moins visible.</li>
+                                    <li>Toujours indiquer les versions dépréciées.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg border">
+                                <h3 class="font-bold text-gray-700">🔧 Commande utile</h3>
+                                <pre class="bg-gray-800 text-green-300 p-2 rounded text-xs mt-1">dotnet add package Asp.Versioning.Mvc</pre>
+                                <p class="text-sm mt-2">Puis dans <code>Program.cs</code> : <span class="font-mono text-xs">AddApiVersioning()</span>.</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 p-3 bg-teal-50 rounded-lg text-center text-teal-800 text-sm">
+                            🚀 <strong>Exercice pratique :</strong> Créez une API ToDo, versionnez-la en /v1/tasks et /v2/tasks, la v2 retourne une priorité. Testez avec Postman.
+                        </div>
+                    `
+                }
+            ]
+        };
+
+        // Assemblage des slides : slide0 => titre, slide1 => objectifs, puis les slides de contenu
+        let slidesArray = [];
+
+        // Slide de titre
+        slidesArray.push({
+            type: "title",
+            title: lessonData.title,
+            subtitle: lessonData.subtitle,
+            badge: "ASP.NET Core | Versioning API"
+        });
+
+        // Slide objectifs
+        slidesArray.push({
+            type: "objectives",
+            objectives: lessonData.objectives
+        });
+
+        // Ajouter les slides de contenu depuis lessonData.slides
+        lessonData.slides.forEach(slide => {
+            slidesArray.push({
+                type: "content",
+                title: slide.title,
+                content: slide.content
+            });
+        });
+
+        let currentIndex = 0;
+        const totalSlides = slidesArray.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, index) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide flex flex-col justify-center min-h-[450px] md:min-h-[500px] p-6 md:p-10 text-center bg-gradient-to-br from-indigo-700 to-purple-800 text-white rounded-2xl">
+                        <span class="text-sm font-mono bg-white/20 inline-block px-3 py-1 rounded-full w-fit mx-auto mb-4">${slide.badge || "API .NET Core"}</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold leading-tight mb-4">${slide.title}</h1>
+                        <p class="text-lg md:text-xl text-indigo-100 max-w-2xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 text-indigo-200 text-sm flex gap-3 justify-center">
+                            <span>📘 Cours complet</span> <span>⚡ Versioning API</span>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                return `
+                    <div class="slide min-h-[450px] md:min-h-[500px] p-6 md:p-8 bg-white rounded-2xl">
+                        <div class="border-b border-gray-200 pb-3 mb-5 flex items-center gap-2">
+                            <span class="text-2xl">🎯</span>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs pédagogiques</h2>
+                        </div>
+                        <ul class="space-y-4">
+                            ${slide.objectives.map((obj, idx) => `
+                                <li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl shadow-sm">
+                                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold">${idx+1}</span>
+                                    <span class="text-gray-700 text-base md:text-lg">${obj}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <div class="mt-8 text-center text-gray-500 text-sm italic">📌 À la fin de cette leçon, vous saurez appliquer le versioning professionnellement</div>
+                    </div>
+                `;
+            } 
+            else { // type content
+                return `
+                    <div class="slide min-h-[450px] md:min-h-[500px] p-6 md:p-8 bg-white rounded-2xl">
+                        <div class="flex items-center gap-2 mb-4 border-l-4 border-indigo-500 pl-3">
+                            <span class="text-2xl">📖</span>
+                            <h2 class="text-xl md:text-2xl font-bold text-gray-800">${slide.title}</h2>
+                        </div>
+                        <div class="prose max-w-none text-gray-700 leading-relaxed space-y-3">
+                            ${slide.content}
+                        </div>
+                        <div class="mt-6 pt-4 text-right text-xs text-gray-400 border-t">Slide ${currentIndex+1}/${totalSlides}</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Mettre à jour l'affichage
+        function updateDisplay() {
+            const container = $("#slidesContainer");
+            container.empty();
+            const slideHtml = renderSlide(slidesArray[currentIndex], currentIndex);
+            container.html(slideHtml);
+            // Mise à jour des dots
+            updateDots();
+            // Gestion boutons prev/next disabled
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === totalSlides - 1);
+            // Recharger MathJax pour les éventuelles formules (bien que peu présentes)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // Scroll en haut (optionnel)
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function updateDots() {
+            const dotsContainer = $("#dotsIndicator");
+            dotsContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = $("<button>")
+                    .addClass(`w-2.5 h-2.5 rounded-full transition-all mx-1 ${i === currentIndex ? 'bg-indigo-700 w-4' : 'bg-gray-300 hover:bg-gray-400'}`)
+                    .attr("data-index", i);
+                dot.on("click", function() {
+                    currentIndex = parseInt($(this).attr("data-index"));
+                    updateDisplay();
+                });
+                dotsContainer.append(dot);
+            }
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateDisplay();
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+
+        // Gestion clavier (flèches)
+        $(document).keydown(function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+
+        // Gestes tactiles simples : swipe horizontal
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        $("#slidesContainer").on("touchstart", function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $("#slidesContainer").on("touchend", function(e) {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            const delta = touchEndX - touchStartX;
+            if (Math.abs(delta) > 50) {
+                if (delta > 0) {
+                    prevSlide();
+                } else {
+                    nextSlide();
+                }
+            }
+        });
+
+        // Initialisation
+        $(document).ready(function() {
+            updateDisplay();
+            $("#prevBtn").click(prevSlide);
+            $("#nextBtn").click(nextSlide);
+        });
+    </script>
+    <!-- optimisation mobile supplémentaire -->
+    <style>
+        @media (max-width: 640px) {
+            .slide {
+                font-size: 0.95rem;
+            }
+            pre, code {
+                font-size: 0.75rem;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .prose p, .prose li {
+                font-size: 0.9rem;
+            }
+        }
+        /* Amélioration contraste et lisibilité */
+        .prose strong {
+            color: #1e1b4b;
+        }
+        .bg-gray-900 {
+            background-color: #0f172a;
+        }
+        button:focus, [role="button"]:focus {
+            outline: 2px solid #a5b4fc;
+            outline-offset: 2px;
+        }
+    </style>
+</body>
+</html>

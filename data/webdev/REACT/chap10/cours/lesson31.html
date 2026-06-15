@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours React | Optimisation des performances - React.memo, useMemo, useCallback</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+        }
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e4a6b;
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        pre {
+            background-color: #0f172a;
+            border-radius: 16px;
+            padding: 1rem;
+            overflow-x: auto;
+            color: #f1f5f9;
+            font-size: 0.85rem;
+        }
+        .slide-content {
+            min-height: 65vh;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            .nav-btn {
+                padding: 0.5rem 1rem;
+            }
+        }
+        .performance-badge {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-3 md:p-6 min-h-screen">
+
+    <div class="max-w-4xl w-full bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/30">
+        <!-- Header avec progression -->
+        <div class="bg-gradient-to-r from-[#0f2b3d] to-[#1b4a6e] px-5 py-4 md:px-8 text-white flex justify-between items-center">
+            <div>
+                <p class="text-xs uppercase tracking-wider opacity-80">Initiation à React</p>
+                <h2 class="text-lg md:text-xl font-bold">Chapitre 10 : Performance React</h2>
+            </div>
+            <div class="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-sm font-mono">
+                <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+            </div>
+        </div>
+
+        <!-- Zone des slides -->
+        <div class="p-5 md:p-8 slide-content">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="text-center my-8 md:my-12">
+                    <div class="inline-block performance-badge text-white px-4 py-1 rounded-full text-sm font-semibold mb-4">⚡ Optimisation</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">React.memo, useMemo & useCallback</h1>
+                    <p class="text-xl text-gray-600 max-w-xl mx-auto">Évitez les re-rendus inutiles et boostez vos applications</p>
+                    <div class="mt-10 flex justify-center gap-3 flex-wrap">
+                        <span class="bg-gray-100 px-3 py-1 rounded-full text-sm">🚀 Performance</span>
+                        <span class="bg-gray-100 px-3 py-1 rounded-full text-sm">💾 Mémorisation</span>
+                        <span class="bg-gray-100 px-3 py-1 rounded-full text-sm">🔄 Re-rendus contrôlés</span>
+                    </div>
+                    <div class="mt-12 text-gray-400 text-sm">👆 Utilisez les boutons ci-dessous pour naviguer</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide" id="slide2">
+                <div class="bg-sky-50 rounded-2xl p-6 border-l-8 border-sky-500">
+                    <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span class="text-3xl">🎯</span> Objectifs de la leçon</h3>
+                    <ul class="mt-5 space-y-3 text-gray-700">
+                        <li class="flex items-start gap-3"><span class="text-sky-600 font-bold">✓</span> Comprendre <strong class="text-sky-800">React.memo</strong> pour éviter les re-rendus inutiles des composants enfants</li>
+                        <li class="flex items-start gap-3"><span class="text-sky-600 font-bold">✓</span> Utiliser <strong class="text-sky-800">useMemo</strong> pour mémoriser des valeurs calculées coûteuses</li>
+                        <li class="flex items-start gap-3"><span class="text-sky-600 font-bold">✓</span> Maîtriser <strong class="text-sky-800">useCallback</strong> pour mémoriser des fonctions</li>
+                        <li class="flex items-start gap-3"><span class="text-sky-600 font-bold">✓</span> Connaître les outils de profiling (React DevTools)</li>
+                    </ul>
+                    <div class="mt-6 bg-white/70 p-3 rounded-lg text-sm italic text-gray-500">“Une application React rapide ne rend que ce qui a vraiment changé.”</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Pourquoi optimiser ? -->
+            <div class="slide" id="slide3">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">🤔 Pourquoi optimiser React ?</h3>
+                <p class="text-gray-700 mb-4">Par défaut, quand un composant parent se re-rend, <strong class="text-red-600">TOUS ses enfants se re-rendent aussi</strong>, même si leurs props n'ont pas changé. Cela peut causer des problèmes de performance dans les applications complexes.</p>
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
+                    <p class="font-semibold text-amber-800">⚠️ Problème classique :</p>
+                    <p class="text-sm mt-1">Une liste de 1000 éléments qui se re-rend entièrement à chaque saisie dans un champ de recherche, alors que seul le filtre change.</p>
+                </div>
+                <div class="mt-4 bg-green-50 p-4 rounded-lg">
+                    <p class="font-semibold text-green-800">💡 Solution :</p>
+                    <p class="text-sm mt-1">React.memo, useMemo et useCallback permettent de contrôler quand un composant doit se re-rendre.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : React.memo -->
+            <div class="slide" id="slide4">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">📦 React.memo - Composant mémoïsé</h3>
+                <p class="text-gray-700 mb-3"><code class="bg-gray-800">React.memo</code> est une fonction d'ordre supérieur (HOC) qui empêche un composant de se re-rendre si ses props n'ont pas changé (comparaison superficielle).</p>
+                <pre class="rounded-xl"><code>// Sans memo : se re-rend toujours
+const MaListe = ({ items }) => (
+  &lt;ul&gt;{items.map(item => &lt;li key={item.id}&gt;{item.nom}&lt;/li&gt;)}&lt;/ul&gt;
+);
+
+// Avec memo : re-rend uniquement si items change
+const MaListeMemo = React.memo(({ items }) => (
+  &lt;ul&gt;{items.map(item => &lt;li key={item.id}&gt;{item.nom}&lt;/li&gt;)}&lt;/ul&gt;
+));</code></pre>
+                <div class="mt-3 bg-blue-50 p-3 rounded-lg text-sm">
+                    💡 <span class="font-semibold">Astuce :</span> Exportez directement : <code>export default React.memo(MonComposant);</code>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : useMemo -->
+            <div class="slide" id="slide5">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">🧮 useMemo - Mémoriser des valeurs calculées</h3>
+                <p class="text-gray-700 mb-3"><code class="bg-gray-800">useMemo</code> mémorise le résultat d'un calcul coûteux et ne le recalcule que lorsque ses dépendances changent.</p>
+                <pre class="rounded-xl"><code>import { useMemo, useState } from 'react';
+
+function ComposantLourd() {
+  const [compteur, setCompteur] = useState(0);
+  const [texte, setTexte] = useState('');
+  
+  // Calcul coûteux : filtrer 10 000 éléments
+  const elementsFiltres = useMemo(() => {
+    console.log('Recalcul coûteux...');
+    return grosTableau.filter(el => el.includes(texte));
+  }, [texte]); // Recalcule uniquement quand 'texte' change
+  
+  return (
+    &lt;div&gt;
+      &lt;input value={texte} onChange={(e) => setTexte(e.target.value)} /&gt;
+      &lt;p&gt;Compteur : {compteur}&lt;/p&gt;
+      &lt;button onClick={() => setCompteur(c => c+1)}&gt;Inc&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+            </div>
+
+            <!-- SLIDE 6 : useCallback -->
+            <div class="slide" id="slide6">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">🔄 useCallback - Mémoriser des fonctions</h3>
+                <p class="text-gray-700 mb-3"><code class="bg-gray-800">useCallback</code> est similaire à useMemo mais pour les fonctions. Il retourne une version mémoïsée de la fonction qui ne change que si les dépendances changent.</p>
+                <pre class="rounded-xl"><code>import { useCallback, useState } from 'react';
+
+function Parent() {
+  const [compteur, setCompteur] = useState(0);
+  
+  // Cette fonction ne change pas entre les rendus
+  const handleClick = useCallback(() => {
+    console.log('Clic reçu');
+  }, []); // Dépendances vides = fonction stable
+  
+  return (
+    &lt;div&gt;
+      &lt;button onClick={() => setCompteur(c => c+1)}&gt;Inc ({compteur})&lt;/button&gt;
+      &lt;Enfant onClick={handleClick} /&gt;
+    &lt;/div&gt;
+  );
+}
+
+// React.memo empêche le re-rendu d'Enfant si ses props ne changent pas
+const Enfant = React.memo(({ onClick }) => (
+  &lt;button onClick={onClick}&gt;Enfant&lt;/button&gt;
+));</code></pre>
+            </div>
+
+            <!-- SLIDE 7 : Comparaison visuelle -->
+            <div class="slide" id="slide7">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">📊 Quand utiliser quoi ?</h3>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                        <p class="font-bold text-purple-800">🎯 React.memo</p>
+                        <p class="text-sm mt-1">Pour <strong>composants enfants</strong> qui reçoivent les mêmes props et se re-rendent trop souvent.</p>
+                        <p class="text-xs text-gray-500 mt-2">Ex: Liste, Card, Ligne de tableau</p>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                        <p class="font-bold text-indigo-800">🧮 useMemo</p>
+                        <p class="text-sm mt-1">Pour <strong>valeurs calculées</strong> coûteuses (tri, filtrage, agrégation).</p>
+                        <p class="text-xs text-gray-500 mt-2">Ex: total, liste filtrée, transformation de données</p>
+                    </div>
+                    <div class="bg-pink-50 p-4 rounded-xl border border-pink-200">
+                        <p class="font-bold text-pink-800">🔄 useCallback</p>
+                        <p class="text-sm mt-1">Pour <strong>fonctions</strong> passées à des enfants mémoïsés.</p>
+                        <p class="text-xs text-gray-500 mt-2">Ex: gestionnaires d'événements, callbacks API</p>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-xl border border-gray-300">
+                        <p class="font-bold text-gray-700">⚠️ Attention</p>
+                        <p class="text-sm mt-1">N'optimisez pas <strong>prématurément</strong> ! Mesurez d'abord avec React DevTools.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Profiling avec React DevTools -->
+            <div class="slide" id="slide8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">🔍 Outils de profiling</h3>
+                <p class="text-gray-700 mb-3">React DevTools (extension navigateur) permet de visualiser les re-rendus et d'identifier les composants à optimiser.</p>
+                <div class="bg-gray-100 rounded-xl p-4">
+                    <p class="font-semibold">⚙️ Comment faire :</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
+                        <li>Installer l'extension React DevTools</li>
+                        <li>Onglet "Profiler" → Démarrer l'enregistrement</li>
+                        <li>Effectuer des actions dans l'application</li>
+                        <li>Arrêter et analyser les re-rendus colorés</li>
+                    </ul>
+                </div>
+                <div class="mt-4 bg-green-50 p-3 rounded-lg text-green-800 text-sm border-l-4 border-green-500">
+                    💡 <span class="font-semibold">Règle d'or :</span> N'optimisez que quand vous avez un <strong>problème de performance mesuré</strong>. Une optimisation inutile peut complexifier le code.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center p-5 md:px-8 border-t border-gray-200 bg-gray-50">
+            <button id="prevBtn" class="nav-btn bg-gray-300 text-gray-700 px-4 py-2 rounded-xl disabled:opacity-50 flex items-center gap-2"><span>◀</span> Précédent</button>
+            <div class="flex gap-2">
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot1"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot2"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot3"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot4"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot5"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot6"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot7"></span>
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="dot8"></span>
+            </div>
+            <button id="nextBtn" class="nav-btn bg-[#1b4a6e] text-white px-4 py-2 rounded-xl flex items-center gap-2">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 1;
+            const total = 8;
+            $("#totalSlides").text(total);
+            updateSlide();
+
+            function updateSlide() {
+                $(".slide").removeClass("active");
+                $(`#slide${currentSlide}`).addClass("active");
+                $("#slideCounter").text(currentSlide);
+                
+                // Mise à jour des indicateurs (dots)
+                for(let i=1; i<=total; i++) {
+                    if(i === currentSlide) $(`#dot${i}`).removeClass("bg-gray-400").addClass("bg-blue-600 w-3");
+                    else $(`#dot${i}`).removeClass("bg-blue-600 w-3").addClass("bg-gray-400 w-2");
+                }
+                
+                // Désactiver les boutons aux extrémités
+                if(currentSlide === 1) $("#prevBtn").prop("disabled", true);
+                else $("#prevBtn").prop("disabled", false);
+                
+                if(currentSlide === total) $("#nextBtn").prop("disabled", true);
+                else $("#nextBtn").prop("disabled", false);
+            }
+            
+            $("#nextBtn").on("click", function() {
+                if(currentSlide < total) {
+                    currentSlide++;
+                    updateSlide();
+                }
+            });
+            
+            $("#prevBtn").on("click", function() {
+                if(currentSlide > 1) {
+                    currentSlide--;
+                    updateSlide();
+                }
+            });
+            
+            // Navigation au clavier (flèches)
+            $(document).keydown(function(e) {
+                if(e.key === "ArrowRight") {
+                    if(currentSlide < total) { currentSlide++; updateSlide(); }
+                } else if(e.key === "ArrowLeft") {
+                    if(currentSlide > 1) { currentSlide--; updateSlide(); }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

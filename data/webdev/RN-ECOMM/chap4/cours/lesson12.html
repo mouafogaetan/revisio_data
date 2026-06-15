@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 12 : Synchronisation panier (offline → online) | React Native E-commerce</title>
+    <!-- Tailwind CSS + police moderne -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles additionnels pour le confort visuel et les transitions */
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+            border-radius: 2rem;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1.2rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: #1e293b;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .objective-icon {
+            background: #dbeafe;
+            border-radius: 2rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.25rem;
+            }
+            .text-responsive {
+                font-size: 0.95rem;
+            }
+        }
+        /* Diagramme simple CSS (panier offline/online) */
+        .sync-diagram {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            background: #f8fafc;
+            border-radius: 1.5rem;
+            padding: 1rem;
+        }
+        .diagram-box {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            padding: 0.75rem;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+<div class="max-w-4xl mx-auto relative">
+    <!-- En-tête contexte -->
+    <div class="mb-4 flex flex-wrap justify-between gap-2 items-center">
+        <div class="text-xs md:text-sm font-medium bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm text-gray-600">
+            📱 Matière : Développement d'application mobile e-commerce multiplateforme
+        </div>
+        <div class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full">
+            Chapitre 4 · Gérer l'état global
+        </div>
+    </div>
+
+    <!-- Carte principale slide -->
+    <div class="slide-card bg-white shadow-xl border border-gray-100 p-5 md:p-8">
+        <!-- Navigation haut : indicateur -->
+        <div class="flex justify-between items-center mb-5 pb-2 border-b border-gray-100 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">Leçon 12 / 55</span>
+                <span class="text-gray-500 text-sm">🛒 Zustand & synchronisation panier</span>
+            </div>
+            <div class="text-sm text-gray-400" id="slideCounter">Slide 1 / <span id="totalSlides">0</span></div>
+        </div>
+
+        <!-- zone de contenu dynamique -->
+        <div id="slideContent" class="min-h-[500px] transition-all duration-200"></div>
+
+        <!-- Navigation + barre progression -->
+        <div class="flex justify-between items-center mt-8 pt-5 border-t border-gray-100 gap-3">
+            <button id="prevSlide" class="nav-btn bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-5 rounded-full shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+                ← Précédent
+            </button>
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                <div id="progressFill" class="progress-bar-fill h-full bg-blue-500 rounded-full w-0"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow-md transition">
+                Suivant →
+            </button>
+        </div>
+    </div>
+    <p class="text-center text-xs text-gray-400 mt-6">✨ Navigation tactile (swipe) ou boutons – cours adapté mobile</p>
+</div>
+
+<script>
+    // ---------- Données de la leçon 12 d'après le JSON -------------
+    // D'après le fichier: lesson12 appartient au chapitre4 "Gérer l'état global"
+    // Objectifs lesson12:
+    // 0: "Synchroniser le panier local avec le backend"
+    // 1: "Gérer les conflits (offline -> online)"
+    // 2: "Implémenter le merge du panier après connexion"
+    // Nous construisons plusieurs slides pédagogiques: titre, objectifs, concepts, démonstration code, stratégies merge, quiz/résumé
+    
+    const slides = [
+        {
+            type: "title",
+            title: "🔄 Synchronisation du panier local → backend",
+            subtitle: "Gestion des conflits et fusion après reconnexion (Zustand + API)",
+            emoji: "📦⚡",
+            description: "Apprenez à gérer le panier d'achat même hors ligne : stockage local, détection de connexion, merge intelligent et résolution de conflits. Une compétence clé pour une app e-commerce professionnelle."
+        },
+        {
+            type: "objectives",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Synchroniser le panier local (AsyncStorage/Zustand persist) avec le backend API après reconnexion",
+                "Gérer les conflits entre le panier offline et les données serveur (quantités, articles ajoutés hors ligne)",
+                "Implémenter un merge intelligent du panier après connexion utilisateur pour une expérience sans perte"
+            ]
+        },
+        {
+            type: "concept",
+            title: "📡 Pourquoi synchroniser le panier ?",
+            description: "Dans un contexte mobile, les utilisateurs naviguent souvent avec une connexion instable. Le panier doit rester accessible et modifiable hors ligne. Dès le retour en ligne, il faut envoyer les modifications au serveur et fusionner les éventuelles modifications faites sur un autre appareil.",
+            schema: true,
+            details: [
+                "✅ Avantages : Expérience utilisateur fluide, augmentation des conversions.",
+                "⚠️ Défis : Conflits de versions (ex: produit supprimé du stock, quantités modifiées ailleurs).",
+                "🧩 Solution : stockage local (Zustand + persist) + file d'attente de requêtes + stratégie de merge."
+            ]
+        },
+        {
+            type: "code_demo",
+            title: "💻 Mise en place du store panier (Zustand)",
+            codeBlocks: [
+                {
+                    lang: "javascript",
+                    title: "📁 store/cartStore.js (avec persistance offline)",
+                    content: `import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncCartWithBackend, mergeCarts } from '../services/cartSync';
+
+const useCartStore = create(
+  persist(
+    (set, get) => ({
+      items: [],               // { id, quantity, name, price, image }
+      pendingSync: false,
+      lastSyncVersion: null,
+      
+      addItem: (product) => {
+        const currentItems = get().items;
+        const existing = currentItems.find(i => i.id === product.id);
+        let newItems;
+        if(existing) {
+          newItems = currentItems.map(i => i.id === product.id ? {...i, quantity: i.quantity + 1} : i);
+        } else {
+          newItems = [...currentItems, { ...product, quantity: 1 }];
+        }
+        set({ items: newItems });
+        // déclencher sync si connecté (voir hook réseau)
+        get().triggerSyncIfNeeded();
+      },
+      
+      removeItem: (id) => {
+        const newItems = get().items.filter(i => i.id !== id);
+        set({ items: newItems });
+        get().triggerSyncIfNeeded();
+      },
+      
+      updateQuantity: (id, qty) => {
+        const newItems = get().items.map(i => i.id === id ? {...i, quantity: Math.max(0,qty)} : i).filter(i => i.quantity > 0);
+        set({ items: newItems });
+        get().triggerSyncIfNeeded();
+      },
+      
+      triggerSyncIfNeeded: async () => {
+        const state = get();
+        if(state.pendingSync) return;
+        set({ pendingSync: true });
+        try {
+          // La synchronisation réelle sera gérée dans un service externe appelé après vérification réseau
+        } finally {
+          set({ pendingSync: false });
+        }
+      },
+      
+      // Méthode pour la fusion complète depuis le serveur (merge)
+      mergeRemoteCart: (remoteCart) => {
+        const localCart = get().items;
+        const merged = mergeCarts(localCart, remoteCart); // stratégie ci-dessous
+        set({ items: merged });
+      }
+    }),
+    {
+      name: 'cart-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+export default useCartStore;`
+                }
+            ],
+            note: "Zustand avec persist assure que le panier reste même après fermeture de l'app. AsyncStorage est parfait pour Expo."
+        },
+        {
+            type: "merge_strategy",
+            title: "🔀 Stratégie de merge (fusion) du panier",
+            content: "Lorsque l'utilisateur se reconnecte ou que l'app revient en ligne, nous devons fusionner le panier local avec les données distantes pour éviter de perdre des articles ajoutés hors ligne. Voici une règle simple :",
+            mergeRules: [
+                "📌 Produit présent uniquement localement → on le garde et on l'envoie au serveur.",
+                "📌 Produit présent uniquement sur le serveur → on le garde (sauf si l'utilisateur l'avait supprimé offline?) – meilleure approche : prendre la quantité maximale entre les deux ou la dernière action horodatée.",
+                "📌 Produit présent dans les deux → si la quantité locale est plus élevée, on priorise la quantité locale (l'utilisateur a ajouté). Sinon on garde la version serveur et informe l'utilisateur.",
+                "📌 Suppressions offline : on marque les suppressions et on les applique lors du sync."
+            ],
+            codeMerge: `// Fonction utilitaire de merge simple
+function mergeCarts(localCart, remoteCart) {
+  const mergedMap = new Map();
+  // Ajouter les articles distants d'abord
+  remoteCart.forEach(item => mergedMap.set(item.id, { ...item, source: 'remote' }));
+  // Fusion avec local: priorité à la quantité locale si différente (ajout offline)
+  localCart.forEach(localItem => {
+    if(mergedMap.has(localItem.id)) {
+      const existing = mergedMap.get(localItem.id);
+      // On prend la quantité max (l'utilisateur a pu en ajouter hors ligne)
+      const finalQty = Math.max(existing.quantity, localItem.quantity);
+      mergedMap.set(localItem.id, { ...existing, quantity: finalQty });
+    } else {
+      mergedMap.set(localItem.id, { ...localItem });
+    }
+  });
+  return Array.from(mergedMap.values());
+}`
+        },
+        {
+            type: "sync_flow",
+            title: "🌐 Synchronisation avec détection réseau (NetInfo)",
+            flowSteps: [
+                "1️⃣ Écouter les changements de connexion avec NetInfo.",
+                "2️⃣ Quand la connexion revient en ligne, appeler une fonction syncCart().",
+                "3️⃣ Récupérer le panier serveur via API (GET /cart).",
+                "4️⃣ Fusionner avec le panier local (mergeCarts).",
+                "5️⃣ Envoyer le panier fusionné au backend (PUT /cart/merge).",
+                "6️⃣ Mettre à jour le store local avec le résultat final."
+            ],
+            codeExample: `// services/cartSync.js
+import NetInfo from '@react-native-community/netinfo';
+import useCartStore from '../store/cartStore';
+import api from './api';
+
+export const setupNetworkSync = () => {
+  NetInfo.addEventListener(state => {
+    if (state.isConnected && state.isInternetReachable) {
+      syncCartWithBackend();
+    }
+  });
+};
+
+export const syncCartWithBackend = async () => {
+  const { items, mergeRemoteCart } = useCartStore.getState();
+  try {
+    // 1. Récupérer le panier serveur actuel
+    const remoteCartRes = await api.get('/cart');
+    const remoteCart = remoteCartRes.data.items;
+    // 2. Fusion locale
+    const mergedItems = mergeCarts(items, remoteCart);
+    // 3. Envoyer le panier fusionné au backend
+    await api.post('/cart/sync', { cart: mergedItems });
+    // 4. Mettre à jour le store local avec la réponse serveur
+    mergeRemoteCart(mergedItems);
+    console.log('✅ Panier synchronisé avec succès');
+  } catch (error) {
+    console.error('Erreur de sync', error);
+    // On pourra réessayer plus tard
+  }
+};`
+        },
+        {
+            type: "tips",
+            title: "💡 Bonnes pratiques & gestion des conflits avancée",
+            tips: [
+                "🕒 Utiliser des horodatages (timestamp) pour chaque modification et prendre la dernière modification en priorité.",
+                "🔁 Implémenter une file d'attente de requêtes offline : stocker les actions (ajout, suppression) et les rejouer après reconnexion.",
+                "🧪 Tester les scénarios : panier modifié sur deux appareils différents, ou suppression côté admin d'un produit.",
+                "📱 Offrir un indicateur visuel 'synchronisation en cours' à l'utilisateur pour plus de transparence.",
+                "⚙️ Middleware Zustand 'persist' couplé à 'redux-persist' ou une queue personnalisée."
+            ]
+        },
+        {
+            type: "quiz",
+            title: "🧪 Vérification des acquis",
+            question: "Quelle est la meilleure stratégie pour gérer un conflit de panier quand un article a été modifié hors ligne et aussi modifié sur un autre appareil ?",
+            options: [
+                "Supprimer l'article du panier local et garder la version serveur",
+                "Toujours garder la version locale sans vérification",
+                "Fusionner avec horodatage (timestamp) ou max quantité, puis informer l'utilisateur si nécessaire",
+                "Bloquer toute modification hors ligne"
+            ],
+            correctIndex: 2,
+            explanation: "✅ La meilleure pratique est la fusion avec une règle métier (timestamp ou quantité max) et notifier l'utilisateur en cas de conflit non résolu automatiquement. Cela évite la perte de données et améliore l'expérience."
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Récapitulatif de la leçon",
+            summary: "La synchronisation panier offline/online est cruciale pour les applis e-commerce modernes. Avec Zustand + AsyncStorage, on stocke localement. Grâce à NetInfo et une logique de merge (fusion) intelligente, on garantit la cohérence. N'oubliez jamais de tester la reconnexion et les conflits !",
+            nextStep: "Prochaine étape : gérer les favoris et notifications push sur les promotions."
+        }
+    ];
+    
+    let currentIndex = 0;
+    const total = slides.length;
+    $("#totalSlides").text(total);
+    
+    // Helper échappement pour code
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    function renderSlide(index) {
+        const slide = slides[index];
+        let html = '';
+        
+        if (slide.type === 'title') {
+            html = `
+                <div class="text-center py-4 md:py-8">
+                    <div class="text-6xl mb-3">${slide.emoji}</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">${slide.title}</h1>
+                    <p class="text-gray-600 text-base md:text-lg mt-3 max-w-xl mx-auto">${slide.subtitle}</p>
+                    <div class="mt-5 bg-blue-50 inline-block px-5 py-2 rounded-full text-blue-800 text-sm">⏱️ 15 min · pratique essentielle</div>
+                    <div class="mt-4 text-gray-500">${slide.description}</div>
+                </div>
+            `;
+        } 
+        else if (slide.type === 'objectives') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-6"><span class="text-3xl">📌</span> ${slide.title}</h2>
+                    <ul class="space-y-4">
+                        ${slide.objectives.map(obj => `<li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl"><span class="text-blue-500 text-xl">✓</span> <span class="text-gray-700">${obj}</span></li>`).join('')}
+                    </ul>
+                    <div class="mt-6 p-4 bg-indigo-50 rounded-2xl border-l-4 border-indigo-400 text-sm">
+                        💡 À la fin, vous saurez implémenter un panier robuste qui résiste aux coupures réseau.
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'concept') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-5">${slide.description}</p>
+                    <div class="sync-diagram bg-slate-50 p-4 rounded-2xl">
+                        ${slide.details.map(d => `<div class="diagram-box"><span class="text-sm font-medium">${d}</span></div>`).join('')}
+                    </div>
+                    <div class="mt-5 p-3 bg-gray-100 rounded-xl text-gray-700 text-sm">📱 <strong>Rappel mobile :</strong> AsyncStorage limite ~6Mo, mais pour un panier classique c'est largement suffisant.</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'code_demo') {
+            let codeHtml = '';
+            slide.codeBlocks.forEach(block => {
+                codeHtml += `<div class="mb-6"><div class="font-mono text-sm text-gray-600 mb-2">${block.title || ''}</div><pre><code class="language-${block.lang}">${escapeHtml(block.content)}</code></pre></div>`;
+            });
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    ${codeHtml}
+                    <div class="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm mt-3">${slide.note || '✨ Utiliser persist de Zustand garantit une persistance automatique.'}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'merge_strategy') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">${slide.title}</h2>
+                    <p class="mb-4 text-gray-700">${slide.content}</p>
+                    <ul class="space-y-2 mb-5 bg-gray-50 p-4 rounded-xl">
+                        ${slide.mergeRules.map(rule => `<li class="flex gap-2 items-start"><span class="text-indigo-500">🔹</span> <span>${rule}</span></li>`).join('')}
+                    </ul>
+                    <pre><code class="language-javascript">${escapeHtml(slide.codeMerge)}</code></pre>
+                    <div class="text-xs text-gray-500 mt-2">Astuce : Pour des conflits avancés, associez un timestamp à chaque article.</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'sync_flow') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <div class="bg-blue-50 p-4 rounded-2xl mb-5">
+                        ${slide.flowSteps.map(step => `<div class="mb-2 flex gap-2 items-center"><span class="bg-blue-200 text-blue-800 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">${step.charAt(0)}</span><span>${step}</span></div>`).join('')}
+                    </div>
+                    <pre><code class="language-javascript">${escapeHtml(slide.codeExample)}</code></pre>
+                    <div class="mt-4 text-green-700 bg-green-50 p-3 rounded-lg text-sm">⚠️ N'oubliez pas d'appeler setupNetworkSync() dans votre composant racine.</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'tips') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-5">${slide.title}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${slide.tips.map(tip => `<div class="bg-white border border-gray-200 p-3 rounded-xl shadow-sm flex gap-2"><span>💡</span> ${tip}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'quiz') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <div class="bg-indigo-50 p-5 rounded-2xl">
+                        <p class="font-semibold text-gray-800 text-lg mb-4">❓ ${slide.question}</p>
+                        <div class="space-y-3" id="quizOptionsContainer">
+                            ${slide.options.map((opt, idx) => `<label class="flex items-center gap-3 p-3 bg-white rounded-xl border cursor-pointer hover:bg-gray-50"><input type="radio" name="quizRadio" value="${idx}" class="w-4 h-4 text-blue-600"><span>${opt}</span></label>`).join('')}
+                        </div>
+                        <button id="quizSubmitBtn" class="mt-5 bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-700">Vérifier ma réponse</button>
+                        <div id="quizFeedbackMsg" class="mt-4 text-sm"></div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'conclusion') {
+            html = `
+                <div class="text-center py-6">
+                    <div class="text-5xl mb-3">🏆</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-5">${slide.summary}</p>
+                    <div class="bg-green-50 p-4 rounded-2xl text-green-800 text-sm">🚀 ${slide.nextStep}</div>
+                </div>
+            `;
+        }
+        
+        $("#slideContent").html(html);
+        $("#slideCounter").text(`Slide ${index+1} / ${total}`);
+        const progressPercent = ((index) / (total - 1)) * 100;
+        $("#progressFill").css("width", `${progressPercent}%`);
+        $("#prevSlide").prop("disabled", index === 0);
+        $("#nextSlide").prop("disabled", index === total-1);
+        
+        // Gestion quiz après insertion
+        if (slide.type === 'quiz') {
+            $("#quizSubmitBtn").off('click').on('click', function() {
+                const selectedVal = $("input[name='quizRadio']:checked").val();
+                if (selectedVal === undefined) {
+                    $("#quizFeedbackMsg").html('<span class="text-orange-600">📢 Merci de choisir une réponse.</span>');
+                    return;
+                }
+                const isCorrect = parseInt(selectedVal) === slide.correctIndex;
+                if (isCorrect) {
+                    $("#quizFeedbackMsg").html(`<span class="text-green-700 bg-green-100 p-2 rounded-lg inline-block">✅ ${slide.explanation}</span>`);
+                } else {
+                    $("#quizFeedbackMsg").html(`<span class="text-red-600 bg-red-50 p-2 rounded-lg inline-block">❌ ${slide.explanation}</span>`);
+                }
+            });
+        }
+    }
+    
+    // navigation
+    $("#nextSlide").on("click", () => { if (currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    $("#prevSlide").on("click", () => { if (currentIndex > 0) { currentIndex--; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    
+    // Swipe support tactile
+    let touchStartX = 0;
+    $("#slideContent").on("touchstart", (e) => { touchStartX = e.originalEvent.touches[0].clientX; });
+    $("#slideContent").on("touchend", (e) => {
+        if (!touchStartX) return;
+        const diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && currentIndex > 0) { currentIndex--; renderSlide(currentIndex); }
+            else if (diff < 0 && currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        touchStartX = 0;
+    });
+    
+    renderSlide(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 11 : La pagination mémoire | Initiation aux systèmes d'exploitation</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Style personnalisé pour les slides et le confort visuel -->
+    <style>
+        /* Transition smooth entre slides */
+        .slide {
+            display: none;
+            animation: fadeSlide 0.3s ease-out;
+        }
+        .slide.active-slide {
+            display: block;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateX(12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        /* Navigation buttons hover */
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e3a8a; /* bleu profond */
+        }
+        /* Pour les petits écrans, ajustement des marges */
+        @media (max-width: 640px) {
+            .slide-content {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+        /* Personnalisation des points et listes */
+        .custom-bullet li {
+            margin-bottom: 0.5rem;
+        }
+        .card-concept {
+            background: #f8fafc;
+            border-left: 6px solid #2563eb;
+            transition: box-shadow 0.2s;
+        }
+        .card-concept:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .badge-term {
+            background-color: #dbeafe;
+            color: #1e40af;
+            font-weight: 500;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+        }
+        footer {
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 font-sans antialiased">
+
+    <!-- Conteneur principal avec max-width pour grands écrans mais fluide -->
+    <div class="max-w-5xl mx-auto px-3 py-5 md:py-8">
+        <!-- En-tête de la matière et progression -->
+        <div class="flex justify-between items-center flex-wrap gap-2 mb-4 text-sm text-gray-600">
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+                📘 <span class="font-semibold">Matière :</span> Initiation aux Systèmes d'exploitation
+            </div>
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+                🧩 <span class="font-semibold">Chapitre 3 :</span> Maîtriser les techniques d'allocation mémoire
+            </div>
+        </div>
+
+        <!-- Zone principale des slides -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="p-4 md:p-6 slide-content">
+                <!-- Dynamique : slide container -->
+                <div id="slides-container" class="relative">
+                    <!-- Les slides seront injectées ici via jQuery -->
+                </div>
+
+                <!-- Navigation buttons (flèches + indicateur) -->
+                <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
+                    <button id="prevSlide" class="nav-btn bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition" disabled>
+                        ← Précédent
+                    </button>
+                    <div class="flex gap-1.5 flex-wrap justify-center" id="slideIndicators"></div>
+                    <button id="nextSlide" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        Suivant →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pied de page discret avec crédits -->
+        <footer class="text-center text-gray-500 text-xs mt-6">
+            Cours conçu pour les étudiants du Cameroun | Systèmes d'exploitation - Pagination mémoire (Leçon 11)
+        </footer>
+    </div>
+
+    <script>
+        // Définition du contenu des slides (textes, dessins, formules)
+        const slidesData = [
+            {
+                type: "title",
+                title: "📖 Leçon 11 : La pagination mémoire",
+                subtitle: "Comprendre comment le système d'exploitation gère la mémoire avec des pages",
+                bgDecor: "bg-blue-50"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectifs: [
+                    "Comprendre le principe de pagination : découpage de la mémoire en petites unités appelées pages et cadres.",
+                    "Maîtriser l'adressage paginé : numéro de page + déplacement (offset).",
+                    "Comprendre la table des pages et son rôle, jusqu'à la table des pages multiniveaux (x86-64, 4 niveaux)."
+                ]
+            },
+            {
+                type: "content",
+                title: "🧠 Qu'est-ce que la pagination ?",
+                paragraphs: [
+                    "La pagination est une technique de gestion de mémoire qui élimine la fragmentation externe. Elle divise la mémoire physique en blocs de taille fixe appelés <strong>cadres</strong> (frames), et la mémoire logique (virtuelle) d'un processus en blocs de même taille appelés <strong>pages</strong>.",
+                    "Le système d'exploitation maintient une <strong>table des pages</strong> pour chaque processus, qui permet de traduire une adresse virtuelle (page + déplacement) en adresse physique (cadre + déplacement)."
+                ],
+                schema: "simple-pagination"
+            },
+            {
+                type: "content",
+                title: "🔢 Adressage paginé : numéro de page + déplacement",
+                paragraphs: [
+                    "Une adresse logique se compose de deux parties : <code>page number (p)</code> et <code>offset (d)</code>. Si la taille de page est \(2^n\) octets, les n bits de poids faible représentent le déplacement.",
+                    "Exemple : si la taille de page = 4 Ko ( \(2^{12}\) ), alors l'adresse virtuelle 8 192 correspond à la page n°2 et au déplacement 0 (car 8192 / 4096 = 2 reste 0).",
+                    "La MMU (Memory Management Unit) utilise la table des pages pour remplacer le numéro de page par le numéro de cadre physique."
+                ],
+                formula: "Adresse physique = (numéro_cadre × taille_page) + déplacement"
+            },
+            {
+                type: "content",
+                title: "📋 La table des pages (Page Table)",
+                paragraphs: [
+                    "La table des pages est stockée en mémoire centrale. Chaque entrée contient le numéro du cadre physique associé, ainsi que des bits de contrôle (présence, protection, référence, dirty...).",
+                    "Le CPU génère l'adresse logique ; la MMU extrait le numéro de page, consulte la table du processus, et si la page est valide, elle combine le cadre physique + offset pour accéder à la mémoire physique."
+                ],
+                drawTable: true
+            },
+            {
+                type: "content",
+                title: "⚙️ Tables des pages multiniveaux (x86-64)",
+                paragraphs: [
+                    "Sur les architectures modernes comme x86-64, la table des pages linéaire serait gigantesque. On utilise donc une structure hiérarchique (arborescente) : table des pages à plusieurs niveaux.",
+                    "Exemple : x86-64 à 4 niveaux (PML4, PDP, PD, PT). Chaque niveau indexe une partie de l'adresse virtuelle. Cela réduit considérablement la mémoire occupée par les tables (seules les entrées utilisées existent).",
+                    "Avantages : économie de mémoire, prise en charge d'espaces d'adressage immenses (jusqu'à \(2^{48}\) octets)."
+                ],
+                conceptBox: "Un adressage sur 48 bits : niveaux 9+9+9+9+12 (déplacement). Chaque table contient 512 entrées."
+            },
+            {
+                type: "content",
+                title: "🖼️ Illustration: Traduction d'adresse avec pagination",
+                paragraphs: [
+                    "Voici un schéma simple qui montre comment une adresse virtuelle se transforme en adresse physique grâce à la table des pages."
+                ],
+                customDrawing: "schemaAddressTranslation"
+            },
+            {
+                type: "content",
+                title: "✅ Avantages et inconvénients de la pagination",
+                paragraphs: [],
+                prosCons: true
+            },
+            {
+                type: "recap",
+                title: "🔁 Récapitulons !",
+                points: [
+                    "✔ La pagination divise mémoire virtuelle et physique en blocs fixes : pages et cadres.",
+                    "✔ L'adresse virtuelle = (numéro de page, déplacement) → traduction via table des pages.",
+                    "✔ La table des pages multiniveaux permet de gérer de grands espaces d'adressage (ex: x86-64).",
+                    "✔ La pagination évite la fragmentation externe, mais entraîne une petite fragmentation interne."
+                ]
+            }
+        ];
+
+        let currentSlideIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer un schéma SVG simple pour la pagination (adressage)
+        function renderPaginationSvg() {
+            return `<div class="my-4 flex justify-center">
+                        <svg width="100%" viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" class="max-w-full h-auto">
+                            <rect x="10" y="20" width="140" height="50" fill="#bfdbfe" stroke="#2563eb" stroke-width="2" rx="6"/>
+                            <text x="80" y="50" text-anchor="middle" font-size="12" fill="#1e3a8a" font-weight="bold">Adresse virtuelle</text>
+                            <text x="80" y="70" text-anchor="middle" font-size="10" fill="#1f2937">[p : n° page] [d : offset]</text>
+                            
+                            <path d="M 160 45 L 190 45" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+                            <rect x="200" y="10" width="160" height="40" fill="#e0e7ff" stroke="#4338ca" stroke-width="2" rx="6"/>
+                            <text x="280" y="35" text-anchor="middle" font-size="12" fill="#3730a3">Table des pages</text>
+                            <text x="280" y="55" text-anchor="middle" font-size="10">p → numéro cadre</text>
+
+                            <path d="M 370 30 L 400 30" stroke="#2563eb" stroke-width="2"/>
+                            <rect x="410" y="20" width="140" height="50" fill="#bbf7d0" stroke="#15803d" stroke-width="2" rx="6"/>
+                            <text x="480" y="50" text-anchor="middle" font-size="12" fill="#14532d" font-weight="bold">Adresse physique</text>
+                            <text x="480" y="70" text-anchor="middle" font-size="10">cadre physique + offset</text>
+                            <defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/></marker></defs>
+                        </svg>
+                        <p class="text-xs text-gray-500 text-center mt-1">Traduction d'adresse par pagination</p>
+                    </div>`;
+        }
+
+        // Schéma de la table des pages multiniveaux (dessin simple)
+        function renderMultiLevelSchema() {
+            return `<div class="my-5 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <p class="font-semibold text-center text-gray-700 mb-2">🔍 Tables des pages à 4 niveaux (x86-64)</p>
+                        <div class="flex flex-wrap justify-center gap-2 text-center text-xs md:text-sm">
+                            <div class="bg-indigo-100 p-2 rounded-lg shadow-sm"><span class="font-bold">PML4</span> (9 bits)</div>
+                            <span class="text-xl">→</span>
+                            <div class="bg-indigo-100 p-2 rounded-lg shadow-sm"><span class="font-bold">Page Directory Pointer</span> (9 bits)</div>
+                            <span class="text-xl">→</span>
+                            <div class="bg-indigo-100 p-2 rounded-lg shadow-sm"><span class="font-bold">Page Directory</span> (9 bits)</div>
+                            <span class="text-xl">→</span>
+                            <div class="bg-indigo-100 p-2 rounded-lg shadow-sm"><span class="font-bold">Page Table</span> (9 bits)</div>
+                            <span class="text-xl">→</span>
+                            <div class="bg-emerald-100 p-2 rounded-lg shadow-sm"><span class="font-bold">Offset</span> (12 bits)</div>
+                        </div>
+                        <p class="text-center text-gray-600 text-xs mt-2">Chaque niveau pointe vers une table de niveau inférieur → économie mémoire</p>
+                    </div>`;
+        }
+
+        // Avantages / inconvénients
+        function renderProsCons() {
+            return `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        <div class="bg-green-50 border-l-8 border-green-500 p-4 rounded-xl">
+                            <h4 class="font-bold text-green-800 flex items-center gap-2">✅ Avantages</h4>
+                            <ul class="list-disc ml-5 mt-2 text-gray-700 space-y-1">
+                                <li>Pas de fragmentation externe</li>
+                                <li>Mémoire virtuelle efficace</li>
+                                <li>Partage facile de code/librairies</li>
+                                <li>Protection fine par page</li>
+                            </ul>
+                        </div>
+                        <div class="bg-amber-50 border-l-8 border-amber-500 p-4 rounded-xl">
+                            <h4 class="font-bold text-amber-800 flex items-center gap-2">⚠️ Inconvénients</h4>
+                            <ul class="list-disc ml-5 mt-2 text-gray-700 space-y-1">
+                                <li>Fragmentation interne (dernière page parfois inutilisée)</li>
+                                <li>Mémoire supplémentaire pour les tables des pages</li>
+                                <li>Coût de traduction (résolu par TLB)</li>
+                            </ul>
+                        </div>
+                    </div>`;
+        }
+
+        // Générer un slide HTML à partir de son type
+        function renderSlide(slide, index) {
+            const isActive = index === currentSlideIndex ? 'active-slide' : '';
+            let innerHtml = '';
+            
+            if (slide.type === 'title') {
+                innerHtml = `<div class="text-center py-8 md:py-12 ${slide.bgDecor} rounded-2xl">
+                                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+                                <p class="text-lg text-gray-600 max-w-xl mx-auto">${slide.subtitle}</p>
+                                <div class="mt-8 text-blue-600 text-sm">⬇️ Utilisez les flèches pour naviguer ⬇️</div>
+                            </div>`;
+            } 
+            else if (slide.type === 'objectifs') {
+                let listItems = slide.objectiefs?.map(obj => `<li class="mb-2 flex items-start gap-2"><span class="text-blue-600 text-lg">🎯</span> <span>${obj}</span></li>`).join('');
+                innerHtml = `<div>
+                                <h2 class="text-2xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+                                <ul class="space-y-3 bg-gray-50 p-5 rounded-xl custom-bullet">${listItems}</ul>
+                            </div>`;
+            }
+            else if (slide.type === 'content') {
+                let contentHtml = `<h2 class="text-2xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-4">${slide.title}</h2>`;
+                if (slide.paragraphs) {
+                    slide.paragraphs.forEach(p => {
+                        contentHtml += `<p class="mb-3 text-gray-700 leading-relaxed">${p}</p>`;
+                    });
+                }
+                if (slide.formula) {
+                    contentHtml += `<div class="bg-gray-100 p-3 rounded-lg font-mono text-center my-3 text-blue-800">${slide.formula}</div>`;
+                }
+                if (slide.schema === 'simple-pagination') {
+                    contentHtml += renderPaginationSvg();
+                }
+                if (slide.drawTable) {
+                    contentHtml += `<div class="my-4 border rounded-xl overflow-hidden shadow-sm"><table class="min-w-full bg-white text-sm"><thead class="bg-gray-100"><tr><th class="p-2 border">Numéro de page</th><th class="p-2 border">Numéro de cadre physique</th><th class="p-2 border">Bits de contrôle</th></tr></thead><tbody><tr><td class="p-2 border">0</td><td class="p-2 border">5</td><td class="p-2 border">Présent=1</td></tr><tr><td class="p-2 border">1</td><td class="p-2 border">12</td><td class="p-2 border">Présent=1</td></tr><tr><td class="p-2 border">2</td><td class="p-2 border">3</td><td class="p-2 border">Lecture seule</td></tr></tbody></table><p class="text-xs text-gray-500 mt-1 text-center">Exemple de table des pages simple</p></div>`;
+                }
+                if (slide.conceptBox) {
+                    contentHtml += `<div class="bg-blue-100 p-4 rounded-xl border border-blue-300 italic mt-3">💡 ${slide.conceptBox}</div>`;
+                }
+                if (slide.customDrawing === "schemaAddressTranslation") {
+                    contentHtml += `<div class="my-3 flex flex-col items-center">
+                                        <svg width="100%" viewBox="0 0 550 160" class="max-w-full">
+                                            <rect x="10" y="10" width="110" height="40" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5" rx="4"/>
+                                            <text x="65" y="35" text-anchor="middle" font-size="12">CPU génère</text>
+                                            <text x="65" y="50" text-anchor="middle" font-size="10">Adresse virtuelle</text>
+                                            <path d="M 130 30 L 160 30" stroke="#475569" stroke-width="1.5"/>
+                                            <rect x="170" y="5" width="150" height="70" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" rx="4"/>
+                                            <text x="245" y="25" text-anchor="middle" font-size="11" font-weight="bold">MMU + Table des pages</text>
+                                            <text x="245" y="45" text-anchor="middle" font-size="10">Extrait n° page → cadre physique</text>
+                                            <text x="245" y="62" text-anchor="middle" font-size="10">Concatène + offset → Adresse physique</text>
+                                            <path d="M 330 40 L 360 40" stroke="#475569" stroke-width="1.5"/>
+                                            <rect x="370" y="15" width="140" height="50" fill="#dcfce7" stroke="#15803d" stroke-width="1.5" rx="4"/>
+                                            <text x="440" y="35" text-anchor="middle" font-size="12" font-weight="bold">Accès mémoire</text>
+                                            <text x="440" y="55" text-anchor="middle" font-size="10">Données lues/écrites</text>
+                                        </svg>
+                                        <p class="text-center text-gray-500 text-xs mt-1">Étapes de la traduction d'adresse par pagination</p>
+                                    </div>`;
+                }
+                if (slide.prosCons) {
+                    contentHtml += renderProsCons();
+                }
+                innerHtml = `<div>${contentHtml}</div>`;
+            }
+            else if (slide.type === 'recap') {
+                let recapPoints = slide.points.map(pt => `<li class="mb-2 flex items-start gap-2"><span class="text-green-600 text-lg">📌</span> <span>${pt}</span></li>`).join('');
+                innerHtml = `<div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-2xl"><h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2><ul class="space-y-2">${recapPoints}</ul><p class="mt-4 text-blue-700">💪 Prochaine étape : comprendre les algorithmes de remplacement de pages !</p></div>`;
+            }
+            
+            return `<div class="slide ${isActive}" data-slide-index="${index}">${innerHtml}</div>`;
+        }
+
+        // Mettre à jour l'affichage des slides et indicateurs + boutons
+        function updateSlides() {
+            $('.slide').removeClass('active-slide');
+            $(`.slide[data-slide-index="${currentSlideIndex}"]`).addClass('active-slide');
+            
+            // Mise à jour des indicateurs
+            $('#slideIndicators').empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const isActive = i === currentSlideIndex;
+                const indicator = `<button class="w-2.5 h-2.5 rounded-full transition-all ${isActive ? 'bg-blue-700 w-5' : 'bg-gray-300 hover:bg-gray-400'}" data-index="${i}"></button>`;
+                $('#slideIndicators').append(indicator);
+            }
+            
+            // Gérer état boutons
+            $('#prevSlide').prop('disabled', currentSlideIndex === 0);
+            $('#nextSlide').prop('disabled', currentSlideIndex === totalSlides - 1);
+        }
+        
+        // Initialisation complète: construire tous les slides puis navigation
+        function init() {
+            const container = $('#slides-container');
+            container.empty();
+            slidesData.forEach((slide, idx) => {
+                const slideHtml = renderSlide(slide, idx);
+                container.append(slideHtml);
+            });
+            totalSlides = slidesData.length;
+            currentSlideIndex = 0;
+            updateSlides();
+            
+            // Event handlers
+            $('#prevSlide').on('click', () => {
+                if (currentSlideIndex > 0) {
+                    currentSlideIndex--;
+                    updateSlides();
+                }
+            });
+            $('#nextSlide').on('click', () => {
+                if (currentSlideIndex < totalSlides - 1) {
+                    currentSlideIndex++;
+                    updateSlides();
+                }
+            });
+            // Gestion clic sur indicateurs
+            $(document).on('click', '.slide-indicators button, #slideIndicators button', function() {
+                const idx = $(this).data('index');
+                if (idx !== undefined && idx !== currentSlideIndex) {
+                    currentSlideIndex = idx;
+                    updateSlides();
+                }
+            });
+        }
+        
+        // Lancer au chargement
+        $(document).ready(function() {
+            init();
+            // Recalcul MathJax au cas où
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

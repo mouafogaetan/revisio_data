@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Dans une entité TypeORM <code>Review</code>, quelle est la bonne façon de définir une relation <strong>ManyToOne</strong> vers <code>Product</code> avec suppression en cascade ?",
+    "options": [
+      "<code>@ManyToOne(() => Product, product => product.reviews, { onDelete: 'CASCADE' })<br>product: Product;</code>",
+      "<code>@OneToMany(() => Product, product => product.reviews)<br>product: Product;</code>",
+      "<code>@ManyToOne(() => Product, { cascade: true })<br>product: Product;</code>",
+      "<code>@Column()<br>productId: number;</code>"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "La relation ManyToOne est définie avec `@ManyToOne(() => Product, product => product.reviews)`. L'option `{ onDelete: 'CASCADE' }` au niveau de la base de données garantit que si un produit est supprimé, tous ses avis sont automatiquement supprimés (évite les orphelins). L'option `cascade: true` propage les opérations save/remove mais n'est pas équivalente à la contrainte DB."
+  },
+  {
+    "questionText": "Comment garantir qu'un utilisateur ne peut laisser un avis que s'il a <strong>effectivement acheté le produit</strong> (commande livrée) ?",
+    "options": [
+      "Ajouter une simple vérification frontend (affichage conditionnel du formulaire).",
+      "Vérifier dans le service `ReviewsService.create()` l'existence d'une commande de l'utilisateur contenant ce produit avec statut 'delivered'.",
+      "Compter le nombre de vues du produit par l'utilisateur.",
+      "Autoriser tout le monde à laisser un avis, puis modérer a posteriori."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La vérification doit être effectuée côté backend dans le service avant la création de l'avis. On interroge la table `Order` avec les statuts 'delivered' (livrée) pour s'assurer que l'utilisateur a bien reçu le produit. Une simple vérification frontend peut être contournée. Exemple de requête TypeORM :\n```typescript\nconst hasPurchased = await this.orderRepository.createQueryBuilder('order')\n  .innerJoin('order.items', 'item')\n  .where('order.userId = :userId', { userId })\n  .andWhere('order.status = :status', { status: 'delivered' })\n  .andWhere('item.productId = :productId', { productId })\n  .getOne();\nif (!hasPurchased) throw new ForbiddenException();\n```"
+  },
+  {
+    "questionText": "Observez ce code :<br><code>@Column({ type: 'decimal', precision: 2, scale: 1 })<br>rating: number;</code><br>Quelle plage de valeurs peut être stockée correctement ?",
+    "options": [
+      "De 0 à 99 avec une décimale (ex: 4.5, 87.3)",
+      "De 0 à 9 avec une décimale (ex: 4.5, 8.9)",
+      "De 0.0 à 9.9 (précision 2 = 2 chiffres au total, scale 1 = 1 décimale)",
+      "Les options B et C sont correctes."
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "`precision` = nombre total de chiffres, `scale` = nombre de chiffres après la virgule. Avec precision=2, scale=1 :\n- 1 chiffre avant la virgule + 1 chiffre après = 2 chiffres au total\n- Valeurs possibles : -9.9 à 9.9\nPour les notes de 0 à 5, c'est parfait (on peut stocker 0.0, 1.5, 4.5, 5.0).\nSi on avait besoin de notes jusqu'à 99.9, il faudrait precision=3, scale=1."
+  },
+  {
+    "questionText": "Quel est l'avantage d'utiliser une <strong>colonne dénormalisée</strong> <code>ratingAverage</code> dans l'entité <code>Product</code> plutôt que de calculer la moyenne à la volée avec <code>AVG()</code> ?",
+    "options": [
+      "Cela permet d'éviter les doublons d'avis.",
+      "Cela améliore considérablement les performances des requêtes de filtrage/tri par note, surtout sur de grands volumes.",
+      "Cela rend le code plus simple à écrire.",
+      "Cela évite d'avoir à gérer les relations entre tables."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Calculer la moyenne à la volée avec `AVG()` sur une table de reviews qui peut contenir des millions de lignes est très coûteux en performances. Une colonne dénormalisée `ratingAverage` stocke la moyenne pré-calculée et mise à jour via des triggers ou des hooks d'entité (`@AfterInsert`, `@AfterUpdate`, `@AfterRemove` sur Review). Cela permet des requêtes de filtrage (`WHERE ratingAverage >= 4.5`) et de tri extrêmement rapides, au prix d'une légère complexité de mise à jour."
+  },
+  {
+    "questionText": "Comment implémenter la <strong>mise à jour automatique</strong> de la note moyenne d'un produit lorsqu'un avis est ajouté, modifié ou supprimé ?",
+    "options": [
+      "Utiliser un cron job qui recalcule toutes les moyennes chaque nuit.",
+      "Utiliser les hooks TypeORM (`@AfterInsert`, `@AfterUpdate`, `@AfterRemove`) dans l'entité Review pour recalculer et sauvegarder la moyenne du produit concerné.",
+      "Demander aux administrateurs de recalculer manuellement les moyennes.",
+      "Ignorer le problème, la moyenne se mettra à jour toute seule."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La solution la plus efficace et cohérente est d'utiliser les hooks d'entité TypeORM dans `Review` :\n```typescript\n@Entity()\nexport class Review {\n  @AfterInsert()\n  @AfterUpdate()\n  @AfterRemove()\n  async updateProductRating() {\n    const result = await this.reviewRepository\n      .createQueryBuilder('review')\n      .select('AVG(review.rating)', 'avg')\n      .where('review.productId = :productId', { productId: this.productId })\n      .getRawOne();\n    await this.productRepository.update(this.productId, {\n      ratingAverage: result.avg || 0\n    });\n  }\n}\n```\nCela garantit que la moyenne est toujours à jour immédiatement. Les cron jobs introduisent un délai et peuvent afficher des moyennes obsolètes."
+  },
+  {
+    "questionText": "Quelle est la bonne pratique concernant le champ <code>comment</code> d'un avis pour prévenir les attaques XSS ?",
+    "options": [
+      "Stocker le commentaire en texte brut et l'échapper à l'affichage dans le frontend.",
+      "Accepter du HTML riche pour permettre la mise en forme des avis.",
+      "Ne jamais valider le contenu du commentaire.",
+      "Stocker le commentaire encodé en base64."
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "La bonne pratique est de stocker le commentaire en texte brut (string simple) dans la base de données, puis d'utiliser l'échappement automatique côté frontend (React/Vue/Angular le font par défaut) ou des fonctions comme `escapeHtml()` pour neutraliser tout code HTML ou JavaScript malveillant. Ainsi, si un utilisateur saisit `<script>alert('XSS')</script>`, cela s'affichera comme texte littéral et ne sera pas exécuté. Accepter du HTML riche nécessiterait une sanitization poussée (DOMPurify) et n'est généralement pas recommandé pour les commentaires utilisateurs."
+  },
+  {
+    "questionText": "Considérez cette requête pour récupérer les avis d'un produit avec pagination :<br><code>const [reviews, total] = await this.reviewRepository.findAndCount({<br>  where: { product: { id: productId } },<br>  relations: ['user'],<br>  order: { createdAt: 'DESC' },<br>  skip: (page - 1) * limit,<br>  take: limit<br>});</code><br>Quelle optimisation pourrait-on ajouter pour la performance ?",
+    "options": [
+      "Ajouter un index sur `(productId, createdAt)` dans la base de données.",
+      "Retirer la relation 'user' et faire une deuxième requête séparée.",
+      "Utiliser un cache Redis pour les avis.",
+      "Limiter à 5 avis maximum par produit."
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Un index composite sur `(productId, createdAt)` accélère considérablement cette requête car le WHERE filtre sur productId et le ORDER BY utilise createdAt. Sans index, PostgreSQL doit parcourir toutes les lignes de la table `review` pour trouver celles du produit demandé. L'index permet une recherche par index (index scan) très rapide, surtout lorsqu'un produit a des milliers d'avis. Les autres options sont soit moins pertinentes (cache pour des données critiques en temps réel), soit des solutions de contournement."
+  },
+  {
+    "questionText": "Quelle vérification doit être faite avant de permettre à un utilisateur de <strong>modifier ou supprimer</strong> son propre avis ?",
+    "options": [
+      "Vérifier que l'utilisateur est connecté (déjà fait par JwtAuthGuard).",
+      "Vérifier que l'avis appartient bien à cet utilisateur.",
+      "Vérifier que la commande correspondante n'a pas été annulée après l'avis.",
+      "Les options A et B sont indispensables."
+    ],
+    "correctAnswer": 3,
+    "difficulty": "easy",
+    "explanation": "Deux vérifications sont essentielles :\n1. **Authentification** : s'assurer que l'utilisateur est connecté (via `JwtAuthGuard`).\n2. **Autorisation** : vérifier que l'avis à modifier/supprimer appartient bien à cet utilisateur (`review.userId === currentUserId`).\n\nSans la deuxième vérification, un utilisateur malveillant pourrait modifier les avis des autres en devinant l'ID de l'avis. La vérification de l'état de la commande (C) n'est généralement pas nécessaire car un utilisateur peut modifier son avis même après annulation, mais cela dépend des règles métier."
+  },
+  {
+    "questionText": "Comment représenter la <strong>distribution des étoiles</strong> d'un produit (ex: 5 étoiles: 120 avis, 4 étoiles: 45 avis, etc.) de manière performante ?",
+    "options": [
+      "Calculer à la volée avec une requête GROUP BY à chaque affichage.",
+      "Stocker des compteurs dénormalisés dans l'entité Product (`count5Stars`, `count4Stars`, etc.) et les mettre à jour via hooks.",
+      "Utiliser une vue matérialisée rafraîchie quotidiennement.",
+      "Compter manuellement dans le code JavaScript après avoir récupéré tous les avis."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "Pour des raisons de performance, il est préférable de stocker des compteurs dénormalisés dans l'entité Product :\n```typescript\n@Column({ default: 0 })\ncount5Stars: number;\n@Column({ default: 0 })\ncount4Stars: number;\n// ... count3Stars, count2Stars, count1Stars\n```\nCes compteurs sont incrémentés/décrémentés dans les hooks `@AfterInsert`, `@AfterUpdate`, `@AfterRemove` de l'entité Review. Ainsi, afficher la distribution des étoiles devient une simple lecture de 5 colonnes sans aucune requête d'agrégation. Pour un produit très populaire avec des milliers d'avis, le gain de performance est considérable."
+  },
+  {
+    "questionText": "Que retourne la requête suivante ?<br><code>SELECT ROUND(AVG(rating), 1) as avg_rating FROM review WHERE product_id = 42</code>",
+    "options": [
+      "La note moyenne du produit 42 arrondie à 1 décimale.",
+      "La somme des notes du produit 42.",
+      "Le nombre d'avis pour le produit 42.",
+      "La note maximale du produit 42."
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "La requête calcule la moyenne (`AVG`) des notes du produit avec `product_id = 42`, puis arrondit le résultat à une décimale (`ROUND(..., 1)`). Par exemple, si les notes sont [4, 5, 3], la moyenne est 4.0, arrondie à 4.0. Si les notes sont [4.5, 4.7, 4.9], la moyenne est 4.7, arrondie à 4.7. C'est la méthode standard pour calculer la note moyenne affichée à côté d'un produit dans un catalogue."
+  }
+]

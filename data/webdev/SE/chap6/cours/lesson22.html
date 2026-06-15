@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 22 : Tests unitaires & TDD | Génie Logiciel</title>
+    <!-- Tailwind CSS + Google Fonts + Font Awesome (icons) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Personnalisation légère du thème pour meilleure lisibilité -->
+    <style>
+        /* Ajustements supplémentaires pour le confort de lecture sur mobile */
+        body {
+            background: #f8fafc;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        /* Style swipe / slide container */
+        .slide-container {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slide {
+            scroll-snap-align: start;
+            flex-shrink: 0;
+            width: 100%;
+            overflow-y: auto;
+        }
+        /* Pour masquer la scrollbar sur mobile mais garder fonctionnel (optionnel) */
+        .slide-container::-webkit-scrollbar {
+            height: 4px;
+        }
+        .slide-container::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 8px;
+        }
+        .slide-container::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 8px;
+        }
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        @media (max-width: 640px) {
+            .slide {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules (optionnel mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100">
+
+    <div class="max-w-4xl mx-auto px-3 py-5 md:py-8">
+        <!-- En-tête avec infos matière/classe -->
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm p-3 mb-5 flex flex-wrap justify-between items-center border border-gray-200">
+            <div>
+                <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Classe: Développement Web</p>
+                <p class="text-sm text-gray-700">Matière: Initiation au Génie Logiciel</p>
+            </div>
+            <div class="bg-indigo-100 px-3 py-1 rounded-full text-indigo-800 text-xs font-bold shadow-inner">Leçon 22/36</div>
+        </div>
+
+        <!-- Conteneur slides horizontal (snap) -->
+        <div class="slide-container flex rounded-3xl bg-white shadow-xl border border-gray-200 overflow-x-auto" id="slidesWrapper">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide min-h-[75vh] flex flex-col justify-center items-center text-center p-6 md:p-10">
+                <div class="max-w-xl mx-auto">
+                    <div class="inline-block px-4 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-semibold mb-5">🧪 Unité 6 – Stratégies de test</div>
+                    <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-sky-600 bg-clip-text text-transparent mb-4">Tests unitaires & TDD</h1>
+                    <p class="text-gray-600 text-lg md:text-xl mb-8">Écrire des tests robustes, maîtriser le cycle Red-Green-Refactor</p>
+                    <div class="w-20 h-1 bg-indigo-400 mx-auto rounded-full mb-6"></div>
+                    <div class="text-gray-500 text-sm flex gap-4 justify-center">
+                        <span>🎯 3 objectifs clés</span>
+                        <span>⚡ xUnit • Mocks</span>
+                        <span>🔄 TDD</span>
+                    </div>
+                    <div class="mt-12 text-indigo-500 animate-pulse text-sm">👆 Glissez ou cliquez sur les flèches →</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide p-6 md:p-10">
+                <div class="h-full flex flex-col justify-center">
+                    <div class="bg-indigo-50 rounded-2xl p-6 border-l-8 border-indigo-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-2 mb-6">🎯 Objectifs d’apprentissage</h2>
+                        <div class="space-y-5">
+                            <div class="flex gap-4 items-start bg-white rounded-xl p-4 shadow-sm">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm">1</span>
+                                <p class="text-gray-700"><span class="font-semibold">Écrire des tests unitaires</span> avec des frameworks xUnit (JUnit, pytest, Jest).</p>
+                            </div>
+                            <div class="flex gap-4 items-start bg-white rounded-xl p-4 shadow-sm">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm">2</span>
+                                <p class="text-gray-700"><span class="font-semibold">Maîtriser TDD (Test Driven Development)</span> : cycle Red → Green → Refactor.</p>
+                            </div>
+                            <div class="flex gap-4 items-start bg-white rounded-xl p-4 shadow-sm">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-7 h-7 flex items-center justify-center text-sm">3</span>
+                                <p class="text-gray-700"><span class="font-semibold">Utiliser les mocks et stubs</span> pour isoler les dépendances et tester proprement.</p>
+                            </div>
+                        </div>
+                        <div class="mt-8 text-sm text-gray-500 italic text-center">À la fin de cette leçon, vous saurez concevoir du code fiable et maintenable.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QU'UN TEST UNITAIRE ? + PYRAMIDE -->
+            <div class="slide p-6 md:p-10">
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold text-indigo-800 border-b border-indigo-200 pb-2">📌 Qu’est-ce qu’un test unitaire ?</h2>
+                    <div class="bg-gray-50 p-5 rounded-xl">
+                        <p class="text-gray-700 leading-relaxed">Un test unitaire vérifie le comportement d’une <strong>petite portion de code</strong> (fonction, méthode) de manière isolée. Il valide que chaque brique fonctionne correctement avant l’intégration.</p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-sm">
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">✅ Rapide</span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">✅ Automatisable</span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">✅ Documente le code</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-semibold text-gray-800 mt-2">🔺 Pyramide des tests (stratégie)</h3>
+                    <div class="flex justify-center my-2">
+                        <!-- Diagramme simple dessiné avec SVG -->
+                        <svg width="200" height="160" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg" class="mx-auto">
+                            <polygon points="100,20 180,140 20,140" fill="#c7d2fe" stroke="#4f46e5" stroke-width="2" />
+                            <line x1="100" y1="20" x2="100" y2="140" stroke="#4f46e5" stroke-dasharray="3" stroke-width="1" />
+                            <text x="100" y="55" text-anchor="middle" fill="#1e293b" font-size="12" font-weight="bold">E2E / UI</text>
+                            <text x="100" y="95" text-anchor="middle" fill="#1e293b" font-size="12" font-weight="bold">Tests d’intégration</text>
+                            <text x="100" y="130" text-anchor="middle" fill="#1e40af" font-size="14" font-weight="bold">Tests unitaires</text>
+                            <text x="20" y="150" fill="#475569" font-size="9">Beaucoup</text>
+                            <text x="170" y="150" text-anchor="end" fill="#475569" font-size="9">Peu</text>
+                        </svg>
+                    </div>
+                    <p class="text-sm text-gray-600 text-center">Les tests unitaires constituent la base massive de la pyramide : nombreux, rapides, essentiels.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : FRAMEWORKS XUNIT (JUnit, pytest, Jest) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">🧰 Frameworks xUnit (exemples)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-xl border p-4 shadow-sm card-hover">
+                        <div class="text-3xl mb-2">☕</div>
+                        <h3 class="font-bold text-lg">JUnit (Java)</h3>
+                        <pre class="code-block p-2 text-xs mt-2 overflow-auto">@Test
+void addition() {
+    assertEquals(5, calc.add(2,3));
+}</pre>
+                    </div>
+                    <div class="bg-white rounded-xl border p-4 shadow-sm card-hover">
+                        <div class="text-3xl mb-2">🐍</div>
+                        <h3 class="font-bold text-lg">pytest (Python)</h3>
+                        <pre class="code-block p-2 text-xs mt-2 overflow-auto">def test_addition():
+    assert add(2,3) == 5</pre>
+                    </div>
+                    <div class="bg-white rounded-xl border p-4 shadow-sm card-hover">
+                        <div class="text-3xl mb-2">📜</div>
+                        <h3 class="font-bold text-lg">Jest (JS)</h3>
+                        <pre class="code-block p-2 text-xs mt-2 overflow-auto">test('addition', () => {
+    expect(add(2,3)).toBe(5);
+});</pre>
+                    </div>
+                </div>
+                <p class="mt-5 text-gray-700 bg-gray-100 p-3 rounded-lg">✅ Structure commune : <strong>Arrange, Act, Assert</strong> (préparer, exécuter, vérifier).</p>
+            </div>
+
+            <!-- SLIDE 5 : TDD - RED GREEN REFACTOR (visuel cyclique) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🔄 Test Driven Development (TDD)</h2>
+                <div class="bg-gradient-to-r from-red-50 to-green-50 p-5 rounded-2xl border border-red-100">
+                    <p class="font-medium text-gray-700 mb-4">Une discipline de développement : <span class="font-mono bg-white px-2 py-1 rounded">écrire le test AVANT le code</span></p>
+                    <div class="flex flex-wrap justify-center gap-3 my-5">
+                        <div class="bg-red-200 text-red-800 px-5 py-2 rounded-full font-bold">🔴 RED</div>
+                        <span class="text-2xl">→</span>
+                        <div class="bg-green-200 text-green-800 px-5 py-2 rounded-full font-bold">🟢 GREEN</div>
+                        <span class="text-2xl">→</span>
+                        <div class="bg-blue-200 text-blue-800 px-5 py-2 rounded-full font-bold">🔵 REFACTOR</div>
+                    </div>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        <li><strong>🔴 Red</strong> : Écrire un test qui échoue (fonctionnalité pas encore implémentée).</li>
+                        <li><strong>🟢 Green</strong> : Écrire le minimum de code pour faire passer le test.</li>
+                        <li><strong>🔵 Refactor</strong> : Nettoyer, améliorer la structure sans casser les tests.</li>
+                    </ul>
+                    <div class="mt-4 bg-white p-3 rounded-xl text-sm italic">💡 TDD réduit les bugs, force une conception modulaire et sert de documentation vivante.</div>
+                </div>
+                <!-- Petit schéma TDD fait maison -->
+                <div class="flex justify-center mt-4">
+                    <div class="bg-indigo-50 rounded-full px-4 py-2 text-indigo-700 text-xs font-mono">"Red-Green-Refactor"</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : EXEMPLE CONCRET TDD (CALCULATRICE) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-xl font-bold text-indigo-800 mb-2">📝 Exemple pas à pas : TDD pour une fonction "diviser"</h2>
+                <div class="bg-gray-800 text-gray-100 rounded-xl p-4 font-mono text-sm overflow-x-auto space-y-2">
+                    <p><span class="text-red-400">// Étape 1 - RED :</span> test qui échoue</p>
+                    <pre class="text-green-300">def test_division_par_zero():
+    with pytest.raises(ZeroDivisionError):
+        diviser(10, 0)</pre>
+                    <p><span class="text-yellow-400">// Étape 2 - GREEN :</span> code minimal</p>
+                    <pre class="text-blue-300">def diviser(a,b):
+    if b == 0:
+        raise ZeroDivisionError()
+    return a/b</pre>
+                    <p><span class="text-indigo-300">// Étape 3 - REFACTOR :</span> ajouter gestion des types, clean</p>
+                </div>
+                <p class="mt-4 text-gray-600 bg-white p-3 rounded-lg shadow-sm">✅ Après refactoring, tous les tests restent Verts → confiance dans l’évolution du code.</p>
+            </div>
+
+            <!-- SLIDE 7 : MOCKS ET STUBS (isolation) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">🎭 Mocks & Stubs : simuler les dépendances</h2>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-blue-50 p-4 rounded-xl">
+                        <h3 class="font-bold text-blue-800 text-lg">🪤 Stub</h3>
+                        <p class="text-gray-700 text-sm">Fournit des réponses prédéfinies aux appels. Exemple : une base de données factice retourne toujours un utilisateur.</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-xl">
+                        <h3 class="font-bold text-purple-800 text-lg">🎭 Mock</h3>
+                        <p class="text-gray-700 text-sm">Vérifie les interactions : on s’assure qu’une méthode a bien été appelée avec certains paramètres.</p>
+                    </div>
+                </div>
+                <div class="mt-5 bg-white border rounded-xl p-4">
+                    <p class="font-semibold">Pourquoi mocker ?</p>
+                    <p class="text-gray-600">Tester une fonction sans dépendre d’une API externe, d’une BDD réelle ou d’un service lent → tests plus rapides et fiables.</p>
+                    <pre class="code-block p-3 mt-3 text-xs"><span class="text-green-400">// Exemple avec Jest</span>
+const getUser = jest.fn().mockReturnValue({ name: "Alice" });
+expect(getUser()).toEqual({ name: "Alice" });</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES + ASTUCES -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">✨ Bonnes pratiques des tests unitaires</h2>
+                <ul class="space-y-3">
+                    <li class="flex gap-3 bg-white p-3 rounded-xl shadow-sm"><span class="text-green-600 text-xl">✔️</span><span>Un test doit tester <strong>une seule chose</strong> (nom explicite).</span></li>
+                    <li class="flex gap-3 bg-white p-3 rounded-xl shadow-sm"><span class="text-green-600 text-xl">✔️</span><span>Les tests doivent être indépendants (ordre non important).</span></li>
+                    <li class="flex gap-3 bg-white p-3 rounded-xl shadow-sm"><span class="text-green-600 text-xl">✔️</span><span>Utiliser des noms longs mais descriptifs comme <code>test_division_renvoie_float()</code>.</span></li>
+                    <li class="flex gap-3 bg-white p-3 rounded-xl shadow-sm"><span class="text-green-600 text-xl">✔️</span><span>Exécuter les tests à chaque modification (CI / local).</span></li>
+                </ul>
+                <div class="mt-6 p-3 bg-amber-50 rounded-xl border-l-4 border-amber-400">
+                    <p class="text-sm text-amber-800">💡 La couverture de code n’est pas une fin en soi : privilégier la <strong>qualité des assertions</strong> et les cas limites.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : ATELIER PRATIQUE (Mini-exercice interactif jQuery) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🧪 Mini Atelier : TDD interactif</h2>
+                <p class="mb-4 text-gray-700">Imaginez une fonction <code class="bg-gray-200 px-1 rounded">estPair(n)</code>. Écrivez d'abord le test unitaire (conceptuel), puis le code.</p>
+                <div class="bg-indigo-50 rounded-xl p-5">
+                    <p class="font-mono text-sm bg-white p-3 rounded-lg mb-3" id="tddDemoText">🔴 Étape RED : test("4 devrait être pair") → échoue car fonction non implémentée.</p>
+                    <div class="flex flex-wrap gap-3 mt-2">
+                        <button id="redStep" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full text-sm shadow">🔴 Simuler RED</button>
+                        <button id="greenStep" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm shadow">🟢 Passer GREEN</button>
+                        <button id="refactorStep" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm shadow">🔵 Refactor</button>
+                        <button id="resetDemo" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-2 rounded-full text-sm">⟳ Reset</button>
+                    </div>
+                    <div id="demoFeedback" class="mt-4 text-sm font-medium text-gray-800"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-4">(démonstration du cycle mental)</p>
+            </div>
+
+            <!-- SLIDE 10 : RÉSUMÉ + QUIZ RAPIDE (questions) -->
+            <div class="slide p-6 md:p-10">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-5">📚 Résumé & Vérification des acquis</h2>
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <p class="font-bold">✅ 1. À quoi sert un mock ?</p>
+                        <div class="mt-2 text-gray-600">👉 À simuler le comportement d’une dépendance et vérifier les interactions sans recourir à l’implémentation réelle.</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <p class="font-bold">✅ 2. Que signifie "Refactor" dans TDD ?</p>
+                        <div class="mt-2 text-gray-600">👉 Améliorer la structure du code (lisibilité, performance) sans modifier le comportement externe, avec tous les tests au vert.</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm">
+                        <p class="font-bold">✅ 3. Quel est l’avantage d’un framework xUnit ?</p>
+                        <div class="mt-2 text-gray-600">👉 Standardisation des tests, assertions riches, exécution automatisée et intégration facile dans les pipelines CI.</div>
+                    </div>
+                </div>
+                <div class="mt-6 text-center text-indigo-700 text-sm">Prochaine leçon : Tests d’intégration et API 🚀</div>
+            </div>
+        </div>
+
+        <!-- Navigation slides (flèches et indicateur) -->
+        <div class="flex justify-between items-center mt-5 gap-2">
+            <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                ← Précédent
+            </button>
+            <div class="flex gap-1 overflow-x-auto justify-center px-2" id="slideDots"></div>
+            <button id="nextSlide" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md transition flex items-center gap-1">
+                Suivant →
+            </button>
+        </div>
+        <footer class="text-center text-gray-400 text-xs mt-8 mb-3">© Cours Génie Logiciel - Cameroun | Leçon 22 : Tests unitaires & TDD</footer>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            const $wrapper = $('#slidesWrapper');
+            const $slides = $('.slide');
+            const slideCount = $slides.length;
+            let currentIndex = 0;
+
+            // Fonction pour mettre à jour le scroll vers la slide courante
+            function goToSlide(index) {
+                if (index < 0) index = 0;
+                if (index >= slideCount) index = slideCount - 1;
+                currentIndex = index;
+                const slideElement = $slides[currentIndex];
+                const scrollLeft = slideElement.offset().left - $wrapper.offset().left + $wrapper.scrollLeft();
+                $wrapper.animate({ scrollLeft: scrollLeft }, 300);
+                updateDots();
+                updateButtons();
+            }
+
+            function updateDots() {
+                const $dotsContainer = $('#slideDots');
+                $dotsContainer.empty();
+                for (let i = 0; i < slideCount; i++) {
+                    const dot = $('<button>')
+                        .addClass(`w-2.5 h-2.5 rounded-full mx-1 transition-all ${i === currentIndex ? 'bg-indigo-600 w-5' : 'bg-gray-300 hover:bg-gray-400'}`)
+                        .attr('data-index', i);
+                    dot.on('click', function() {
+                        goToSlide(parseInt($(this).attr('data-index')));
+                    });
+                    $dotsContainer.append(dot);
+                }
+            }
+            function updateButtons() {
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === slideCount - 1);
+            }
+
+            // Gestion clics
+            $('#prevSlide').on('click', function() { goToSlide(currentIndex - 1); });
+            $('#nextSlide').on('click', function() { goToSlide(currentIndex + 1); });
+
+            // Détection du scroll manuel pour synchroniser l'index
+            $wrapper.on('scroll', function() {
+                let closestIndex = 0;
+                let minDiff = Infinity;
+                const wrapperLeft = $wrapper.scrollLeft();
+                $slides.each(function(idx) {
+                    const offsetLeft = $(this).offset().left - $wrapper.offset().left;
+                    const diff = Math.abs(offsetLeft - wrapperLeft);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestIndex = idx;
+                    }
+                });
+                if (closestIndex !== currentIndex) {
+                    currentIndex = closestIndex;
+                    updateDots();
+                    updateButtons();
+                }
+            });
+
+            updateDots();
+            updateButtons();
+            // Ajuster après redimensionnement
+            $(window).on('resize', function() { goToSlide(currentIndex); });
+
+            // ---------- Mini démo TDD (jQuery interactif) ----------
+            let demoState = 'red'; // red, green, refactor
+            function updateTddMessage() {
+                const $msgDiv = $('#tddDemoText');
+                const $feedback = $('#demoFeedback');
+                if (demoState === 'red') {
+                    $msgDiv.html('🔴 Étape RED : test("4 devrait être pair") → ÉCHEC (fonction estPair non définie)');
+                    $feedback.html('❌ Le test ne passe pas. Écrire le code minimum pour passer au vert.');
+                } else if (demoState === 'green') {
+                    $msgDiv.html('🟢 Étape GREEN : Code écrit → function estPair(n){ return n%2===0; } → Test réussi! ✅');
+                    $feedback.html('✅ Tous les tests passent. Vous pouvez maintenant refactoriser.');
+                } else if (demoState === 'refactor') {
+                    $msgDiv.html('🔵 Refactor : amélioration avec validation des entiers, gestion erreur. Tests toujours ✅ !');
+                    $feedback.html('✨ Code plus propre, sans casser le comportement. Le cycle TDD est complet.');
+                }
+            }
+            $('#redStep').on('click', function() {
+                demoState = 'red';
+                updateTddMessage();
+            });
+            $('#greenStep').on('click', function() {
+                if (demoState === 'red') demoState = 'green';
+                else if (demoState === 'green') demoState = 'green';
+                else if (demoState === 'refactor') demoState = 'green';
+                updateTddMessage();
+            });
+            $('#refactorStep').on('click', function() {
+                if (demoState === 'green') demoState = 'refactor';
+                else if (demoState === 'refactor') demoState = 'refactor';
+                else if (demoState === 'red') demoState = 'red'; // ne peut pas refactor sans green
+                if (demoState !== 'refactor' && demoState !== 'green') {
+                    $('#demoFeedback').html('ℹ️ Vous devez d’abord passer le test en GREEN avant de refactoriser.');
+                    setTimeout(() => { if(demoState==='red') $('#demoFeedback').html(''); }, 1200);
+                } else {
+                    updateTddMessage();
+                }
+            });
+            $('#resetDemo').on('click', function() {
+                demoState = 'red';
+                updateTddMessage();
+            });
+            updateTddMessage();
+        });
+    </script>
+</body>
+</html>

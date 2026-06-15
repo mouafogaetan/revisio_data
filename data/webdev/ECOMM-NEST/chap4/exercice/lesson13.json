@@ -1,0 +1,109 @@
+[
+  {
+    "intitule": "Implémentation de la recherche et des filtres sur le catalogue",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une API e-commerce avec NestJS et TypeORM. Le module <code>Products</code> doit permettre aux clients de rechercher des produits par nom, catégorie, et de les filtrer par prix minimum, prix maximum, stock minimum, et note moyenne.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez un DTO <code>ProductQueryDto</code> qui contient tous les paramètres de requête possibles : <code>search</code> (terme de recherche), <code>categoryId</code>, <code>minPrice</code>, <code>maxPrice</code>, <code>minStock</code>, <code>minRating</code>, <code>sortBy</code> (ex: 'price', 'createdAt', 'rating'), <code>sortOrder</code> ('ASC' ou 'DESC'), <code>page</code> et <code>limit</code>. Utilisez class-validator et les décorateurs Swagger.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// products/dto/product-query.dto.ts\nimport { ApiPropertyOptional } from '@nestjs/swagger';\nimport { IsOptional, IsString, IsNumber, IsInt, Min, IsIn, MinLength } from 'class-validator';\nimport { Type } from 'class-transformer';\n\nexport class ProductQueryDto {\n  @ApiPropertyOptional({ description: 'Terme de recherche dans le nom ou la description' })\n  @IsOptional()\n  @IsString()\n  @MinLength(2)\n  search?: string;\n\n  @ApiPropertyOptional()\n  @IsOptional()\n  @IsNumber()\n  @Type(() => Number)\n  categoryId?: number;\n\n  @ApiPropertyOptional()\n  @IsOptional()\n  @IsNumber()\n  @Min(0)\n  @Type(() => Number)\n  minPrice?: number;\n\n  @ApiPropertyOptional()\n  @IsOptional()\n  @IsNumber()\n  @Min(0)\n  @Type(() => Number)\n  maxPrice?: number;\n\n  @ApiPropertyOptional()\n  @IsOptional()\n  @IsInt()\n  @Min(0)\n  @Type(() => Number)\n  minStock?: number;\n\n  @ApiPropertyOptional()\n  @IsOptional()\n  @IsNumber()\n  @Min(0)\n  @Max(5)\n  @Type(() => Number)\n  minRating?: number;\n\n  @ApiPropertyOptional({ enum: ['price', 'createdAt', 'name', 'rating'] })\n  @IsOptional()\n  @IsString()\n  @IsIn(['price', 'createdAt', 'name', 'rating'])\n  sortBy?: string = 'createdAt';\n\n  @ApiPropertyOptional({ enum: ['ASC', 'DESC'] })\n  @IsOptional()\n  @IsIn(['ASC', 'DESC'])\n  sortOrder?: 'ASC' | 'DESC' = 'DESC';\n\n  @ApiPropertyOptional({ default: 1 })\n  @IsOptional()\n  @IsInt()\n  @Min(1)\n  @Type(() => Number)\n  page?: number = 1;\n\n  @ApiPropertyOptional({ default: 10 })\n  @IsOptional()\n  @IsInt()\n  @Min(1)\n  @Max(100)\n  @Type(() => Number)\n  limit?: number = 10;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez la méthode <code>findAllWithFilters(query: ProductQueryDto)</code> dans <code>ProductsService</code>. Utilisez le QueryBuilder de TypeORM pour construire une requête dynamique qui applique tous les filtres, la recherche textuelle (LIKE), les relations (category, reviews pour la note moyenne), le tri et la pagination.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// products/products.service.ts\nasync findAllWithFilters(query: ProductQueryDto): Promise<{ items: Product[]; total: number; page: number; limit: number; totalPages: number }> {\n  const { search, categoryId, minPrice, maxPrice, minStock, minRating, sortBy, sortOrder, page, limit } = query;\n  \n  const qb = this.productsRepository.createQueryBuilder('product')\n    .leftJoinAndSelect('product.category', 'category')\n    .leftJoinAndSelect('product.reviews', 'reviews');\n\n  // Filtre par catégorie\n  if (categoryId) {\n    qb.andWhere('product.categoryId = :categoryId', { categoryId });\n  }\n\n  // Recherche textuelle (nom ou description)\n  if (search) {\n    qb.andWhere('(product.name ILIKE :search OR product.description ILIKE :search)', { \n      search: `%${search}%` \n    });\n  }\n\n  // Filtre par prix\n  if (minPrice !== undefined) {\n    qb.andWhere('product.price >= :minPrice', { minPrice });\n  }\n  if (maxPrice !== undefined) {\n    qb.andWhere('product.price <= :maxPrice', { maxPrice });\n  }\n\n  // Filtre par stock\n  if (minStock !== undefined) {\n    qb.andWhere('product.stock >= :minStock', { minStock });\n  }\n\n  // Filtre par note moyenne (sous-requête)\n  if (minRating !== undefined) {\n    qb.andWhere(\n      '(SELECT COALESCE(AVG(reviews.rating), 0) FROM reviews WHERE reviews.productId = product.id) >= :minRating',\n      { minRating }\n    );\n  }\n\n  // Tri - Attention: pour le tri par rating, il faut une sous-requête\n  if (sortBy === 'rating') {\n    qb.orderBy(`(SELECT COALESCE(AVG(r.rating), 0) FROM reviews r WHERE r.productId = product.id)`, sortOrder);\n  } else {\n    qb.orderBy(`product.${sortBy}`, sortOrder);\n  }\n\n  // Pagination\n  const skip = (page - 1) * limit;\n  qb.skip(skip).take(limit);\n\n  const [items, total] = await qb.getManyAndCount();\n\n  return {\n    items,\n    total,\n    page,\n    limit,\n    totalPages: Math.ceil(total / limit),\n  };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Ajoutez l'endpoint <code>GET /products</code> dans <code>ProductsController</code> qui utilise ce DTO et retourne une réponse paginée.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// products/products.controller.ts\nimport { Controller, Get, Query } from '@nestjs/common';\nimport { ProductsService } from './products.service';\nimport { ProductQueryDto } from './dto/product-query.dto';\nimport { Public } from '../common/decorators/public.decorator';\n\n@Controller('products')\nexport class ProductsController {\n  constructor(private readonly productsService: ProductsService) {}\n\n  @Get()\n  @Public()\n  async findAll(@Query() query: ProductQueryDto) {\n    const result = await this.productsService.findAllWithFilters(query);\n    return {\n      statusCode: 200,\n      message: 'Produits récupérés avec succès',\n      data: result.items,\n      meta: {\n        total: result.total,\n        page: result.page,\n        limit: result.limit,\n        totalPages: result.totalPages,\n      },\n    };\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation des requêtes avec pagination efficace",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un catalogue de produits contient plus de 100 000 références. Sans pagination, la requête <code>GET /products</code> devient très lente et consomme trop de mémoire. Vous devez implémenter une pagination performante.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparez les deux approches de pagination : <strong>LIMIT/OFFSET</strong> (classique) et <strong>keyset pagination</strong> (cursor-based). Expliquez les avantages et inconvénients de chacune pour un catalogue e-commerce.",
+        "niveau": "hard",
+        "reponse": "**LIMIT/OFFSET (pagination par page)** :\n- *Avantages* : Simple à implémenter, permet d'aller directement à n'importe quelle page.\n- *Inconvénients* : Plus on avance dans les pages, plus la requête est lente car la base doit parcourir toutes les lignes précédentes (`OFFSET 10000`). Inefficace pour les grands volumes.\n\n**Keyset pagination (cursor-based)** :\n- *Avantages* : Très performante même sur des millions de lignes (utilisation d'un index). Pas de dégradation avec la profondeur. Idéale pour les flux infinis (scroll infini).\n- *Inconvénients* : Impossible d'aller directement à une page spécifique (nécessite un curseur). Plus complexe à implémenter.\n\nPour un e-commerce, on peut combiner les deux : pagination classique pour l'admin (recherche précise) et cursor-based pour l'API publique (scroll infini).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez une version optimisée de la pagination avec keyset pagination dans TypeORM. Utilisez un curseur basé sur <code>id</code> et <code>createdAt</code>.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// products/dto/cursor-pagination.dto.ts\nexport class CursorPaginationDto {\n  @IsOptional()\n  @IsString()\n  cursor?: string; // Format: \"createdAt_id\" encodé en base64\n\n  @IsOptional()\n  @IsInt()\n  @Min(1)\n  @Max(50)\n  @Type(() => Number)\n  limit?: number = 10;\n}\n\n// products/products.service.ts\nasync findAllWithCursor(cursorDto: CursorPaginationDto) {\n  const { cursor, limit } = cursorDto;\n  const qb = this.productsRepository.createQueryBuilder('product')\n    .leftJoinAndSelect('product.category', 'category')\n    .orderBy('product.createdAt', 'DESC')\n    .addOrderBy('product.id', 'DESC')\n    .take(limit + 1); // Prendre un élément de plus pour savoir s'il y a une suite\n\n  if (cursor) {\n    const decoded = Buffer.from(cursor, 'base64').toString('ascii');\n    const [createdAt, id] = decoded.split('_');\n    qb.andWhere(\n      '(product.createdAt < :createdAt OR (product.createdAt = :createdAt AND product.id < :id))',\n      { createdAt: new Date(createdAt), id: parseInt(id) }\n    );\n  }\n\n  const items = await qb.getMany();\n  let nextCursor: string | null = null;\n  \n  if (items.length > limit) {\n    const lastItem = items[limit - 1];\n    const cursorValue = `${lastItem.createdAt.toISOString()}_${lastItem.id}`;\n    nextCursor = Buffer.from(cursorValue).toString('base64');\n    items.pop(); // Retirer l'élément supplémentaire\n  }\n\n  return { items, nextCursor };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Filtrage avancé par note moyenne",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Chaque produit a plusieurs avis (<code>Review</code>) avec une note de 1 à 5. Vous devez implémenter un filtre permettant de n'afficher que les produits dont la note moyenne est supérieure ou égale à une valeur donnée (ex: <code>minRating=4.5</code>).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez une <strong>vue matérialisée</strong> ou une <strong>colonne calculée</strong> dans l'entité Product pour stocker la note moyenne. Expliquez pourquoi le calcul à la volée avec AVG() peut être problématique sur un grand catalogue.",
+        "niveau": "hard",
+        "reponse": "Le calcul à la volée avec `AVG()` sur une table de reviews de plusieurs millions de lignes est très coûteux en performances. Pour chaque produit, la base doit parcourir toutes ses reviews, ce qui rend les requêtes de filtrage extrêmement lentes.\n\n**Solutions :**\n1. **Colonne dénormalisée** : Ajouter un champ `ratingAverage` dans `Product` et le mettre à jour à chaque nouvel avis (via hook ou événement).\n2. **Vue matérialisée** : Créer une vue qui calcule la moyenne et la rafraîchit périodiquement.\n\n**Implémentation avec colonne dénormalisée :**\n```typescript\n// Ajout dans l'entité Product\n@Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })\nratingAverage: number;\n\n// Dans ReviewService, après création/suppression d'un avis\nasync updateProductRating(productId: number) {\n  const result = await this.reviewsRepository\n    .createQueryBuilder('review')\n    .select('AVG(review.rating)', 'avg')\n    .where('review.productId = :productId', { productId })\n    .getRawOne();\n  \n  await this.productsRepository.update(productId, {\n    ratingAverage: result.avg || 0\n  });\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Après avoir ajouté la colonne <code>ratingAverage</code>, réécrivez la méthode de filtrage pour utiliser cette colonne, avec un index pour optimiser les recherches.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// Dans l'entité Product\n@Entity()\n@Index(['ratingAverage', 'createdAt'])\nexport class Product {\n  // ... autres champs\n  \n  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })\n  @Index() // Index simple\n  ratingAverage: number;\n}\n\n// Dans ProductsService\nasync findAllWithFilters(query: ProductQueryDto) {\n  const { minRating, ...otherFilters } = query;\n  const qb = this.productsRepository.createQueryBuilder('product');\n  \n  // Filtrage direct sur la colonne indexée\n  if (minRating !== undefined) {\n    qb.andWhere('product.ratingAverage >= :minRating', { minRating });\n  }\n  \n  // ... reste des filtres\n  \n  // Tri par note moyenne (maintenant possible efficacement)\n  if (sortBy === 'rating') {\n    qb.orderBy('product.ratingAverage', sortOrder);\n  }\n  \n  return qb.getManyAndCount();\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Tests unitaires des filtres et de la pagination",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez écrire des tests unitaires pour vérifier le bon fonctionnement des filtres et de la pagination dans <code>ProductsService</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez un test unitaire avec Jest qui vérifie que le filtre <code>minPrice</code> retourne uniquement les produits dont le prix est supérieur ou égal à la valeur donnée. Utilisez un mock du repository TypeORM.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// products/products.service.spec.ts\nimport { Test, TestingModule } from '@nestjs/testing';\nimport { getRepositoryToken } from '@nestjs/typeorm';\nimport { ProductsService } from './products.service';\nimport { Product } from './entities/product.entity';\nimport { ProductQueryDto } from './dto/product-query.dto';\n\ndescribe('ProductsService', () => {\n  let service: ProductsService;\n  let mockRepository: any;\n\n  beforeEach(async () => {\n    mockRepository = {\n      createQueryBuilder: jest.fn(() => ({\n        leftJoinAndSelect: jest.fn().mockReturnThis(),\n        andWhere: jest.fn().mockReturnThis(),\n        orderBy: jest.fn().mockReturnThis(),\n        skip: jest.fn().mockReturnThis(),\n        take: jest.fn().mockReturnThis(),\n        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),\n      })),\n    };\n\n    const module: TestingModule = await Test.createTestingModule({\n      providers: [\n        ProductsService,\n        { provide: getRepositoryToken(Product), useValue: mockRepository },\n      ],\n    }).compile();\n\n    service = module.get<ProductsService>(ProductsService);\n  });\n\n  it('devrait filtrer les produits par prix minimum', async () => {\n    const query: ProductQueryDto = { minPrice: 100, page: 1, limit: 10 };\n    const mockQueryBuilder = mockRepository.createQueryBuilder();\n    \n    await service.findAllWithFilters(query);\n    \n    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(\n      'product.price >= :minPrice',\n      { minPrice: 100 }\n    );\n  });\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment vous testeriez la pagination pour vérifier que les paramètres <code>page</code> et <code>limit</code> sont correctement appliqués (calcul de skip et take).",
+        "niveau": "medium",
+        "reponse": "Pour tester la pagination, on vérifie que `skip = (page - 1) * limit` et que `take = limit`.\n\n```typescript\nit('devrait appliquer correctement la pagination', async () => {\n  const query: ProductQueryDto = { page: 3, limit: 20 };\n  const mockQueryBuilder = mockRepository.createQueryBuilder();\n  \n  await service.findAllWithFilters(query);\n  \n  expect(mockQueryBuilder.skip).toHaveBeenCalledWith(40); // (3-1)*20\n  expect(mockQueryBuilder.take).toHaveBeenCalledWith(20);\n});\n\nit('devrait retourner les métadonnées de pagination', async () => {\n  const mockItems = [{ id: 1 }, { id: 2 }];\n  const mockTotal = 45;\n  const query: ProductQueryDto = { page: 2, limit: 10 };\n  \n  mockRepository.createQueryBuilder().getManyAndCount.mockResolvedValue([mockItems, mockTotal]);\n  \n  const result = await service.findAllWithFilters(query);\n  \n  expect(result).toEqual({\n    items: mockItems,\n    total: 45,\n    page: 2,\n    limit: 10,\n    totalPages: 5, // ceil(45/10)\n  });\n});\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

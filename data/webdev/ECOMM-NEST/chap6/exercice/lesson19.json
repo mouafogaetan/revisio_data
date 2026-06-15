@@ -1,0 +1,154 @@
+[
+  {
+    "intitule": "Analyse du cycle de vie d'une commande",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, une commande passe par différents statuts. Voici le cycle de vie défini :</p>\n<ul>\n<li><strong>pending</strong> : commande créée, en attente de paiement</li>\n<li><strong>paid</strong> : paiement confirmé, préparation en cours</li>\n<li><strong>shipped</strong> : commande expédiée</li>\n<li><strong>delivered</strong> : livrée au client</li>\n<li><strong>cancelled</strong> : annulée (avant expédition) ou remboursée</li>\n</ul>\n<p>Un client peut annuler sa commande uniquement si elle est au statut <strong>pending</strong>. Un administrateur peut annuler une commande même si elle est <strong>paid</strong> (remboursement).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Dessiner le diagramme de transition d'états (state machine) pour les statuts de commande en indiquant les transitions possibles et les acteurs autorisés.",
+        "niveau": "medium",
+        "reponse": "Transitions : pending → paid (client après paiement), pending → cancelled (client ou admin), paid → shipped (admin), paid → cancelled (admin seulement), shipped → delivered (admin/système de livraison). Transitions impossibles : delivered → cancelled (sauf remboursement exceptionnel), cancelled → tout autre statut (terminal).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quel statut est considéré comme terminal (irréversible) ? Justifier.",
+            "niveau": "easy",
+            "reponse": "Les statuts terminaux sont 'delivered' et 'cancelled'. Une fois qu'une commande est livrée ou annulée, on ne peut plus changer son statut (sauf processus de remboursement exceptionnel qui nécessite une entité Refund séparée)."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Pourquoi le passage de 'paid' à 'shipped' ne peut-il pas être fait par le client ?",
+            "niveau": "easy",
+            "reponse": "Pour des raisons de sécurité et de processus métier. C'est le vendeur ou l'administrateur qui confirme l'expédition après avoir physiquement préparé et envoyé le colis. Le client ne peut pas déclarer lui-même sa commande comme expédiée."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une structure d'enum TypeScript pour ces statuts, avec une méthode utilitaire qui vérifie si une commande est annulable par le client.",
+        "niveau": "medium",
+        "reponse": "```typescript\nexport enum OrderStatus {\n  PENDING = 'pending',\n  PAID = 'paid',\n  SHIPPED = 'shipped',\n  DELIVERED = 'delivered',\n  CANCELLED = 'cancelled',\n}\n\nexport function isCancellableByCustomer(status: OrderStatus): boolean {\n  return status === OrderStatus.PENDING;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Conception de l'entité Order et OrderItem",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez concevoir les entités TypeORM pour gérer les commandes d'une plateforme e-commerce. Voici les spécifications :</p>\n<ul>\n<li>Une commande (Order) appartient à un seul utilisateur (User).</li>\n<li>Une commande contient plusieurs lignes (OrderItem).</li>\n<li>Chaque OrderItem doit stocker une copie (snapshot) des informations du produit au moment de l'achat (nom, prix unitaire).</li>\n<li>Une commande a un montant total, une adresse de livraison, un moyen de paiement et un numéro de suivi optionnel.</li>\n<li>Les statuts sont gérés par un enum OrderStatus.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code TypeScript de l'entité Order avec les décorateurs TypeORM appropriés et les relations.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';\nimport { User } from '../../users/entities/user.entity';\nimport { OrderItem } from './order-item.entity';\n\nexport enum OrderStatus {\n  PENDING = 'pending',\n  PAID = 'paid',\n  SHIPPED = 'shipped',\n  DELIVERED = 'delivered',\n  CANCELLED = 'cancelled',\n}\n\n@Entity('orders')\nexport class Order {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  total: number;\n\n  @Column({ type: 'text' })\n  shippingAddress: string;\n\n  @Column()\n  paymentMethod: string; // 'stripe', 'paypal', 'mobile_money'\n\n  @Column({ nullable: true })\n  trackingNumber: string;\n\n  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })\n  status: OrderStatus;\n\n  @ManyToOne(() => User, (user) => user.orders)\n  user: User;\n\n  @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })\n  items: OrderItem[];\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire le code TypeScript de l'entité OrderItem. Expliquer pourquoi il est important de stocker `productName` et `unitPrice` plutôt que de faire une relation directe vers Product.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';\nimport { Order } from './order.entity';\n\n@Entity('order_items')\nexport class OrderItem {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column()\n  productId: number; // Référence à l'ID du produit original\n\n  @Column()\n  productName: string; // SNAPSHOT\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  unitPrice: number; // SNAPSHOT - prix au moment de l'achat\n\n  @Column()\n  quantity: number;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  total: number; // unitPrice * quantity\n\n  @ManyToOne(() => Order, (order) => order.items)\n  order: Order;\n}\n```\nL'importance du snapshot : les prix et noms des produits peuvent changer après l'achat. En stockant ces informations dans OrderItem, on garantit que la facture du client reflète exactement ce qu'il a payé, même si le vendeur modifie le prix plus tard. C'est une exigence légale et comptable.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Ajouter un champ `metadata` de type JSON dans OrderItem pour stocker la taille, couleur ou d'autres variations du produit. Expliquer l'utilité.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Column({ type: 'json', nullable: true })\nvariation: Record<string, any>; // ex: { size: 'M', color: 'rouge' }\n```\nUtilité : les variations (taille, couleur, capacité) sont essentielles pour identifier précisément ce que le client a acheté. Par exemple, un même produit 'T-shirt' peut exister en taille S, M, L. Sans cette information, on ne saurait pas quelle taille a été commandée.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul des totaux et gestion des erreurs",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Dans le service de gestion des commandes, vous devez implémenter la méthode `createOrderFromCart(userId: number)` qui transforme le panier de l'utilisateur en commande.</p>\n<p>Contraintes :</p>\n<ul>\n<li>Vérifier que tous les produits du panier sont encore disponibles en stock.</li>\n<li>Décrémenter les stocks après création de la commande.</li>\n<li>Calculer le total à partir des prix unitaires du panier (pas des prix actuels des produits).</li>\n<li>Utiliser une transaction pour garantir l'atomicité (tout ou rien).</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes de la méthode `createOrderFromCart` en soulignant l'importance de la transaction.",
+        "niveau": "hard",
+        "reponse": "Étapes :\n1. Récupérer le panier de l'utilisateur avec ses items.\n2. Si le panier est vide, lever une exception.\n3. Démarrer une transaction (QueryRunner).\n4. Pour chaque item : vérifier que le stock du produit >= quantité demandée.\n5. Créer l'entité Order avec le statut PENDING.\n6. Pour chaque item : créer OrderItem avec snapshot (productId, productName, unitPrice, quantity, total).\n7. Décrémenter le stock de chaque produit (Product.stock -= quantity).\n8. Vider le panier de l'utilisateur.\n9. Valider la transaction (commit).\n10. Envoyer un email de confirmation (asynchrone).\n\nImportance de la transaction : si une erreur survient (ex: décrément de stock échoue), toute la création est annulée (rollback). On évite ainsi des incohérences (commande créée sans stock déduit, ou stock déduit sans commande).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la validation de stock dans le service : si un produit n'a pas assez de stock, la commande ne doit pas être créée. Proposer une réponse appropriée.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync createOrderFromCart(userId: number): Promise<Order> {\n  const cart = await this.cartService.getCartByUser(userId);\n  if (!cart.items.length) {\n    throw new BadRequestException('Le panier est vide');\n  }\n\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.connect();\n  await queryRunner.startTransaction();\n\n  try {\n    // Vérification des stocks\n    for (const item of cart.items) {\n      const product = await queryRunner.manager.findOne(Product, {\n        where: { id: item.productId },\n        lock: { mode: 'pessimistic_write' } // verrouillage pour éviter les conflits\n      });\n      if (product.stock < item.quantity) {\n        throw new BadRequestException(\n          `Stock insuffisant pour ${product.name}. Disponible: ${product.stock}, demandé: ${item.quantity}`\n        );\n      }\n    }\n\n    // Création de la commande (suite...)\n    // ...\n\n    await queryRunner.commitTransaction();\n    return order;\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi il est crucial d'utiliser un verrou pessimiste (`pessimistic_write`) lors de la vérification de stock.",
+        "niveau": "very hard",
+        "reponse": "Sans verrou pessimiste, deux requêtes simultanées pourraient toutes deux vérifier le stock (ex: stock=5), voir qu'il y a assez (chacune commande 3 unités), puis décrémenter. Résultat : stock final = -1 (incohérence). Avec `lock: { mode: 'pessimistic_write' }`, la première transaction bloque la ligne en base de données. La seconde transaction attend que la première soit terminée. Une fois la première décrémentée (stock=2), la seconde vérifie à nouveau le stock et échoue car 3 > 2. Cela garantit l'intégrité des données.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Suivi des commandes et historique",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client souhaite pouvoir suivre l'évolution de sa commande via l'API. Vous devez implémenter un endpoint qui retourne non seulement la commande, mais aussi une chronologie (timeline) des changements de statut avec les dates.</p>\n<p>Pour cela, vous pouvez soit :</p>\n<ul>\n<li>Ajouter un champ `statusHistory` (JSON) dans l'entité Order, mis à jour à chaque changement.</li>\n<li>Soit créer une entité séparée `OrderStatusLog`.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer les deux approches (champ JSON vs table séparée) en termes de performance, de traçabilité et de complexité.",
+        "niveau": "hard",
+        "reponse": "Champ JSON : plus simple à implémenter, moins de requêtes SQL, bon pour des logs simples. Mais difficile à interroger (ex: 'combien de commandes sont passées de paid à shipped en moins de 24h ?'), et l'historique est limité (taille du champ).\nTable séparée : plus complexe (entité, relations, jointures), plus de requêtes, mais offre une traçabilité complète, permet des analyses poussées (temps moyen entre statuts, détection d'anomalies), et supporte un volume illimité de logs. Pour un e-commerce, la table séparée est recommandée pour l'audit.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer le schéma de l'entité `OrderStatusLog` et expliquer quand on l'alimente.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Entity('order_status_logs')\nexport class OrderStatusLog {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @ManyToOne(() => Order)\n  order: Order;\n\n  @Column({ type: 'enum', enum: OrderStatus })\n  fromStatus: OrderStatus;\n\n  @Column({ type: 'enum', enum: OrderStatus })\n  toStatus: OrderStatus;\n\n  @Column()\n  changedBy: string; // 'customer', 'admin:123', 'system'\n\n  @Column({ type: 'text', nullable: true })\n  reason: string; // 'paiement reçu', 'annulation client', etc.\n\n  @CreateDateColumn()\n  changedAt: Date;\n}\n```\nOn l'alimente à chaque changement de statut (dans la méthode `updateOrderStatus`), avant ou après la mise à jour de la commande, dans la même transaction.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Génération de facture PDF",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Après la création d'une commande, l'API doit générer une facture PDF et l'envoyer par email au client. La facture doit contenir :</p>\n<ul>\n<li>Numéro de commande et date</li>\n<li>Informations du client (nom, email, adresse de livraison)</li>\n<li>Détail des produits (nom, quantité, prix unitaire, total)</li>\n<li>Sous-total, frais de livraison, taxes (19% au Cameroun), total</li>\n<li>QR code contenant l'URL de suivi de commande</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire l'architecture technique pour générer le PDF de manière asynchrone (sans bloquer la réponse API). Quels packages NestJS recommandez-vous ?",
+        "niveau": "very hard",
+        "reponse": "Architecture :\n1. Endpoint POST /orders → crée la commande et renvoie immédiatement la réponse (201 Created).\n2. Un événement `order.created` est émis (ou un job Bull).\n3. Un processeur Bull (`OrderProcessor`) consomme le job.\n4. Le processeur génère le PDF avec `@react-pdf/renderer` ou `puppeteer` (HTML → PDF).\n5. Le PDF est sauvegardé (Cloudinary ou S3) et l'URL stockée dans Order.\n6. Un email est envoyé avec Nodemailer (ou Mailgun/SendGrid) en pièce jointe.\n\nPackages recommandés : `@nestjs/bull` (file d'attente Redis), `@react-pdf/renderer` (génération PDF côté serveur), `nodemailer` (envoi emails), `qrcode` (génération QR code).\n\nAvantage : la réponse API est rapide (quelques ms), la génération PDF (lourde) se fait en arrière-plan.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Calculer le montant des taxes (TVA à 19%) pour une commande dont le sous-total est de 25 000 FCFA et les frais de livraison de 2 000 FCFA. Formule : $Taxes = (SousTotal + Livraison) \\times 0.19$. Donner le total TTC.",
+        "niveau": "easy",
+        "reponse": "Sous-total + livraison = 25 000 + 2 000 = 27 000 FCFA. Taxes = 27 000 × 0,19 = 5 130 FCFA. Total TTC = 27 000 + 5 130 = 32 130 FCFA.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

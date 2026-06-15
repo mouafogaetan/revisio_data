@@ -1,0 +1,76 @@
+[
+  {
+    "intitule": "Gestion du consentement aux cookies et conformité RGPD",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce développée avec NestJS, vous devez implémenter la gestion du consentement aux cookies conformément au RGPD. Voici les exigences :</p><ul><li>Les cookies strictement nécessaires (authentification, panier) ne nécessitent pas de consentement</li><li>Les cookies de suivi (analytics, publicité) nécessitent un consentement explicite</li><li>Les préférences de l'utilisateur doivent être stockées pour une durée de 6 mois</li><li>L'utilisateur doit pouvoir modifier son choix à tout moment</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez la différence entre un cookie <strong>strictement nécessaire</strong> et un cookie <strong>de suivi</strong>. Donnez un exemple pour chaque catégorie dans un e-commerce.",
+        "niveau": "easy",
+        "reponse": "Un cookie strictement nécessaire est essentiel au fonctionnement du site : sans lui, certaines fonctionnalités ne peuvent pas être fournies. Exemple : cookie de session JWT pour rester connecté, cookie de panier.\n\nUn cookie de suivi collecte des données sur le comportement de l'utilisateur à des fins d'analyse ou de publicité. Exemple : cookie Google Analytics pour suivre les pages visitées, cookie Facebook Pixel pour le retargeting.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Concevez une entité TypeORM <code>CookieConsent</code> pour stocker les préférences de l'utilisateur. Incluez les champs : userId (ou sessionId), consentGiven, consentType, timestamp, ipAddress.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Entity()\nexport class CookieConsent {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @Column({ nullable: true })\n  userId: string; // null pour utilisateurs non authentifiés\n\n  @Column()\n  sessionId: string; // identifiant de session\n\n  @Column({ type: 'json' })\n  preferences: {\n    necessary: boolean;  // toujours true\n    analytics: boolean;\n    marketing: boolean;\n    functional: boolean;\n  };\n\n  @Column({ type: 'timestamp' })\n  consentedAt: Date;\n\n  @Column({ nullable: true })\n  ipAddress: string;\n\n  @Column({ nullable: true })\n  userAgent: string;\n\n  @Column({ default: true })\n  isActive: boolean; // pour gérer les révocations\n\n  @Column({ type: 'timestamp' })\n  expiresAt: Date; // +6 mois\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez la méthode <code>setCookieConsent(dto: CookieConsentDto, req: Request): Promise&lt;void&gt;</code> qui enregistre le consentement de l'utilisateur et définit les cookies en conséquence.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync setCookieConsent(dto: CookieConsentDto, req: Request): Promise<void> {\n  const sessionId = req.cookies['sessionId'] || this.generateSessionId();\n  const userId = req.user?.id || null;\n\n  // Enregistrer le consentement en base\n  const consent = this.consentRepository.create({\n    userId,\n    sessionId,\n    preferences: {\n      necessary: true,\n      analytics: dto.analytics || false,\n      marketing: dto.marketing || false,\n      functional: dto.functional || false,\n    },\n    consentedAt: new Date(),\n    ipAddress: req.ip,\n    userAgent: req.headers['user-agent'],\n    expiresAt: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000),\n  });\n\n  await this.consentRepository.save(consent);\n\n  // Définir un cookie de consentement (pour ne pas redemander à chaque visite)\n  res.cookie('cookie_consent', {\n    analytics: dto.analytics,\n    marketing: dto.marketing,\n    functional: dto.functional,\n  }, {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    maxAge: 6 * 30 * 24 * 60 * 60 * 1000,\n  });\n\n  // Initialiser ou mettre à jour les cookies de suivi selon consentement\n  if (dto.analytics) {\n    this.initializeAnalyticsCookies(res);\n  } else {\n    this.blockAnalyticsCookies(res);\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Droit à l'oubli - Export et suppression des données utilisateur",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous développez l'API backend pour <strong>AfriShop</strong>, une plateforme e-commerce camerounaise. Conformément au RGPD, les utilisateurs peuvent :</p><ul><li>Demander l'<strong>export</strong> de toutes leurs données personnelles (format JSON ou CSV)</li><li>Demander la <strong>suppression</strong> de leur compte et de leurs données</li><li>Les commandes doivent être <strong>anonymisées</strong> (conservées pour des raisons fiscales) mais détachées de l'utilisateur</li><li>Les logs d'activité doivent être conservés mais anonymisés après 30 jours</li><li>L'utilisateur doit recevoir une confirmation par email après suppression</li></ul>",
+      "images": [
+        "diagramme de séquence du processus de suppression de compte avec anonymisation des commandes",
+        "schéma des tables User et anonymized_order avec les champs after/before"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analysez l'impact de la suppression d'un compte sur les différentes entités de la base de données (User, Order, OrderItem, Review, Wishlist, Cart). Proposez une stratégie de suppression (cascade, anonymisation, ou conservation).",
+        "niveau": "hard",
+        "reponse": "Stratégie proposée :\n\n| Entité | Action | Justification |\n|--------|--------|---------------|\n| User | Suppression physique | Droit à l'oubli |\n| Role | Détachement (table pivot) | Supprimer les associations |\n| Order | Anonymisation (set userId = NULL) | Conservation pour fiscalité, plus de lien avec l'utilisateur |\n| OrderItem | Anonymisation (via Order) | Même raison |\n| Review | Anonymisation (set userId = NULL, garder avis) | L'avis reste utile pour la communauté |\n| Wishlist | Suppression physique | Donnée personnelle |\n| Cart | Suppression physique | Panier personnel |\n| Address | Suppression physique | Donnée personnelle |\n| CookieConsent | Suppression physique | Donnée personnelle |\n| Payment | Anonymisation (userId = NULL) | Conservation transactionnelle |\n| Logs | Anonymisation après 30 jours | Rotation et conservation anonymisée |\n\n```typescript\n// Transaction de suppression\nasync deleteUserData(userId: string): Promise<void> {\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.startTransaction();\n\n  try {\n    // 1. Anonymiser les commandes\n    await queryRunner.manager.update(Order, { userId }, { userId: null });\n\n    // 2. Anonymiser les avis\n    await queryRunner.manager.update(Review, { userId }, { userId: null });\n\n    // 3. Anonymiser les paiements\n    await queryRunner.manager.update(Payment, { userId }, { userId: null });\n\n    // 4. Supprimer les entités personnelles\n    await queryRunner.manager.delete(Wishlist, { userId });\n    await queryRunner.manager.delete(Cart, { userId });\n    await queryRunner.manager.delete(Address, { userId });\n    await queryRunner.manager.delete(CookieConsent, { userId });\n\n    // 5. Supprimer l'utilisateur\n    await queryRunner.manager.delete(User, { id: userId });\n\n    await queryRunner.commitTransaction();\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez la méthode <code>exportUserData(userId: string): Promise&lt;UserExportDto&gt;</code> qui génère un export complet des données utilisateur au format JSON.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync exportUserData(userId: string): Promise<UserExportDto> {\n  const user = await this.userRepository.findOne({\n    where: { id: userId },\n    relations: ['addresses', 'orders', 'reviews', 'wishlist'],\n  });\n\n  if (!user) {\n    throw new NotFoundException('Utilisateur non trouvé');\n  }\n\n  // Exclure les données sensibles\n  const { password, ...safeUser } = user;\n\n  // Formater les commandes\n  const orders = await this.orderRepository.find({\n    where: { userId },\n    relations: ['items'],\n  });\n\n  // Exporter les avis\n  const reviews = await this.reviewRepository.find({\n    where: { userId },\n  });\n\n  const exportData: UserExportDto = {\n    user: safeUser,\n    createdAt: user.createdAt,\n    exportDate: new Date(),\n    addresses: user.addresses,\n    orders: orders.map(order => ({\n      id: order.id,\n      date: order.createdAt,\n      total: order.total,\n      status: order.status,\n      items: order.items,\n    })),\n    reviews: reviews.map(review => ({\n      productId: review.productId,\n      rating: review.rating,\n      comment: review.comment,\n      date: review.createdAt,\n    })),\n    wishlist: user.wishlist,\n  };\n\n  // Générer un fichier et le stocker temporairement\n  const jsonContent = JSON.stringify(exportData, null, 2);\n  const filename = `export_user_${userId}_${Date.now()}.json`;\n  const filepath = path.join('/tmp', filename);\n  await fs.promises.writeFile(filepath, jsonContent, 'utf-8');\n\n  // Upload vers S3 avec URL temporaire (24h)\n  const fileUrl = await this.storageService.upload(\n    `exports/${filename}`,\n    filepath,\n    { expiresIn: 86400 }\n  );\n\n  // Nettoyage\n  setTimeout(() => fs.promises.unlink(filepath).catch(() => {}), 3600000);\n\n  return { downloadUrl: fileUrl, expiresAt: new Date(Date.now() + 86400000) };\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Quelles données sensibles ne doivent PAS être incluses dans l'export ?",
+            "niveau": "easy",
+            "reponse": "Le mot de passe hashé (même hashé, il ne doit pas être exposé). Les tokens d'authentification (refresh token, reset password token). Les données de carte bancaire (normalement tokenisées et non stockées). Les logs internes. Les adresses IP brutes (doivent être anonymisées ou exclues)."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Évaluez les risques et proposez des mesures de sécurité pour les endpoints d'export et de suppression (rate limiting, double authentification, journalisation).",
+        "niveau": "hard",
+        "reponse": "<strong>Risques identifiés :</strong>\n- Attaque par force brute pour supprimer des comptes\n- Accès non autorisé aux exports de données\n- Suppression accidentelle par un administrateur\n- Fuite de données via les exports temporaires\n\n<strong>Mesures de sécurité :</strong>\n\n1. <strong>Rate Limiting spécifique</strong>\n```typescript\n@UseGuards(ThrottlerGuard)\n@Throttle(3, 3600) // 3 requêtes par heure max\n@Delete('account')\nasync deleteAccount(@Req() req) { ... }\n```\n\n2. <strong>Double authentification requise</strong>\n```typescript\nasync deleteAccount(userId: string, confirmationCode: string) {\n  // Vérifier le code envoyé par email\n  const isValid = await this.twoFactorService.verifyCode(userId, confirmationCode);\n  if (!isValid) {\n    throw new UnauthorizedException('Code de confirmation invalide');\n  }\n  // Procéder à la suppression\n}\n```\n\n3. <strong>Délai de grâce (grace period)</strong>\n```typescript\n// Marquer le compte pour suppression dans 7 jours\nawait this.userRepository.update(userId, {\n  deletionRequestedAt: new Date(),\n  deletionScheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),\n});\n\n// Job cron pour suppression définitive\n@Cron('0 2 * * *')\nasync processPendingDeletions() {\n  const pending = await this.userRepository.find({\n    where: { deletionScheduledAt: LessThan(new Date()) }\n  });\n  for (const user of pending) {\n    await this.deleteUserData(user.id);\n  }\n}\n```\n\n4. <strong>Journalisation des actions sensibles</strong>\n```typescript\nasync deleteAccount(userId: string, adminId?: string) {\n  // Logger l'action\n  await this.auditLogService.log({\n    action: 'ACCOUNT_DELETION',\n    userId: userId,\n    performedBy: adminId || userId,\n    timestamp: new Date(),\n    ipAddress: req.ip,\n    userAgent: req.headers['user-agent'],\n  });\n  // ... suppression\n}\n```\n\n5. <strong>Protection des exports</strong>\n- URL d'export signée avec expiration (24h max)\n- Vérification que l'utilisateur est bien propriétaire des données\n- Stockage dans un bucket S3 privé\n- Notification par email quand l'export est prêt (pas d'URL dans la réponse API, seulement une confirmation)",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

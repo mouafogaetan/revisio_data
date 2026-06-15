@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 24 : Virtualisation CPU et mémoire | Initiation aux Systèmes d'exploitation</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* personnalisation des scrolls et lisibilité */
+        body {
+            background: #f8fafc;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s;
+        }
+        /* amélioration contraste */
+        .slide-content {
+            scrollbar-width: thin;
+        }
+        @media (max-width: 640px) {
+            .slide-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-gray-100">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Header fixe avec progression et navigation simplifiée -->
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-200 p-3 sticky top-2 z-20 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-semibold bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">OS • Leçon 24/35</span>
+                    <span class="text-sm text-gray-600">Virtualisation avancée</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-sm shadow-sm">
+                        ◀ Précédent
+                    </button>
+                    <button id="nextSlide" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-xl transition flex items-center gap-1 text-sm shadow-md">
+                        Suivant ▶
+                    </button>
+                </div>
+            </div>
+            <!-- indicateur de progression -->
+            <div class="mt-3 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressBar" class="bg-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 0%;"></div>
+            </div>
+            <div class="text-right text-xs text-gray-500 mt-1">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides"></span>
+            </div>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide slide-visible" data-slide="0">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-indigo-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-12 md:py-16 text-center">
+                        <span class="inline-block bg-white/20 backdrop-blur-sm text-white text-sm font-semibold px-4 py-1 rounded-full mb-4">Chapitre 7 : Virtualisation</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-white slide-title">Virtualisation CPU et Mémoire</h1>
+                        <div class="h-1 w-24 bg-amber-400 mx-auto my-5 rounded-full"></div>
+                        <p class="text-indigo-100 text-lg max-w-2xl mx-auto">Comprendre la traduction d'adresses, les techniques matérielles et la virtualisation assistée</p>
+                        <div class="mt-8 flex justify-center gap-3 text-sm text-indigo-200">
+                            <span>🖥️ Shadow Page Tables</span>
+                            <span>⚙️ EPT / NPT</span>
+                            <span>🚀 VMX / SVM</span>
+                        </div>
+                    </div>
+                    <div class="p-6 md:p-8 bg-white text-center">
+                        <p class="text-gray-600">Classe: Développement Web &nbsp;|&nbsp; Matière: Initiation aux Systèmes d'exploitation</p>
+                        <p class="text-sm text-gray-400 mt-2">Enseignant: Cameroun • Niveau: Licence professionnelle</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide slide-hidden" data-slide="1">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-50 border-b border-amber-100 px-6 py-4">
+                        <h2 class="text-2xl md:text-3xl font-bold text-amber-800 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8 space-y-4">
+                        <div class="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl transition">
+                            <span class="text-indigo-500 text-xl">✔️</span>
+                            <p class="text-gray-700"><strong>Comprendre la traduction d'adresses virtuelles</strong> dans un environnement virtualisé : shadow page tables et EPT/NPT.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl transition">
+                            <span class="text-indigo-500 text-xl">✔️</span>
+                            <p class="text-gray-700"><strong>Maîtriser la virtualisation CPU</strong> : extensions matérielles VMX (Intel) et SVM (AMD).</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl transition">
+                            <span class="text-indigo-500 text-xl">✔️</span>
+                            <p class="text-gray-700"><strong>Distinguer para-virtualisation, virtualisation assistée et full virtualization</strong>.</p>
+                        </div>
+                        <div class="bg-indigo-50 p-4 rounded-2xl mt-4 text-indigo-800 text-sm italic">
+                            💡 À la fin de cette leçon, vous saurez comment un hyperviseur gère efficacement la mémoire et le CPU pour plusieurs systèmes invités.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Introduction aux défis de la virtualisation mémoire -->
+            <div class="slide slide-hidden" data-slide="2">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🧠 Problématique : Mémoire virtuelle + Virtualisation</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <p class="text-gray-700 mb-4">Dans un OS classique, la MMU traduit adresses virtuelles → physiques via tables des pages. Avec la virtualisation, <strong>l'hyperviseur gère la vraie mémoire physique</strong> tandis que chaque VM croit posséder sa propre mémoire physique. Deux approches majeures :</p>
+                        <div class="grid md:grid-cols-2 gap-5 mt-6">
+                            <div class="border-l-4 border-indigo-400 bg-indigo-50/40 p-4 rounded-r-xl">
+                                <h3 class="font-bold text-indigo-800">📄 Shadow Page Tables</h3>
+                                <p class="text-sm text-gray-600 mt-1">L'hyperviseur maintient une copie « shadow » de la table des pages invitée. À chaque modification, il synchronise. Accès mémoire <span class="font-mono">(GVA → GPA → HPA)</span> devient rapide mais coûteux en mémoire et surcharge.</p>
+                            </div>
+                            <div class="border-l-4 border-emerald-500 bg-emerald-50/40 p-4 rounded-r-xl">
+                                <h3 class="font-bold text-emerald-800">⚡ EPT / NPT (hardware)</h3>
+                                <p class="text-sm text-gray-600 mt-1">Intel EPT (Extended Page Tables) / AMD NPT (Nested Page Tables) : matériel dédié pour effectuer la traduction en deux étapes directement. Gain de performance, moins d'interceptions.</p>
+                            </div>
+                        </div>
+                        <!-- Petit dessin ascii / schéma symbolique -->
+                        <div class="mt-8 p-4 bg-gray-100 rounded-xl text-center font-mono text-xs md:text-sm overflow-x-auto">
+                            <pre class="whitespace-pre-wrap break-words">
+     VM (invité)                  Hyperviseur            Matériel réel
+ [Adresse virtuelle]    ->   [GPA -> HPA] via EPT    -> [Adresse physique]
+     (GVA)                     (traduction 2 niveaux)        (HPA)
+                            </pre>
+                            <p class="text-gray-500 text-xs mt-2">Figure: Avec EPT/NPT, le CPU parcourt deux tables imbriquées : une pour la VM, une pour l'hyperviseur.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Shadow Page Tables en détail -->
+            <div class="slide slide-hidden" data-slide="3">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-indigo-100 border-b border-indigo-200 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-indigo-800">📑 Shadow Page Tables (tables miroirs)</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="mb-3"><span class="font-semibold">Principe :</span> L'hyperviseur construit une table "shadow" qui mappe directement <strong>GVA (Guest Virtual Address) → HPA (Host Physical Address)</strong>. La VM modifie ses propres tables (GVA→GPA), mais l'hyperviseur intercepte ces écritures pour mettre à jour la shadow table.</p>
+                        <div class="bg-gray-50 p-4 rounded-xl my-5">
+                            <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                                <li><strong>Avantages :</strong> Bonne performance une fois la shadow table à jour, compatible avec anciens processeurs.</li>
+                                <li><strong>Inconvénients :</strong> Coût mémoire élevé (table par VM), “page faults” fréquents (coût de synchronisation).</li>
+                            </ul>
+                        </div>
+                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
+                            <p class="text-amber-800 text-sm">📌 <strong>Exemple concret :</strong> VMware ESXi (avant extensions) et Xen en mode shadow. Maintenant remplacé par EPT/NPT sur le matériel récent.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : EPT et NPT (hardware nesting) -->
+            <div class="slide slide-hidden" data-slide="4">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-emerald-700 text-white px-6 py-4">
+                        <h2 class="text-2xl font-bold">🚀 EPT (Intel) / NPT (AMD) : Accélération matérielle</h2>
+                    </div>
+                    <div class="p-6">
+                        <p>Extensions de pagination imbriquée introduites autour de 2008. Le CPU gère <strong>deux niveaux de traduction</strong> en une seule itération matérielle :</p>
+                        <div class="my-5 flex flex-wrap justify-center gap-6">
+                            <div class="bg-slate-100 p-4 rounded-2xl w-full md:w-5/12 text-center">
+                                <span class="font-bold text-emerald-600">1. Table des pages invitée</span><br>
+                                <span class="text-xs">GVA → GPA (Guest Physical Address)</span>
+                            </div>
+                            <div class="text-2xl font-bold text-emerald-500">+</div>
+                            <div class="bg-slate-100 p-4 rounded-2xl w-full md:w-5/12 text-center">
+                                <span class="font-bold text-emerald-600">2. Extended Page Table (EPT)</span><br>
+                                <span class="text-xs">GPA → HPA (Host Physical Address)</span>
+                            </div>
+                        </div>
+                        <p class="text-gray-700">Conséquence : <strong>moins d'interceptions</strong> vers l'hyperviseur, <strong>réduction du overhead</strong> mémoire, performances proches du natif. Utilisé par KVM, Hyper-V, VMware.</p>
+                        <div class="mt-4 p-3 bg-green-50 text-green-800 rounded-lg text-sm">
+                            ✅ Anecdote : Sur Linux, vérifiez la présence avec <code class="bg-gray-200 px-1 rounded">cat /proc/cpuinfo | grep ept</code> (Intel) ou <code class="bg-gray-200 px-1 rounded">npt</code> (AMD).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : Virtualisation CPU (VMX / SVM) -->
+            <div class="slide slide-hidden" data-slide="5">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-blue-800 text-white px-6 py-4">
+                        <h2 class="text-2xl font-bold">⚙️ Virtualisation CPU : VMX (Intel) & SVM (AMD)</h2>
+                    </div>
+                    <div class="p-6">
+                        <p>La virtualisation pure par logiciel (binary translation) était lourde. Dès les années 2000, les fondeurs intègrent des instructions dédiées :</p>
+                        <div class="grid md:grid-cols-2 gap-5 my-5">
+                            <div class="bg-blue-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-blue-800">Intel VT-x (VMX)</h3>
+                                <p class="text-sm">Modes VMX root (hyperviseur) et VMX non-root (invité). Instructions <code>VMLAUNCH, VMRESUME</code> pour passer d'un contexte à l'autre sans pièges.</p>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-red-800">AMD-V (SVM)</h3>
+                                <p class="text-sm">Secure Virtual Machine, jeu d'instructions similaire avec <code>VMRUN</code>. Gère les transitions rapides entre hôte et invité.</p>
+                            </div>
+                        </div>
+                        <p class="mt-2">Ces extensions permettent d'exécuter directement le code privilégié de l'invité sur le CPU tout en interceptant les opérations sensibles via des "VM-Exit". L'hyperviseur n'a plus à traduire chaque instruction.</p>
+                        <div class="flex justify-center mt-6">
+                            <div class="bg-gray-100 rounded-xl p-3 w-full overflow-x-auto">
+                                <pre class="text-xs">[Hyperviseur]  -- VMLAUNCH -->  [VM non-root] -- instruction sensible -->  VM-Exit --> Hyperviseur</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Para-virtualisation, full virtualization, assistée -->
+            <div class="slide slide-hidden" data-slide="6">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-purple-700 text-white px-6 py-4">
+                        <h2 class="text-2xl font-bold">🔁 Comparaison : 3 grands types de virtualisation</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-5">
+                            <div class="border-b pb-3">
+                                <h3 class="font-bold text-lg text-purple-800">🧩 Full virtualization (virt. complète)</h3>
+                                <p>OS invité non modifié, hyperviseur émule le matériel. Ex: VMware Workstation ancien, VirtualBox avec extensions. Moins performant sans accélération.</p>
+                            </div>
+                            <div class="border-b pb-3">
+                                <h3 class="font-bold text-lg text-purple-800">📦 Para-virtualisation (PV)</h3>
+                                <p>L'invité est modifié (kernel adapté) avec des hypercalls à la place d'instructions non virtualisables. Ex: Xen (mode PV). Améliore les performances, mais nécessite des drivers.</p>
+                            </div>
+                            <div class="border-b pb-3">
+                                <h3 class="font-bold text-lg text-purple-800">⚡ Virtualisation assistée (Hardware-Assisted)</h3>
+                                <p>Utilise les extensions CPU (VT-x/AMD-V) et la virtualisation mémoire (EPT/NPT). Standard moderne : KVM, VMware ESXi, Hyper-V. Performance quasi-native.</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 bg-gray-100 rounded-xl p-4 text-sm">
+                            💡 Actuellement, la plupart des cloud providers (AWS, GCP) utilisent KVM + hardware-assisted virtualization.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 8 : Résumé et schéma simple (dessin texte) -->
+            <div class="slide slide-hidden" data-slide="7">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-indigo-900 text-white px-6 py-4">
+                        <h2 class="text-2xl font-bold">🧩 Synthèse : Comment CPU et mémoire collaborent</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="bg-slate-50 rounded-2xl p-5 font-mono text-xs md:text-sm overflow-x-auto">
+                            <pre>
+   +-------------------+       +---------------------------+
+   |     VM (invité)   |       |    Hyperviseur (KVM/ESXi) |
+   |   Code applicatif |       |                           |
+   +--------|----------+       |  Gère les VM-Exit / EPT   |
+            |                  |   +-------------------+   |
+            v (GVA)            |   |  Shadow/EPT tables |   |
+   [CPU avec VMX/SVM]  ----->  |   +-------------------+   |
+            |                  +------------|--------------+
+            |(EPT traduction)                |
+            v                               v
+   [Mémoire physique réelle] <----- (HPA)  [MMU matérielle]
+                            </pre>
+                        </div>
+                        <p class="mt-4 text-gray-700">Avec l'accélération matérielle, les accès mémoire et l'exécution CPU sont extrêmement rapides, rendant la virtualisation transparente pour les serveurs modernes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 9 : Petit exercice / QCM interactif -->
+            <div class="slide slide-hidden" data-slide="8">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-600 text-white px-6 py-4">
+                        <h2 class="text-2xl font-bold">📝 Vérification des acquis</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="quizArea">
+                            <p class="mb-3 font-semibold">1. Quelle technologie permet au CPU de traduire GPA → HPA directement sans intervention hyperviseur ?</p>
+                            <div class="space-y-2 mb-5">
+                                <label class="block"><input type="radio" name="q1" value="shadow"> Shadow Page Tables</label>
+                                <label class="block"><input type="radio" name="q1" value="ept"> EPT / NPT</label>
+                                <label class="block"><input type="radio" name="q1" value="paravirt"> Para-virtualisation</label>
+                            </div>
+                            <p class="mb-3 font-semibold">2. Le mode VMX non-root (Intel) correspond à :</p>
+                            <div class="space-y-2 mb-5">
+                                <label class="block"><input type="radio" name="q2" value="hyperv"> L'hyperviseur</label>
+                                <label class="block"><input type="radio" name="q2" value="guest"> Le système invité en cours d'exécution</label>
+                                <label class="block"><input type="radio" name="q2" value="bios"> Le BIOS</label>
+                            </div>
+                            <button id="checkQuiz" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl transition">Vérifier mes réponses</button>
+                            <div id="quizFeedback" class="mt-4 text-sm font-medium"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer simple -->
+        <div class="text-center text-gray-400 text-xs mt-8 border-t pt-5">
+            Cours conçu pour les étudiants du Cameroun | Licence Développement Web | Systèmes d'exploitation - Leçon 24
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('.slide');
+            let total = slides.length;
+            $('#totalSlides').text(total);
+            let current = 0;  // index 0-based
+
+            function updateSlides() {
+                slides.each(function(idx){
+                    if(idx === current) {
+                        $(this).removeClass('slide-hidden').addClass('slide-visible');
+                    } else {
+                        $(this).removeClass('slide-visible').addClass('slide-hidden');
+                    }
+                });
+                $('#currentSlideIdx').text(current+1);
+                let progress = ((current+1) / total) * 100;
+                $('#progressBar').css('width', progress + '%');
+                // gestion état boutons
+                $('#prevSlide').prop('disabled', current === 0);
+                $('#nextSlide').prop('disabled', current === total-1);
+            }
+
+            window.goToSlide = function(index) {
+                if(index >=0 && index < total) {
+                    current = index;
+                    updateSlides();
+                }
+            }
+
+            $('#prevSlide').on('click', function(){
+                if(current > 0) {
+                    current--;
+                    updateSlides();
+                }
+            });
+            $('#nextSlide').on('click', function(){
+                if(current < total-1) {
+                    current++;
+                    updateSlides();
+                    // scroll en haut pour meilleure UX
+                    $('html, body').animate({ scrollTop: 0 }, 200);
+                }
+            });
+
+            // Correction du quiz simple (feedback)
+            $('#checkQuiz').on('click', function(){
+                let q1 = $('input[name="q1"]:checked').val();
+                let q2 = $('input[name="q2"]:checked').val();
+                let feedback = $('#quizFeedback');
+                if(!q1 || !q2) {
+                    feedback.html('<span class="text-red-600">❌ Veuillez répondre aux deux questions.</span>');
+                    return;
+                }
+                let correct1 = (q1 === 'ept');
+                let correct2 = (q2 === 'guest');
+                if(correct1 && correct2) {
+                    feedback.html('<span class="text-green-700 bg-green-100 p-2 rounded block">✅ Parfait ! EPT/NPT gère la mémoire, VMX non-root = invité. Vous maîtrisez la virtualisation CPU/Mémoire.</span>');
+                } else {
+                    let msg = '';
+                    if(!correct1) msg += '• La bonne réponse pour la traduction GPA→HPA est EPT/NPT (assistée matériel). ';
+                    if(!correct2) msg += '• Le mode non-root correspond au système invité, pas à l\'hyperviseur.';
+                    feedback.html('<span class="text-orange-700 bg-orange-100 p-2 rounded block">⚠️ ' + msg + '</span>');
+                }
+            });
+
+            // Initialisation
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

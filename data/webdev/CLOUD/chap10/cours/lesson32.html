@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 32 : Intégrer l'IaC dans le pipeline CI/CD | Cloud Computing</title>
+    <!-- Tailwind CSS + Google Fonts + Font Awesome pour améliorer l'interface -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (configured) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisation douce pour le confort visuel */
+        body {
+            background: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        /* transition slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        /* boutons tactiles améliorés */
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* code blocks agréables */
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        /* améliorer la lisibilité */
+        .prose li {
+            margin-bottom: 0.4rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+            
+            <!-- Zone dynamique des slides (jQuery injectera les slides) -->
+            <div id="slides-wrapper" class="relative">
+                <!-- Les slides seront générées ici par JS -->
+            </div>
+            
+            <!-- Barre de navigation (indicateurs + boutons) -->
+            <div class="bg-gray-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200">
+                <div class="flex gap-2">
+                    <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-4 rounded-full shadow-sm text-sm md:text-base transition">◀ Précédent</button>
+                    <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md text-sm md:text-base transition">Suivant ▶</button>
+                </div>
+                <div class="text-sm text-gray-500 bg-white px-3 py-1 rounded-full shadow-inner">
+                    <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+                </div>
+                <div class="flex gap-1 flex-wrap justify-center" id="dotsIndicator"></div>
+            </div>
+        </div>
+        
+        <!-- note pédagogique discrète -->
+        <p class="text-center text-xs text-gray-400 mt-6">📘 Leçon 32 - Intégration de l'IaC dans le pipeline CI/CD | Formation Cloud (Cameroun)</p>
+    </div>
+
+    <script>
+        // ======================= DONNÉES DE LA LEÇON 32 =======================
+        // D'après le JSON: idLesson "lesson32", objectifsLesson: 
+        // 0. Utiliser des modules Terraform réutilisables
+        // 1. Intégrer IaC dans le pipeline CI/CD
+        // 2. Gérer les environnements multiples (workspaces, tfvars)
+        // Nous allons construire 5 slides : Titre, Objectifs, Contenu1 (modules réutilisables), Contenu2 (CI/CD + IaC), Contenu3 (environnements multiples)
+        
+        const lessonData = {
+            titre: "Intégrer l'IaC dans le pipeline CI/CD",
+            sousTitre: "Infrastructure as Code au cœur du déploiement continu",
+            objectifs: [
+                "Utiliser des modules Terraform réutilisables pour mutualiser et simplifier l'infrastructure.",
+                "Intégrer l'IaC dans un pipeline CI/CD (GitHub Actions, GitLab CI, Azure DevOps) pour automatiser les déploiements.",
+                "Gérer plusieurs environnements (dev, staging, prod) avec les workspaces Terraform et les fichiers tfvars."
+            ],
+            parties: [
+                {
+                    titre: "📦 Modules Terraform réutilisables",
+                    contenu: `<p class="mb-3">En entreprise, on ne réécrit jamais deux fois la même configuration. Les <strong class="text-indigo-700">modules Terraform</strong> permettent d'encapsuler des ressources (ex: un cluster Kubernetes, un réseau VPC) et de les réutiliser.</p>
+                    <ul class="list-disc pl-6 space-y-2 mb-4">
+                        <li>Un module est un dossier contenant des fichiers <code class="bg-gray-100 px-1 rounded">.tf</code>.</li>
+                        <li>On peut appeler un module depuis un autre fichier avec <code class="bg-gray-100 px-1 rounded">module "nom" { source = "./modules/vpc" }</code>.</li>
+                        <li>Les modules publics existent sur <strong class="text-indigo-600">Terraform Registry</strong> (AWS, Azure, GCP).</li>
+                        <li>Exemple : module "réseau" qui crée VPC + sous-réseaux avec variables personnalisables.</li>
+                    </ul>
+                    <div class="bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-400 text-sm">
+                        💡 <strong>Bonnes pratiques :</strong> versionner ses modules, utiliser des tags Git, documenter les variables et outputs.
+                    </div>
+                    <div class="mt-4 code-block text-sm">
+                        <span class="text-green-300"># Exemple d'appel de module</span><br>
+                        module "vpc_prod" {<br>
+                        &nbsp;&nbsp;source = "git::https://github.com/company/terraform-aws-vpc?ref=v1.2"<br>
+                        &nbsp;&nbsp;cidr_block = "10.0.0.0/16"<br>
+                        &nbsp;&nbsp;env = "production"<br>
+                        }
+                    </div>`
+                },
+                {
+                    titre: "⚙️ Intégrer l'IaC dans un pipeline CI/CD",
+                    contenu: `<p class="mb-3">Un pipeline CI/CD (Intégration Continue / Déploiement Continu) exécute automatiquement <code class="bg-gray-100 px-1 rounded">terraform plan</code> et <code class="bg-gray-100 px-1 rounded">terraform apply</code> à chaque modification du code.</p>
+                    <ul class="list-disc pl-6 space-y-2 mb-4">
+                        <li>✔️ <strong>Vérification automatique</strong> : validation de la syntaxe et analyse des changements.</li>
+                        <li>✔️ <strong>Réduction des erreurs humaines</strong> : plus de commandes oubliées.</li>
+                        <li>✔️ <strong>Traçabilité</strong> : chaque déploiement est associé à un commit Git.</li>
+                    </ul>
+                    <div class="bg-gray-800 rounded-xl p-3 text-white text-sm font-mono mb-4 overflow-x-auto">
+                        <span class="text-yellow-300"># Exemple workflow GitHub Actions pour Terraform</span><br>
+                        name: 'Terraform CI/CD'<br>
+                        on: [push] <br>
+                        jobs:<br>
+                        &nbsp;&nbsp;terraform:<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;steps:<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- uses: hashicorp/setup-terraform@v2<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: terraform init<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: terraform plan -out=tfplan<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- run: terraform apply tfplan
+                    </div>
+                    <p class="text-sm">✅ L'IaC devient ainsi le <strong>seul source de vérité</strong> : plus de modifications manuelles dans la console cloud.</p>`
+                },
+                {
+                    titre: "🌍 Gérer les environnements multiples (workspaces & tfvars)",
+                    contenu: `<p class="mb-3">En entreprise, on a généralement plusieurs environnements : <span class="bg-blue-100 px-2 py-0.5 rounded">dev</span> (développement), <span class="bg-yellow-100 px-2 py-0.5 rounded">staging</span> (pré-production), <span class="bg-green-100 px-2 py-0.5 rounded">prod</span> (production). Comment éviter de dupliquer le code ?</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="bg-gray-50 p-3 rounded-lg border">
+                            <h4 class="font-bold text-indigo-800">🔹 Terraform Workspaces</h4>
+                            <p class="text-sm">Permet de gérer plusieurs états distincts avec le même code. Commande : <code>terraform workspace new dev</code> puis <code>terraform plan</code>.</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg border">
+                            <h4 class="font-bold text-indigo-800">🔹 Fichiers .tfvars</h4>
+                            <p class="text-sm">Fichiers de variables spécifiques : <code>dev.tfvars</code>, <code>prod.tfvars</code> (taille des VMs, nombre de réplicas...). Utilisation : <code>terraform apply -var-file="prod.tfvars"</code>.</p>
+                        </div>
+                    </div>
+                    <div class="code-block text-xs md:text-sm">
+                        <span class="text-blue-300"># Structure de projet recommandée</span><br>
+                        environments/<br>
+                        ├── dev/<br>
+                        │   ├── main.tf<br>
+                        │   └── terraform.tfvars<br>
+                        ├── staging/<br>
+                        └── prod/<br>
+                        <br>
+                        <span class="text-green-300"># Utilisation combinée</span><br>
+                        terraform workspace select prod<br>
+                        terraform apply -var-file="prod.tfvars"<br>
+                    </div>
+                    <p class="mt-3 p-2 bg-teal-50 rounded-lg text-teal-800 text-sm">🎯 <strong>Résultat</strong> : déployez en toute confiance, testez d'abord sur dev, puis promouvez vers prod via le même pipeline CI/CD.</p>`
+                }
+            ]
+        };
+        
+        // Construction du contenu des slides (tableau d'objets slide)
+        let slides = [];
+        
+        // Slide 0 : Titre
+        slides.push({
+            type: "title",
+            content: `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gradient-to-br from-indigo-50 to-white">
+                    <span class="text-indigo-500 font-semibold text-sm uppercase tracking-wider bg-indigo-100 px-4 py-1 rounded-full">Leçon 32 / Cloud & DevOps</span>
+                    <h1 class="text-3xl md:text-5xl font-extrabold mt-6 text-gray-800 leading-tight">${lessonData.titre}</h1>
+                    <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl">${lessonData.sousTitre}</p>
+                    <div class="mt-8 flex gap-3 text-sm text-gray-500">
+                        <span>🏗️ Infrastructure as Code</span> • <span>🔄 CI/CD</span> • <span>📁 environnements multiples</span>
+                    </div>
+                    <div class="mt-12 w-16 h-1 bg-indigo-300 rounded-full"></div>
+                </div>
+            `
+        });
+        
+        // Slide 1 : Objectifs pédagogiques
+        slides.push({
+            type: "objectives",
+            content: `
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                    <div class="grid gap-4">
+                        ${lessonData.objectifs.map((obj, idx) => `
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl shadow-sm">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-7 h-7 flex items-center justify-center shrink-0 mt-0.5">${idx+1}</span>
+                                <p class="text-gray-700 text-base md:text-lg">${obj}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-8 text-center text-sm text-gray-400 italic">✨ À la fin, vous saurez industrialiser l'infrastructure cloud</div>
+                </div>
+            `
+        });
+        
+        // Slides de contenu : on ajoute chaque partie
+        lessonData.parties.forEach((part, i) => {
+            slides.push({
+                type: "content",
+                content: `
+                    <div class="p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-5">${part.titre}</h2>
+                        <div class="prose max-w-none text-gray-700 leading-relaxed">
+                            ${part.contenu}
+                        </div>
+                        <div class="mt-8 pt-4 border-t border-gray-200 text-right text-indigo-500 text-sm">
+                            <span class="inline-flex items-center gap-1">🔁 Module réutilisable & pipeline</span>
+                        </div>
+                    </div>
+                `
+            });
+        });
+        
+        // Bonus slide : Exemple concret avec schéma (dessin ascii simplifié pour rester léger, pas d'image externe)
+        slides.push({
+            type: "summary",
+            content: `
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Schéma récapitulatif : Pipeline CI/CD + IaC</h2>
+                    <div class="bg-gray-100 rounded-xl p-4 font-mono text-xs md:text-sm overflow-x-auto">
+                        <pre class="text-gray-800 whitespace-pre-wrap">
+[ Développeur ] → git push (changements .tf)
+       ↓
+[ GitHub Actions / GitLab CI ]
+       ├─ terraform fmt & validate
+       ├─ terraform plan (dev)
+       ├─ Approval manuelle ou auto pour prod ?
+       └─ terraform apply -auto-approve
+       ↓
+[ Cloud (AWS/Azure/GCP) ] → infrastructure mise à jour
+       ├─ modules Terraform
+       ├─ workspaces (dev/staging/prod)
+       └─ tfvars personnalisés
+                        </pre>
+                    </div>
+                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                        <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">📁 Modules</span><br>réutilisables</div>
+                        <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">⚙️ Pipeline automatisé</span><br>plan + apply</div>
+                        <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">🌍 Workspaces</span><br>environnements isolés</div>
+                    </div>
+                    <p class="mt-5 text-gray-600 text-sm text-center">Avec cette approche, on gagne en fiabilité, rapidité et traçabilité !</p>
+                </div>
+            `
+        });
+        
+        // Ajout d'un slide de conclusion pratique
+        slides.push({
+            type: "conclusion",
+            content: `
+                <div class="p-6 md:p-8 text-center">
+                    <div class="bg-emerald-50 rounded-2xl p-6 border border-emerald-200">
+                        <h3 class="text-2xl font-bold text-emerald-800">🏁 Mise en pratique</h3>
+                        <p class="mt-3 text-gray-700">Pour maîtriser l’intégration IaC & CI/CD :</p>
+                        <ul class="list-disc text-left max-w-md mx-auto mt-4 space-y-1">
+                            <li>Créez un dépôt GitHub avec du code Terraform.</li>
+                            <li>Ajoutez un workflow GitHub Actions qui exécute <code>terraform init & plan</code>.</li>
+                            <li>Utilisez des workspaces et testez avec des variables différentes.</li>
+                            <li>Ajoutez une étape manuelle avant apply sur production.</li>
+                        </ul>
+                        <div class="mt-6 p-3 bg-white rounded-lg shadow-inner text-indigo-800 text-sm">
+                            💡 Rappel : L'Infrastructure as Code transforme votre infrastructure en logiciel. Versionnez, testez, déployez !
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-6">Leçon 32 — fin du module. Prochaine étape : projet final de mise en œuvre complète.</p>
+                </div>
+            `
+        });
+        
+        // variables d'état
+        let currentIndex = 0;
+        const total = slides.length;
+        
+        // Fonction pour afficher la slide courante
+        function renderCurrentSlide() {
+            const wrapper = $('#slides-wrapper');
+            wrapper.empty();
+            
+            const slideData = slides[currentIndex];
+            let htmlContent = `<div class="slide transition-all duration-300 animate-fade-in" style="min-height: 65vh;">${slideData.content}</div>`;
+            wrapper.html(htmlContent);
+            
+            // Mettre à jour compteur
+            $('#slideCounter').text(currentIndex + 1);
+            $('#totalSlides').text(total);
+            
+            // Mise à jour des indicateurs (dots)
+            updateDots();
+            
+            // Scroll en haut de la slide pour une meilleure UX sur mobile
+            $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            
+            // Réactiver MathJax si jamais des formules (ici pas nécessaire mais sécurité)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        // Générer les points indicateurs
+        function updateDots() {
+            const $dotsContainer = $('#dotsIndicator');
+            $dotsContainer.empty();
+            for (let i = 0; i < total; i++) {
+                const dot = $('<button>')
+                    .addClass(`w-2.5 h-2.5 rounded-full mx-1 transition-all ${i === currentIndex ? 'bg-indigo-600 scale-125 w-3 h-3' : 'bg-gray-300 hover:bg-gray-400'}`)
+                    .attr('data-index', i);
+                dot.on('click', function() {
+                    currentIndex = parseInt($(this).attr('data-index'));
+                    renderCurrentSlide();
+                });
+                $dotsContainer.append(dot);
+            }
+        }
+        
+        // Navigation
+        $('#prevSlide').on('click', function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderCurrentSlide();
+            } else {
+                // petite animation pour indiquer début
+                $('#prevSlide').addClass('ring-2 ring-gray-300').delay(200).queue(function(next) {
+                    $(this).removeClass('ring-2 ring-gray-300');
+                    next();
+                });
+            }
+        });
+        
+        $('#nextSlide').on('click', function() {
+            if (currentIndex < total - 1) {
+                currentIndex++;
+                renderCurrentSlide();
+            } else {
+                // indication fin
+                $('#nextSlide').addClass('ring-2 ring-indigo-300').delay(200).queue(function(next) {
+                    $(this).removeClass('ring-2 ring-indigo-300');
+                    next();
+                });
+            }
+        });
+        
+        // Gestion clavier pour accessibilité
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                $('#prevSlide').click();
+            } else if (e.key === 'ArrowRight') {
+                $('#nextSlide').click();
+            }
+        });
+        
+        // initialisation
+        renderCurrentSlide();
+        
+        // petite adaptation pour les écrans extra small: la hauteur min des slides est auto
+        $(window).on('resize', function() {
+            // aucun ajustement particulier
+        });
+        
+        // Afficher un petit tooltip dynamique ?
+        console.log("Leçon 32 chargée : Intégration IaC dans pipeline CI/CD | Formation Web Dev - Cameroun");
+        
+        // Correction des petits écrans : tailwind gère bien, on ajoute une classe pour les code-block défilement
+        $('head').append('<style>@media (max-width: 640px) { .code-block { font-size: 0.7rem; } .prose p, .prose li { font-size: 0.9rem; } }</style>');
+    </script>
+</body>
+</html>

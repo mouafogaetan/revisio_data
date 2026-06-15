@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Réseaux - Le routeur et le NAT</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            min-height: 85vh;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .card-slide {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.2);
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+            background-color: #059669;
+            color: white;
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #a7f3d0;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .progress-dot.active-dot {
+            background-color: #047857;
+            width: 24px;
+            border-radius: 12px;
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+        }
+        .network-diagram {
+            font-family: monospace;
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        @media (max-width: 640px) {
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            .network-diagram { font-size: 0.6rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="card-slide p-6 md:p-10 text-center">
+                    <div class="mb-6">
+                        <span class="text-sm font-semibold text-green-800 bg-green-100 px-4 py-1 rounded-full">Réseaux informatiques • Lesson 21</span>
+                    </div>
+                    <div class="text-7xl mb-6">📡🌍</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-700 bg-clip-text text-transparent">Le Routeur & NAT/PAT</h1>
+                    <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-xl mx-auto">Comprendre le rôle du routeur, ses types et la traduction d'adresses</p>
+                    <div class="mt-10 text-gray-500 text-sm">👨‍🏫 Classe Développement Web • Cameroun</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-green-500 pl-4 mb-6">🎯 Objectifs du cours</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Comprendre le rôle d'un routeur (niveau 3, table de routage)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Distinguer routeur domestique et routeur professionnel</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Comprendre le NAT (Network Address Translation) et PAT</span></li>
+                    </ul>
+                    <div class="mt-8 p-4 bg-green-50 rounded-xl text-green-800 text-sm italic">
+                        💡 À la fin, vous saurez expliquer comment votre box Internet permet à plusieurs appareils de partager une seule IP publique.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QU'UN ROUTEUR ? -->
+            <div class="slide" id="slide3">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📡 Qu'est-ce qu'un routeur ?</h2>
+                    <p class="text-gray-700 leading-relaxed mb-4">Un <strong>routeur</strong> est un équipement réseau qui <strong>connecte plusieurs réseaux entre eux</strong> et <strong>achemine les paquets</strong> (niveau 3 du modèle OSI). Il utilise une <strong>table de routage</strong> pour décider par où envoyer chaque paquet.</p>
+                    <div class="network-diagram">
+                        ┌─────────┐      ┌─────────┐      ┌─────────┐
+                        │ Réseau A │ ─── │ Routeur │ ─── │ Réseau B │
+                        │192.168.1.0│      │         │      │10.0.0.0 │
+                        └─────────┘      └─────────┘      └─────────┘
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Exemple : un routeur relie votre réseau local (192.168.1.x) à Internet.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : LE RÔLE PRINCIPAL - TABLE DE ROUTAGE -->
+            <div class="slide" id="slide4">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🗺️ La table de routage</h2>
+                    <p>Le routeur consulte sa table de routage pour chaque paquet. Elle contient des entrées comme :</p>
+                    <div class="overflow-x-auto my-3">
+                        <table class="min-w-full bg-gray-50 border text-sm">
+                            <thead class="bg-green-100"><tr><th class="p-2">Réseau destination</th><th class="p-2">Masque</th><th class="p-2">Passerelle / Interface</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-2">192.168.1.0</td><td class="p-2">255.255.255.0</td><td class="p-2">eth0 (direct)</td></tr>
+                                <tr><td class="p-2">0.0.0.0</td><td class="p-2">0.0.0.0</td><td class="p-2">203.0.113.1 (FAI)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ul class="list-disc pl-6 text-gray-700 text-sm">
+                        <li>La route par défaut (<code>0.0.0.0/0</code>) est utilisée quand aucune autre route ne correspond.</li>
+                        <li>Le routeur choisit toujours la route <strong>la plus spécifique</strong> (masque le plus long).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : ROUTEUR DOMESTIQUE vs PROFESSIONNEL -->
+            <div class="slide" id="slide5">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🏠 vs 🏢 Routeur domestique vs professionnel</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-blue-800">Routeur domestique (box)</h3>
+                            <ul class="list-disc pl-5 text-sm mt-2">
+                                <li>4 ports Ethernet + WiFi</li>
+                                <li>NAT/PAT intégré (partage d'IP publique)</li>
+                                <li>Serveur DHCP, pare-feu basique</li>
+                                <li>Configuration simple (interface web)</li>
+                                <li>Exemple : Livebox, Freebox, Bbox</li>
+                            </ul>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-emerald-800">Routeur professionnel</h3>
+                            <ul class="list-disc pl-5 text-sm mt-2">
+                                <li>Matériel plus puissant (plusieurs cœurs)</li>
+                                <li>Protocoles dynamiques (OSPF, BGP)</li>
+                                <li>VPN, VLAN, QoS avancée</li>
+                                <li>Redondance (HSRP, VRRP)</li>
+                                <li>Exemples : Cisco, MikroTik, Juniper</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : PROBLÈME : PÉNURIE D'IPV4 -->
+            <div class="slide" id="slide6">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">⚠️ Le problème : pas assez d'adresses IP publiques</h2>
+                    <p>IPv4 ne permet que <strong>4,3 milliards</strong> d'adresses. Avec des milliards d'appareils connectés, c'est insuffisant.</p>
+                    <div class="bg-amber-50 p-3 rounded-lg my-3 text-center">
+                        🌍 Solution : <strong>NAT (Network Address Translation)</strong> – partager une seule IP publique entre plusieurs machines privées.
+                    </div>
+                    <p>Les adresses privées (RFC 1918) ne sont pas routables sur Internet :</p>
+                    <ul class="list-disc pl-6 text-sm">
+                        <li>10.0.0.0 – 10.255.255.255</li>
+                        <li>172.16.0.0 – 172.31.255.255</li>
+                        <li>192.168.0.0 – 192.168.255.255</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : FONCTIONNEMENT DU NAT -->
+            <div class="slide" id="slide7">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔄 Comment fonctionne le NAT ?</h2>
+                    <p>Le routeur NAT remplace l'adresse IP privée source par son adresse IP publique dans les paquets sortants. À la réception, il fait l'opération inverse.</p>
+                    <div class="network-diagram my-3">
+PC (192.168.1.10) ──▶ Routeur NAT (203.0.113.50) ──▶ Serveur (8.8.8.8)
+[source: 192.168.1.10]   [source: 203.0.113.50]   [destination: 8.8.8.8]
+                    </div>
+                    <p class="text-gray-600 text-sm">Mais comment savoir à quel PC renvoyer la réponse ? Le routeur utilise une <strong>table de traduction</strong>.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : PAT (PORT ADDRESS TRANSLATION) -->
+            <div class="slide" id="slide8">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔢 PAT : plusieurs appareils, un seul port public</h2>
+                    <p>Le PAT (ou NAT overloading) utilise les <strong>numéros de port</strong> pour distinguer les connexions. Plusieurs machines derrière une même IP publique.</p>
+                    <div class="bg-gray-100 p-3 rounded-lg overflow-x-auto text-sm font-mono">
+                        <strong>Table PAT (exemple) :</strong><br>
+                        192.168.1.10:12345  →  203.0.113.50:55001<br>
+                        192.168.1.11:12345  →  203.0.113.50:55002<br>
+                        192.168.1.12:80     →  203.0.113.50:55003
+                    </div>
+                    <p class="mt-2 text-gray-600 text-sm">Chaque connexion sortante se voit attribuer un port source unique sur l'IP publique. La réponse est redirigée vers la bonne machine grâce à ce port.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXEMPLE CONCRET (BOX INTERNET) -->
+            <div class="slide" id="slide9">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🏠 Exemple : votre box Internet</h2>
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <p><strong>Smartphone</strong> (IP privée 192.168.1.20) veut visiter google.com</p>
+                        <ol class="list-decimal pl-5 mt-2 text-sm">
+                            <li>Le smartphone envoie la requête vers la box (192.168.1.1).</li>
+                            <li>La box NAT : remplace l'IP source par son IP publique (81.64.x.x), choisit un port libre (ex: 55001).</li>
+                            <li>Google répond à la box (IP publique).</li>
+                            <li>La box consulte sa table PAT et renvoie la réponse au smartphone.</li>
+                        </ol>
+                    </div>
+                    <p class="text-gray-600 text-sm mt-3">📌 L'ordinateur du voisin a aussi 192.168.1.20, mais derrière sa propre box. Pas de conflit car les boîtes sont différentes.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : INCONVÉNIENTS DU NAT -->
+            <div class="slide" id="slide10">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">⚠️ Inconvénients du NAT</h2>
+                    <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                        <li><strong>Impossible de recevoir des connexions entrantes</strong> sans configuration manuelle (redirection de ports).</li>
+                        <li>Certains protocoles (FTP, SIP, IPSec) ont du mal à traverser le NAT (nécessitent des helpers ALG).</li>
+                        <li><strong>IPv6</strong> a été créé pour supprimer le besoin de NAT (chaque appareil a une IP publique).</li>
+                        <li>Ajoute de la latération et de la complexité.</li>
+                    </ul>
+                    <div class="mt-3 bg-amber-50 p-2 rounded text-sm">
+                        💡 Solution : redirection de ports (port forwarding) pour autoriser l'accès depuis l'extérieur (ex: serveur web, jeu en ligne).
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 11 : NAT STATIQUE vs DYNAMIQUE vs PAT -->
+            <div class="slide" id="slide11">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Les 3 types de NAT</h2>
+                    <div class="space-y-3">
+                        <div class="border-l-4 border-blue-500 pl-3">
+                            <strong>NAT statique</strong> : 1 IP privée ↔ 1 IP publique fixe (bijection). Utile pour un serveur visible de l'extérieur.
+                        </div>
+                        <div class="border-l-4 border-green-500 pl-3">
+                            <strong>NAT dynamique</strong> : un pool d'IP publiques est attribué dynamiquement aux IP privées (moins courant aujourd'hui).
+                        </div>
+                        <div class="border-l-4 border-amber-500 pl-3">
+                            <strong>PAT (NAT overloading)</strong> : plusieurs IP privées partagent une seule IP publique via des ports. C'est ce qu'utilisent les box Internet.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 12 : COMMANDES POUR VOIR LE NAT SUR UN ROUTEUR CISCO -->
+            <div class="slide" id="slide12">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🖥️ Exemple de configuration (Cisco)</h2>
+                    <pre><code>! Définir les interfaces
+interface eth0
+ ip address 192.168.1.1 255.255.255.0
+ ip nat inside
+!
+interface eth1
+ ip address 203.0.113.50 255.255.255.248
+ ip nat outside
+!
+! Configurer le PAT
+ip nat inside source list 1 interface eth1 overload
+!
+! Liste des IP privées autorisées
+access-list 1 permit 192.168.1.0 0.0.0.255
+!
+! Voir les traductions actives
+show ip nat translations</code></pre>
+                    <p class="text-gray-600 text-sm mt-2">La commande <code>show ip nat translations</code> affiche la table PAT.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 13 : REDIRECTION DE PORTS (PORT FORWARDING) -->
+            <div class="slide" id="slide13">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔓 Redirection de ports (port forwarding)</h2>
+                    <p>Permet d'accéder à un service interne depuis Internet. Exemple : héberger un site web chez soi.</p>
+                    <div class="bg-gray-100 p-3 rounded-lg text-sm font-mono">
+                        Règle : port 80 (TCP) externe → 192.168.1.100:80 (serveur web local)
+                    </div>
+                    <p class="mt-2 text-gray-600">Dans l'interface de votre box :</p>
+                    <ul class="list-disc pl-6 text-sm">
+                        <li>Application : Serveur Web (ou personnalisé)</li>
+                        <li>Port externe : 80</li>
+                        <li>IP interne : 192.168.1.100</li>
+                        <li>Port interne : 80</li>
+                        <li>Protocole : TCP</li>
+                    </ul>
+                    <div class="bg-red-50 p-2 rounded mt-2 text-sm text-red-700">⚠️ Attention à la sécurité : n'ouvrez que les ports nécessaires !</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 14 : CONCLUSION ET RÉCAPITULATIF -->
+            <div class="slide" id="slide14">
+                <div class="card-slide p-6 md:p-8 text-center">
+                    <h2 class="text-3xl font-bold mb-4">📌 Ce qu'il faut retenir</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mt-6">
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> Routeur = aiguillage au niveau réseau</div>
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> Table de routage + route par défaut</div>
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> NAT = traduit IP privées → IP publique</div>
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> PAT = partage d'une IP via les ports</div>
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> Routes domestique : tout-en-un (NAT, WiFi, DHCP)</div>
+                        <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">✓</span> Port forwarding pour services entrants</div>
+                    </div>
+                    <div class="mt-6 p-3 bg-green-100 rounded-lg inline-block">
+                        🌟 Sans NAT, Internet serait à court d'adresses IP depuis longtemps !
+                    </div>
+                    <p class="mt-8 text-gray-500">Prochaine leçon : les pare-feu et la sécurité réseau 🔒</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation flottante -->
+        <div class="fixed bottom-4 left-0 right-0 flex justify-center items-center gap-3 z-20">
+            <button id="prevBtn" class="nav-btn bg-white text-gray-700 px-5 py-2 rounded-full shadow-lg border border-gray-300 font-semibold text-sm md:text-base">◀ Précédent</button>
+            <div id="progressDots" class="flex gap-2 mx-2 items-center"></div>
+            <button id="nextBtn" class="nav-btn bg-green-600 text-white px-5 py-2 rounded-full shadow-lg font-semibold text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const slides = $('.slide');
+            let currentIndex = 0;
+            const totalSlides = slides.length;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                updateDots();
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            }
+
+            function updateDots() {
+                const container = $('#progressDots');
+                container.empty();
+                for (let i = 0; i < totalSlides; i++) {
+                    const dot = $('<div>').addClass('progress-dot');
+                    if (i === currentIndex) dot.addClass('active-dot');
+                    dot.on('click', function() {
+                        currentIndex = i;
+                        updateSlides();
+                    });
+                    container.append(dot);
+                }
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                } else {
+                    alert("🎉 Félicitations ! Vous avez terminé le cours sur le routeur et le NAT.");
+                }
+            });
+
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') $('#nextBtn').click();
+                else if (e.key === 'ArrowLeft') $('#prevBtn').click();
+            });
+
+            updateDots();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+[
+  {
+    "intitule": "Implémentation de l'accessibilité sur les composants",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce, vous devez rendre les composants interactifs (boutons, images, champs de formulaire) accessibles aux lecteurs d'écran (<strong>VoiceOver</strong> sur iOS et <strong>TalkBack</strong> sur Android).</p>",
+      "images": [
+        "icône d'accessibilité avec symbole universel d'accessibilité"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer les propriétés React Native à utiliser pour rendre un bouton 'Ajouter au panier' accessible. Comment les lecteurs d'écran annoncent-ils cet élément ?",
+        "niveau": "medium",
+        "reponse": "Les propriétés clés sont : <code>accessible={true}</code> (par défaut sur les éléments interactifs), <code>accessibilityLabel</code> pour décrire l'action, <code>accessibilityHint</code> pour donner un contexte supplémentaire, <code>accessibilityRole=\"button\"</code>. Exemple : <code>accessibilityLabel=\"Ajouter le produit au panier\"</code>. VoiceOver/TalkBack annoncent : 'Ajouter le produit au panier, bouton'.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Rédiger le code d'un composant <code>AccessibleButton</code> qui intègre ces propriétés et gère l'état de chargement.",
+            "niveau": "hard",
+            "reponse": "```typescript\nimport React from 'react';\nimport { TouchableOpacity, Text, ActivityIndicator, ViewStyle } from 'react-native';\n\ninterface AccessibleButtonProps {\n  onPress: () => void;\n  title: string;\n  loading?: boolean;\n  disabled?: boolean;\n  accessibilityLabel?: string;\n  accessibilityHint?: string;\n  style?: ViewStyle;\n}\n\nconst AccessibleButton: React.FC<AccessibleButtonProps> = ({\n  onPress,\n  title,\n  loading = false,\n  disabled = false,\n  accessibilityLabel,\n  accessibilityHint,\n  style,\n}) => {\n  const finalLabel = accessibilityLabel || `Bouton ${title}`;\n  const finalHint = accessibilityHint || `Appuyez deux fois pour ${title.toLowerCase()}`;\n\n  return (\n    <TouchableOpacity\n      onPress={onPress}\n      disabled={disabled || loading}\n      accessible={true}\n      accessibilityLabel={finalLabel}\n      accessibilityHint={finalHint}\n      accessibilityRole=\"button\"\n      accessibilityState={{ disabled: disabled || loading, busy: loading }}\n      style={[{ padding: 12, borderRadius: 8, backgroundColor: '#0066cc' }, style]}\n    >\n      {loading ? (\n        <ActivityIndicator color=\"white\" />\n      ) : (\n        <Text style={{ color: 'white', textAlign: 'center', fontSize: 16 }}>\n          {title}\n        </Text>\n      )}\n    </TouchableOpacity>\n  );\n};\n\nexport default AccessibleButton;\n```"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Quelle est la différence entre <code>accessibilityLabel</code> et <code>accessibilityHint</code> ? Donner un exemple concret pour un champ de recherche.",
+            "niveau": "medium",
+            "reponse": "<code>accessibilityLabel</code> identifie l'élément (ex: 'Champ de recherche'). <code>accessibilityHint</code> décrit l'action (ex: 'Saisissez le nom du produit puis appuyez sur Entrée pour rechercher'). Pour un champ recherche : <code>accessibilityLabel=\"Rechercher un produit\"</code> et <code>accessibilityHint=\"Double-tapez pour saisir le nom du produit que vous souhaitez acheter\"</code>. VoiceOver annonce d'abord le label, puis le hint après une pause."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Support des tailles de police dynamiques",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre application doit respecter les préférences de taille de police système. Un utilisateur malvoyant a réglé la taille du texte au maximum sur son iPhone/Android. Certains textes sont coupés ou ne s'affichent pas correctement.</p>",
+      "images": [
+        "interface mobile avec texte agrandi et boutons qui débordent"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analyser les problèmes liés à l'utilisation de tailles de police fixes (<code>fontSize: 14</code>) et proposer une stratégie de mise à l'échelle dynamique.",
+        "niveau": "hard",
+        "reponse": "Problèmes : coupure de texte, débordement des conteneurs, superposition d'éléments, mauvaise expérience utilisateur. Stratégie : 1) Utiliser des unités relatives avec <code>PixelRatio.getFontScale()</code> ou <code>RFPercentage</code>/<code>RFValue</code> de <code>react-native-responsive-fontsize</code>. 2) Désactiver l'échelle pour les textes non essentiels avec <code>allowFontScaling={false}</code> sur certains éléments (ex: prix). 3) Tester avec les paramètres d'accessibilité système. 4) Utiliser <code>flexShrink</code>, <code>flexWrap</code> et des conteneurs adaptatifs.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Créer un hook personnalisé <code>useDynamicFontSize</code> qui retourne une taille de police multipliée par le facteur d'échelle système.",
+            "niveau": "hard",
+            "reponse": "```typescript\nimport { useWindowDimensions, PixelRatio } from 'react-native';\nimport { useEffect, useState } from 'react';\n\nconst useDynamicFontSize = (baseSize: number): number => {\n  const [fontScale, setFontScale] = useState(PixelRatio.getFontScale());\n  const { fontScale: windowFontScale } = useWindowDimensions();\n\n  useEffect(() => {\n    setFontScale(PixelRatio.getFontScale());\n  }, [windowFontScale]);\n\n  // Limiter l'échelle maximale à 2 pour éviter les débordements\n  const limitedScale = Math.min(fontScale, 2);\n  return baseSize * limitedScale;\n};\n\n// Utilisation\nconst dynamicFontSize = useDynamicFontSize(14);\n<Text style={{ fontSize: dynamicFontSize }}>Texte adaptatif</Text>\n```"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Expliquer comment tester dynamiquement l'accessibilité des tailles de police sur iOS Simulator et Android Emulator.",
+            "niveau": "medium",
+            "reponse": "Sur iOS Simulator : Settings → Accessibility → Display & Text Size → Larger Text → activer 'Larger Accessibility Sizes' et ajuster le curseur. Sur Android Emulator : Settings → Accessibility → Text and display → Font size → agrandir (jusqu'à 'Huge'). Pour automatiser les tests : utiliser <code>Appium</code> avec des configurations de police personnalisées, ou <code>Detox</code> avec des préférences système modifiées via ADB. Toujours tester avec la plus grande police (accessibilité) et la plus petite."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Contrastes et modes d'affichage (dark mode)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Les directives <strong>WCAG 2.1</strong> exigent un rapport de contraste minimum de <strong>4.5:1</strong> pour le texte normal et <strong>3:1</strong> pour le texte large. Votre application e-commerce utilise actuellement un texte gris clair (#999999) sur fond blanc (#FFFFFF). Le rapport de contraste est insuffisant pour les utilisateurs malvoyants.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculer le rapport de contraste entre #999999 et #FFFFFF. Utiliser la formule : $L = 0.2126 \\cdot R_{srgb} + 0.7152 \\cdot G_{srgb} + 0.0722 \\cdot B_{srgb}$ où $R_{srgb}$, $G_{srgb}$, $B_{srgb}$ sont les composantes RGB linéarisées.",
+        "niveau": "hard",
+        "reponse": "#999999 = RGB(153,153,153). La luminance relative est ≈ 0.2. #FFFFFF a une luminance de 1. Le rapport de contraste = (1 + 0.05) / (0.2 + 0.05) = 1.05 / 0.25 = 4.2:1. Ce rapport est <strong>inférieur</strong> à 4.5:1 requis pour le texte normal. Il n'est pas conforme WCAG AA.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposer une couleur de texte alternative avec un rapport de contraste ≥ 4.5:1 sur fond blanc. Justifier par un calcul.",
+            "niveau": "hard",
+            "reponse": "Pour respecter WCAG AA, il faut L_texte ≤ (1.05 / 4.5) - 0.05 = 0.2333 - 0.05 = 0.1833. En prenant #767676 (RGB 118,118,118) : luminance ≈ 0.149. Rapport = (1+0.05)/(0.149+0.05) = 1.05/0.199 = 5.27:1 → OK. Une meilleure alternative : #595959 (luminance ≈ 0.079, rapport 1.05/0.129 = 8.14:1). Recommandation : utiliser au minimum #767676 pour le texte standard."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Implémenter un hook <code>useAccessibleColors</code> qui retourne les couleurs en fonction du thème (clair/sombre) et vérifie automatiquement les contrastes.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nimport { useColorScheme } from 'react-native';\nimport { useEffect, useState } from 'react';\n\ninterface ColorPalette {\n  background: string;\n  textPrimary: string;\n  textSecondary: string;\n  buttonBackground: string;\n  buttonText: string;\n}\n\nconst lightTheme: ColorPalette = {\n  background: '#FFFFFF',\n  textPrimary: '#1A1A1A', // Contraste ~15:1\n  textSecondary: '#595959', // Contraste ~8:1 (≥ 4.5)\n  buttonBackground: '#0066CC',\n  buttonText: '#FFFFFF',\n};\n\nconst darkTheme: ColorPalette = {\n  background: '#121212',\n  textPrimary: '#FFFFFF',\n  textSecondary: '#B3B3B3', // Contraste sur fond #121212 ~7.5:1\n  buttonBackground: '#0A84FF',\n  buttonText: '#FFFFFF',\n};\n\nconst useAccessibleColors = (): ColorPalette => {\n  const colorScheme = useColorScheme();\n  const [colors, setColors] = useState(colorScheme === 'dark' ? darkTheme : lightTheme);\n\n  useEffect(() => {\n    setColors(colorScheme === 'dark' ? darkTheme : lightTheme);\n  }, [colorScheme]);\n\n  return colors;\n};\n\nexport default useAccessibleColors;\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Audit d'accessibilité d'une application e-commerce",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous réalisez un audit d'accessibilité pour l'application <strong>\"Market Africa\"</strong>. Voici les problèmes identifiés :</p><ul><li>Les images produits n'ont pas de texte alternatif</li><li>Les gestes de swipe pour supprimer un article du panier ne sont pas annoncés</li><li>Les couleurs des liens sont identiques au texte normal (bleu #0000EE vs texte #000000), contraste insuffisant</li><li>L'ordre de lecture des éléments dans la fiche produit n'est pas logique</li><li>Les boutons sont trop petits (hauteur 36px) et difficiles à taper</li></ul>",
+      "images": [
+        "interface de panier avec swipe to delete"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Classer ces problèmes par ordre de priorité (critique, grave, mineur) selon les standards WCAG 2.1 et justifier.",
+        "niveau": "hard",
+        "reponse": "Critique : contraste des liens (violation WCAG SC 1.4.3) et absence de texte alternatif pour les images (SC 1.1.1). Grave : ordre de lecture non logique (SC 1.3.2) et taille des boutons trop petite (SC 2.5.5). Mineur : gestes de swipe non annoncés (peut être amélioré avec <code>accessibilityHint</code>).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposer un plan d'action correctif pour chaque problème, en mentionnant les propriétés React Native à utiliser.",
+            "niveau": "very hard",
+            "reponse": "1) Images produits : ajouter <code>accessible={true}</code> et <code>accessibilityLabel={product.name}</code> sur chaque image. 2) Swipe to delete : utiliser <code>accessibilityActions</code> et <code>onAccessibilityAction</code> pour annoncer l'action. Exemple : <code>accessibilityActions={[{ name: 'swipeToDelete', label: 'Supprimer du panier' }]}</code>. 3) Liens : augmenter le contraste (vérifier rapport ≥ 4.5:1). 4) Ordre de lecture : utiliser <code>accessibilityElementsHidden</code> sur les éléments non essentiels et <code>importantForAccessibility</code> pour ordonner. 5) Taille boutons : minimum 44×44 points (WCAG 2.5.8), utiliser <code>minHeight: 44</code>, <code>minWidth: 44</code>, et <code>hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}</code> pour augmenter zone tactile."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Expliquer comment utiliser l'outil <code>react-native-accessibility-inspector</code> pour automatiser la détection de certains de ces problèmes.",
+            "niveau": "hard",
+            "reponse": "<code>react-native-accessibility-inspector</code> est un outil de développement qui analyse l'arbre React et signale les problèmes d'accessibilité en temps réel : absence de <code>accessibilityLabel</code>, <code>accessibilityRole</code> manquant, contrastes insuffisants, tailles de texte non évolutives. Installation : <code>npm install --save-dev react-native-accessibility-inspector</code>. Utilisation : envelopper l'application avec <code><AccessibilityInspector></code> en développement uniquement. Il ajoute une interface flottante listant les problèmes et suggérant des corrections. Très utile pour l'audit continu."
+          }
+        ]
+      }
+    ]
+  }
+]

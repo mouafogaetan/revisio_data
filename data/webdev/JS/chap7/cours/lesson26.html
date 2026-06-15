@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours JavaScript | Événements avancés - Leçon 26</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, discret) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisations douces pour meilleur confort visuel / mobile */
+        body {
+            background: #f8fafc;
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            transition: transform 0.3s ease, opacity 0.3s;
+        }
+        .slide {
+            background: white;
+            border-radius: 1.75rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            background-color: #eef2ff;
+            color: #1e3a8a;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background-color: #cbd5e1;
+            transform: scale(1.02);
+        }
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+        .progress-bar {
+            background: #e2e8f0;
+            border-radius: 999px;
+        }
+        .progress-fill {
+            background: #3b82f6;
+            width: 0%;
+            border-radius: 999px;
+            transition: width 0.2s ease;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        .badge {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.25rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-3xl mx-auto px-3 sm:px-5 py-6 md:py-10">
+        <!-- Header indicateur matière / classe -->
+        <div class="flex flex-wrap justify-between items-center mb-4 text-sm text-gray-600">
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-4 py-1 shadow-sm">
+                🧑‍🏫 Classe : <strong>Développement Web</strong> | 📘 Matière : <strong>Initiation au JavaScript</strong>
+            </div>
+            <div class="mt-2 sm:mt-0 bg-blue-50 rounded-full px-3 py-1 text-blue-800 text-xs font-medium">
+                Chapitre 7 • Leçon 26
+            </div>
+        </div>
+
+        <!-- SLIDES PRINCIPAL -->
+        <div id="slidesWrapper" class="relative">
+            <!-- Conteneur des slides (type carrousel simple) -->
+            <div id="slidesContainer" class="slide-container overflow-hidden relative">
+                <div id="slidesTrack" class="flex transition-transform duration-500 ease-in-out will-change-transform">
+                    <!-- Les slides seront injectées dynamiquement via jQuery -->
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center mt-6 gap-3">
+                <button id="prevSlide" class="nav-btn px-5 py-2 rounded-full font-medium shadow-sm disabled:opacity-40" disabled>◀ Précédent</button>
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="progress-bar w-full max-w-[180px] h-2">
+                        <div id="progressFill" class="progress-fill h-full"></div>
+                    </div>
+                    <span id="slideCounter" class="text-xs text-gray-500 mt-1">Slide 1 / X</span>
+                </div>
+                <button id="nextSlide" class="nav-btn px-5 py-2 rounded-full font-medium shadow-sm">Suivant ▶</button>
+            </div>
+        </div>
+
+        <!-- Message pédagogique discret -->
+        <div class="text-center text-xs text-gray-400 mt-8 border-t pt-4">
+            📖 Utilise les flèches pour naviguer • Tous les exemples sont interactifs
+        </div>
+    </div>
+
+    <script>
+        // ---------- DONNÉES DE LA LEÇON 26 ----------
+        // Titre Slide1, Slide2 objectifs, puis contenu structuré en slides supplémentaires
+        const lessonData = {
+            title: "🎯 Objet Événement, méthodes avancées et délégation",
+            objectives: [
+                "Accéder à l'objet événement (paramètre de la fonction)",
+                "Utiliser target, currentTarget, preventDefault(), stopPropagation()",
+                "Comprendre la délégation d'événements (meilleure performance & dynamisme)"
+            ],
+            // Contenu détaillé (plusieurs slides)
+            contentSlides: [
+                {
+                    subtitle: "🧠 L'objet événement",
+                    explanation: "Quand un événement se produit, le navigateur fournit automatiquement un objet riche contenant des informations sur l'événement (type, position, élément cible…). En JavaScript, on le reçoit comme paramètre de la fonction callback.",
+                    codeExample: `// Récupération de l'objet événement (souvent nommé e, evt, event)
+element.addEventListener('click', function(event) {
+    console.log(event.type);     // "click"
+    console.log(event.clientX);  // position X de la souris
+});`,
+                    tip: "💡 Cet objet est essentiel pour contrôler finement le comportement des interactions."
+                },
+                {
+                    subtitle: "🎯 Propriétés clés : target vs currentTarget",
+                    explanation: "• <code>event.target</code> : l'élément réel qui a déclenché l'événement (le plus profond). <br>• <code>event.currentTarget</code> : l'élément auquel l'écouteur est attaché (celui sur lequel on a utilisé addEventListener).",
+                    codeExample: `// HTML: <div id="parent"><button>Clique</button></div>
+document.getElementById('parent').addEventListener('click', function(e) {
+    console.log(e.target);          // <button>...
+    console.log(e.currentTarget);   // <div id="parent">...
+});`,
+                    schema: "🔍 <span class='bg-gray-100 px-2 py-1 rounded'>target = élément cliqué réel (peut être enfant)</span>  |  <span class='bg-gray-100 px-2 py-1 rounded'>currentTarget = élément qui porte l'écouteur</span>"
+                },
+                {
+                    subtitle: "⛔ preventDefault() – Bloquer le comportement par défaut",
+                    explanation: "Empêche l'action native du navigateur. Utile pour: lien de redirection, soumission de formulaire, cocher/décocher, etc.",
+                    codeExample: `// Empêcher un lien de naviguer
+$('a').on('click', function(e) {
+    e.preventDefault();
+    alert('Navigation bloquée !');
+});
+
+// Empêcher l'envoi d’un formulaire
+$('form').on('submit', function(e) {
+    e.preventDefault();
+    console.log('Formulaire non envoyé, on valide en JS');
+});`,
+                    note: "⚠️ preventDefault() n'empêche pas la propagation, seulement l'action par défaut."
+                },
+                {
+                    subtitle: "⏸ stopPropagation() – Arrêter la remontée (bulle)",
+                    explanation: "En JavaScript, les événements 'remontent' du plus profond jusqu'à la racine (phase de bulle). stopPropagation() coupe cette remontée pour que les parents ne soient pas notifiés.",
+                    codeExample: `// Événement sur enfant sans déranger le parent
+$('.enfant').on('click', function(e) {
+    e.stopPropagation();
+    console.log('Seul l’enfant est notifié');
+});
+$('.parent').on('click', function() {
+    console.log('Parent ne sera pas déclenché si stopPropagation');
+});`,
+                    schemaDiagram: "🌊 <strong>Propagation stoppée</strong> : l'événement ne remonte pas aux ancêtres."
+                },
+                {
+                    subtitle: "🚀 Délégation d'événements (paternité dynamique)",
+                    explanation: "Ajouter un seul écouteur sur un parent commun pour gérer des éléments actuels ou futurs (créés dynamiquement). Idéal pour performances et code maintenable. Technique basée sur le ciblage (event.target).",
+                    codeExample: `// Délégation : gérer tous les boutons .delete même ajoutés après
+$('#maListe').on('click', '.delete-btn', function(e) {
+    e.stopPropagation();
+    $(this).closest('li').remove();
+    alert('Élément supprimé !');
+});
+
+// Les nouveaux .delete-btn bénéficient automatiquement de l’écouteur`,
+                    advantage: "✅ Évite d'attacher des écouteurs à chaque élément → meilleure mémoire, gère le contenu AJAX."
+                },
+                {
+                    subtitle: "💡 Exemple concret : mini démo interactive",
+                    explanation: "Essayez les boutons ci-dessous pour comprendre target, currentTarget, preventDefault, stopPropagation et délégation. (Exemple réel intégré)",
+                    interactive: true   // on va générer un mini bac à sable dans le slide
+                }
+            ]
+        };
+
+        let slidesArray = [];
+        let currentIndex = 0;
+
+        // Construction des slides
+        function buildSlides() {
+            // Slide 0 : titre + contexte
+            const titleSlide = `
+                <div class="slide w-full flex-shrink-0 p-6 md:p-8">
+                    <div class="flex flex-col h-full">
+                        <span class="badge text-xs self-start px-3 py-1 rounded-full mb-4">Leçon 26 · Événements avancés</span>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">${lessonData.title}</h1>
+                        <div class="mt-6 text-gray-600 space-y-3 text-lg">
+                            <p>Dans cette leçon, nous plongeons dans les secrets de l'<strong>objet événement</strong>, les méthodes <code class="text-sm">preventDefault()</code>, <code>stopPropagation()</code>, et la <strong>délégation d'événements</strong>.</p>
+                            <p class="border-l-4 border-blue-400 pl-4 italic">Maîtrisez l'interaction fine avec vos pages web dynamiques !</p>
+                        </div>
+                        <div class="mt-8 flex justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.5 7.5l-5-5m0 0L3 3l-1 1 5 5m-5-5l5 5" /></svg>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Slide 1 : objectifs
+            const objItems = lessonData.objectives.map(obj => `<li class="mb-3 flex items-start gap-3"><span class="text-blue-600 font-bold text-xl">✓</span> <span>${obj}</span></li>`).join('');
+            const objectivesSlide = `
+                <div class="slide w-full flex-shrink-0 p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-blue-200 pb-2 inline-block">📌 Objectifs pédagogiques</h2>
+                    <ul class="mt-6 space-y-2 text-gray-700 text-lg">
+                        ${objItems}
+                    </ul>
+                    <div class="mt-10 bg-blue-50 p-4 rounded-xl text-sm">
+                        🔎 À la fin de cette leçon, vous saurez exploiter tout le potentiel des événements pour créer des interfaces robustes.
+                    </div>
+                </div>
+            `;
+            slidesArray.push(titleSlide, objectivesSlide);
+            
+            // Ajouter les slides de contenu
+            lessonData.contentSlides.forEach((slide, idx) => {
+                let content = `
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-8 overflow-y-auto max-h-[70vh] md:max-h-[75vh]">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-2xl">📖</span>
+                            <h2 class="text-2xl font-bold text-gray-800">${slide.subtitle}</h2>
+                        </div>
+                        <div class="prose prose-sm max-w-none text-gray-700">
+                            <p class="leading-relaxed">${slide.explanation}</p>
+                            ${slide.codeExample ? `<div class="my-5"><pre class="language-javascript"><code>${escapeHtml(slide.codeExample)}</code></pre></div>` : ''}
+                            ${slide.tip ? `<div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400 my-3">✨ ${slide.tip}</div>` : ''}
+                            ${slide.schema ? `<div class="bg-indigo-50 p-3 rounded-lg my-3 text-center">${slide.schema}</div>` : ''}
+                            ${slide.note ? `<div class="bg-red-50 p-3 rounded-lg my-3 text-sm">📛 ${slide.note}</div>` : ''}
+                            ${slide.schemaDiagram ? `<div class="bg-gray-100 p-3 rounded-lg my-3">${slide.schemaDiagram}</div>` : ''}
+                            ${slide.advantage ? `<div class="bg-green-50 p-3 rounded-lg my-3">✅ ${slide.advantage}</div>` : ''}
+                        </div>
+                        ${slide.interactive ? `<div class="mt-6 border-t pt-5" id="demoInteractiveLecon26"><h3 class="font-semibold text-lg mb-3">🧪 Zone interactive : testez les concepts</h3><div id="sandboxApp"></div></div>` : ''}
+                    </div>
+                `;
+                slidesArray.push(content);
+            });
+        }
+
+        // fonction utilitaire pour échapper HTML simple
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Rendu des slides dans le DOM via jQuery
+        let $track = $('#slidesTrack');
+        function renderSlides() {
+            $track.empty();
+            slidesArray.forEach((htmlSlide, i) => {
+                let $slideDiv = $(`<div class="slide-wrapper w-full flex-shrink-0 px-1"></div>`);
+                $slideDiv.html(htmlSlide);
+                $track.append($slideDiv);
+            });
+            updateSlidePosition();
+            updateNavigation();
+            // après le rendu, si le dernier slide (interactive) on lance la démo personnalisée
+            attachDemoHandler();
+        }
+
+        function updateSlidePosition() {
+            let slideWidth = $('.slide-wrapper').first().outerWidth();
+            if (!slideWidth) slideWidth = $('#slidesContainer').width();
+            const offset = -currentIndex * slideWidth;
+            $track.css('transform', `translateX(${offset}px)`);
+            // Mise à jour barre progression
+            const total = slidesArray.length;
+            const progressPercent = ((currentIndex + 1) / total) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            $('#slideCounter').text(`Slide ${currentIndex+1} / ${total}`);
+            // gestion désactivation boutons
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === total - 1);
+        }
+
+        function updateNavigation() {
+            // déjà géré via désactivation
+        }
+
+        // Recalcul lors du redimensionnement
+        let resizeTimer;
+        $(window).on('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                updateSlidePosition();
+            }, 100);
+        });
+
+        // navigation events
+        $('#nextSlide').on('click', function() {
+            if (currentIndex < slidesArray.length - 1) {
+                currentIndex++;
+                updateSlidePosition();
+            }
+        });
+        $('#prevSlide').on('click', function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlidePosition();
+            }
+        });
+
+        // Ajout d'une démo interactive pour le slide avec l'attribut "interactive"
+        function attachDemoHandler() {
+            // on cible le sandboxApp qui se trouve dans le dernier slide avec interactive:true
+            const $sandbox = $('#sandboxApp');
+            if ($sandbox.length) {
+                // S'assurer qu'on ne duplique pas plusieurs démos
+                if ($sandbox.data('initialized')) return;
+                $sandbox.data('initialized', true);
+                $sandbox.html(`
+                    <div class="bg-gray-50 rounded-xl p-4 space-y-4 text-sm">
+                        <div class="bg-white p-3 rounded shadow-sm">
+                            <p class="font-bold">🖱️ 1. Comprendre target / currentTarget</p>
+                            <div id="demoParent" class="border-2 border-blue-300 p-4 rounded-lg mt-2 bg-blue-50 cursor-pointer text-center">
+                                🎯 PARENT (div bleu)
+                                <button id="demoChildBtn" class="block mx-auto mt-2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs">Enfant Bouton</button>
+                            </div>
+                            <div id="targetOutput" class="mt-2 text-xs text-gray-600 bg-gray-100 p-2 rounded"></div>
+                        </div>
+                        <div class="bg-white p-3 rounded shadow-sm">
+                            <p class="font-bold">🚫 2. preventDefault (bloquer lien)</p>
+                            <a href="https://example.com" id="fakeLink" target="_blank" class="text-blue-500 underline">Cliquez sur ce lien (normalement redirige)</a>
+                            <p id="preventMsg" class="text-green-700 text-xs mt-1"></p>
+                        </div>
+                        <div class="bg-white p-3 rounded shadow-sm">
+                            <p class="font-bold">⛔ 3. stopPropagation() + délégation</p>
+                            <div id="delegationContainer" class="border p-3 rounded bg-gray-100">
+                                <button class="delBtnSuppr bg-red-200 px-3 py-1 rounded">Supprimer moi (avec délégation)</button>
+                                <div id="dynamicZone" class="mt-2"></div>
+                                <button id="addDynamicBtn" class="mt-2 bg-green-200 text-green-900 px-2 py-1 rounded text-xs">➕ Ajouter un nouveau bouton dynamique</button>
+                                <p id="logPropagation" class="text-xs mt-2 text-gray-500"></p>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                // demo 1 : target vs currentTarget
+                $('#demoParent').on('click', function(e) {
+                    let targetName = e.target.tagName;
+                    let currentTargetName = e.currentTarget.tagName;
+                    let detail = `🎯 target: ${targetName} | 🧩 currentTarget: ${currentTargetName}`;
+                    if(e.target.id === 'demoChildBtn') detail += ` (vous avez cliqué sur le BOUTON enfant)`;
+                    $('#targetOutput').html(detail);
+                });
+                // demo 2 : preventDefault lien
+                $('#fakeLink').on('click', function(e) {
+                    e.preventDefault();
+                    $('#preventMsg').text('✅ preventDefault a bloqué la navigation ! Le lien ne redirige pas.');
+                });
+                // demo 3 : délégation + stopPropagation
+                // On utilise la délégation sur delegationContainer pour capturer les .delBtnSuppr existants & futurs
+                $('#delegationContainer').on('click', '.delBtnSuppr', function(e) {
+                    e.stopPropagation(); // empêche la remontée
+                    $('#logPropagation').html(`⚠️ stopPropagation utilisé. Suppression de l'élément : ${$(this).text()}`);
+                    $(this).remove();
+                });
+                // Événement sur le container pour montrer la différence quand stopPropagation est absent (parent)
+                $('#delegationContainer').on('click', function(e) {
+                    if(!$(e.target).hasClass('delBtnSuppr')) {
+                        $('#logPropagation').append(`<span class="block">🌊 Propagation remontée jusqu'au parent (container) mais stopPropagation des boutons l'empêche.</span>`);
+                    }
+                });
+                // Ajouter un bouton dynamique pour tester délégation
+                $('#addDynamicBtn').on('click', function() {
+                    const newBtn = $('<button class="delBtnSuppr bg-red-200 px-3 py-1 rounded mt-2 mr-2">Nouveau dynamique (supprimable)</button>');
+                    $('#dynamicZone').append(newBtn);
+                    $('#logPropagation').html('✅ Nouveau bouton ajouté → La délégation fonctionne automatiquement !');
+                });
+                // bonus démonstration target vs currentTarget sur des clics du container parent dynamique
+            }
+        }
+
+        // initialisation complète
+        $(document).ready(function() {
+            buildSlides();
+            renderSlides();
+            // petite correction de hauteur des slides pour wrapper
+            function syncSlideHeight() {
+                // Optionnel: ajustement du container pour un bon affichage
+                let maxH = 0;
+                $('.slide').each(function() { let h = $(this).outerHeight(); if(h > maxH) maxH = h; });
+                $('#slidesContainer').css('min-height', maxH + 20);
+            }
+            setTimeout(syncSlideHeight, 100);
+            $(window).on('load', syncSlideHeight);
+        });
+    </script>
+</body>
+</html>

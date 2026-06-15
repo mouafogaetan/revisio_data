@@ -1,0 +1,170 @@
+[
+  {
+    "intitule": "Mise en cache du catalogue pour le mode hors ligne",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce React Native (Expo), on souhaite permettre à l'utilisateur de consulter le catalogue de produits même lorsqu'il n'a pas de connexion Internet. Les produits doivent être mis en cache localement lors de la première connexion, puis consultables hors ligne.</p><p>On utilise <code>@tanstack/react-query</code> avec son système de persistance offline et AsyncStorage.</p>",
+      "images": [
+        "Schéma de synchronisation des données entre API et cache local",
+        "Interface du catalogue affichant les produits en mode hors ligne avec icône de réseau déconnecté"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rappelez les packages nécessaires pour implémenter la persistance offline avec React Query dans Expo.",
+        "niveau": "easy",
+        "reponse": "@tanstack/react-query, @tanstack/react-query-persist-client, @tanstack/query-async-storage-persister (ou expo-file-system pour plus de capacité)",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrivez les étapes pour configurer la persistance du cache React Query dans AsyncStorage.",
+        "niveau": "medium",
+        "reponse": "1) Installer les packages nécessaires. 2) Créer un persister avec `asyncStoragePersister` depuis `@tanstack/query-async-storage-persister`. 3) Configurer QueryClient avec `persistQueryClient` pour sauvegarder le cache. 4) Envelopper l'application avec `PersistQueryClientProvider`. 5) Définir `staleTime` et `cacheTime` adaptés pour les données produits.",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Codez la configuration du persistQueryClient avec une durée de cache de 7 jours pour les produits.",
+            "niveau": "hard",
+            "reponse": "```javascript\nimport { QueryClient } from '@tanstack/react-query';\nimport { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';\nimport { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\nconst queryClient = new QueryClient({\n  defaultOptions: {\n    queries: {\n      staleTime: 1000 * 60 * 60 * 24, // 24h\n      cacheTime: 1000 * 60 * 60 * 24 * 7 // 7 jours\n    }\n  }\n});\n\nconst persister = createAsyncStoragePersister({\n  storage: AsyncStorage,\n  key: 'products-cache',\n  throttleTime: 1000\n});\n\nfunction App() {\n  return (\n    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>\n      <AppNavigator />\n    </PersistQueryClientProvider>\n  );\n}\n```"
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquez comment détecter le mode hors ligne pour afficher un message différent à l'utilisateur (icône de réseau, texte 'Mode déconnecté').",
+        "niveau": "medium",
+        "reponse": "Utiliser `useNetInfo()` de `@react-native-community/netinfo` pour écouter l'état de la connexion. Afficher une bannière en haut de l'écran si `isConnected === false`. Dans le catalogue, si hors ligne et que les données sont en cache, on affiche un message 'Données consultables hors ligne'.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Scan de codes-barres pour ajout rapide au panier",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour améliorer l'expérience utilisateur en magasin physique, l'application e-commerce doit permettre de scanner le code-barres d'un produit pour l'ajouter directement au panier.</p><p>Fonctionnalités attendues :</p><ul><li>Scanner un code-barres (format EAN-13, UPC, QR code)</li><li>Rechercher le produit correspondant via une API (endpoint: <code>/products/barcode/{code}</code>)</li><li>Afficher un toast de confirmation avec le nom du produit ajouté</li><li>Si le produit n'existe pas, afficher une erreur</li><li>Gérer le cas où l'utilisateur n'a pas de connexion (mode hors ligne avec cache des produits)</li></ul>",
+      "images": [
+        "Interface de scan de code-barres avec vue de caméra et rectangle de visée",
+        "Toast de confirmation après scan d'un produit"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez les packages nécessaires pour implémenter le scan de codes-barres dans un projet Expo.",
+        "niveau": "easy",
+        "reponse": "expo-barcode-scanner (ou expo-camera) pour la capture, et pour les appels API : axios ou fetch.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Concevez le composant `BarcodeScanner` qui gère la demande de permission caméra, le scan unique (évite les scans multiples) et la recherche du produit.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport { useState, useEffect } from 'react';\nimport { BarCodeScanner } from 'expo-barcode-scanner';\nimport { View, Text, Button, Alert } from 'react-native';\n\nconst BarcodeScanner = ({ onProductFound }) => {\n  const [hasPermission, setHasPermission] = useState(null);\n  const [scanned, setScanned] = useState(false);\n\n  useEffect(() => {\n    (async () => {\n      const { status } = await BarCodeScanner.requestPermissionsAsync();\n      setHasPermission(status === 'granted');\n    })();\n  }, []);\n\n  const handleBarCodeScanned = async ({ type, data }) => {\n    setScanned(true);\n    try {\n      const product = await fetchProductByBarcode(data);\n      if (product) {\n        onProductFound(product);\n      } else {\n        Alert.alert('Produit non trouvé', 'Code-barres invalide');\n      }\n    } catch (error) {\n      Alert.alert('Erreur', 'Vérifiez votre connexion');\n    }\n    setTimeout(() => setScanned(false), 2000);\n  };\n\n  if (hasPermission === null) return <Text>Demande de permission...</Text>;\n  if (!hasPermission) return <Text>Permission caméra refusée</Text>;\n\n  return (\n    <View style={{ flex: 1 }}>\n      <BarCodeScanner\n        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}\n        style={{ flex: 1 }}\n      />\n      {scanned && <Text>Scan terminé, recherche en cours...</Text>}\n    </View>\n  );\n};\n```",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Expliquez le rôle de `setTimeout(() => setScanned(false), 2000)` et pourquoi il est important.",
+            "niveau": "medium",
+            "reponse": "Le timer permet de réactiver le scanner après 2 secondes. Sans cela, l'utilisateur ne pourrait scanner qu'un seul produit (car `scanned` resterait true). Le délai de 2 secondes évite les scans multiples accidentels tout en permettant de scanner un autre produit rapidement après le premier."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Évaluez la gestion du mode hors ligne : comment rechercher un produit par code-barres quand l'utilisateur n'a pas de connexion ?",
+        "niveau": "hard",
+        "reponse": "On peut maintenir un cache local des codes-barres indexé par code. Lors du chargement initial du catalogue, on stocke dans AsyncStorage une Map `barcodeToProductId`. En mode hors ligne, on interroge d'abord ce cache local. Si le code-barres est trouvé, on récupère le produit depuis le cache React Query. Sinon, on affiche un message 'Connexion requise pour rechercher ce produit'.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Commandes vocales avec expo-speech",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>L'application e-commerce intègre une fonctionnalité de recherche vocale pour faciliter l'utilisation aux personnes à mobilité réduite ou pour une expérience \"mains libres\".</p><p>Fonctionnalités :</p><ul><li>Bouton microphone qui active la reconnaissance vocale (<code>expo-speech</code> pour la synthèse, <code>expo-speech-recognition</code> ou <code>expo-voice</code> pour la reconnaissance)</li><li>Transcription de la parole en texte</li><li>Lancement automatique de la recherche avec le texte transcrit</li><li>Feedback vocal : \"Recherche de [terme] en cours...\"</li><li>Résultats affichés dans la liste des produits</li></ul>",
+      "images": [
+        "Interface de recherche vocale avec bouton microphone animé",
+        "Ondes sonores représentant la capture audio"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rappelez la commande d'installation de expo-speech (synthèse vocale) et de la bibliothèque de reconnaissance vocale recommandée pour Expo.",
+        "niveau": "easy",
+        "reponse": "`npx expo install expo-speech` pour la synthèse. Pour la reconnaissance vocale : `expo-voice` (expo-community) ou `expo-speech-recognition` (bibliothèque tierce, peut nécessiter des configurations natives supplémentaires).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Concevez un composant `VoiceSearch` qui écoute la voix de l'utilisateur, convertit en texte, lance la recherche et donne un retour vocal.",
+        "niveau": "very hard",
+        "reponse": "```jsx\nimport { useState } from 'react';\nimport { TouchableOpacity } from 'react-native';\nimport * as Speech from 'expo-speech';\nimport { useVoice } from 'expo-voice';\n\nconst VoiceSearch = ({ onSearch }) => {\n  const [isListening, setIsListening] = useState(false);\n  const { startListening, stopListening, transcripts } = useVoice();\n\n  const speak = (text) => {\n    Speech.speak(text, { language: 'fr', pitch: 1, rate: 0.9 });\n  };\n\n  const handleVoiceSearch = async () => {\n    if (isListening) {\n      stopListening();\n      const lastTranscript = transcripts[transcripts.length - 1];\n      if (lastTranscript) {\n        speak(`Recherche de ${lastTranscript} en cours`);\n        onSearch(lastTranscript);\n      }\n      setIsListening(false);\n    } else {\n      speak('Parlez maintenant');\n      startListening();\n      setIsListening(true);\n      setTimeout(() => {\n        if (isListening) {\n          stopListening();\n          setIsListening(false);\n        }\n      }, 5000);\n    }\n  };\n\n  return (\n    <TouchableOpacity onPress={handleVoiceSearch}>\n      <Icon name={isListening ? 'microphone' : 'microphone-off'} size={30} />\n    </TouchableOpacity>\n  );\n};\n```",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Proposez une gestion des erreurs de reconnaissance vocale (microphone non disponible, permission refusée, pas de parole détectée).",
+            "niveau": "hard",
+            "reponse": "Utiliser try/catch autour de startListening. Vérifier les permissions avec `requestPermissionsAsync()` avant le premier lancement. Si pas de parole après timeout, afficher un toast 'Aucune parole détectée' et feedback vocal. Si permission refusée, rediriger vers les réglages ou désactiver le bouton microphone."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquez comment combiner la recherche vocale avec les filtres existants (ex: 'je cherche un smartphone Samsung pas cher'). Analysez la chaîne pour extraire les critères.",
+        "niveau": "very hard",
+        "reponse": "On peut utiliser une API NLP légère (ex: `compromise` ou `natural` en JavaScript) ou un service cloud. Exemple d'approche simple : découper la phrase, rechercher des mots-clés : 'marque' (Samsung, Apple), 'catégorie' (smartphone, casque), 'prix max' (pas cher = < 50000 FCFA). Une solution plus robuste : envoyer la transcription à un backend qui utilise GPT ou un analyseur syntaxique pour extraire les filtres structurés.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Débogage et optimisation du mode hors ligne",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un développeur a implémenté le mode hors ligne avec React Query. Voici les problèmes signalés :</p><ul><li>Le cache se vide au redémarrage de l'application</li><li>Les images des produits ne s'affichent pas hors ligne</li><li>Le catalogue met plus de 10 secondes à charger au premier lancement</li></ul>",
+      "images": [
+        "Capture des logs indiquant 'Cache size exceeded'",
+        "Écran blanc avec spinner pendant le chargement initial"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez la cause probable du cache vidé au redémarrage et proposez une correction.",
+        "niveau": "hard",
+        "reponse": "Cause probable : AsyncStorage peut être effacé sur certaines versions d'Android lors de redémarrage (mode 'clear on upgrade'). Solution : utiliser `expo-file-system` avec un stockage persistant plus fiable. Configurer le persister avec `storage: AsyncStorage` mais aussi un `gcTime` (garbage collection) élevé. Ou migrer vers `expo-sqlite` pour un cache plus robuste.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez la différence entre `staleTime` et `gcTime` dans React Query et comment les configurer pour un cache hors ligne.",
+            "niveau": "hard",
+            "reponse": "`staleTime` : durée avant qu'une donnée ne soit considérée comme obsolète (nécessite un refetch). `gcTime` (anciennement cacheTime) : durée avant que les données inactives ne soient supprimées du cache. Pour le hors ligne, on veut un `gcTime` élevé (ex: 7 jours) pour conserver les données longtemps, et un `staleTime` élevé (ex: 24h) pour éviter les refetch fréquents hors ligne."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Proposez une solution pour le chargement des images en mode hors ligne (elles se chargent depuis une URL distante).",
+        "niveau": "hard",
+        "reponse": "Utiliser `expo-image` avec la prop `cachePolicy=\"memory-disk\"`. En combinaison avec `expo-file-system`, on peut télécharger et stocker les images localement lors du premier chargement. Créer un service d'image qui vérifie d'abord le cache local (`FileSystem.getInfoAsync`) avant d'utiliser l'URL réseau. Alternative : utiliser `react-native-fast-image` avec son système de cache intégré.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Analysez le temps de chargement initial long (10s). Proposez des optimisations.",
+        "niveau": "hard",
+        "reponse": "Causes possibles : téléchargement simultané de trop de données (ex: 500 produits + images). Optimisations : 1) Implémenter la pagination (charger 20 produits initialement). 2) Utiliser `FlashList` avec `estimatedItemSize`. 3) Lazy loading des images (expo-image avec `threshold`). 4) Mettre en cache le premier chargement en arrière-plan (prefetch). 5) Afficher un skeleton loader pendant le chargement.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

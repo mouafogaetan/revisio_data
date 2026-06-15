@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 29 : Set, Map et Symbol - JavaScript moderne</title>
+  <!-- Tailwind CSS via CDN + base layer pour améliorations douces -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax pour formules mathématiques (optionnel, peu utilisé ici mais présent) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* ajustements personnalisés pour la lisibilité et le confort visuel */
+    body {
+      background: #f9fafb;
+    }
+    /* transition douce entre slides */
+    .slide-container {
+      transition: opacity 0.25s ease-in-out;
+    }
+    .slide {
+      background: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    /* boutons tactiles plus grands sur mobile */
+    @media (max-width: 640px) {
+      .nav-btn {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+      }
+      .slide {
+        border-radius: 1.25rem;
+      }
+    }
+    /* amélioration contraste */
+    .prose h3 {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .code-bg {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border-radius: 1rem;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur des slides (affichage un par un) -->
+    <div id="slidesWrapper" class="relative">
+      <!-- slide actif sera injecté via jQuery -->
+      <div id="activeSlide" class="slide-container"></div>
+
+      <!-- navigation + indicateur -->
+      <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevBtn" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2.5 px-5 rounded-2xl shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+        <div class="text-sm text-gray-500 bg-white/70 px-4 py-2 rounded-full shadow-sm" id="slideCounter"></div>
+        <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-2xl shadow-md transition">Suivant ▶</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Définition des slides (contenu HTML pour chaque diapositive)
+    // Slide 1 : Titre de la leçon
+    // Slide 2 : Objectifs pédagogiques
+    // Slide 3+ : Contenu de la leçon (Set, Map, Symbol)
+    const slidesData = [
+      { // slide 0 - titre
+        title: "Leçon 29",
+        content: `
+          <div class="slide p-6 md:p-10 flex flex-col items-center justify-center min-h-[65vh] text-center">
+            <span class="text-indigo-500 font-semibold tracking-wide text-sm md:text-base">📘 INITIATION JAVASCRIPT MODERNE</span>
+            <h1 class="text-4xl md:text-5xl font-extrabold mt-4 bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">Set, Map & Symbol</h1>
+            <p class="text-gray-600 text-lg md:text-xl mt-6 max-w-2xl">Des structures de données puissantes et des identifiants uniques pour mieux organiser votre code.</p>
+            <div class="mt-10 flex gap-3 text-sm text-gray-400">
+              <span>✦ ES6+</span>
+              <span>✦ Collections</span>
+              <span>✦ Symboles</span>
+            </div>
+          </div>
+        `
+      },
+      { // slide 1 - objectifs
+        title: "Objectifs d'apprentissage",
+        content: `
+          <div class="slide p-6 md:p-10">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-5 text-gray-700 text-lg">
+              <li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> Comprendre <strong class="font-semibold">Set</strong> : collection sans doublons, et ses méthodes principales.</li>
+              <li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> Maîtriser <strong class="font-semibold">Map</strong> : dictionnaire clé-valeur avec clés typées (objets, fonctions, primitives).</li>
+              <li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> Découvrir le type <strong class="font-semibold">Symbol</strong> : créer des clés uniques et des propriétés "cachées".</li>
+              <li class="flex items-start gap-3"><span class="text-indigo-500 text-xl">✓</span> Savoir quand utiliser ces structures plutôt que des objets ou tableaux classiques.</li>
+            </ul>
+            <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm italic">📌 À la fin de cette leçon, vous saurez manipuler des données complexes sans doublons et avec des clés robustes.</div>
+          </div>
+        `
+      },
+      { // slide 2 - Set (concept + exemples)
+        title: "Set : ensemble sans doublons",
+        content: `
+          <div class="slide p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2">📦 Set <span class="text-sm bg-gray-100 px-3 py-1 rounded-full">collection unique</span></h2>
+            <p class="text-gray-600 mt-3">Un objet <code class="bg-gray-100 px-1 rounded">Set</code> permet de stocker des valeurs <strong>uniques</strong>, peu importe leur type (nombres, chaînes, objets).</p>
+            <div class="mt-5 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+              <pre class="text-sm text-green-300 font-mono"><code>// Créer un Set
+const couleurs = new Set();
+couleurs.add("rouge");
+couleurs.add("vert");
+couleurs.add("rouge"); // ignoré (déjà présent)
+console.log(couleurs.size); // 2
+
+// Initialiser avec un tableau
+const nombres = new Set([1, 2, 3, 3, 4]);
+console.log([...nombres]); // [1,2,3,4]
+
+// Méthodes utiles
+couleurs.has("vert");   // true
+couleurs.delete("vert");
+couleurs.clear();       // vide</code></pre>
+            </div>
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-blue-50 p-3 rounded-lg"><span class="font-bold">💡 Utilité :</span> Éliminer les doublons d'un tableau <code>[...new Set(tableau)]</code></div>
+              <div class="bg-blue-50 p-3 rounded-lg"><span class="font-bold">🔄 Itération :</span> <code>for(let val of monSet)</code> ou <code>forEach</code></div>
+            </div>
+          </div>
+        `
+      },
+      { // slide 3 - Map : dictionnaire avancé
+        title: "Map : clés de tout type",
+        content: `
+          <div class="slide p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2">🗺️ Map <span class="text-sm bg-gray-100 px-3 py-1 rounded-full">clé → valeur</span></h2>
+            <p class="text-gray-600 mt-3">Contrairement aux objets classiques, <code>Map</code> accepte n'importe quel type de clé (objet, fonction, nombre, etc.) et conserve l'ordre d'insertion.</p>
+            <div class="mt-5 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+              <pre class="text-sm text-green-300 font-mono"><code>const utilisateurs = new Map();
+utilisateurs.set('name', 'Alice');
+utilisateurs.set(42, 'réponse universelle');
+const id = { id: 1 };
+utilisateurs.set(id, 'objet comme clé');
+
+console.log(utilisateurs.get('name')); // Alice
+console.log(utilisateurs.has(42));     // true
+utilisateurs.delete(42);
+
+// Itération
+for (let [cle, valeur] of utilisateurs) {
+  console.log(cle, valeur);
+}</code></pre>
+            </div>
+            <div class="mt-4 text-gray-700"><span class="font-semibold">✅ Avantage sur les objets :</span> les clés ne sont pas converties en chaînes, meilleures performances pour ajouts/suppressions fréquentes.</div>
+          </div>
+        `
+      },
+      { // slide 4 - Symbol : identifiants uniques
+        title: "Symbol : clés uniques et cachées",
+        content: `
+          <div class="slide p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-indigo-800">🔣 Symbol - l'unicité absolue</h2>
+            <p class="text-gray-600 mt-2"><code>Symbol</code> est un type primitif qui garantit des valeurs uniques. Chaque symbole est différent, même avec la même description.</p>
+            <div class="mt-5 bg-gray-900 rounded-xl p-4 overflow-x-auto">
+              <pre class="text-sm text-green-300 font-mono"><code>const sym1 = Symbol("id");
+const sym2 = Symbol("id");
+console.log(sym1 === sym2); // false
+
+// Utiliser un symbole comme clé d'objet
+const user = {
+  nom: "Moussa",
+  [sym1]: "valeur secrète"
+};
+console.log(user[sym1]); // "valeur secrète"
+// Les clés symboles sont ignorées par Object.keys() → discrétion
+
+// Symboles globaux
+const globalSym = Symbol.for("app.version");
+console.log(Symbol.keyFor(globalSym)); // "app.version"</code></pre>
+            </div>
+            <div class="mt-4 bg-amber-50 p-3 rounded-md text-amber-800 text-sm">✨ <strong>Cas d'usage :</strong> Éviter les collisions de noms de propriétés, ajouter des métadonnées sans risquer de conflit.</div>
+          </div>
+        `
+      },
+      { // slide 5 - comparaison et bonnes pratiques
+        title: "Quand utiliser Set, Map ou Symbol ?",
+        content: `
+          <div class="slide p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-indigo-800">🧠 Comparaison & astuces pratiques</h2>
+            <div class="mt-5 space-y-4">
+              <div class="border-l-4 border-indigo-400 pl-4">
+                <p class="font-bold">🔹 Set vs tableau</p>
+                <p class="text-gray-700">Utilisez <strong>Set</strong> quand vous voulez garantir l'unicité des éléments (ex: liste d'IDs, tags).</p>
+              </div>
+              <div class="border-l-4 border-green-400 pl-4">
+                <p class="font-bold">🔹 Map vs objet</p>
+                <p class="text-gray-700"><strong>Map</strong> est idéal pour des collections dynamiques où les clés peuvent être des objets, dates, ou nombres, et où l'ordre compte.</p>
+              </div>
+              <div class="border-l-4 border-purple-400 pl-4">
+                <p class="font-bold">🔹 Symbol</p>
+                <p class="text-gray-700">Créez des propriétés "privées" (non énumérables) ou évitez les collisions dans des bibliothèques.</p>
+              </div>
+            </div>
+            <div class="mt-6 bg-gray-100 p-4 rounded-xl">
+              <p class="font-mono text-sm">// Exemple concret : supprimer doublons d'un tableau avec Set</p>
+              <pre class="bg-gray-800 text-gray-200 p-3 rounded mt-2 text-xs overflow-auto">const doublons = [1,1,2,3,3,4];
+const uniques = [...new Set(doublons)]; // [1,2,3,4]</pre>
+            </div>
+          </div>
+        `
+      },
+      { // slide 6 - Exercice rapide & récapitulatif
+        title: "Petit exercice mental",
+        content: `
+          <div class="slide p-6 md:p-8">
+            <h2 class="text-2xl font-bold text-indigo-800">✏️ Vérifions votre compréhension</h2>
+            <div class="mt-4 space-y-4 text-gray-800">
+              <div class="bg-white border rounded-2xl p-4 shadow-sm">
+                <p class="font-semibold">❓ Question 1 :</p>
+                <p>Quelle structure utiliseriez-vous pour compter les occurrences de mots dans une phrase tout en gardant une clé de type chaîne ?</p>
+                <p class="text-green-700 text-sm mt-1">💡 Réponse : Map (ou objet classique, mais Map offre plus de flexibilité).</p>
+              </div>
+              <div class="bg-white border rounded-2xl p-4 shadow-sm">
+                <p class="font-semibold">❓ Question 2 :</p>
+                <p>Comment créer une propriété d'objet qui ne sera jamais accidentellement écrasée par une autre propriété du même nom ?</p>
+                <p class="text-green-700 text-sm mt-1">💡 Réponse : utiliser Symbol comme clé.</p>
+              </div>
+            </div>
+            <div class="mt-6 text-center text-gray-500 text-sm">👉 En atelier, vous écrirez un mini-projet avec Map et Set !</div>
+          </div>
+        `
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    // fonctions d'affichage
+    function renderSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= totalSlides) index = totalSlides - 1;
+      currentIndex = index;
+
+      const slideHtml = slidesData[currentIndex].content;
+      $("#activeSlide").fadeOut(120, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(150);
+      });
+      
+      // Mise à jour compteur
+      $("#slideCounter").text(`Diapositive ${currentIndex+1} / ${totalSlides}`);
+      
+      // Gérer état des boutons
+      $("#prevBtn").prop("disabled", currentIndex === 0);
+      $("#nextBtn").text(currentIndex === totalSlides - 1 ? "🏁 Terminé" : "Suivant ▶");
+      
+      // Re-scroller en haut pour une meilleure UX mobile
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Si besoin de réappliquer MathJax sur d'éventuelles formules (aucune dans ce cours, mais au cas où)
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    }
+
+    // Navigation
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        renderSlide(currentIndex + 1);
+      } else {
+        // Fin du cours: message sympa
+        alert("🎉 Félicitations ! Vous avez terminé la leçon sur Set, Map & Symbol. N'oubliez pas de pratiquer avec des exercices concrets.");
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        renderSlide(currentIndex - 1);
+      }
+    }
+
+    // Initialisation au chargement
+    $(document).ready(function() {
+      renderSlide(0);
+      
+      // Événements des boutons
+      $("#nextBtn").on("click", nextSlide);
+      $("#prevBtn").on("click", prevSlide);
+      
+      // Swipe optionnel pour mobile (simple)
+      let touchstartX = 0;
+      let touchendX = 0;
+      const slidesWrapper = document.getElementById("slidesWrapper");
+      slidesWrapper.addEventListener("touchstart", (e) => {
+        touchstartX = e.changedTouches[0].screenX;
+      });
+      slidesWrapper.addEventListener("touchend", (e) => {
+        touchendX = e.changedTouches[0].screenX;
+        if (touchendX < touchstartX - 50) nextSlide();
+        if (touchendX > touchstartX + 50) prevSlide();
+      });
+    });
+  </script>
+
+  <!-- petite note pédagogique : mention responsive + couleurs lisibles -->
+  <footer class="text-center text-gray-400 text-xs py-6 border-t mt-6 max-w-4xl mx-auto">
+    <p>© Cours JavaScript — Initiation avancée | Interface adaptée aux écrans mobiles | Utilisation de Set, Map, Symbol pour un code robuste</p>
+  </footer>
+</body>
+</html>

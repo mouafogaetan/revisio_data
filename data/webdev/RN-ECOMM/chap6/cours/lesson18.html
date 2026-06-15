@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 18 : Authentification biométrique - React Native (expo-local-authentication)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- MathJax (au cas où) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide {
+      transition: opacity 0.25s ease-in-out;
+    }
+    body {
+      background: #f0f4f9;
+    }
+    .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-indigo-50 font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+      
+      <!-- En-tête -->
+      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-fingerprint text-lg"></i>
+          <span class="font-semibold text-sm md:text-base">Sécurité · Authentification biométrique</span>
+        </div>
+        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
+          Leçon 18 / 55
+        </div>
+      </div>
+
+      <!-- Conteneur slides -->
+      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
+          Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="text-center text-sm text-gray-500 mt-6">
+      <i class="fas fa-mobile-alt"></i> Face ID, Touch ID, Empreinte digitale – connexion rapide et sécurisée
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------
+    // Données des slides - Leçon 18 : expo-local-authentication
+    // Installation, vérification du matériel, authentification biométrique
+    // et connexion rapide (stockage sécurisé)
+    // --------------------------------------------
+    const slidesData = [
+      {
+        type: "title",
+        title: "🔐 Authentification biométrique",
+        subtitle: "Face ID, Touch ID et empreinte digitale avec Expo",
+        icon: "fa-fingerprint",
+        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Installer et configurer expo-local-authentication",
+          "Vérifier si l’appareil supporte la biométrie (Face ID, Touch ID, empreinte)",
+          "Implémenter une authentification biométrique pour la connexion utilisateur",
+          "Permettre la connexion rapide (option mémoriser) avec stockage sécurisé",
+          "Gérer les erreurs (échec, annulation, non disponible)"
+        ]
+      },
+      {
+        type: "content",
+        title: "📱 Pourquoi utiliser la biométrie en e-commerce ?",
+        content: `<p>Dans une application mobile de vente en ligne, la sécurité est essentielle. L'authentification biométrique (empreinte digitale, Face ID) offre :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li>✅ Une <strong>expérience utilisateur fluide</strong> : pas besoin de retaper son mot de passe à chaque fois</li>
+          <li>✅ Un <strong>niveau de sécurité élevé</strong> : les données biométriques restent dans le "Secure Enclave" (iOS) ou TEE (Android)</li>
+          <li>✅ La <strong>confiance</strong> des utilisateurs pour les paiements ou l'accès au compte</li>
+        </ul>
+        <div class="mt-4 p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+          <i class="fas fa-shield-alt text-green-600"></i> <strong>Bon à savoir :</strong> La biométrie ne remplace pas le mot de passe, mais elle permet une connexion rapide après une première authentification classique.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "📦 Installation de expo-local-authentication",
+        content: `<p>Expo fournit un module officiel pour l'authentification biométrique. Installation :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+expo install expo-local-authentication
+        </pre>
+        <p class="mt-2">Sur <strong>Android</strong>, il n'y a pas de configuration supplémentaire (utilise l'empreinte digitale). Sur <strong>iOS</strong>, tu dois ajouter la raison d'utilisation dans <code>app.json</code> :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+{
+  "expo": {
+    "ios": {
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Cette application utilise Face ID pour vous connecter rapidement et sécuriser vos achats."
+      }
+    }
+  }
+}
+        </pre>
+        <p class="text-sm text-gray-600 mt-2"><i class="fas fa-info-circle"></i> Sans cette description, l'App Store peut rejeter l'application.</p>`
+      },
+      {
+        type: "content",
+        title: "🔍 Vérifier la disponibilité de la biométrie",
+        content: `<p>Avant de lancer l'authentification, on vérifie si l'appareil supporte la biométrie et si des données sont enregistrées.</p>
+        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
+import * as LocalAuthentication from 'expo-local-authentication';
+
+async function checkBiometricSupport() {
+  const compatible = await LocalAuthentication.hasHardwareAsync();
+  const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+  if (!compatible) {
+    return { available: false, reason: "Appareil non compatible" };
+  }
+  if (!enrolled) {
+    return { available: false, reason: "Aucune empreinte / Face ID enregistré" };
+  }
+  return { available: true, type: await LocalAuthentication.getEnrolledLevelAsync() };
+}
+        </pre>
+        <div class="bg-yellow-50 p-3 rounded mt-3">
+          <i class="fas fa-lightbulb text-yellow-600"></i> <code>getEnrolledLevelAsync()</code> retourne le niveau : <strong>1</strong> pour simple (ex: empreinte), <strong>2</strong> pour plus sécurisé (ex: Face ID). Adaptez votre interface selon le type.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🔓 Lancer l'authentification biométrique",
+        content: `<p>La méthode <code>authenticateAsync()</code> affiche la popup système (Face ID, Touch ID, scan empreinte).</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+async function authenticate() {
+  try {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Connectez-vous avec votre empreinte ou Face ID',
+      cancelLabel: 'Annuler',
+      disableDeviceFallback: false,   // si true, n'affiche pas "Entrer mot de passe"
+    });
+
+    if (result.success) {
+      console.log('✅ Authentification réussie');
+      // navigation vers écran protégé
+      return true;
+    } else {
+      console.log('❌ Échec ou annulé:', result.error);
+      return false;
+    }
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+        </pre>
+        <p class="mt-2"><i class="fas fa-mobile"></i> Sur iOS, si Face ID n'est pas configuré, un fallback peut être proposé via le code du téléphone (selon <code>disableDeviceFallback</code>).</p>`
+      },
+      {
+        type: "content",
+        title: "⚡ Connexion rapide avec persistance (option)",
+        content: `<p>Pour une expérience "connexion rapide", on peut mémoriser que l'utilisateur a accepté la biométrie. Utilisation avec <strong>expo-secure-store</strong> :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
+
+// Après une connexion classique réussie
+await SecureStore.setItemAsync('biometricEnabled', 'true');
+
+// Au démarrage de l'app
+const biometricEnabled = await SecureStore.getItemAsync('biometricEnabled');
+if (biometricEnabled === 'true') {
+  const auth = await LocalAuthentication.authenticateAsync(...);
+  if (auth.success) {
+    // connecter automatiquement l'utilisateur
+  }
+}
+        </pre>
+        <p>La combinaison <strong>secure-store + biométrie</strong> permet de ne stocker que le token JWT après authentification biométrique.</p>
+        <div class="mt-2 text-sm italic">Astuce : Proposer un toggle "Connexion rapide" dans les réglages de l'application.</div>`
+      },
+      {
+        type: "content",
+        title: "🛡️ Gestion des erreurs et cas particuliers",
+        content: `<div class="grid md:grid-cols-2 gap-3">
+          <div class="bg-red-50 p-3 rounded-lg">
+            <i class="fas fa-exclamation-triangle text-red-500"></i> <strong>Erreurs fréquentes</strong>
+            <ul class="list-disc pl-5 text-sm mt-1">
+              <li><code>user_cancel</code> : l'utilisateur a annulé</li>
+              <li><code>not_enrolled</code> : pas d'empreinte/Face ID configuré</li>
+              <li><code>authentication_failed</code> : biométrie non reconnue</li>
+              <li><code>locked_out</code> : trop de tentatives</li>
+            </ul>
+          </div>
+          <div class="bg-blue-50 p-3 rounded-lg">
+            <i class="fas fa-code-branch"></i> <strong>Stratégie</strong>
+            <p class="text-sm mt-1">En cas d'échec, proposez un fallback vers le mot de passe ou le code PIN.<br/>Ne bloquez pas l'utilisateur.</p>
+          </div>
+        </div>
+        <pre class="bg-gray-800 text-yellow-200 p-3 rounded-lg text-sm mt-3">
+if (result.error === 'user_cancel') {
+  // Ne pas afficher d'erreur agressive
+  Toast.show('Authentification annulée');
+} else if (result.error === 'authentication_failed') {
+  Alert.alert('Échec', 'Biométrie non reconnue. Réessayez ou utilisez mot de passe.');
+}
+        </pre>`
+      },
+      {
+        type: "content",
+        title: "📱 Exemple complet : Écran de connexion avec biométrie",
+        content: `<p>Voici un extrait typique d’un écran d’authentification e-commerce :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm overflow-auto">
+import { useAuthStore } from '../store/authStore';
+
+function LoginScreen() {
+  const { loginWithPassword, biometricLogin, isBiometricAvailable } = useAuthStore();
+
+  useEffect(() => {
+    checkBiometric(); // vérifie disponibilité
+  }, []);
+
+  const handleBiometric = async () => {
+    const success = await LocalAuthentication.authenticateAsync(...);
+    if (success) {
+      await biometricLogin(); // récupère token stocké sécurisé
+    }
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput placeholder="Email" /&gt;
+      &lt;TextInput placeholder="Mot de passe" secureTextEntry /&gt;
+      &lt;Button title="Connexion" onPress={loginWithPassword} /&gt;
+      {isBiometricAvailable && (
+        &lt;Button title="🔐 Connexion rapide (empreinte/Face ID)" 
+                onPress={handleBiometric} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+}
+        </pre>
+        <p class="mt-2 text-indigo-700">💡 <strong>Idée bonus</strong> : Une fois que l'utilisateur s'est connecté par mot de passe, on lui propose d'activer la biométrie pour les prochaines fois.</p>`
+      },
+      {
+        type: "content",
+        title: "📊 Compatibilité et bonnes pratiques (Cameroun, Afrique)",
+        content: `<ul class="list-disc pl-6 space-y-2">
+          <li>Sur Android, beaucoup d'appareils ont un capteur d'empreinte (même entrée de gamme). Testez avec <code>hasHardwareAsync</code>.</li>
+          <li>iOS : Face ID est présent sur iPhone X et ultérieur. Gérez le cas où l'utilisateur n'a pas configuré Face ID.</li>
+          <li>Proposer toujours une alternative (mot de passe, code secret) pour les appareils non compatibles.</li>
+          <li>Ne pas stocker les données biométriques vous-même, laissez le système d'exploitation le faire.</li>
+          <li><strong>Accessibilité</strong> : pour les personnes qui ne peuvent pas utiliser la biométrie, assurez-vous que le champ mot de passe reste accessible.</li>
+        </ul>
+        <div class="mt-4 bg-indigo-50 p-3 rounded-xl text-center">
+          <i class="fas fa-chart-line"></i> Une connexion biométrique augmente la conversion dans les apps e-commerce de plus de 30% !
+        </div>`
+      },
+      {
+        type: "summary",
+        title: "📝 Récapitulatif : Authentification biométrique",
+        points: [
+          "Installer expo-local-authentication et configurer iOS (NSFaceIDUsageDescription)",
+          "Vérifier matériel + empreintes enregistrées (hasHardwareAsync, isEnrolledAsync)",
+          "Authentifier avec authenticateAsync() et gérer les erreurs (annulation, échec)",
+          "Stocker la préférence 'connexion rapide' dans SecureStore",
+          "Toujours offrir un fallback (mot de passe) pour les cas d'échec ou non compatibles",
+          "Améliorer l'expérience utilisateur (UX) sur les apps e-commerce"
+        ],
+        icon: "fa-check-double"
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(slide) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
+            <i class="fas ${slide.icon || 'fa-fingerprint'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
+            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
+            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">expo-local-authentication · sécurité mobile</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "objectives") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
+            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+            </div>
+            <ul class="space-y-4 flex-1">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Parcourir les slides pour tout maîtriser</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "content") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "summary") {
+        return `
+          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
+            <div class="text-center">
+              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+              <ul class="text-left max-w-md mx-auto space-y-3">
+                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
+                <i class="fas fa-shield-alt"></i> Application e-commerce sécurisée et agréable !
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `<div class="p-8 text-red-500">Erreur de contenu</div>`;
+    }
+
+    function updateSlide() {
+      const slideHtml = renderSlide(slidesData[currentIndex]);
+      $('#slides-container').fadeOut(150, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      let indicatorsHtml = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+      }
+      $('#slide-indicators').html(indicatorsHtml);
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlide();
+      } else {
+        alert('🎉 Félicitations ! Vous savez intégrer la biométrie dans une app e-commerce. Testez sur un vrai appareil !');
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    $(document).ready(function() {
+      updateSlide();
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      
+      $(document).on('click', '.indicator-dot', function() {
+        const idx = $(this).data('index');
+        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
+          currentIndex = idx;
+          updateSlide();
+        }
+      });
+      
+      // Swipe mobile
+      let touchStartX = 0, touchEndX = 0;
+      const container = document.getElementById('slides-container');
+      if (container) {
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        });
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) nextSlide();
+          if (touchEndX > touchStartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

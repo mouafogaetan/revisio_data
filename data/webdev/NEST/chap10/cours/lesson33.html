@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours NestJS - Documentation Swagger avancée (Lesson 33)</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        .slide-content {
+            padding: 2rem;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            pre { font-size: 0.7rem; }
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #15803d !important;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #0f172a;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            background-color: #22c55e;
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+        .objective-card {
+            background: #f8fafc;
+            border-left: 4px solid #22c55e;
+            padding: 0.8rem;
+            margin: 0.8rem 0;
+            border-radius: 0.75rem;
+        }
+        .tip-box {
+            background: #fef9e3;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <div id="slides-wrapper" class="relative"></div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="nav-btn bg-green-700 hover:bg-green-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-50">← Précédent</button>
+        <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-green-700 hover:bg-green-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant →</button>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2 mt-4 overflow-hidden">
+        <div id="progressBar" class="progress-bar bg-green-600 h-2 rounded-full" style="width: 0%;"></div>
+    </div>
+</div>
+
+<script>
+    // Données des slides pour lesson33 - Documentation Swagger avancée
+    const slidesData = [
+        {
+            type: "title",
+            title: "📝 Documentation OpenAPI avec Swagger",
+            subtitle: "NestJS - Lesson 33 : @ApiProperty, options, enums et modèles imbriqués",
+            emoji: "📚",
+            bgClass: "bg-gradient-to-br from-green-50 to-emerald-100"
+        },
+        {
+            type: "objectives",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Utiliser @ApiProperty pour documenter les propriétés des DTO",
+                "Gérer les propriétés optionnelles et les valeurs par défaut",
+                "Documenter les enums avec @ApiProperty({ enum: ... })",
+                "Créer des modèles imbriqués avec type: () => Type",
+                "Comprendre l'importance d'une bonne documentation API"
+            ]
+        },
+        {
+            type: "content",
+            title: "🔧 Installation et configuration de base",
+            content: `
+                <p>Pour générer automatiquement la documentation OpenAPI, on installe :</p>
+                <pre><code>npm install --save @nestjs/swagger swagger-ui-express</code></pre>
+                <p>Dans <code>main.ts</code> :</p>
+                <pre><code>import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  const config = new DocumentBuilder()
+    .setTitle('Mon API')
+    .setDescription('Documentation de mon API NestJS')
+    .setVersion('1.0')
+    .addBearerAuth() // pour JWT
+    .build();
+    
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document); // interface sur /api
+  
+  await app.listen(3000);
+}
+bootstrap();</code></pre>
+                <div class="tip-box">💡 <strong>Astuce :</strong> L'interface Swagger sera accessible sur <code>http://localhost:3000/api</code></div>
+            `
+        },
+        {
+            type: "content",
+            title: "🏷️ @ApiProperty de base",
+            content: `
+                <p>Pour documenter un DTO, on utilise le décorateur <code>@ApiProperty()</code> :</p>
+                <pre><code>import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateUserDto {
+  @ApiProperty({ description: 'Nom complet de l\'utilisateur', example: 'Jean Dupont' })
+  nom: string;
+
+  @ApiProperty({ description: 'Adresse email', example: 'jean@example.com' })
+  email: string;
+
+  @ApiProperty({ description: 'Âge de l\'utilisateur', minimum: 0, maximum: 120, example: 25 })
+  age: number;
+}</code></pre>
+                <p>Ces informations apparaîtront dans Swagger : type, exemple, description, validation.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "🟡 Propriétés optionnelles et valeurs par défaut",
+            content: `
+                <p>Pour indiquer qu'une propriété est optionnelle, on utilise <code>required: false</code>.</p>
+                <pre><code>export class UpdateUserDto {
+  @ApiProperty({ 
+    description: 'Nouveau nom (optionnel)', 
+    required: false,
+    default: 'Non modifié'
+  })
+  nom?: string;
+
+  @ApiProperty({ 
+    description: 'Bio de l\'utilisateur',
+    required: false,
+    nullable: true,  // peut être null
+    example: 'Développeur passionné'
+  })
+  bio: string | null;
+}</code></pre>
+                <div class="tip-box">📌 <strong>Remarque :</strong> Le champ 'required' par défaut est true. Il faut explicitement le mettre à false pour les champs optionnels.</div>
+            `
+        },
+        {
+            type: "content",
+            title: "🔢 Documentation des enums",
+            content: `
+                <p>Pour les énumérations, on utilise <code>enum</code> dans @ApiProperty :</p>
+                <pre><code>export enum Role {
+  ADMIN = 'admin',
+  USER = 'user',
+  GUEST = 'guest'
+}
+
+export class CreateUserDto {
+  @ApiProperty({ 
+    enum: Role,
+    description: 'Rôle de l\'utilisateur',
+    example: Role.USER
+  })
+  role: Role;
+
+  @ApiProperty({
+    enum: ['actif', 'inactif', 'suspendu'],
+    description: 'Statut du compte'
+  })
+  statut: string;
+}</code></pre>
+                <p>Swagger affichera une liste déroulante avec les valeurs possibles.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "🏗️ Modèles imbriqués (composés)",
+            content: `
+                <p>Quand un DTO contient un objet ou un tableau d'objets, on utilise <code>type: () => Type</code> :</p>
+                <pre><code>class AdresseDto {
+  @ApiProperty() rue: string;
+  @ApiProperty() ville: string;
+  @ApiProperty() codePostal: string;
+}
+
+export class CreateUserDto {
+  @ApiProperty() nom: string;
+  
+  @ApiProperty({ type: () => AdresseDto })
+  adresse: AdresseDto;
+
+  @ApiProperty({ type: () => [String] })
+  hobbies: string[];
+
+  @ApiProperty({ type: () => [AdresseDto] })
+  adressesSecondaires: AdresseDto[];
+}</code></pre>
+                <p class="mt-2">⚠️ La fonction fléchée <code>() => Type</code> évite les problèmes de référence circulaire.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "🎨 Personnalisation avancée",
+            content: `
+                <p>Options supplémentaires pour @ApiProperty :</p>
+                <ul class="list-disc pl-6 space-y-1 mt-2">
+                    <li><code>format: 'email'</code> → indique un format email</li>
+                    <li><code>minLength: 3, maxLength: 50</code> → contraintes de taille</li>
+                    <li><code>pattern: '^[a-z]+$'</code> → regex de validation</li>
+                    <li><code>deprecated: true</code> → marque la propriété comme obsolète</li>
+                    <li><code>readOnly: true</code> → propriété en lecture seule (ex: ID généré)</li>
+                    <li><code>writeOnly: true</code> → propriété seulement en écriture (ex: mot de passe)</li>
+                </ul>
+                <pre><code>@ApiProperty({ 
+  readOnly: true, 
+  example: 'uuid-1234-5678',
+  description: 'ID généré automatiquement'
+})
+id: string;
+
+@ApiProperty({ 
+  writeOnly: true, 
+  minLength: 6,
+  example: '********'
+})
+motDePasse: string;</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "🧩 @ApiPropertyOptional()",
+            content: `
+                <p>Un raccourci pour <code>required: false</code> : <strong>@ApiPropertyOptional()</strong></p>
+                <pre><code>export class FilterUsersDto {
+  @ApiPropertyOptional({ description: 'Filtrer par nom', example: 'Jean' })
+  nom?: string;
+
+  @ApiPropertyOptional({ 
+    enum: Role,
+    description: 'Filtrer par rôle'
+  })
+  role?: Role;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 10 })
+  limit?: number = 10;
+}</code></pre>
+                <p>C'est plus concis et équivalent à <code>@ApiProperty({ required: false })</code>.</p>
+            `
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Récapitulatif",
+            conclusions: [
+                "@nestjs/swagger génère automatiquement une documentation interactive",
+                "@ApiProperty documente chaque propriété d'un DTO",
+                "On peut définir : exemples, enums, champs optionnels, valeurs par défaut",
+                "Les modèles imbriqués nécessitent type: () => Classe",
+                "readOnly/writeOnly contrôlent l'affichage en lecture/écriture",
+                "@ApiPropertyOptional est un raccourci pour required: false",
+                "📌 Une bonne documentation facilite la collaboration et le test des API"
+            ]
+        }
+    ];
+
+    let currentSlide = 0;
+
+    function renderSlides() {
+        const wrapper = $('#slides-wrapper');
+        wrapper.empty();
+        slidesData.forEach((slide, idx) => {
+            let slideHtml = `<div class="slide mb-6" data-slide-index="${idx}" style="display: ${idx === currentSlide ? 'block' : 'none'};">`;
+            slideHtml += `<div class="slide-content ${slide.bgClass || 'bg-white'} rounded-2xl">`;
+            
+            if (slide.type === 'title') {
+                slideHtml += `
+                    <div class="text-center py-6 md:py-10">
+                        <div class="text-6xl mb-4">${slide.emoji}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h1>
+                        <p class="text-gray-600 mt-3 text-lg">${slide.subtitle}</p>
+                        <div class="mt-6 inline-block bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm">OpenAPI · Swagger · DTO</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'objectives') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-b-2 border-green-400 pb-2 inline-block">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-5">`;
+                slide.objectives.forEach(obj => {
+                    slideHtml += `<div class="objective-card flex items-start gap-3"><span class="text-green-600 text-xl">🎯</span><span>${obj}</span></div>`;
+                });
+                slideHtml += `</div>`;
+            }
+            else if (slide.type === 'content') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-l-4 border-green-500 pl-3">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-4 text-gray-700 leading-relaxed">${slide.content}</div>`;
+            }
+            else if (slide.type === 'conclusion') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2><div class="mt-4 space-y-2">`;
+                slide.conclusions.forEach(conc => {
+                    slideHtml += `<div class="flex items-start gap-2"><span class="text-green-600 text-lg">✓</span><span>${conc}</span></div>`;
+                });
+                slideHtml += `</div><div class="mt-6 p-3 bg-green-50 rounded-xl text-center text-green-800">🚀 Pratiquez ! Documentez vos DTO et consultez Swagger sur <code>/api</code></div>`;
+            }
+            
+            slideHtml += `</div></div>`;
+            wrapper.append(slideHtml);
+        });
+        updateDots();
+        updateProgress();
+        toggleButtons();
+    }
+
+    function updateDots() {
+        const container = $('#dotsContainer');
+        container.empty();
+        slidesData.forEach((_, idx) => {
+            const dot = $(`<button class="w-3 h-3 rounded-full mx-1 transition-all ${idx === currentSlide ? 'bg-green-700 w-5' : 'bg-gray-400'}" data-index="${idx}"></button>`);
+            dot.on('click', () => goToSlide(idx));
+            container.append(dot);
+        });
+    }
+
+    function updateProgress() {
+        const percent = ((currentSlide + 1) / slidesData.length) * 100;
+        $('#progressBar').css('width', `${percent}%`);
+    }
+
+    function toggleButtons() {
+        $('#prevBtn').prop('disabled', currentSlide === 0);
+        if (currentSlide === slidesData.length - 1) {
+            $('#nextBtn').text('Terminé ✓');
+        } else {
+            $('#nextBtn').text('Suivant →');
+        }
+    }
+
+    function goToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= slidesData.length) index = slidesData.length - 1;
+        $(`.slide`).hide();
+        $(`.slide[data-slide-index="${index}"]`).fadeIn(200);
+        currentSlide = index;
+        updateDots();
+        updateProgress();
+        toggleButtons();
+        $('html, body').animate({ scrollTop: 0 }, 100);
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function nextSlide() {
+        if (currentSlide < slidesData.length - 1) {
+            goToSlide(currentSlide + 1);
+        } else {
+            alert("🎉 Félicitations ! Vous avez terminé la leçon sur Swagger. Lancez votre API et testez la documentation interactive !");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) goToSlide(currentSlide - 1);
+    }
+
+    $(document).ready(function() {
+        renderSlides();
+        $('#nextBtn').on('click', nextSlide);
+        $('#prevBtn').on('click', prevSlide);
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+    });
+</script>
+</body>
+</html>

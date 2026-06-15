@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 31 : Démarrage du système & systemd | Cours OS</title>
+    <!-- Tailwind CSS + Google Fonts + Font Awesome (pour icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules minimales si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisation légère pour slides et confort visuel */
+        body {
+            background: #f1f5f9; /* fond clair doux */
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+            background-color: #1e293b;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .btn-nav:hover {
+            background-color: #0f172a;
+            transform: scale(1.02);
+        }
+        .btn-nav:active {
+            transform: scale(0.98);
+        }
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        .objectif-badge {
+            background: #eef2ff;
+            border-left: 5px solid #3b82f6;
+        }
+        code.inline-code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        /* rendre les slides scrollables si trop haut sur mobile */
+        .slide-card {
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                max-height: 80vh;
+                border-radius: 1.5rem;
+            }
+            .btn-nav {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        h2 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .list-disc-custom li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="slide-container px-4 py-6 md:py-10">
+        <!-- Conteneur slide courant -->
+        <div id="slides-wrapper" class="relative">
+            <!-- slide sera injecté dynamiquement par jQuery -->
+        </div>
+
+        <!-- Navigation + progression -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mt-6 md:mt-8">
+            <button id="prevSlide" class="btn-nav px-5 py-2 text-sm md:text-base">◀ Précédent</button>
+            <div class="flex-1 max-w-xs mx-2">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div class="text-center text-sm text-gray-600 mt-1">
+                    Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+                </div>
+            </div>
+            <button id="nextSlide" class="btn-nav px-5 py-2 text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------
+        // Données de la leçon 31 (d'après programme JSON)
+        // Objectifs récupérés depuis le JSON d'origine (lesson31)
+        // Mais on enrichit le contenu pédagogique détaillé.
+        const lessonData = {
+            idLesson: "lesson31",
+            titre: "Comprendre le processus de démarrage (BIOS/UEFI, bootloader, kernel, init) & maîtriser systemd",
+            objectifs: [
+                "Comprendre le processus de démarrage (BIOS/UEFI, bootloader, kernel, init)",
+                "Maîtriser systemd (systemctl, units, services, targets)",
+                "Configurer des services au démarrage (enable, disable)"
+            ],
+            // Contenu détaillé pour chaque slide (thématique)
+            // On va construire plusieurs slides:
+            // Slide 1 : Titre + intro
+            // Slide 2 : Objectifs
+            // Slide 3 : Les étapes du démarrage (BIOS/UEFI → bootloader → kernel → init)
+            // Slide 4 : Plongée dans systemd (systemctl, units, targets)
+            // Slide 5 : Gestion des services (enable/disable, start/stop) + commandes pratiques
+            // Slide 6 : Résumé / schéma simple (dessin texte)
+        };
+
+        // Définition des slides (texte et composants)
+        const slidesContent = [
+            { // slide 0 : titre
+                type: "title",
+                content: `
+                    <div class="text-center py-4 md:py-8">
+                        <span class="text-sm font-mono bg-blue-100 text-blue-800 px-3 py-1 rounded-full">Leçon 31 · Initiation aux Systèmes d'exploitation</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold mt-5 bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Processus de démarrage<br> & systemd</h1>
+                        <p class="text-gray-600 mt-4 max-w-2xl mx-auto text-base md:text-lg">Du BIOS/UEFI aux services Linux modernes : maîtrisez le boot complet et la gestion des services avec systemd.</p>
+                        <div class="mt-8 flex justify-center gap-3 text-sm text-gray-500">
+                            <span class="flex items-center gap-1">🎓 Niveau : Intermédiaire</span>
+                            <span class="flex items-center gap-1">⚙️ Linux / Ubuntu/Debian</span>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 1 : objectifs pédagogiques (détail)
+                type: "objectifs",
+                content: `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-l-8 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                        <div class="space-y-4">
+                            <div class="objectif-badge p-4 rounded-xl">
+                                <p class="font-semibold text-blue-800">🔹 1. Comprendre le processus de démarrage (BIOS/UEFI, bootloader, kernel, init)</p>
+                                <p class="text-gray-600 text-sm md:text-base mt-1">Analyser chaque étape critique qui transforme un ordinateur éteint en système prêt à l'emploi.</p>
+                            </div>
+                            <div class="objectif-badge p-4 rounded-xl">
+                                <p class="font-semibold text-blue-800">🔹 2. Maîtriser systemd (systemctl, units, services, targets)</p>
+                                <p class="text-gray-600 text-sm md:text-base mt-1">Découvrir le gestionnaire système incontournable sur les distributions modernes.</p>
+                            </div>
+                            <div class="objectif-badge p-4 rounded-xl">
+                                <p class="font-semibold text-blue-800">🔹 3. Configurer des services au démarrage (enable, disable)</p>
+                                <p class="text-gray-600 text-sm md:text-base mt-1">Savoir activer / désactiver automatiquement des applications serveur ou démons.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-gray-50 p-4 rounded-2xl text-center text-sm text-gray-500 italic">
+                            💡 À la fin de cette leçon, vous serez capable d'expliquer le boot Linux et de gérer les services en ligne de commande.
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 2 : Processus de démarrage détaillé (BIOS/UEFI → bootloader → kernel → init)
+                type: "content",
+                title: "🚀 Les 4 grandes étapes du démarrage",
+                content: `
+                    <div>
+                        <p class="text-gray-700 mb-4">Le démarrage d’un système d’exploitation suit une chaîne d’amorçage bien précise. Chaque composant prépare le suivant.</p>
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="bg-slate-50 p-4 rounded-xl shadow-sm border border-slate-100">
+                                <div class="text-lg font-bold text-indigo-700">1. BIOS / UEFI</div>
+                                <p class="text-sm text-gray-600 mt-1">Power-On Self Test (POST), initialisation matérielle. L'UEFI moderne lit la table de partition GPT et sélectionne le bootloader.</p>
+                                <div class="mt-2 text-xs font-mono bg-white p-2 rounded">Exemple : UEFI -> \EFI\BOOT\bootx64.efi</div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl shadow-sm border border-slate-100">
+                                <div class="text-lg font-bold text-indigo-700">2. Bootloader (GRUB2)</div>
+                                <p class="text-sm text-gray-600 mt-1">Charge le noyau Linux et le disque mémoire initial (initramfs). Permet de choisir le système ou noyau.</p>
+                                <div class="mt-2 text-xs font-mono bg-white p-2 rounded">GRUB : /boot/grub/grub.cfg</div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl shadow-sm border border-slate-100">
+                                <div class="text-lg font-bold text-indigo-700">3. Noyau (Kernel)</div>
+                                <p class="text-sm text-gray-600 mt-1">Détection des périphériques, montage du root, lancement du premier processus utilisateur (init).</p>
+                                <div class="mt-2 text-xs font-mono bg-white p-2 rounded">Kernel : vmlinuz-* + modules</div>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-xl shadow-sm border border-slate-100">
+                                <div class="text-lg font-bold text-indigo-700">4. Init (systemd)</div>
+                                <p class="text-sm text-gray-600 mt-1">Aujourd'hui systemd est le standard : il monte les systèmes de fichiers, lance les services et les cibles (targets).</p>
+                                <div class="mt-2 text-xs font-mono bg-white p-2 rounded">PID 1 : /usr/lib/systemd/systemd</div>
+                            </div>
+                        </div>
+                        <!-- petit schéma texte ascii simple pour mobile / vue claire -->
+                        <div class="mt-6 bg-gray-900 text-green-300 p-3 rounded-xl overflow-x-auto text-xs md:text-sm font-mono">
+                            <pre class="text-green-300">[Allumage] → (UEFI/BIOS) → (Bootloader GRUB) → (Noyau Linux) → systemd (PID1) → services & cible graphique</pre>
+                        </div>
+                        <p class="mt-4 text-sm text-gray-500">💡 Sur les systèmes récents, `systemd` remplace l'ancien SysV init. Il utilise des <strong>unités</strong> pour gérer ressources.</p>
+                    </div>
+                `
+            },
+            { // slide 3 : systemd en profondeur (systemctl, units, services, targets)
+                type: "content",
+                title: "⚙️ systemd : le maître d’œuvre moderne",
+                content: `
+                    <div>
+                        <p class="mb-3 text-gray-700"><span class="font-bold">systemd</span> est le gestionnaire système et de services pour Linux. Il est reconnaissable avec sa commande centrale <code class="inline-code">systemctl</code>.</p>
+                        <div class="space-y-5">
+                            <div>
+                                <h3 class="text-xl font-semibold text-slate-800">📌 Les unités (units)</h3>
+                                <p class="text-gray-600 text-sm">Une unité est une ressource gérée par systemd : service (.service), point de montage, socket, target, etc.</p>
+                                <div class="bg-gray-100 p-3 rounded-lg mt-2">
+                                    <code class="text-sm">systemctl list-units --type=service</code> → lister les services actifs.<br>
+                                    <code class="text-sm">systemctl status sshd</code> → voir état détaillé.
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-slate-800">🎯 Les targets (cibles)</h3>
+                                <p class="text-gray-600 text-sm">Les targets remplacent les runlevels SysV (ex: multi-user.target, graphical.target).</p>
+                                <div class="bg-gray-100 p-3 rounded-lg mt-2">
+                                    <code class="text-sm">systemctl get-default</code> → affiche la cible par défaut.<br>
+                                    <code class="text-sm">systemctl isolate graphical.target</code> → passer en mode graphique.
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold text-slate-800">🔧 Services (gestion courante)</h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                    <div class="bg-indigo-50 p-2 rounded"><code>systemctl start service</code> → démarrer</div>
+                                    <div class="bg-indigo-50 p-2 rounded"><code>systemctl stop service</code> → arrêter</div>
+                                    <div class="bg-indigo-50 p-2 rounded"><code>systemctl restart service</code> → redémarrer</div>
+                                    <div class="bg-indigo-50 p-2 rounded"><code>systemctl reload service</code> → recharger config</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-5 p-3 bg-amber-50 border-l-4 border-amber-400 text-amber-800 rounded text-sm">
+                            💡 Astuce : utilisez <code class="inline-code bg-white">systemctl enable --now nom.service</code> pour activer et démarrer immédiatement.
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 4 : Gestion démarrage (enable/disable) + exemples
+                type: "content",
+                title: "🔌 Activer / désactiver des services au démarrage",
+                content: `
+                    <div>
+                        <p class="text-gray-700 mb-3">Pour qu'un service se lance automatiquement au boot, on utilise <code class="inline-code">enable</code> / <code class="inline-code">disable</code>. Cela crée ou supprime des liens symboliques dans <code class="inline-code">/etc/systemd/system/multi-user.target.wants/</code></p>
+                        <div class="bg-gray-50 p-4 rounded-xl space-y-3">
+                            <div class="flex items-start gap-2">
+                                <span class="text-green-600 text-xl">✅</span>
+                                <div><span class="font-mono text-sm bg-gray-200 px-1 rounded">sudo systemctl enable apache2</span> → Apache démarrera automatiquement au prochain boot.</div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-red-600 text-xl">⛔</span>
+                                <div><span class="font-mono text-sm bg-gray-200 px-1 rounded">sudo systemctl disable apache2</span> → suppression du démarrage auto.</div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-blue-600 text-xl">🔍</span>
+                                <div><span class="font-mono text-sm bg-gray-200 px-1 rounded">systemctl is-enabled ssh</span> → vérifie si activé au boot (enabled/disabled).</div>
+                            </div>
+                        </div>
+                        <h3 class="font-bold text-lg mt-5 text-slate-800">📁 Où sont stockés les fichiers unit ?</h3>
+                        <ul class="list-disc pl-6 space-y-1 text-gray-700 text-sm mt-2">
+                            <li><code class="inline-code">/etc/systemd/system/</code> → fichiers personnalisés (prioritaires)</li>
+                            <li><code class="inline-code">/usr/lib/systemd/system/</code> → unités par défaut des paquets</li>
+                        </ul>
+                        <div class="mt-5 bg-slate-100 p-3 rounded-lg">
+                            <p class="font-medium">Exemple concret : activer un script maison</p>
+                            <pre class="text-xs">sudo nano /etc/systemd/system/monscript.service
+[Unit]
+Description=Mon super script
+
+[Service]
+ExecStart=/usr/local/bin/mon_script.sh
+
+[Install]
+WantedBy=multi-user.target
+
+sudo systemctl enable monscript.service</pre>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 5 : récapitulatif commandes & bonnes pratiques
+                type: "content",
+                title: "📋 Récapitulatif des commandes essentielles systemd",
+                content: `
+                    <div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="bg-white shadow-sm rounded-xl border p-3">
+                                <p class="font-mono text-indigo-700 text-sm font-bold">systemctl</p>
+                                <ul class="list-disc pl-5 text-sm space-y-1 mt-1">
+                                    <li><code>systemctl start|stop|restart</code> → contrôle service</li>
+                                    <li><code>systemctl enable|disable</code> → gestion auto-démarrage</li>
+                                    <li><code>systemctl status service</code> → logs + PID + actif ?</li>
+                                    <li><code>systemctl list-units --type=service</code> → tous services actifs</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white shadow-sm rounded-xl border p-3">
+                                <p class="font-mono text-indigo-700 text-sm font-bold">Targets & journal</p>
+                                <ul class="list-disc pl-5 text-sm space-y-1 mt-1">
+                                    <li><code>systemctl get-default / set-default</code> → cible par défaut</li>
+                                    <li><code>systemctl isolate rescue.target</code> → mode secours</li>
+                                    <li><code>journalctl -u service</code> → consulter logs du service</li>
+                                    <li><code>journalctl -b</code> → logs depuis démarrage actuel</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-5 text-center p-3 bg-blue-50 rounded-xl">
+                            ⚡ <span class="font-semibold">À retenir :</span> systemd accélère le démarrage grâce au parallélisme des services, et remplace complètement les scripts init.
+                        </div>
+                        <!-- petit "dessin" simplifié montrant relation boot + services -->
+                        <div class="mt-6 flex flex-wrap justify-center gap-2 text-xs">
+                            <span class="bg-gray-200 rounded-full px-3 py-1">UEFI</span> → 
+                            <span class="bg-gray-200 rounded-full px-3 py-1">GRUB</span> → 
+                            <span class="bg-gray-200 rounded-full px-3 py-1">Kernel</span> → 
+                            <span class="bg-green-200 rounded-full px-3 py-1 font-bold">systemd</span> → 
+                            <span class="bg-gray-200 rounded-full px-3 py-1">network.service</span> 
+                            <span class="bg-gray-200 rounded-full px-3 py-1">sshd.service</span> 
+                            <span class="bg-gray-200 rounded-full px-3 py-1">cron.service</span>
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesContent.length;
+
+        // Fonction pour afficher le slide actuel
+        function renderSlide(index) {
+            const slide = slidesContent[index];
+            let html = '';
+            if (slide.type === 'title') {
+                html = `<div class="slide-card p-6 md:p-10">${slide.content}</div>`;
+            } else if (slide.type === 'objectifs') {
+                html = `<div class="slide-card p-6 md:p-10">${slide.content}</div>`;
+            } else if (slide.type === 'content') {
+                html = `<div class="slide-card p-6 md:p-10">
+                            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-2 border-blue-200 pb-2 mb-5">📖 ${slide.title || 'Contenu'}</h2>
+                            ${slide.content}
+                        </div>`;
+            } else {
+                html = `<div class="slide-card p-6">${slide.content}</div>`;
+            }
+            $('#slides-wrapper').html(html);
+            $('#currentSlideIdx').text(index + 1);
+            $('#totalSlidesCount').text(totalSlides);
+            const progressPercent = ((index + 1) / totalSlides) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+
+            // déclencher MathJax si nécessaire (au cas où)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // scroll vers le haut pour rester cohérent
+            $('.slide-card').scrollTop(0);
+        }
+
+        // gestion navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            } else {
+                // déjà à la fin, petite notification douce
+                $('#nextSlide').css('transform','scale(0.95)');
+                setTimeout(()=>$('#nextSlide').css('transform',''),150);
+                // facultatif: alerte légère
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            } else {
+                $('#prevSlide').css('transform','scale(0.95)');
+                setTimeout(()=>$('#prevSlide').css('transform',''),150);
+            }
+        }
+
+        $(document).ready(function() {
+            totalSlides = slidesContent.length;
+            renderSlide(0);
+            
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            
+            // navigation clavier (flèches gauche/droite)
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            
+            // swipe simplifié pour mobile ? ajouter touch support léger
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesWrapper = document.getElementById('slides-wrapper');
+            if(slidesWrapper) {
+                slidesWrapper.addEventListener('touchstart', (e) => {
+                    touchstartX = e.changedTouches[0].screenX;
+                });
+                slidesWrapper.addEventListener('touchend', (e) => {
+                    touchendX = e.changedTouches[0].screenX;
+                    if (touchendX < touchstartX - 40) nextSlide();
+                    if (touchendX > touchstartX + 40) prevSlide();
+                });
+            }
+        });
+    </script>
+    <!-- Petit footer / crédit pédagogique -->
+    <footer class="text-center text-xs text-gray-400 py-6 border-t mt-4">
+        Cours Généré pour la classe Développement Web (Cameroun) · Initiation aux Systèmes d'exploitation · Leçon 31 : Boot & systemd · Utilisation libre pour les élèves.
+    </footer>
+</body>
+</html>

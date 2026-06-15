@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 24 : SQLite avec Flutter - Cours Développement Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si nécessaire) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles personnalisés pour les slides et la navigation */
+        body {
+            background: #f4f7fc;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        /* Conteneur des slides */
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide {
+            display: none;
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s;
+            padding: 1.5rem;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .nav-btn {
+            background: #1e3a5f;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: #0f2b44;
+            transform: scale(1.02);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #cbd5e1;
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+        .progress-fill {
+            height: 6px;
+            background: #2563eb;
+            border-radius: 6px;
+            width: 0%;
+        }
+        code, pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+        pre {
+            padding: 1rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .card-sql {
+            background: #f8fafc;
+            border-left: 6px solid #3b82f6;
+        }
+        .badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                padding: 1.2rem;
+                border-radius: 1.5rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .nav-btn {
+                padding: 0.5rem 1rem;
+            }
+        }
+        footer {
+            font-size: 0.75rem;
+        }
+        .objectif-item {
+            transition: 0.1s;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <div class="slide-container w-full">
+        <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+        <div class="slide active" id="slide1">
+            <div class="flex flex-col items-center justify-center min-h-[70vh] text-center">
+                <div class="mb-6 inline-block p-3 bg-blue-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7c0-2.21-1.79-4-4-4H8c-2.21 0-4 1.79-4 4zm4 0h8M9 3v4m6-4v4M6 13h12M6 17h8" />
+                    </svg>
+                </div>
+                <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">Stockage local avec SQLite</h1>
+                <p class="text-lg md:text-xl text-gray-600 mt-4 max-w-2xl">Leçon 24 · Initiation à Flutter</p>
+                <p class="text-gray-500 mt-2">Gérer une base de données SQLite dans vos apps mobiles</p>
+                <div class="mt-8 flex gap-3 flex-wrap justify-center">
+                    <span class="badge">CRUD</span>
+                    <span class="badge">sqflite</span>
+                    <span class="badge">Persistance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+        <div class="slide" id="slide2">
+            <div class="mb-5 border-b pb-2 border-blue-200">
+                <h2 class="text-2xl md:text-3xl font-bold text-blue-900">🎯 Objectifs de la leçon</h2>
+                <p class="text-gray-600">À la fin de cette séance, vous serez capable de :</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
+                <div class="flex gap-3 items-start bg-slate-50 p-4 rounded-xl">
+                    <span class="text-blue-600 text-xl">📦</span>
+                    <span><strong>Installer sqflite</strong> et créer une base de données locale.</span>
+                </div>
+                <div class="flex gap-3 items-start bg-slate-50 p-4 rounded-xl">
+                    <span class="text-blue-600 text-xl">🛠️</span>
+                    <span>Effectuer des opérations <strong>CRUD</strong> (Create, Read, Update, Delete).</span>
+                </div>
+                <div class="flex gap-3 items-start bg-slate-50 p-4 rounded-xl">
+                    <span class="text-blue-600 text-xl">📂</span>
+                    <span>Comprendre le schéma SQLite : tables, colonnes et types de données.</span>
+                </div>
+                <div class="flex gap-3 items-start bg-slate-50 p-4 rounded-xl">
+                    <span class="text-blue-600 text-xl">🔄</span>
+                    <span>Gérer les migrations de schéma pour faire évoluer votre app.</span>
+                </div>
+            </div>
+            <div class="mt-8 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <p class="italic text-gray-700">💡 Pourquoi SQLite ? C'est une bibliothèque légère, sans serveur, idéale pour les apps mobiles. Flutter l'utilise via le package <code class="text-sm bg-gray-200 px-2 py-0.5 rounded">sqflite</code>.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : INTRODUCTION & INSTALLATION -->
+        <div class="slide" id="slide3">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-3xl">📀</span>
+                <h2 class="text-2xl md:text-3xl font-bold text-blue-900">Introduction à SQLite dans Flutter</h2>
+            </div>
+            <p class="text-gray-700 mb-4">SQLite est un moteur de base de données relationnelle embarqué. Avec le package <strong class="font-mono">sqflite</strong>, Flutter peut stocker des données structurées localement sur le téléphone.</p>
+            <div class="card-sql p-4 rounded-xl mt-2">
+                <h3 class="font-bold text-lg flex items-center gap-2">📥 Installation</h3>
+                <pre class="mt-2 text-sm"><code># 1. Ajouter dans pubspec.yaml
+dependencies:
+  sqflite: ^2.3.0
+  path: ^1.8.0
+
+# 2. Importer dans votre fichier Dart
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';</code></pre>
+                <p class="mt-3 text-sm text-gray-600"><span class="font-semibold">🔍 Explication :</span> <code>sqflite</code> fournit le moteur, <code>path</code> aide à localiser le fichier .db sur l'appareil.</p>
+            </div>
+            <div class="mt-5 bg-amber-50 p-3 rounded-xl border-l-4 border-amber-400">
+                <span class="font-bold">⚠️ Note pour Android/iOS :</span> Aucune permission supplémentaire n'est nécessaire pour SQLite, les bases sont stockées dans le répertoire privé de l'application.
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : CRÉER LA BASE ET LA TABLE -->
+        <div class="slide" id="slide4">
+            <h2 class="text-2xl md:text-3xl font-bold text-blue-900 mb-3">🏗️ Créer la base et une table</h2>
+            <p class="mb-3">Exemple d'une table "notes" avec id, titre, contenu et date de création.</p>
+            <pre class="mb-4"><code>Future&lt;Database&gt; initDatabase() async {
+  String path = join(await getDatabasesPath(), 'app_notes.db');
+  return openDatabase(
+    path,
+    version: 1,
+    onCreate: (Database db, int version) async {
+      await db.execute('''
+        CREATE TABLE notes(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          titre TEXT NOT NULL,
+          contenu TEXT,
+          date_creation TEXT
+        )
+      ''');
+    },
+  );
+}</code></pre>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 text-sm">
+                <div class="bg-green-50 p-2 rounded"><span class="font-bold">✔️ PRIMARY KEY AUTOINCREMENT</span> : id unique automatique</div>
+                <div class="bg-green-50 p-2 rounded"><span class="font-bold">✔️ TEXT / INTEGER</span> : types SQLite standards</div>
+            </div>
+            <p class="text-gray-500 text-sm mt-3">💡 La méthode <code>onCreate</code> s'exécute uniquement si la base n'existe pas. C'est idéal pour définir vos tables initiales.</p>
+        </div>
+
+        <!-- SLIDE 5 : OPÉRATIONS CRUD (Create, Read) -->
+        <div class="slide" id="slide5">
+            <h2 class="text-2xl font-bold text-blue-900 mb-2">✍️ CRUD : Insérer & Lire</h2>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-semibold text-indigo-800">➕ INSERT (Créer)</h3>
+                    <pre><code>Future&lt;int&gt; insertNote(Note note) async {
+  Database db = await initDatabase();
+  return await db.insert('notes', note.toMap());
+}</code></pre>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-indigo-800">📖 READ (Lire toutes les notes)</h3>
+                    <pre><code>Future&lt;List&lt;Note&gt;&gt; getNotes() async {
+  Database db = await initDatabase();
+  final List&lt;Map&lt;String, dynamic&gt;&gt; maps = await db.query('notes');
+  return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+}</code></pre>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mt-2"><span class="font-mono">.insert()</span> et <span class="font-mono">.query()</span> sont des méthodes asynchrones. Pensez à convertir vos objets Dart en Map<String, dynamic>.</p>
+        </div>
+
+        <!-- SLIDE 6 : OPÉRATIONS UPDATE & DELETE -->
+        <div class="slide" id="slide6">
+            <h2 class="text-2xl font-bold text-blue-900 mb-3">✏️ Mettre à jour & Supprimer</h2>
+            <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                <h3 class="font-bold text-md">🔁 UPDATE (modifier une note)</h3>
+                <pre><code>Future&lt;int&gt; updateNote(Note note) async {
+  Database db = await initDatabase();
+  return await db.update(
+    'notes',
+    note.toMap(),
+    where: 'id = ?',
+    whereArgs: [note.id],
+  );
+}</code></pre>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3">
+                <h3 class="font-bold text-md">🗑️ DELETE (supprimer une note)</h3>
+                <pre><code>Future&lt;int&gt; deleteNote(int id) async {
+  Database db = await initDatabase();
+  return await db.delete(
+    'notes',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}</code></pre>
+            </div>
+            <div class="mt-4 text-sm bg-blue-50 p-2 rounded">✨ <span class="font-medium">Astuce</span> : Utilisez toujours <code>whereArgs</code> pour éviter les injections SQL.</div>
+        </div>
+
+        <!-- SLIDE 7 : GESTION DES MIGRATIONS -->
+        <div class="slide" id="slide7">
+            <h2 class="text-2xl font-bold text-blue-900 mb-3">🔄 Migrations de schéma</h2>
+            <p>Quand votre application évolue, vous ajoutez des colonnes ou tables. Augmentez la <code>version</code> et utilisez <code>onUpgrade</code>.</p>
+            <pre class="mt-2"><code>openDatabase(
+  path,
+  version: 2,
+  onCreate: (db, version) => createTables(db),
+  onUpgrade: (db, oldVersion, newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE notes ADD COLUMN priorite INTEGER DEFAULT 0');
+    }
+  },
+);</code></pre>
+            <div class="flex items-start gap-2 mt-4 p-3 bg-purple-50 rounded">
+                <span>📌</span>
+                <p class="text-sm">Les migrations permettent de conserver les données existantes tout en mettant à jour la structure. N'oubliez pas de tester les changements sur des versions antérieures.</p>
+            </div>
+            <!-- Petit dessin explicatif d'une migration (schéma simple) -->
+            <div class="mt-5 flex justify-center">
+                <div class="bg-white border rounded-lg p-2 inline-block">
+                    <svg width="280" height="70" viewBox="0 0 300 60" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="10" y="10" width="80" height="35" fill="#e2e8f0" stroke="#475569" stroke-width="1.5" rx="6"/>
+                        <text x="22" y="30" font-size="10" fill="#1e293b">v1 : notes</text>
+                        <path d="M100 27 L130 27" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
+                        <rect x="140" y="10" width="110" height="35" fill="#bfdbfe" stroke="#2563eb" stroke-width="1.5" rx="6"/>
+                        <text x="148" y="30" font-size="10" fill="#1e3a8a">v2 : notes + priorite</text>
+                        <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6"/></marker></defs>
+                    </svg>
+                    <p class="text-xs text-center mt-1">Évolution par migrations</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : EXEMPLE COMPLET / BONNES PRATIQUES -->
+        <div class="slide" id="slide8">
+            <h2 class="text-2xl font-bold text-blue-900 mb-3">📱 Exemple d'utilisation en pratique</h2>
+            <p class="mb-2">Dans un StatefulWidget ou avec un Provider, vous pouvez appeler ces méthodes :</p>
+            <pre><code>// Ajouter une note
+final newNote = Note(titre: "Cours SQLite", contenu: "CRUD terminé");
+await insertNote(newNote);
+
+// Lire les notes
+final notes = await getNotes();
+setState(() => maListe = notes);
+
+// Supprimer
+await deleteNote(notes[0].id);</code></pre>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="border-l-4 border-green-500 pl-3 text-sm"><span class="font-bold">✅ Bonnes pratiques</span><br/>- Fermez la base après usage (close())<br/>- Utilisez un singleton Database helper</div>
+                <div class="border-l-4 border-yellow-500 pl-3 text-sm"><span class="font-bold">⚡ Performances</span><br/>- Évitez les requêtes dans le build()<br/>- Utilisez batch pour plusieurs opérations</div>
+            </div>
+            <!-- schéma simple: cycle CRUD -->
+            <div class="flex justify-center mt-5">
+                <svg width="220" height="50" viewBox="0 0 240 50">
+                    <circle cx="30" cy="25" r="16" fill="#c7d2fe" stroke="#4f46e5" stroke-width="1.5"/>
+                    <text x="19" y="30" font-size="9">CREATE</text>
+                    <circle cx="100" cy="25" r="16" fill="#c7d2fe" stroke="#4f46e5" stroke-width="1.5"/>
+                    <text x="90" y="30" font-size="9">READ</text>
+                    <circle cx="170" cy="25" r="16" fill="#c7d2fe" stroke="#4f46e5" stroke-width="1.5"/>
+                    <text x="158" y="30" font-size="9">UPDATE</text>
+                    <circle cx="210" cy="25" r="12" fill="#fecaca" stroke="#dc2626" stroke-width="1.5"/>
+                    <text x="203" y="30" font-size="8">DEL</text>
+                    <path d="M46 25 L82 25 M116 25 L152 25 M186 25 L196 25" stroke="#475569" stroke-width="1.5"/>
+                </svg>
+                <p class="sr-only">Schéma cycle CRUD</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : RÉCAPITULATIF & EXERCICE -->
+        <div class="slide" id="slide9">
+            <h2 class="text-2xl font-bold text-blue-900 mb-3">📌 Récapitulatif & Exercice pratique</h2>
+            <ul class="list-disc list-inside space-y-2 text-gray-700 mb-5">
+                <li><span class="font-mono">sqflite</span> permet la persistance locale avec SQLite.</li>
+                <li>Opérations de base : <strong>insert, query, update, delete</strong>.</li>
+                <li>Les migrations gèrent l’évolution des versions.</li>
+                <li>Le helper Database garantit une connexion unique.</li>
+            </ul>
+            <div class="bg-gray-100 rounded-xl p-4">
+                <h3 class="font-bold text-lg">🧪 À faire par vous-mêmes :</h3>
+                <p>Créez une application de <span class="font-semibold">liste de tâches</span> avec SQLite. Implémentez :</p>
+                <ol class="list-decimal list-inside pl-2 mt-2 space-y-1">
+                    <li>Ajouter une tâche (titre, description).</li>
+                    <li>Afficher toutes les tâches dans une ListView.</li>
+                    <li>Possibilité de marquer comme terminée (modifier un champ booléen).</li>
+                    <li>Supprimer une tâche par swipe.</li>
+                </ol>
+                <p class="text-sm text-blue-800 mt-3">💡 Pensez à la migration pour ajouter la colonne "est_fini" !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 : RESSOURCES ET CONCLUSION -->
+        <div class="slide" id="slide10">
+            <div class="text-center">
+                <div class="inline-block p-3 bg-green-100 rounded-full mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Félicitations ! 🎉</h2>
+                <p class="text-gray-600 mt-2">Vous maîtrisez maintenant les bases de données locales avec Flutter et SQLite.</p>
+                <div class="mt-6 flex flex-wrap justify-center gap-3 text-sm">
+                    <a href="#" class="text-blue-600 underline">Documentation officielle sqflite</a>
+                    <span class="text-gray-400">|</span>
+                    <a href="#" class="text-blue-600 underline">Exemple complet sur GitHub</a>
+                </div>
+                <div class="mt-6 p-3 bg-yellow-50 rounded-2xl max-w-md mx-auto">
+                    <p class="text-gray-700">Prochaine leçon : Utiliser Firebase ou l'optimisation des requêtes. 🔥</p>
+                </div>
+                <footer class="mt-8 text-gray-400">© Cours Flutter Cameroun - Initiation au développement multiplateforme</footer>
+            </div>
+        </div>
+
+        <!-- Contrôles de navigation (précédent / suivant) -->
+        <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+            <button id="prevBtn" class="nav-btn px-5 py-2 rounded-full text-white font-medium disabled:opacity-50" disabled>◀ Précédent</button>
+            <div class="flex-1 max-w-[200px] bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressFill" class="progress-fill h-full"></div>
+            </div>
+            <button id="nextBtn" class="nav-btn px-5 py-2 rounded-full text-white font-medium">Suivant ▶</button>
+        </div>
+        <!-- Indicateur de slide -->
+        <div class="text-center text-sm text-gray-500 mt-3">
+            <span id="slideCounter">1</span> / <span id="totalSlides">10</span>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let currentIndex = 0;
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            function updateSlidesAndButtons() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                // Gestion état boutons
+                $('#prevBtn').prop('disabled', currentIndex === 0);
+                $('#nextBtn').prop('disabled', currentIndex === total - 1);
+                // Mise à jour compteur
+                $('#slideCounter').text(currentIndex + 1);
+                // progression
+                const progressPercent = ((currentIndex + 1) / total) * 100;
+                $('#progressFill').css('width', progressPercent + '%');
+                // Scroll automatique en haut pour une meilleure UX sur mobile
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < total - 1) {
+                    currentIndex++;
+                    updateSlidesAndButtons();
+                }
+            });
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlidesAndButtons();
+                }
+            });
+
+            // Gestion du swipe tactile pour mobile (simple avec jQuery)
+            let touchstartX = 0;
+            let touchendX = 0;
+            $('.slide-container').on('touchstart', function(e) {
+                touchstartX = e.originalEvent.changedTouches[0].screenX;
+            });
+            $('.slide-container').on('touchend', function(e) {
+                touchendX = e.originalEvent.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 40) {
+                    // swipe gauche -> suivant
+                    if (currentIndex < total - 1) {
+                        currentIndex++;
+                        updateSlidesAndButtons();
+                    }
+                } else if (touchendX > touchstartX + 40) {
+                    // swipe droite -> précédent
+                    if (currentIndex > 0) {
+                        currentIndex--;
+                        updateSlidesAndButtons();
+                    }
+                }
+            });
+
+            updateSlidesAndButtons();
+        });
+    </script>
+</body>
+</html>

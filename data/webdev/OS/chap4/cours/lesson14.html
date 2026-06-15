@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 14 : Interruptions, Exceptions et Traps - OS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour améliorer les slides et l'affichage mobile -->
+    <style>
+        /* Transition douce pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Amélioration du contraste et confort visuel */
+        body {
+            background: #f0f4f8;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* pour les petits écrans, meilleure lisibilité */
+        @media (max-width: 640px) {
+            .card {
+                border-radius: 1.5rem;
+            }
+            h1, h2, h3 {
+                word-break: break-word;
+            }
+        }
+        /* pour les illustrations dessinées en SVG inline */
+        .drawing-svg {
+            background: #fefce8;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+        .badge-interrupt {
+            background: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex items-center justify-center min-h-screen">
+
+    <div class="max-w-4xl w-full mx-auto">
+        <!-- Conteneur principal du slide -->
+        <div id="slides-container" class="relative">
+            <!-- Slide 1 : Titre -->
+            <div class="slide slide-active" data-slide="0">
+                <div class="card p-6 md:p-10 bg-white shadow-xl">
+                    <div class="text-center">
+                        <span class="inline-block px-4 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-semibold mb-4">Initiation aux Systèmes d'exploitation</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">⚡ Interruptions, exceptions & traps</h1>
+                        <p class="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto">Comprendre comment le processeur réagit aux événements imprévus et aux appels système</p>
+                        <div class="mt-10 flex justify-center gap-4 text-sm text-gray-500">
+                            <div>🎓 Classe: Développement Web</div>
+                            <div>📘 Matière: OS</div>
+                            <div>🧠 Leçon 14</div>
+                        </div>
+                        <div class="mt-12 pt-4">
+                            <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-full transition shadow-md">Commencer la leçon →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide slide-hidden" data-slide="1">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <div class="flex items-center gap-3 mb-6 border-b pb-3 border-gray-200">
+                        <span class="text-3xl">🎯</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Comprendre le mécanisme des interruptions</strong> (matérielles et logicielles)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Maîtriser la table des vecteurs d'interruption (IDT)</strong> : comment le CPU trouve le bon gestionnaire</span></li>
+                        <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Distinguer interruption, exception et trap</strong> avec des exemples concrets</span></li>
+                    </ul>
+                    <div class="mt-10 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm italic">
+                        💡 Saviez-vous ? Chaque fois que vous tapez au clavier ou déplacez la souris, une interruption matérielle se produit !
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-5 rounded-full transition">← Retour</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full transition">Suite →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Les interruptions (définition et types) -->
+            <div class="slide slide-hidden" data-slide="2">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <div class="mb-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">🔔 Les interruptions : signal d'alerte pour le CPU</h2>
+                    </div>
+                    <p class="text-gray-700 leading-relaxed mb-4">Une <strong class="text-blue-700">interruption</strong> est un signal envoyé au processeur pour interrompre son exécution courante et forcer l'exécution d'une routine spécifique (gestionnaire d'interruption).</p>
+                    
+                    <div class="grid md:grid-cols-2 gap-5 mt-4">
+                        <div class="bg-red-50 p-4 rounded-2xl border-l-8 border-red-400">
+                            <h3 class="font-bold text-red-800 text-xl">🖥️ Interruptions matérielles</h3>
+                            <p class="text-red-700 mt-1">Provenant des périphériques : clavier, souris, disque dur, timer interne.</p>
+                            <p class="text-sm mt-2">Exemple : appuyer sur une touche → interruption IRQ → le système lit le code scanné.</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-2xl border-l-8 border-purple-400">
+                            <h3 class="font-bold text-purple-800 text-xl">💿 Interruptions logicielles</h3>
+                            <p class="text-purple-700 mt-1">Déclenchées par une instruction logicielle (<code class="bg-gray-200 px-1 rounded">int</code> en assembleur).</p>
+                            <p class="text-sm mt-2">Utilisées pour les appels système (ex: lecture de fichier).</p>
+                        </div>
+                    </div>
+
+                    <!-- Petit dessin SVG : interruption matérielle vs cpu -->
+                    <div class="mt-6 bg-gray-50 rounded-xl p-3 text-center">
+                        <p class="text-sm font-medium text-gray-500 mb-2">📡 Mécanisme simplifié : périphérique → CPU → gestionnaire</p>
+                        <svg viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-md mx-auto">
+                            <rect x="10" y="35" width="70" height="30" fill="#f97316" rx="6" />
+                            <text x="45" y="55" text-anchor="middle" fill="white" font-size="10">Périph.</text>
+                            <path d="M85 50 L130 50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)" />
+                            <rect x="135" y="30" width="80" height="40" fill="#3b82f6" rx="6" />
+                            <text x="175" y="55" text-anchor="middle" fill="white" font-size="11">CPU</text>
+                            <path d="M220 50 L270 50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)" />
+                            <rect x="275" y="30" width="100" height="40" fill="#10b981" rx="6" />
+                            <text x="325" y="55" text-anchor="middle" fill="white" font-size="10">Handler (ISR)</text>
+                            <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3b82f6" /></marker></defs>
+                        </svg>
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Table des vecteurs d'interruption (IDT) -->
+            <div class="slide slide-hidden" data-slide="3">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">📋 Table des vecteurs d'interruption (IDT)</h2>
+                    <p class="text-gray-700 mb-4">L'IDT (Interrupt Descriptor Table) est une structure de données utilisée par le processeur pour <strong class="font-semibold">faire le lien entre un numéro d'interruption et le gestionnaire correspondant</strong>. À chaque interruption, le CPU consulte cette table pour savoir quelle fonction exécuter.</p>
+                    
+                    <div class="bg-gray-100 rounded-xl p-4 font-mono text-sm overflow-x-auto">
+                        <pre class="whitespace-pre-wrap">
+┌────────────────────────────────────────────┐
+│   Index (vecteur)  │  Adresse du handler   │
+├────────────────────────────────────────────┤
+│   0 (division par zéro) → 0x8A4F2000       │
+│   1 (debug)         → 0x8A4F2140           │
+│   2 (NMI)           → ...                  │
+│   32 (IRQ0 timer)   → scheduler_handler    │
+│   33 (clavier)      → keyboard_handler     │
+│   ...                                       │
+└────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                    <p class="mt-3 text-gray-600 text-sm">Sur les systèmes modernes (x86), l'IDT peut contenir jusqu'à 256 entrées. Les 32 premières sont réservées aux exceptions processeur.</p>
+                    <div class="flex justify-between mt-6">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : Distinguer Interruption, Exception, Trap (tableau comparatif) -->
+            <div class="slide slide-hidden" data-slide="4">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔍 Interruption vs Exception vs Trap</h2>
+                    <p class="mb-5">Bien qu'étant toutes des “événements” qui perturbent le flot normal, leurs causes et traitements diffèrent :</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-xl shadow-sm border">
+                            <thead class="bg-indigo-100">
+                                <tr>
+                                    <th class="py-3 px-4 text-left">Type</th>
+                                    <th class="py-3 px-4 text-left">Origine</th>
+                                    <th class="py-3 px-4 text-left">Comportement</th>
+                                    <th class="py-3 px-4 text-left">Exemples</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b">
+                                    <td class="py-2 px-4 font-bold text-blue-700">Interruption</td>
+                                    <td class="py-2 px-4">Matérielle (périphériques) ou logicielle (instruction INT)</td>
+                                    <td class="py-2 px-4">Asynchrone, survient à tout moment</td>
+                                    <td class="py-2 px-4">Clavier, souris, timer, appel système (trap volontaire)</td>
+                                </tr>
+                                <tr class="border-b bg-gray-50">
+                                    <td class="py-2 px-4 font-bold text-amber-700">Exception</td>
+                                    <td class="py-2 px-4">Erreur interne du processeur (situation anormale)</td>
+                                    <td class="py-2 px-4">Synchrone avec l'instruction en cours</td>
+                                    <td class="py-2 px-4">Division par zéro, page fault, accès mémoire invalide</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 font-bold text-green-700">Trap</td>
+                                    <td class="py-2 px-4">Instruction spéciale (souvent utilisée pour les appels système)</td>
+                                    <td class="py-2 px-4">Synchrone, volontaire, "portes dérobées" vers le noyau</td>
+                                    <td class="py-2 px-4">`syscall` sur Linux, `int 0x80` sur anciens x86</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-6 bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-yellow-800 text-sm">
+                        ⚡ <strong>À retenir :</strong> Une interruption matérielle est <span class="underline">asynchrone</span>, l'exception est <span class="underline">synchrone et souvent une erreur</span>, le trap est <span class="underline">synchrone et délibéré</span>.
+                    </div>
+
+                    <!-- mini exemple SVG -->
+                    <div class="mt-5 text-center text-sm text-gray-500 italic">
+                        <svg class="inline-block w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Exemple de trap: un programme utilisateur demande la lecture d'un fichier → instruction spéciale → noyau exécute la requête.
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : Exemples concrets et vie quotidienne -->
+            <div class="slide slide-hidden" data-slide="5">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">🎬 Mise en situation dans un OS</h2>
+                    <div class="space-y-4">
+                        <div class="flex gap-3 items-start border-l-4 border-blue-400 pl-4">
+                            <span class="text-2xl">⌨️</span>
+                            <div><strong class="text-blue-800">Interruption clavier</strong> : Vous tapez "A". Le contrôleur du clavier envoie une interruption IRQ1 → le CPU suspend son programme, appelle le handler du clavier qui lit la touche et la place dans un buffer, puis reprend le programme.</div>
+                        </div>
+                        <div class="flex gap-3 items-start border-l-4 border-red-400 pl-4">
+                            <span class="text-2xl">🚫</span>
+                            <div><strong class="text-red-800">Exception (division par zéro)</strong> : Un programme tente de diviser 10 par 0 → le CPU déclenche l'exception #DE. Le système peut tuer le processus ou afficher une erreur.</div>
+                        </div>
+                        <div class="flex gap-3 items-start border-l-4 border-green-400 pl-4">
+                            <span class="text-2xl">🖥️</span>
+                            <div><strong class="text-green-800">Trap (Appel système)</strong> : En Python, `open()` génère un appel système. L'instruction `syscall` piège le CPU en mode noyau, exécute la demande, puis retourne au mode utilisateur.</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-xl">
+                        <p class="font-semibold">📌 À retenir pour l'examen :</p>
+                        <ul class="list-disc list-inside space-y-1 mt-2 text-gray-700">
+                            <li>L'IDT permet la réaction rapide aux événements.</li>
+                            <li>Les interruptions matérielles sont cruciales pour l'interactivité.</li>
+                            <li>Les traps sont le pont entre mode utilisateur et mode noyau.</li>
+                        </ul>
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Quiz / validation des connaissances -->
+            <div class="slide slide-hidden" data-slide="6">
+                <div class="card p-6 md:p-8 bg-white shadow-xl">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🧠 Vérifions vos acquis</h2>
+                    <div class="space-y-5">
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <p class="font-semibold">1️⃣ Un clic de souris génère quelle type d’événement ?</p>
+                            <div class="mt-2 flex gap-4 flex-wrap">
+                                <label class="inline-flex items-center"><input type="radio" name="q1" class="mr-1" value="trap"> Trap</label>
+                                <label class="inline-flex items-center"><input type="radio" name="q1" class="mr-1" value="exception"> Exception</label>
+                                <label class="inline-flex items-center"><input type="radio" name="q1" class="mr-1" value="interruption"> Interruption matérielle</label>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <p class="font-semibold">2️⃣ Que signifie IDT ?</p>
+                            <div class="mt-2 flex gap-4 flex-wrap">
+                                <label><input type="radio" name="q2" class="mr-1" value="idt1"> Interrupt Data Table</label>
+                                <label><input type="radio" name="q2" class="mr-1" value="idt2"> Interrupt Descriptor Table</label>
+                                <label><input type="radio" name="q2" class="mr-1" value="idt3"> Internal Dispatch Table</label>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <p class="font-semibold">3️⃣ Une tentative d’accès à une adresse mémoire non mappée est :</p>
+                            <div class="mt-2 flex gap-4 flex-wrap">
+                                <label><input type="radio" name="q3" class="mr-1" value="excep"> Une exception (page fault)</label>
+                                <label><input type="radio" name="q3" class="mr-1" value="inter"> Une interruption logicielle</label>
+                                <label><input type="radio" name="q3" class="mr-1" value="trap"> Un trap volontaire</label>
+                            </div>
+                        </div>
+                        <button id="quiz-submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full transition">Valider mes réponses</button>
+                        <div id="quiz-feedback" class="text-sm font-medium hidden p-3 rounded-lg"></div>
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-btn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Terminer & Conclusion →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 8 : Conclusion et ressources -->
+            <div class="slide slide-hidden" data-slide="7">
+                <div class="card p-6 md:p-8 bg-white shadow-xl text-center">
+                    <h2 class="text-3xl font-bold text-gray-800">🎉 Félicitations !</h2>
+                    <div class="my-5 text-gray-700 leading-relaxed">
+                        <p>Vous maîtrisez maintenant les bases des interruptions, de la table IDT et la différence entre interruption, exception et trap.</p>
+                        <p class="mt-3">Ces concepts sont fondamentaux pour comprendre la réactivité des systèmes d'exploitation modernes.</p>
+                        <div class="mt-6 flex justify-center gap-3 flex-wrap">
+                            <span class="bg-blue-100 px-3 py-1 rounded-full text-blue-800">⚡ Interruptions matérielles</span>
+                            <span class="bg-purple-100 px-3 py-1 rounded-full text-purple-800">📋 IDT</span>
+                            <span class="bg-green-100 px-3 py-1 rounded-full text-green-800">🐞 Exceptions</span>
+                            <span class="bg-amber-100 px-3 py-1 rounded-full text-amber-800">🚪 Traps</span>
+                        </div>
+                        <p class="mt-6 text-sm text-gray-500">Prochaine leçon : Buffering, cache et spooling — restez connectés !</p>
+                        <button id="restart-btn" class="mt-8 bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-8 rounded-full transition shadow">↺ Revoir la leçon</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation dots pour petits écrans -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dots-nav">
+            <!-- généré dynamiquement via JS -->
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+            
+            function updateSlides() {
+                slides.each(function(idx) {
+                    if(idx === currentIndex) {
+                        $(this).removeClass('slide-hidden').addClass('slide-active');
+                    } else {
+                        $(this).removeClass('slide-active').addClass('slide-hidden');
+                    }
+                });
+                updateDots();
+                // scroll en haut pour l'utilisateur sur mobile
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            function goNext() {
+                if(currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            }
+            function goPrev() {
+                if(currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            }
+            
+            // création des dots
+            function updateDots() {
+                let dotsHtml = '';
+                for(let i=0; i<totalSlides; i++) {
+                    let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-400 w-3';
+                    dotsHtml += `<button class="dot-btn h-3 rounded-full ${activeClass} transition-all mx-1" data-slideidx="${i}"></button>`;
+                }
+                $('#dots-nav').html(dotsHtml);
+                $('.dot-btn').on('click', function() {
+                    let idx = parseInt($(this).data('slideidx'));
+                    if(!isNaN(idx)) {
+                        currentIndex = idx;
+                        updateSlides();
+                    }
+                });
+            }
+            
+            // events next/prev
+            $(document).on('click', '.next-btn', goNext);
+            $(document).on('click', '.prev-btn', goPrev);
+            $('#restart-btn').on('click', function() {
+                currentIndex = 0;
+                updateSlides();
+            });
+            
+            // Quiz handling
+            $('#quiz-submit').on('click', function() {
+                let q1 = $('input[name="q1"]:checked').val();
+                let q2 = $('input[name="q2"]:checked').val();
+                let q3 = $('input[name="q3"]:checked').val();
+                let correct = 0;
+                if(q1 === 'interruption') correct++;
+                if(q2 === 'idt2') correct++;
+                if(q3 === 'excep') correct++;
+                let msg = '';
+                if(correct === 3) msg = '🎉 Parfait ! Vous avez tout juste. Excellent travail.';
+                else if(correct === 2) msg = '👍 Bonne réponse à 2 questions. Revoyez la distinction entre trap et exception.';
+                else msg = '📘 Revoir la leçon : interruptions matérielles, IDT et les exceptions. Réponses attendues: interruption matérielle, Interrupt Descriptor Table, exception page fault.';
+                $('#quiz-feedback').removeClass('hidden').html(`<span class="font-bold">Score : ${correct}/3</span><br>${msg}`).addClass('bg-indigo-50 p-3 mt-2');
+            });
+            
+            // initialisation
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

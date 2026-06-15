@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Leçon 15 : GROUP BY & HAVING - Initiation aux Bases de données</title>
+    <!-- Tailwind CSS + Google Fonts + Font Awesome pour quelques icônes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Tailwind pour personnalisation légère (couleurs douces) -->
+    <style>
+        /* Override pour rendre les couleurs encore plus lisibles */
+        body {
+            background: #f8fafc;
+        }
+        .slide-container {
+            transition: transform 0.3s ease-in-out;
+        }
+        .swipe-indicator {
+            transition: opacity 0.2s;
+        }
+        /* Amélioration du défilement tactile */
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slide {
+            scroll-snap-align: start;
+        }
+        /* Personnalisation des barres de défilement (discrètes) */
+        .slides-wrapper::-webkit-scrollbar {
+            height: 5px;
+        }
+        .slides-wrapper::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .slides-wrapper::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        /* classes pour les formules mathématiques (MathJax) */
+        .math-inline, .math-block {
+            font-size: 1rem;
+        }
+    </style>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules (optionnel, présent si besoin mais peu utilisé ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-3xl mx-auto px-3 py-5 md:py-8">
+        <!-- En-tête fixe avec titre du cours / matière -->
+        <div class="bg-white/80 backdrop-blur-sm sticky top-0 z-10 rounded-2xl shadow-sm p-3 mb-4 border border-slate-200">
+            <div class="flex justify-between items-center flex-wrap gap-2">
+                <div>
+                    <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">📘 Initiation aux bases de données</span>
+                    <h2 class="text-sm font-medium text-slate-600 mt-1">Chapitre 5 : Maîtrise des requêtes complexes</h2>
+                </div>
+                <div class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                    Leçon <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">6</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conteneur slides avec swipe horizontal et navigation -->
+        <div class="relative">
+            <!-- Slides horizontal scrollable -->
+            <div id="slidesWrapper" class="slides-wrapper flex overflow-x-auto snap-mandatory rounded-2xl shadow-xl bg-white">
+                <!-- Slide 1 : Titre -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl min-h-[70vh] flex flex-col justify-center">
+                    <div class="text-center">
+                        <div class="inline-block bg-indigo-100 text-indigo-800 text-sm font-semibold px-4 py-1 rounded-full mb-4">🎯 Leçon 15</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 mb-4">GROUP BY & HAVING</h1>
+                        <div class="h-1 w-20 bg-indigo-400 mx-auto rounded-full my-4"></div>
+                        <p class="text-lg text-slate-600 max-w-md mx-auto">Grouper et filtrer des groupes pour analyser efficacement vos données.</p>
+                        <div class="mt-8 text-indigo-500 text-sm font-medium">
+                            👉 Glissez vers la gauche ➡️
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs pédagogiques -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-white rounded-2xl min-h-[70vh] flex flex-col">
+                    <div class="flex items-center gap-3 mb-6 border-b border-slate-200 pb-3">
+                        <span class="text-3xl">📌</span>
+                        <h2 class="text-2xl font-bold text-slate-700">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-5 text-base md:text-lg text-slate-700">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span><strong>Grouper</strong> les résultats avec GROUP BY pour créer des agrégations.</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Filtrer des groupes avec <strong class="font-mono bg-slate-100 px-1">HAVING</strong>.</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Comprendre la différence fondamentale entre <strong class="font-mono">WHERE</strong> et <strong class="font-mono">HAVING</strong>.</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span>Savoir écrire des requêtes analytiques professionnelles.</span></li>
+                    </ul>
+                    <div class="mt-auto pt-8 text-xs text-slate-400 text-center">🎓 À la fin, vous saurez analyser des données groupées comme un expert SQL.</div>
+                </div>
+
+                <!-- Slide 3 : Introduction / GROUP BY simple (concept) -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-white rounded-2xl min-h-[70vh] flex flex-col">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-2xl">🧩</span>
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-800">GROUP BY : Division par groupes</h2>
+                    </div>
+                    <p class="text-slate-600 mb-4">La clause <code class="bg-slate-100 px-1.5 py-0.5 rounded text-red-700 font-mono text-sm">GROUP BY</code> permet de regrouper des lignes ayant les mêmes valeurs dans une ou plusieurs colonnes, puis d'appliquer des fonctions d'agrégation (<code class="bg-slate-100 px-1 rounded">COUNT, SUM, AVG, MIN, MAX</code>) sur chaque groupe.</p>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-xl my-3 border-l-4 border-indigo-400">
+                        <p class="font-semibold text-indigo-800">📖 Syntaxe de base :</p>
+                        <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg overflow-x-auto text-sm mt-2 font-mono">SELECT colonne, fonction_agrégation(*)
+FROM table
+GROUP BY colonne;</pre>
+                    </div>
+                    
+                    <div class="mt-2 text-slate-700">
+                        <p class="font-medium">✨ Exemple concret :</p>
+                        <div class="bg-gray-100 p-3 rounded-lg text-sm font-mono mt-1">
+                            SELECT statut, COUNT(*) AS nombre_etudiants <br>
+                            FROM etudiants <br>
+                            GROUP BY statut;
+                        </div>
+                        <p class="text-sm text-slate-500 mt-2">👉 Compte combien d'étudiants par statut (ex: "actif", "suspendu")</p>
+                    </div>
+                    <div class="mt-4 text-center text-sm text-slate-400 border-t pt-3">✅ Chaque groupe produit une ligne dans le résultat.</div>
+                </div>
+
+                <!-- Slide 4 : HAVING, le WHERE des groupes -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-white rounded-2xl min-h-[70vh] flex flex-col">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-2xl">🔍</span>
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-800">HAVING : Filtrer après GROUP BY</h2>
+                    </div>
+                    <p class="text-slate-600 mb-3">WHERE filtre les <strong>lignes individuelles</strong> avant regroupement. <span class="font-bold text-indigo-600">HAVING</span> filtre les <strong>groupes</strong> après le GROUP BY.</p>
+                    
+                    <div class="bg-amber-50 p-4 rounded-xl my-3 border-l-4 border-amber-400">
+                        <p class="font-semibold text-amber-800">🧠 Règle d’or :</p>
+                        <ul class="list-disc ml-5 space-y-1 text-sm mt-1">
+                            <li><span class="font-mono">WHERE</span> → s’applique sur chaque ligne brute (pas sur agrégats).</li>
+                            <li><span class="font-mono">HAVING</span> → s’applique sur les résultats des fonctions d’agrégation.</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-100 p-3 rounded-lg mt-2">
+                        <p class="font-mono text-sm"><span class="text-green-700">-- Exemple : ne montrer que les catégories ayant plus de 5 produits</span><br>
+                        SELECT categorie, COUNT(*) AS total_produits <br>
+                        FROM produits <br>
+                        GROUP BY categorie <br>
+                        <span class="bg-yellow-200">HAVING COUNT(*) > 5;</span></p>
+                    </div>
+                    <div class="mt-3 p-3 bg-indigo-50 rounded-lg text-sm">
+                        💡 <span class="font-medium">On ne peut pas utiliser HAVING sans GROUP BY (dans la majorité des SGBD).</span>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : Différence WHERE / HAVING + exemples comparatifs -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-white rounded-2xl min-h-[70vh] flex flex-col">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-2xl">⚖️</span>
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-800">WHERE vs HAVING en pratique</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-slate-50 rounded-lg text-sm md:text-base border">
+                            <thead class="bg-slate-200">
+                                <tr><th class="p-2 text-left">Critère</th><th class="p-2 text-left">WHERE</th><th class="p-2 text-left">HAVING</th></tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr><td class="p-2 font-medium">Quand s'applique-t-il ?</td><td class="p-2">Avant GROUP BY</td><td class="p-2">Après GROUP BY</td></tr>
+                                <tr><td class="p-2 font-medium">Peut utiliser agrégats ?</td><td class="p-2">❌ Non (ex: SUM, AVG)</td><td class="p-2">✅ Oui</td></tr>
+                                <tr><td class="p-2 font-medium">Filtre sur colonnes brutes</td><td class="p-2">✅ Oui</td><td class="p-2">❌ Uniquement colonnes groupées ou agrégats</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 bg-gray-100 p-3 rounded-lg text-sm">
+                        <p class="font-mono font-bold">Exemple combiné :</p>
+                        <p class="font-mono text-xs md:text-sm">SELECT ville, AVG(age) as age_moyen<br>
+                        FROM clients <br>
+                        WHERE age >= 18   <span class="text-gray-500">-- ligne par ligne</span><br>
+                        GROUP BY ville <br>
+                        HAVING AVG(age) > 25; <span class="text-gray-500">-- sur groupe</span></p>
+                        <p class="text-xs text-slate-500 mt-1">👉 D'abord on filtre les clients majeurs, puis on regroupe par ville et on garde villes où âge moyen > 25</p>
+                    </div>
+                </div>
+
+                <!-- Slide 6 : Exemple détaillé + astuces et exercice réflexe -->
+                <div class="slide flex-shrink-0 w-full p-6 md:p-8 bg-white rounded-2xl min-h-[70vh] flex flex-col">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-2xl">🏆</span>
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-800">Cas pratique & astuces</h2>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-xl">
+                        <p class="font-semibold text-emerald-800">📊 Scénario : Ventes par département</p>
+                        <pre class="bg-slate-800 text-slate-200 p-3 rounded text-xs md:text-sm overflow-x-auto mt-2">
+SELECT departement, SUM(montant) as CA_total, COUNT(*) as nb_ventes
+FROM ventes
+WHERE montant > 0
+GROUP BY departement
+HAVING SUM(montant) > 10000
+ORDER BY CA_total DESC;
+                        </pre>
+                        <ul class="list-disc ml-5 text-sm mt-3 space-y-1">
+                            <li>✅ <span class="font-mono">WHERE montant > 0</span> : élimine les ventes à 0 ou négatives <strong>avant</strong> le groupement.</li>
+                            <li>✅ <span class="font-mono">GROUP BY departement</span> : regroupe les lignes par département.</li>
+                            <li>✅ <span class="font-mono">HAVING SUM(montant) > 10000</span> : ne garde que les départements avec CA supérieur à 10k.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-5 p-3 bg-indigo-100 rounded-xl">
+                        <p class="font-bold text-indigo-800">💡 À retenir :</p>
+                        <p class="text-slate-700">HAVING est souvent utilisé avec COUNT, SUM, AVG. On peut y mettre plusieurs conditions avec AND/OR.</p>
+                    </div>
+                    <div class="mt-5 text-center text-sm text-slate-500 border-t pt-3">
+                        🧪 <strong>Mini exercice</strong> : Écrire une requête qui affiche les années (colonne année) où le nombre de commandes dépasse 100, depuis la table "commandes".
+                        <details class="mt-2 text-xs bg-gray-100 p-2 rounded cursor-pointer"><summary>👉 Indice / solution</summary>
+                        <code class="text-xs">SELECT année, COUNT(*) FROM commandes GROUP BY année HAVING COUNT(*) > 100;</code>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contrôles de navigation (flèches + points) -->
+            <button id="prevSlide" class="absolute left-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-indigo-100 rounded-full p-2 shadow-md transition-all z-10 backdrop-blur-sm border border-slate-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-indigo-700">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+            </button>
+            <button id="nextSlide" class="absolute right-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-indigo-100 rounded-full p-2 shadow-md transition-all z-10 backdrop-blur-sm border border-slate-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-indigo-700">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Pagination bullets (dots) -->
+        <div class="flex justify-center gap-2 mt-5 flex-wrap" id="dotsContainer"></div>
+
+        <!-- Footer avec note explicative -->
+        <div class="text-center text-xs text-slate-400 mt-6 border-t pt-4">
+            <p>📌 Classe : Développement Web | Matière : Bases de données | Leçon 15 : GROUP BY & HAVING</p>
+            <p class="mt-1">✨ Utilisez les flèches ou glissez horizontalement pour naviguer entre les diapositives.</p>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const $wrapper = $('#slidesWrapper');
+            const $slides = $('.slide');
+            const totalSlides = $slides.length;
+            let currentIndex = 0;
+            
+            // Mettre à jour l'affichage du numéro de slide et les points
+            function updatePagination() {
+                $('#currentSlideIdx').text(currentIndex + 1);
+                $('#totalSlidesCount').text(totalSlides);
+                // Mise à jour des dots
+                $('.dot').each(function(idx) {
+                    if(idx === currentIndex) {
+                        $(this).removeClass('bg-slate-300').addClass('bg-indigo-600 w-6');
+                        $(this).removeClass('w-2').addClass('w-6');
+                    } else {
+                        $(this).removeClass('bg-indigo-600 w-6').addClass('bg-slate-300 w-2');
+                        $(this).removeClass('w-6').addClass('w-2');
+                    }
+                });
+            }
+            
+            // Fonction pour scroller jusqu'à un slide spécifique
+            function goToSlide(index) {
+                if (index < 0) index = 0;
+                if (index >= totalSlides) index = totalSlides - 1;
+                currentIndex = index;
+                const slideWidth = $slides.first().outerWidth();
+                $wrapper.scrollLeft(slideWidth * currentIndex);
+                updatePagination();
+            }
+            
+            // Générer les dots (points)
+            function generateDots() {
+                const $dotsContainer = $('#dotsContainer');
+                $dotsContainer.empty();
+                for (let i = 0; i < totalSlides; i++) {
+                    const $dot = $('<button>', {
+                        class: `dot h-2 rounded-full transition-all duration-200 mx-1 focus:outline-none`,
+                        'data-index': i,
+                        css: {
+                            width: i === 0 ? '1.5rem' : '0.5rem',
+                            backgroundColor: i === 0 ? '#4f46e5' : '#cbd5e1'
+                        }
+                    });
+                    $dot.on('click', function() {
+                        const idx = parseInt($(this).data('index'));
+                        goToSlide(idx);
+                    });
+                    $dotsContainer.append($dot);
+                }
+                updatePagination();
+            }
+            
+            // Écouter le scroll pour synchroniser l'index actif (swipe)
+            $wrapper.on('scroll', function() {
+                const scrollLeft = $wrapper.scrollLeft();
+                const slideWidth = $slides.first().outerWidth();
+                if(slideWidth > 0) {
+                    let newIndex = Math.round(scrollLeft / slideWidth);
+                    if(newIndex !== currentIndex && newIndex >=0 && newIndex < totalSlides) {
+                        currentIndex = newIndex;
+                        updatePagination();
+                    }
+                }
+            });
+            
+            // Gestion du redimensionnement : recalculer la position courante après redim (pour éviter décalage)
+            let resizeTimer;
+            $(window).on('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    const slideWidth = $slides.first().outerWidth();
+                    $wrapper.scrollLeft(slideWidth * currentIndex);
+                }, 100);
+            });
+            
+            // Navigation par boutons
+            $('#prevSlide').on('click', function() {
+                if(currentIndex > 0) goToSlide(currentIndex - 1);
+                else goToSlide(0);
+            });
+            $('#nextSlide').on('click', function() {
+                if(currentIndex < totalSlides -1) goToSlide(currentIndex + 1);
+                else goToSlide(totalSlides-1);
+            });
+            
+            // Gestion du clavier (flèches gauche/droite)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    $('#prevSlide').click();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    $('#nextSlide').click();
+                }
+            });
+            
+            // Initialisation
+            generateDots();
+            // S'assurer que la largeur initiale est correcte (force goToSlide 0)
+            setTimeout(() => {
+                goToSlide(0);
+                // Désactive le scrolling "snap" brusque quand on resize
+            }, 50);
+            
+            // Ajout d'une petite amélioration tactile : indiquer le swipe
+            let touchStartX = 0;
+            $wrapper.on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $wrapper.on('touchend', function(e) {
+                if(!touchStartX) return;
+                const diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) {
+                        // glisser vers la droite -> précédent
+                        $('#prevSlide').click();
+                    } else {
+                        $('#nextSlide').click();
+                    }
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+    <!-- petite correction pour que le wrapper ait une hauteur cohérente sur mobile -->
+    <style>
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        .slide {
+            min-height: 65vh;
+            height: auto;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                min-height: 70vh;
+                padding: 1.5rem;
+            }
+            .pre, code {
+                font-size: 0.75rem;
+            }
+        }
+        /* Améliore contraste et lisibilité sur mobile */
+        body {
+            background: #f1f5f9;
+        }
+        .bg-indigo-50, .bg-amber-50, .bg-emerald-50 {
+            transition: all 0.2s;
+        }
+        button.dot:focus-visible {
+            outline: 2px solid #4f46e5;
+            outline-offset: 2px;
+        }
+    </style>
+</body>
+</html>

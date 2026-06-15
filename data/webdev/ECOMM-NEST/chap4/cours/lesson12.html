@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 12 : DTOs, CRUD produits et upload d'images | API E-commerce (NestJS)</title>
+  <!-- Tailwind CSS + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body { background: #f3f4f6; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .slide-card { transition: all 0.2s ease; }
+    .progress-fill { transition: width 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
+    pre { white-space: pre-wrap; word-break: break-word; tab-size: 2; }
+    button:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; }
+    @media (max-width: 640px) {
+      .slide-content { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-3 md:px-5 py-5 md:py-8">
+    <!-- Barre sticky -->
+    <div class="sticky top-0 z-20 bg-white/85 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-6 flex flex-wrap items-center justify-between gap-3 border border-gray-100">
+      <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">NestJS • E-commerce</span>
+        <span class="text-gray-600 text-sm font-medium hidden sm:inline-block">Leçon 12 : CRUD produits</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="slideCounter" class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">1 / 7</span>
+        <div class="hidden sm:block w-36 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div id="progressFill" class="progress-fill h-full bg-teal-500 rounded-full" style="width: 14%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="slidesContainer" class="relative"></div>
+
+    <!-- Navigation slides -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Précédent
+      </button>
+      <span class="text-xs text-gray-400 hidden md:block">← / →  ou glisser</span>
+      <button id="nextSlide" class="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        Suivant
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+
+    <div class="text-center text-gray-400 text-xs mt-8 pt-4 border-t border-gray-200">
+      🇨🇲 Cours API e-commerce — Enseignant au Cameroun | DTOs, validation, CRUD produits & upload d'images
+    </div>
+  </div>
+
+  <script>
+    // Slides pour la leçon 12 (lesson12) : DTOs, CRUD, validation, upload images
+    const slidesData = [
+      { // Slide 1 - Titre
+        type: "title",
+        title: "📦 Gestion du catalogue produits",
+        subtitle: "DTOs, validation, endpoints CRUD et upload d’images",
+        badge: "Leçon 12 • NestJS + TypeORM",
+        desc: "Apprenez à créer des DTOs robustes, implémenter les opérations CRUD pour les produits, valider les données et gérer l'upload d'images vers le cloud."
+      },
+      { // Slide 2 - Objectifs (selon programme)
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        items: [
+          "Créer les DTOs CreateProductDto et UpdateProductDto avec validation (class-validator)",
+          "Implémenter les endpoints CRUD complets (POST, GET, PUT, DELETE) avec NestJS",
+          "Intégrer l'upload d'images avec Multer et Cloudinary"
+        ]
+      },
+      { // Slide 3 - Qu'est-ce qu'un DTO ? Pourquoi ?
+        type: "content",
+        title: "📑 1. Data Transfer Objects (DTOs)",
+        text: "Les DTOs définissent la forme des données échangées entre le client et l'API. Ils permettent la validation, la transformation et la documentation automatique (Swagger).",
+        list: [
+          "Ils ne contiennent pas de logique métier.",
+          "Ils sont décorés avec class-validator (ex: @IsString(), @IsInt(), @Min(0)).",
+          "Permettent d'éviter d'exposer directement les entités."
+        ],
+        example: "export class CreateProductDto {\n  @IsString()\n  @MinLength(3)\n  name: string;\n\n  @IsPositive()\n  price: number;\n\n  @IsOptional()\n  @IsInt()\n  stock?: number;\n}",
+        note: "💡 On sépare CreateProductDto (tous champs requis) et UpdateProductDto (tous champs optionnels avec @IsOptional())."
+      },
+      { // Slide 4 - CRUD complet : endpoints et contrôleur
+        type: "code-example",
+        title: "🛠️ 2. Endpoints CRUD (ProductsController)",
+        code: `// products.controller.ts
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { ProductsService } from './products.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+@Controller('products')
+export class ProductsController {
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'seller')
+  create(@Body() createProductDto: CreateProductDto) {
+    return this.productsService.create(createProductDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.productsService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.productsService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'seller')
+  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    return this.productsService.update(+id, updateProductDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  remove(@Param('id') id: string) {
+    return this.productsService.remove(+id);
+  }
+}`,
+        explanation: "✅ GET /products (public), GET /products/:id, POST, PATCH, DELETE protégés par rôles. Les DTOs sont automatiquement validés par ValidationPipe."
+      },
+      { // Slide 5 - Validation avancée et messages personnalisés
+        type: "validation",
+        title: "🔍 3. Validation des DTOs avec class-validator",
+        description: "Voici un exemple enrichi de CreateProductDto avec validations complètes et messages d'erreur personnalisés.",
+        dtoDetails: `import { IsString, IsNumber, IsPositive, MinLength, MaxLength, IsOptional, IsUrl, Min, IsArray } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateProductDto {
+  @ApiProperty({ example: 'Smartphone XYZ' })
+  @IsString({ message: 'Le nom doit être une chaîne' })
+  @MinLength(3, { message: 'Le nom doit contenir au moins 3 caractères' })
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty({ example: 299.99 })
+  @IsNumber()
+  @IsPositive({ message: 'Le prix doit être positif' })
+  price: number;
+
+  @ApiProperty({ example: 50, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  stock?: number;
+
+  @ApiProperty({ example: 'Téléphone dernière génération', required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ example: ['https://image.url/1.jpg'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsUrl({}, { each: true })
+  images?: string[];
+}`,
+        tip: "💡 Pour les mises à jour partielles, UpdateProductDto reprend les mêmes propriétés mais avec @IsOptional() sur chaque champ."
+      },
+      { // Slide 6 - Upload d’images : Multer + Cloudinary
+        type: "upload",
+        title: "📸 4. Upload d'images avec Multer et Cloudinary",
+        steps: [
+          "Installer `multer`, `@types/multer`, `cloudinary`, `nestjs-cloudinary`.",
+          "Configurer Cloudinary avec `CloudinaryModule` (API key, secret).",
+          "Créer un interceptor/controller dédié pour l'upload (POST /upload).",
+          "Stocker l'URL renvoyée dans le champ `images` du produit."
+        ],
+        codeExample: `// upload.controller.ts
+import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from './cloudinary.service';
+
+@Controller('upload')
+export class UploadController {
+  constructor(private cloudinary: CloudinaryService) {}
+
+  @Post('image')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const result = await this.cloudinary.uploadImage(file);
+    return { url: result.secure_url };
+  }
+}
+
+// cloudinary.service.ts (extrait)
+async uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+  return new Promise((resolve, reject) => {
+    const upload = cloudinary.uploader.upload_stream(
+      { folder: 'ecommerce/products' },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    upload.end(file.buffer);
+  });
+}`,
+        noteFinal: "🎯 Une fois l'URL obtenue, l'ajouter au tableau `images` du DTO lors de la création ou mise à jour du produit."
+      },
+      { // Slide 7 - Récapitulatif & bonnes pratiques
+        type: "recap",
+        title: "✅ Récapitulatif & astuces pratiques",
+        items: [
+          "DTOs + ValidationPipe : protection automatique contre les données invalides.",
+          "Séparer CreateProductDto et UpdateProductDto pour des règles différentes.",
+          "Toujours utiliser les guards pour restreindre les modifications (admin/seller).",
+          "Uploader les images en deux étapes : d'abord l'image → récupérer l'URL → créer le produit.",
+          "Utiliser Swagger (@ApiProperty) pour documenter automatiquement les DTOs."
+        ],
+        finalTip: "🧠 Pensez à l'optimisation : resize des images avant upload, compression, et stockage des URLs en base. Pour les requêtes GET publiques, mettez en cache les résultats. Bon code !"
+      }
+    ];
+
+    let currentSlide = 0;
+    const total = slidesData.length;
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/\\n/g, '\n');
+    }
+
+    function renderSlide(index) {
+      const data = slidesData[index];
+      const container = $("#slidesContainer");
+      container.empty();
+
+      let html = `<div class="slide-card bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all">`;
+      html += `<div class="bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-2 border-b border-emerald-100 flex justify-between items-center">
+                  <span class="text-xs font-mono text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">slide ${index+1}/${total}</span>
+                  <span class="text-teal-400 text-xs">CRUD & DTOs</span>
+                </div>`;
+
+      if (data.type === "title") {
+        html += `<div class="p-6 md:p-10 text-center">
+                  <div class="inline-block mb-3 px-4 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-bold">${data.badge}</div>
+                  <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-5">${data.title}</h1>
+                  <p class="text-xl text-gray-600 max-w-2xl mx-auto">${data.subtitle}</p>
+                  <div class="mt-7 text-gray-500 border-t border-gray-200 inline-block pt-3">${data.desc}</div>
+                  <div class="mt-6 flex justify-center"><div class="w-16 h-1 bg-teal-400 rounded-full"></div></div>
+                </div>`;
+      }
+      else if (data.type === "objectifs") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-teal-500 pl-4 mb-6">${data.title}</h2>
+                  <ul class="space-y-4">`;
+        data.items.forEach(item => {
+          html += `<li class="flex items-start gap-3"><span class="inline-flex items-center justify-center bg-green-100 text-green-700 rounded-full w-6 h-6 text-sm mt-0.5">✓</span><span class="text-gray-700 text-lg">${item}</span></li>`;
+        });
+        html += `</ul></div>`;
+      }
+      else if (data.type === "content") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="text-gray-700 leading-relaxed space-y-4 text-base">`;
+        if(data.text) html += `<p>${data.text}</p>`;
+        if(data.list) {
+          html += `<ul class="list-disc pl-6 space-y-2 mt-2">`;
+          data.list.forEach(item => html += `<li>${item}</li>`);
+          html += `</ul>`;
+        }
+        if(data.example) {
+          html += `<div class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm mt-4 overflow-x-auto">${escapeHtml(data.example)}</div>`;
+        }
+        if(data.note) html += `<div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400 mt-4 text-yellow-800">${data.note}</div>`;
+        html += `</div></div>`;
+      }
+      else if (data.type === "code-example") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                    <div class="flex items-center gap-2 bg-gray-800 px-4 py-2 text-gray-300 text-xs font-mono"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="w-3 h-3 rounded-full bg-yellow-500"></span><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="ml-2">TypeScript / NestJS</span></div>
+                    <pre class="text-sm md:text-base text-gray-200 p-5 overflow-x-auto font-mono"><code>${escapeHtml(data.code)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-teal-50 p-4 rounded-xl text-teal-800 border-l-4 border-teal-400">${data.explanation}</div>
+                </div>`;
+      }
+      else if (data.type === "validation") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800">${data.title}</h2>
+                  <p class="text-gray-700 mt-2 mb-4">${data.description}</p>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                    <div class="bg-gray-800 px-4 py-2 text-gray-300 text-xs">create-product.dto.ts</div>
+                    <pre class="text-gray-200 p-5 overflow-x-auto font-mono text-sm"><code>${escapeHtml(data.dtoDetails)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-blue-50 p-3 rounded-lg text-blue-800">${data.tip}</div>
+                </div>`;
+      }
+      else if (data.type === "upload") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800">${data.title}</h2>
+                  <ul class="list-disc pl-6 space-y-1 text-gray-700 mt-3 mb-5">${data.steps.map(s => `<li>${s}</li>`).join('')}</ul>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden">
+                    <div class="bg-gray-800 px-4 py-2 text-gray-300 text-xs">upload.controller.ts + cloudinary.service.ts</div>
+                    <pre class="text-gray-200 p-5 overflow-x-auto font-mono text-sm"><code>${escapeHtml(data.codeExample)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-green-50 p-3 rounded-lg border-l-4 border-green-500">${data.noteFinal}</div>
+                </div>`;
+      }
+      else if (data.type === "recap") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3 mb-5">📌 ${data.title}</h2>
+                  <ul class="space-y-3 mb-6">
+                    ${data.items.map(item => `<li class="flex gap-2 items-start"><span class="text-teal-500 text-xl">▹</span><span class="text-gray-700">${item}</span></li>`).join('')}
+                  </ul>
+                  <div class="bg-gradient-to-r from-teal-50 to-emerald-50 p-5 rounded-2xl border border-teal-200 text-teal-900 font-medium shadow-inner">${data.finalTip}</div>
+                </div>`;
+      }
+
+      html += `</div>`;
+      container.html(html);
+
+      $("#slideCounter").text(`${index+1} / ${total}`);
+      let percent = ((index+1) / total) * 100;
+      $("#progressFill").css("width", `${percent}%`);
+      $("#prevSlide").prop("disabled", index === 0);
+      $("#nextSlide").prop("disabled", index === total-1);
+      if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function next() { if (currentSlide < total-1) { currentSlide++; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+    function prev() { if (currentSlide > 0) { currentSlide--; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+
+    $(document).ready(function() {
+      renderSlide(0);
+      $("#nextSlide").on("click", next);
+      $("#prevSlide").on("click", prev);
+      $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") { next(); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { prev(); e.preventDefault(); }
+      });
+      let touchstartX = 0;
+      $("body").on("touchstart", function(e) { touchstartX = e.originalEvent.touches[0].clientX; });
+      $("body").on("touchend", function(e) {
+        if (!touchstartX) return;
+        let endX = e.originalEvent.changedTouches[0].clientX;
+        let diff = endX - touchstartX;
+        if (Math.abs(diff) > 50) { diff > 0 ? prev() : next(); touchstartX = 0; }
+      });
+    });
+  </script>
+</body>
+</html>

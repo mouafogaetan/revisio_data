@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 20 : Classes abstraites, méthodes abstraites et sealed | C#</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Personnalisations douces pour la lisibilité */
+        body {
+            background: #f4f7fc;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e3a8a !important;
+            color: white !important;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* code personnalisé pour une meilleure lisibilité */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .inline-code {
+            background: #eef2ff;
+            color: #1e3a8a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        h3 {
+            font-weight: 700;
+            font-size: 1.4rem;
+            margin-bottom: 0.75rem;
+            color: #0f172a;
+        }
+        .list-disc-custom {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête avec titre de matière et classe (contexte) -->
+        <div class="text-center mb-6 md:mb-8">
+            <span class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">Développement Web – Initiation C#</span>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">Chap 6 : Héritage & polymorphisme</h1>
+            <p class="text-gray-500 mt-1">Leçon 20 · Classes abstraites, méthodes abstraites & mot-clé <span class="inline-code">sealed</span></p>
+        </div>
+
+        <!-- Conteneur principal des slides (géré par jQuery) -->
+        <div id="slidesWrapper" class="relative">
+            <!-- Slides dynamiques injectés ici -->
+        </div>
+
+        <!-- Navigation + indicateur de progression -->
+        <div class="flex justify-between items-center mt-6 gap-4">
+            <button id="prevSlide" class="nav-btn bg-white border border-gray-300 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm hover:bg-gray-100 disabled:opacity-40">◀ Précédent</button>
+            <div class="flex-1 flex flex-col items-center">
+                <div class="w-full bg-gray-200 rounded-full h-2 max-w-xs">
+                    <div id="progressFill" class="progress-bar bg-blue-600 h-2 rounded-full w-0"></div>
+                </div>
+                <span id="slideCounter" class="text-xs text-gray-500 mt-2">Slide 1 / 1</span>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-blue-700 text-white font-medium py-2 px-5 rounded-full shadow-md hover:bg-blue-800">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la Leçon 20 : Classes abstraites, sealed, méthodes abstraites
+        const slidesData = [
+            {
+                type: "title",
+                title: "🏛️ Classes abstraites & méthodes abstraites",
+                subtitle: "Comprendre l'abstraction et l'immutabilité d'héritage en C#",
+                extra: "Leçon 20 · sealed · abstract · override"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Définir une classe abstraite (<span class='inline-code'>abstract</span>) et ses caractéristiques.",
+                    "Créer des méthodes abstraites sans implémentation et les redéfinir dans les classes filles.",
+                    "Empêcher l'héritage d'une classe avec le mot-clé <span class='inline-code'>sealed</span>.",
+                    "Comprendre les différences entre classe abstraite et interface (aperçu pratique).",
+                    "Savoir quand utiliser l'abstraction dans la modélisation."
+                ]
+            },
+            {
+                type: "content",
+                title: "📘 Qu'est-ce qu'une classe abstraite ?",
+                content: `
+                    <p>Une <strong class="text-blue-800">classe abstraite</strong> est une classe qui ne peut pas être instanciée directement. Elle sert de <span class="italic">modèle de base</span> pour d'autres classes (héritage).</p>
+                    <ul class="list-disc-custom mt-3 space-y-1">
+                        <li>Déclarée avec le mot-clé <span class="inline-code">abstract</span>.</li>
+                        <li>Peut contenir des méthodes <strong>abstraites</strong> (sans corps) et des méthodes <strong>concrètes</strong> (avec implémentation).</li>
+                        <li>Permet de définir un contrat partiel tout en partageant du code commun.</li>
+                    </ul>
+                    <pre><code>// Exemple de classe abstraite
+public abstract class Animal
+{
+    public string Nom { get; set; }
+    
+    // Méthode concrète (implémentée)
+    public void Manger()
+    {
+        Console.WriteLine($"{Nom} mange.");
+    }
+    
+    // Méthode abstraite (sans corps) → obligatoire pour les classes filles
+    public abstract void FaireDuBruit();
+}</code></pre>
+                `
+            },
+            {
+                type: "content",
+                title: "🔧 Méthodes abstraites : concept clé",
+                content: `
+                    <p>Une <span class="inline-code">méthode abstraite</span> est déclarée sans implémentation. Les classes dérivées <strong>doivent</strong> la redéfinir avec <span class="inline-code">override</span> (sauf si elles-mêmes abstraites).</p>
+                    <ul class="list-disc-custom mt-2 space-y-1">
+                        <li>Seule une classe abstraite peut contenir des méthodes abstraites.</li>
+                        <li>Force les classes enfants à fournir un comportement spécifique.</li>
+                        <li>Idéale pour définir des actions communes mais avec des implémentations variées.</li>
+                    </ul>
+                    <pre><code>// Classe concrète héritant d'Animal
+public class Chien : Animal
+{
+    public override void FaireDuBruit()
+    {
+        Console.WriteLine("Wouf wouf !");
+    }
+}
+
+public class Chat : Animal
+{
+    public override void FaireDuBruit()
+    {
+        Console.WriteLine("Miaou !");
+    }
+}</code></pre>
+                    <div class="bg-indigo-50 p-3 rounded-lg mt-2 text-sm">
+                        💡 <strong>À retenir</strong> : Toute classe fille non abstraite doit implémenter toutes les méthodes abstraites du parent.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🚫 Le mot-clé sealed : bloquer l'héritage",
+                content: `
+                    <p>Le mot-clé <span class="inline-code">sealed</span> empêche qu'une classe soit héritée. On l'utilise pour des raisons de sécurité ou de conception : <span class="font-mono">"cette classe est définitive"</span>.</p>
+                    <pre><code>public sealed class UtilitaireCalcul
+{
+    public static double Addition(double a, double b) => a + b;
+}
+
+// Impossible d'hériter de UtilitaireCalcul
+// public class MonUtilitaire : UtilitaireCalcul { } // ERREUR de compilation</code></pre>
+                    <ul class="list-disc-custom mt-3">
+                        <li>On peut aussi sceller une méthode <span class="inline-code">override</span> avec <span class="inline-code">sealed override</span> pour empêcher une redéfinition plus bas dans la hiérarchie.</li>
+                        <li>Les classes <span class="inline-code">static</span> sont implicitement <strong>sealed</strong>.</li>
+                    </ul>
+                    <pre><code>public class Parent { public virtual void Afficher() => Console.WriteLine("Parent"); }
+public class Enfant : Parent { public sealed override void Afficher() => Console.WriteLine("Enfant scellé"); }
+// public class PetitEnfant : Enfant { public override void Afficher(){} } // erreur : méthode sealed</code></pre>
+                `
+            },
+            {
+                type: "content",
+                title: "⚖️ Classe abstraite vs Interface (vue d'ensemble)",
+                content: `
+                    <p>Bien que les interfaces (vue dans leçon 21) soient différentes, voici un tableau simple pour mieux situer <strong>abstract</strong> :</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
+                            <thead class="bg-gray-100"><tr><th class="border px-4 py-2">Critère</th><th class="border px-4 py-2">Classe abstraite</th><th class="border px-4 py-2">Interface (C# 8+)</th></tr></thead>
+                            <tbody>
+                                <tr><td class="border px-4 py-2">Instanciation</td><td class="border px-4 py-2">Non</td><td class="border px-4 py-2">Non</td></tr>
+                                <tr><td class="border px-4 py-2">Champs / états</td><td class="border px-4 py-2">✅ Oui</td><td class="border px-4 py-2">❌ Non (sauf propriétés abstraites)</td></tr>
+                                <tr><td class="border px-4 py-2">Implémentation par défaut</td><td class="border px-4 py-2">✅ Méthodes concrètes</td><td class="border px-4 py-2">✅ (depuis C# 8, méthodes par défaut)</td></tr>
+                                <tr><td class="border px-4 py-2">Héritage multiple</td><td class="border px-4 py-2">Non (une seule classe)</td><td class="border px-4 py-2">Oui (plusieurs interfaces)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-3">🎯 <strong>Utilisez abstract</strong> pour partager du code commun et imposer un comportement. <strong>Sealed</strong> quand vous voulez verrouiller la dérivation.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🧪 Exemple pratique complet",
+                content: `
+                    <p>Modélisons une hiérarchie de <span class="inline-code">FormeGéométrique</span> abstraite avec méthode <span class="inline-code">CalculerAire()</span> abstraite. Une classe <span class="inline-code">Cercle</span> et <span class="inline-code">Rectangle</span> héritent. On ajoute une classe <span class="inline-code">UtilitaireMath</span> scellée.</p>
+                    <pre><code>public abstract class FormeGeometrique
+{
+    public abstract double CalculerAire();
+    public void AfficherType() => Console.WriteLine($"Je suis une forme : {GetType().Name}");
+}
+
+public class Cercle : FormeGeometrique
+{
+    public double Rayon { get; set; }
+    public override double CalculerAire() => Math.PI * Rayon * Rayon;
+}
+
+public class Rectangle : FormeGeometrique
+{
+    public double Longueur { get; set; }
+    public double Largeur { get; set; }
+    public override double CalculerAire() => Longueur * Largeur;
+}
+
+sealed class UtilitaireMaths
+{
+    public static double Arrondi(double valeur) => Math.Round(valeur, 2);
+}
+
+// Utilisation
+Cercle c = new Cercle { Rayon = 5 };
+Console.WriteLine($"Aire du cercle : {UtilitaireMaths.Arrondi(c.CalculerAire())}");</code></pre>
+                    <div class="bg-green-50 p-3 rounded-lg mt-2 border-l-4 border-green-500">
+                        ✅ <strong>Résultat :</strong> Le design abstrait garantit que chaque forme fournit sa formule d'aire, et sealed protège la classe utilitaire.
+                    </div>
+                `
+            },
+            {
+                type: "recap",
+                title: "📌 Récapitulatif & bonnes pratiques",
+                keyPoints: [
+                    "Classe abstraite : pas d'instanciation, peut contenir des méthodes abstraites et concrètes.",
+                    "Méthode abstraite : forcée d'être redéfinie par override dans les classes filles concrètes.",
+                    "Sealed : une classe sealed ne peut pas être héritée ; une méthode sealed override ne peut pas être surchargée davantage.",
+                    "Utiliser l'abstraction pour exprimer 'est une sorte de' avec comportement commun.",
+                    "Éviter sealed sans raison ; privilégier abstract lorsque la hiérarchie est ouverte."
+                ]
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide en fonction de son type
+        function renderSlide(slide, index) {
+            const { type, title, subtitle, extra, objectives, content, keyPoints } = slide;
+            if (type === "title") {
+                return `
+                    <div class="slide p-6 md:p-10 text-center">
+                        <div class="mb-4 text-5xl">📖</div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">${title}</h2>
+                        <p class="text-lg text-gray-600 mt-3">${subtitle || ""}</p>
+                        <div class="mt-6 pt-4 border-t border-gray-200 text-blue-600 font-medium">${extra || "Chapitre 6 · Héritage & Polymorphisme"}</div>
+                        <div class="mt-8 text-sm text-gray-400">Slide ${index+1} / ${totalSlides}</div>
+                    </div>
+                `;
+            } 
+            else if (type === "objectifs") {
+                let objectivesHtml = `<ul class="mt-4 space-y-3">`;
+                objectives.forEach(obj => {
+                    objectivesHtml += `<li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <span class="text-gray-700">${obj}</span></li>`;
+                });
+                objectivesHtml += `</ul>`;
+                return `
+                    <div class="slide p-6 md:p-8">
+                        <h3 class="text-2xl font-bold text-blue-800 border-l-4 border-blue-600 pl-3">${title}</h3>
+                        ${objectivesHtml}
+                        <div class="mt-6 bg-gray-50 p-4 rounded-xl text-sm text-gray-500 italic">🎯 Ces objectifs vous permettront de maîtriser l'abstraction et le verrouillage d'héritage.</div>
+                    </div>
+                `;
+            }
+            else if (type === "content") {
+                return `
+                    <div class="slide p-6 md:p-8">
+                        <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-2">${title}</h3>
+                        <div class="mt-3 text-gray-700 leading-relaxed">
+                            ${content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (type === "recap") {
+                let listItems = "";
+                keyPoints.forEach(pt => {
+                    listItems += `<li class="flex items-start gap-2 mb-2"><span class="text-indigo-500 font-bold">●</span> <span>${pt}</span></li>`;
+                });
+                return `
+                    <div class="slide p-6 md:p-8">
+                        <h3 class="text-2xl font-bold text-indigo-800">${title}</h3>
+                        <ul class="mt-4 space-y-2 text-gray-700">
+                            ${listItems}
+                        </ul>
+                        <div class="mt-6 p-3 bg-amber-50 rounded-lg text-center text-amber-800 text-sm">
+                            💪 N'oubliez pas : Une classe abstraite est un plan, sealed est un verrou !
+                        </div>
+                    </div>
+                `;
+            }
+            else {
+                return `<div class="slide p-6">Contenu par défaut</div>`;
+            }
+        }
+
+        // Mettre à jour l'affichage des slides, la progression, les boutons
+        function updateSlides() {
+            const wrapper = $("#slidesWrapper");
+            wrapper.empty();
+            const currentSlideData = slidesData[currentSlide];
+            const slideHtml = renderSlide(currentSlideData, currentSlide);
+            wrapper.html(`<div class="slide-container">${slideHtml}</div>`);
+            
+            // Mise à jour compteur et barre progression
+            $("#slideCounter").text(`Slide ${currentSlide+1} / ${totalSlides}`);
+            const progressPercent = ((currentSlide) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            
+            // Gestion des états des boutons
+            $("#prevSlide").prop("disabled", currentSlide === 0);
+            $("#nextSlide").prop("disabled", currentSlide === totalSlides - 1);
+            
+            // MathJax re-rendu si des formules (optionnel, mais présent pour compatibilité)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlides();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        }
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlides();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        }
+
+        $(document).ready(function() {
+            updateSlides();
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+            // Gestion clavier : flèches droite/gauche
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowRight") {
+                    nextSlide();
+                } else if (e.key === "ArrowLeft") {
+                    prevSlide();
+                }
+            });
+            
+            // Ajout d'un petit effet tactile pour mobile
+            let touchStartX = 0;
+            $("#slidesWrapper").on("touchstart", function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $("#slidesWrapper").on("touchend", function(e) {
+                if (!touchStartX) return;
+                let touchEndX = e.originalEvent.changedTouches[0].clientX;
+                let diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+    <!-- Note de bas de page pédagogique -->
+    <footer class="text-center text-xs text-gray-400 py-6 border-t border-gray-200 mt-4">
+        Cours d'initiation C# - Développement Web | Utilisation pédagogique libre | Inspiré du programme officiel
+    </footer>
+</body>
+</html>

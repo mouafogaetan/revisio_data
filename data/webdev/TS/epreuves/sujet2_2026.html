@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Évaluation Séquence 2 - TypeScript : Typage avancé, fonctions & POO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Chart.js pour visualisation performance du typage -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- MathJax (utile pour certaines notations) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .question-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .option {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.7rem 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        .option.selected {
+            background-color: #eef2ff;
+            border-color: #4f46e5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .option:hover:not(.disabled-opt) {
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+        }
+        input, textarea {
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.2);
+        }
+        .feedback-correct {
+            background-color: #dcfce7;
+            border-left: 4px solid #16a34a;
+        }
+        .feedback-wrong {
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.8rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 font-sans antialiased pb-12">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-8">
+    <!-- En-tête -->
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-indigo-100 mb-6">
+        <div class="bg-indigo-800 px-6 py-5">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <div>
+                    <span class="text-indigo-200 text-sm font-semibold">📘 INITIATION AU TYPESCRIPT</span>
+                    <h1 class="text-white text-2xl md:text-3xl font-bold mt-1">Évaluation – Séquence 2</h1>
+                    <p class="text-indigo-100 text-sm mt-1">Chapitres 2 & 3 : Système de typage, fonctions avancées, programmation orientée objet</p>
+                </div>
+                <div class="bg-indigo-900 rounded-full px-4 py-2 text-white text-sm font-mono">
+                    ⏱️ 1h30 | 📊 Coefficient 2
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-3 bg-indigo-50 border-b flex flex-wrap justify-between text-indigo-800 text-sm">
+            <span>👨‍🏫 Enseignant : M. NDE Thomas (Cameroun)</span>
+            <span id="totalPointsSpan" class="font-bold">0</span><span> / 70 points</span>
+        </div>
+    </div>
+
+    <!-- Consignes -->
+    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl mb-8 text-amber-800 text-sm">
+        <p class="font-bold">📌 Consignes :</p>
+        <ul class="list-disc ml-5 mt-1 space-y-1">
+            <li>Répondez aux QCM en cliquant sur la bonne réponse (une seule).</li>
+            <li>Pour les exercices de code, écrivez la solution TypeScript dans les zones prévues.</li>
+            <li>Certaines questions demandent de compléter des extraits avec le typage correct.</li>
+            <li>À la fin, cliquez sur "Soumettre l'épreuve" pour voir votre score et les corrections.</li>
+            <li>Respectez les règles d'immutabilité, les types union, les classes et interfaces.</li>
+        </ul>
+    </div>
+
+    <div id="questionsContainer" class="space-y-6"></div>
+
+    <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <button id="submitExam" class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 px-8 rounded-xl shadow-md transition transform hover:scale-105 w-full sm:w-auto">
+            ✅ Soumettre l’épreuve
+        </button>
+        <button id="resetExam" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-6 rounded-xl transition w-full sm:w-auto">
+            🔄 Réinitialiser mes réponses
+        </button>
+    </div>
+
+    <div id="resultZone" class="mt-8 hidden p-5 rounded-xl bg-white border shadow-md"></div>
+
+    <!-- Graphique pédagogique : avantages du typage statique (bugs évités) -->
+    <div class="mt-12 bg-white rounded-xl shadow-md p-5 border border-gray-200">
+        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><span class="text-indigo-600">📊</span> Impact du typage statique (TypeScript vs JavaScript)</h3>
+        <p class="text-sm text-gray-500 mb-3">Pourcentage de bugs potentiels détectés à la compilation dans une base de 1000 lignes (étude simulée)</p>
+        <canvas id="statsChart" width="400" height="200" style="max-height: 250px; width:100%"></canvas>
+        <p class="text-xs text-center text-gray-400 mt-3">TypeScript permet d'identifier les erreurs de type avant l'exécution, améliorant la robustesse.</p>
+    </div>
+</div>
+
+<script>
+$(document).ready(function(){
+    // ---------- DONNÉES DES QUESTIONS (SÉQUENCE 2) ----------
+    const questionsData = [
+        { // Q1: types primitifs
+            id: "q1", type: "qcm", points: 5,
+            text: "❓ 1. Lequel de ces types est correct pour une variable pouvant être `string` ou `number` ?",
+            options: ["string & number", "string | number", "string || number", "any"],
+            correct: 1, userAnswer: null
+        },
+        { // Q2: enums
+            id: "q2", type: "qcm", points: 5,
+            text: "❓ 2. Que produit l'enum `enum Status { EnAttente, Valide, Rejete }` ?",
+            options: ["0,1,2 par défaut", "true,false,undefined", "EnAttente:0, Valide:1", "une erreur de compilation"],
+            correct: 0, userAnswer: null
+        },
+        { // Q3: tuple
+            id: "q3", type: "text", points: 5,
+            text: "📝 3. Écrivez le type d'un tuple contenant un `string` (nom) et un `number` (âge).",
+            correctAnswer: "[string, number]", userAnswer: "", placeholder: "ex: [string, number]"
+        },
+        { // Q4: interface simple
+            id: "q4", type: "code", points: 6,
+            text: "📌 4. Complétez l'interface `Personne` avec propriétés `nom: string` et `age: number` (obligatoires).",
+            userAnswer: "", placeholder: "interface Personne { nom: string; age: number; }",
+            correctKeywords: ["interface Personne", "nom: string", "age: number"]
+        },
+        { // Q5: optional property
+            id: "q5", type: "text", points: 4,
+            text: "🔧 5. Dans une interface, comment déclarer une propriété optionnelle `email` de type `string` ?",
+            correctAnswer: "email?: string", userAnswer: "", placeholder: "email?: string"
+        },
+        { // Q6: fonction typée
+            id: "q6", type: "code", points: 6,
+            text: "⚙️ 6. Écrivez la signature d'une fonction `addition` qui prend deux `number` et retourne un `number`.",
+            userAnswer: "", placeholder: "(a: number, b: number) => number",
+            correctKeywords: ["number", "=> number"]
+        },
+        { // Q7: union avec narrowing
+            id: "q7", type: "qcm", points: 5,
+            text: "❓ 7. Comment restreindre le type d'une variable `value: string | number` pour utiliser une méthode `.toUpperCase()` ?",
+            options: ["typeof value === 'string'", "value as string", "value.toUpperCase() direct", "value is string"],
+            correct: 0, userAnswer: null
+        },
+        { // Q8: classe & constructeur
+            id: "q8", type: "code", points: 7,
+            text: "🏛️ 8. Définissez une classe `Voiture` avec propriété `marque: string` (via constructeur public).",
+            userAnswer: "", placeholder: "class Voiture { constructor(public marque: string) {} }",
+            correctKeywords: ["class Voiture", "constructor", "public marque"]
+        },
+        { // Q9: héritage extends
+            id: "q9", type: "text", points: 5,
+            text: "🐾 9. Quel mot-clé permet d'appeler le constructeur de la classe parente ?",
+            correctAnswer: "super", userAnswer: "", placeholder: "super"
+        },
+        { // Q10: readonly
+            id: "q10", type: "qcm", points: 4,
+            text: "🔒 10. Le mot-clé `readonly` sur une propriété de classe permet :",
+            options: ["la modifier après l'instanciation", "ne pas la modifier après initialisation", "la rendre privée", "la rendre statique"],
+            correct: 1, userAnswer: null
+        },
+        { // Q11: paramètre optionnel
+            id: "q11", type: "text", points: 5,
+            text: "🎯 11. Écrivez le type d'un paramètre optionnel `titre` (string) dans une fonction.",
+            correctAnswer: "titre?: string", userAnswer: "", placeholder: "titre?: string"
+        },
+        { // Q12: générique simple
+            id: "q12", type: "code", points: 6,
+            text: "🧩 12. Écrivez une fonction générique `identite<T>` qui prend un argument `value: T` et retourne `T`.",
+            userAnswer: "", placeholder: "function identite<T>(value: T): T { return value; }",
+            correctKeywords: ["function identite<T>", ": T", "return value"]
+        },
+        { // Q13: type alias
+            id: "q13", type: "text", points: 4,
+            text: "📦 13. Créez un type alias `ID` représentant `string | number`.",
+            correctAnswer: "type ID = string | number;", userAnswer: "", placeholder: "type ID = string | number;"
+        },
+        { // Q14: abstract class
+            id: "q14", type: "qcm", points: 3,
+            text: "❓ 14. Une classe abstraite en TypeScript :",
+            options: ["peut être instanciée directement", "peut contenir des méthodes abstraites", "ne peut pas avoir de constructeur", "est équivalente à une interface"],
+            correct: 1, userAnswer: null
+        }
+    ];
+
+    let totalMax = questionsData.reduce((acc,q)=>acc+q.points,0);
+    function loadStorage() {
+        const saved = localStorage.getItem("ts_seq2_responses");
+        if(saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                for(let q of questionsData) if(parsed[q.id] !== undefined) q.userAnswer = parsed[q.id];
+            } catch(e) {}
+        }
+    }
+    function saveResponses() {
+        const toStore = {};
+        questionsData.forEach(q => { toStore[q.id] = q.userAnswer; });
+        localStorage.setItem("ts_seq2_responses", JSON.stringify(toStore));
+    }
+
+    function renderQuestions() {
+        const container = $("#questionsContainer");
+        container.empty();
+        questionsData.forEach((q, idx) => {
+            let cardHtml = `<div class="question-card bg-white rounded-xl shadow-md p-5 border border-gray-200 mb-5" data-id="${q.id}">
+                <div class="flex justify-between items-start mb-3 flex-wrap gap-2">
+                    <h3 class="font-bold text-indigo-800 text-lg">Question ${idx+1}</h3>
+                    <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">${q.points} pts</span>
+                </div>
+                <div class="text-gray-800 mb-4 leading-relaxed">${q.text}</div>`;
+            if(q.type === "qcm") {
+                cardHtml += `<div class="qcm-options mt-2" data-qid="${q.id}">`;
+                q.options.forEach((opt, optIdx) => {
+                    let isSelected = (q.userAnswer !== null && q.userAnswer === optIdx);
+                    let selectedClass = isSelected ? "selected" : "";
+                    cardHtml += `<div class="option ${selectedClass}" data-opt-index="${optIdx}"><span class="font-semibold mr-2">${String.fromCharCode(65+optIdx)}.</span> ${opt}</div>`;
+                });
+                cardHtml += `</div><input type="hidden" class="qcm-hidden" value="${q.userAnswer !== null ? q.userAnswer : ''}">`;
+            } else if(q.type === "text") {
+                cardHtml += `<textarea class="text-answer mt-2" rows="2" placeholder="${q.placeholder || 'Votre réponse ici'}">${q.userAnswer || ''}</textarea>`;
+            } else if(q.type === "code") {
+                cardHtml += `<textarea class="code-answer font-mono text-sm mt-2" rows="4" placeholder="${q.placeholder || 'Écrivez le code TypeScript'}">${q.userAnswer || ''}</textarea>`;
+            }
+            cardHtml += `</div>`;
+            container.append(cardHtml);
+        });
+        $(".option").on("click", function() {
+            const parentCard = $(this).closest(".question-card");
+            const qid = parentCard.data("id");
+            const selectedIdx = parseInt($(this).data("opt-index"));
+            const question = questionsData.find(q => q.id === qid);
+            if(question) {
+                question.userAnswer = selectedIdx;
+                saveResponses();
+                parentCard.find(".option").removeClass("selected");
+                $(this).addClass("selected");
+                parentCard.find(".qcm-hidden").val(selectedIdx);
+            }
+        });
+        $(".text-answer, .code-answer").on("input", function() {
+            const parentCard = $(this).closest(".question-card");
+            const qid = parentCard.data("id");
+            const question = questionsData.find(q => q.id === qid);
+            if(question) {
+                question.userAnswer = $(this).val();
+                saveResponses();
+            }
+        });
+    }
+
+    function evaluateExam() {
+        let score = 0;
+        const details = [];
+        for(let q of questionsData) {
+            let earned = 0, isCorrect = false;
+            if(q.type === "qcm") {
+                if(q.userAnswer !== null && q.userAnswer === q.correct) { earned = q.points; isCorrect = true; }
+            } 
+            else if(q.type === "text") {
+                let userResp = (q.userAnswer || "").trim().toLowerCase().replace(/\s+/g, ' ');
+                let expected = q.correctAnswer.toLowerCase().trim();
+                if(userResp === expected) { earned = q.points; isCorrect = true; }
+                else if(q.id === "q3" && (userResp === "[string,number]" || userResp === "[string, number]")) { earned = q.points; isCorrect = true; }
+                else if(q.id === "q5" && (userResp === "email?: string" || userResp === "email? : string")) { earned = q.points; isCorrect = true; }
+                else if(q.id === "q9" && (userResp === "super")) { earned = q.points; isCorrect = true; }
+                else if(q.id === "q11" && (userResp === "titre?: string" || userResp === "titre? : string")) { earned = q.points; isCorrect = true; }
+                else if(q.id === "q13" && (userResp.includes("type id = string | number") || userResp === "type id = string|number;")) { earned = q.points; isCorrect = true; }
+            }
+            else if(q.type === "code") {
+                let code = (q.userAnswer || "").toLowerCase();
+                if(q.id === "q4") {
+                    if(code.includes("interface personne") && code.includes("nom: string") && code.includes("age: number")) earned = q.points;
+                }
+                else if(q.id === "q6") {
+                    if(code.includes("number") && code.includes("=> number")) earned = q.points;
+                }
+                else if(q.id === "q8") {
+                    if(code.includes("class voiture") && code.includes("constructor") && code.includes("public marque")) earned = q.points;
+                }
+                else if(q.id === "q12") {
+                    if(code.includes("function identite<t>") && code.includes(": t") && code.includes("return value")) earned = q.points;
+                } else {
+                    if(q.correctKeywords && q.correctKeywords.every(kw => code.includes(kw.toLowerCase()))) earned = q.points;
+                }
+            }
+            score += earned;
+            details.push({ id: q.id, correct: isCorrect, earned, max: q.points, expected: q.correctAnswer || q.options?.[q.correct] });
+        }
+        return { score, details };
+    }
+
+    function displayResult() {
+        const { score, details } = evaluateExam();
+        const percent = Math.round((score / totalMax) * 100);
+        let mention = "";
+        if(percent >= 80) mention = "🌟 Excellent ! Solide compréhension du typage TypeScript et POO.";
+        else if(percent >= 60) mention = "👍 Bien, mais revoyez les génériques et interfaces.";
+        else if(percent >= 40) mention = "📘 Des lacunes sur les unions / classes abstraites. Relisez les chapitres 2 et 3.";
+        else mention = "📚 Reprenez les fondamentaux : types, fonctions, classes abstraites.";
+
+        let html = `<h2 class="text-xl font-bold mb-3">📝 Résultat Séquence 2</h2>
+                    <p class="text-2xl font-bold">${score} / ${totalMax} points (${percent}%)</p>
+                    <div class="mt-2 p-2 rounded-lg ${percent>=60 ? 'bg-green-100' : 'bg-yellow-100'}">${mention}</div>
+                    <div class="mt-5 max-h-96 overflow-y-auto border-t pt-3 text-sm">`;
+        for(let i=0; i<questionsData.length; i++) {
+            const d = details[i];
+            const icon = d.correct ? "✅" : "❌";
+            const bg = d.correct ? "feedback-correct" : "feedback-wrong";
+            html += `<div class="p-2 my-2 rounded ${bg}">
+                        <div><strong>Q${i+1}:</strong> ${icon} ${d.earned}/${d.max} pts</div>
+                        ${!d.correct ? `<div class="text-xs text-gray-700">🔍 Attendu : ${d.expected || 'voir solution type'}</div>` : ''}
+                    </div>`;
+        }
+        html += `</div><button id="closeResultBtn" class="mt-4 bg-indigo-100 px-4 py-2 rounded-lg">Fermer</button>`;
+        $("#resultZone").html(html).removeClass("hidden");
+        $("#closeResultBtn").on("click", () => $("#resultZone").addClass("hidden"));
+        $('html, body').animate({ scrollTop: $("#resultZone").offset().top - 20 }, 300);
+        $("#totalPointsSpan").text(score);
+    }
+
+    function resetExam() {
+        if(confirm("⚠️ Réinitialiser toutes les réponses ? Les données seront effacées.")) {
+            localStorage.removeItem("ts_seq2_responses");
+            questionsData.forEach(q => { q.userAnswer = (q.type === "qcm") ? null : ""; });
+            renderQuestions();
+            $("#resultZone").addClass("hidden");
+            $("#totalPointsSpan").text("0");
+            alert("Réponses réinitialisées.");
+        }
+    }
+
+    function updateTotal() {
+        const { score } = evaluateExam();
+        $("#totalPointsSpan").text(score);
+    }
+
+    // Chart.js (graphique comparatif bugs)
+    function initChart() {
+        const ctx = document.getElementById('statsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['JavaScript (sans typage)', 'TypeScript (typage statique)'],
+                datasets: [{
+                    label: 'Bugs détectés avant exécution (%)',
+                    data: [23, 78],
+                    backgroundColor: ['#ef4444', '#3b82f6'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    }
+
+    loadStorage();
+    renderQuestions();
+    initChart();
+    setInterval(updateTotal, 800);
+    $("#submitExam").on("click", () => { displayResult(); updateTotal(); });
+    $("#resetExam").on("click", resetExam);
+    updateTotal();
+});
+</script>
+</body>
+</html>

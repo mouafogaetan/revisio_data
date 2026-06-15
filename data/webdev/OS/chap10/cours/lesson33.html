@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Simulateur d'ordonnancement CPU | Cours OS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Polices & personnalisation légère -->
+    <style>
+        /* Transition douce entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+        }
+        /* Personnalisation du défilement pour la simulation */
+        .simu-scroll {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        /* Style des petits écrans */
+        @media (max-width: 640px) {
+            .simu-card {
+                padding: 0.75rem;
+            }
+            .btn-nav {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+        /* On conserve une lisibilité maximale */
+        body {
+            background: #f4f7fc;
+        }
+        .card-bg {
+            background: #ffffffdd;
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-3 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active" data-slide="0">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-10 md:py-16 text-white text-center">
+                        <span class="inline-block bg-white/20 rounded-full px-4 py-1 text-sm font-semibold mb-4">Initiation aux Systèmes d'exploitation</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight">Implémenter un simulateur d'ordonnancement</h1>
+                        <div class="w-24 h-1 bg-amber-400 mx-auto my-6 rounded-full"></div>
+                        <p class="text-xl md:text-2xl font-light">Round Robin, SJF, FIFO – Comprendre et comparer les algorithmes</p>
+                        <p class="mt-8 text-indigo-100">👨‍🏫 Classe : Développement Web | Matière : OS</p>
+                    </div>
+                    <div class="p-6 text-center text-gray-600">
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full transition shadow-md">📘 Commencer la leçon →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide slide-hidden" data-slide="1">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-50 border-b border-amber-200 px-6 py-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-amber-800">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8 space-y-5">
+                        <div class="flex items-start gap-4">
+                            <span class="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center font-bold">1</span>
+                            <p class="text-gray-700 text-lg">Implémenter un <strong class="font-semibold">simulateur d'ordonnancement</strong> (Round Robin, SJF non préemptif, FIFO).</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center font-bold">2</span>
+                            <p class="text-gray-700 text-lg">Calculer les <strong class="font-semibold">temps d'attente et de réponse</strong> pour chaque processus.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <span class="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center font-bold">3</span>
+                            <p class="text-gray-700 text-lg">Comparer graphiquement les performances des algorithmes (diagrammes de Gantt).</p>
+                        </div>
+                        <div class="mt-6 bg-indigo-50 p-4 rounded-xl text-indigo-800 italic">
+                            💡 À la fin de ce cours, vous saurez analyser quel algorithme minimiser les temps d'attente selon la charge système.
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-6 border-t border-gray-100 bg-gray-50">
+                        <button class="prev-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-lg transition">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-lg transition">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : INTRODUCTION THÉORIQUE + FORMULES -->
+            <div class="slide slide-hidden" data-slide="2">
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-5">🧠 Rappels : algorithmes d'ordonnancement</h2>
+                    <div class="grid md:grid-cols-3 gap-5 mb-8">
+                        <div class="bg-blue-50 p-4 rounded-xl">
+                            <h3 class="font-bold text-blue-800 text-lg">FIFO (FCFS)</h3>
+                            <p class="text-sm mt-1">Premier arrivé, premier servi. Non préemptif, simple mais effet «convoyeur».</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl">
+                            <h3 class="font-bold text-green-800 text-lg">SJF (non préemptif)</h3>
+                            <p class="text-sm mt-1">Exécute le processus avec le plus petit temps d'exécution (burst). Optimise le temps d'attente moyen.</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-xl">
+                            <h3 class="font-bold text-purple-800 text-lg">Round Robin (RR)</h3>
+                            <p class="text-sm mt-1">Chaque processus reçoit un quantum de temps (ex: 2ms). Équitable, temps de réponse court.</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg">
+                        <p class="font-semibold">📐 Formules importantes :</p>
+                        <ul class="list-disc pl-6 mt-2 space-y-1 text-gray-700">
+                            <li><strong>Temps de réponse (turnaround)</strong> = \( T_{\text{fin}} - T_{\text{arrivée}} \)</li>
+                            <li><strong>Temps d'attente</strong> = Temps de réponse - Burst (temps d'exécution) </li>
+                            <li><strong>Temps d'attente moyen</strong> = \( \frac{\sum \text{attente}}{n} \)</li>
+                        </ul>
+                    </div>
+                    <div class="flex justify-between mt-8 pt-4 border-t">
+                        <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-lg">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : SIMULATEUR INTERACTIF (coeur de la leçon) -->
+            <div class="slide slide-hidden" data-slide="3">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-indigo-800 to-indigo-900 px-5 py-4 text-white">
+                        <h2 class="text-xl md:text-2xl font-bold">⚙️ Simulateur d'ordonnancement CPU</h2>
+                        <p class="text-indigo-200 text-sm">Entrez les processus et comparez FIFO, SJF et Round Robin (quantum = 2ms)</p>
+                    </div>
+                    <div class="p-5 md:p-6">
+                        <!-- Zone de saisie des processus -->
+                        <div class="bg-slate-50 p-4 rounded-xl mb-6">
+                            <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+                                <div>
+                                    <label class="font-medium text-gray-700">Processus (nom, arrivée, burst) :</label>
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        <input type="text" id="proc-name" placeholder="P0" class="border rounded-lg px-3 py-1 w-20 text-center">
+                                        <input type="number" id="proc-arrival" placeholder="Arrivée" value="0" class="border rounded-lg px-3 py-1 w-24">
+                                        <input type="number" id="proc-burst" placeholder="Burst" value="4" class="border rounded-lg px-3 py-1 w-24">
+                                        <button id="add-process" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg transition">➕ Ajouter</button>
+                                    </div>
+                                </div>
+                                <button id="reset-processes" class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-1 rounded-lg">🗑️ Réinitialiser</button>
+                            </div>
+                            <div id="process-list" class="flex flex-wrap gap-2 mt-2 text-sm">
+                                <!-- Liste dynamique -->
+                            </div>
+                            <div class="text-xs text-gray-500 mt-2">💡 Exemple : P1 (arrivée 0, burst 5) , P2 (arrivée 1, burst 3) ... cliquez sur Simuler</div>
+                        </div>
+                        
+                        <!-- Boutons simulation -->
+                        <div class="flex flex-wrap gap-3 mb-6">
+                            <button id="sim-fcfs" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold shadow">▶️ Simuler FIFO (FCFS)</button>
+                            <button id="sim-sjf" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-semibold shadow">⏱️ Simuler SJF (non préemptif)</button>
+                            <button id="sim-rr" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold shadow">🔄 Simuler Round Robin (q=2)</button>
+                        </div>
+
+                        <!-- Résultats simulation + diagramme Gantt textuel -->
+                        <div id="sim-results" class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                            <div class="text-gray-500 italic text-center">Les résultats des simulations apparaîtront ici 📊</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-100 border-t">
+                        <button class="prev-btn bg-gray-400 hover:bg-gray-500 text-white px-5 py-2 rounded-lg">← Précédent</button>
+                        <button class="next-btn bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : COMPARAISON GRAPHIQUE ET CONCLUSION -->
+            <div class="slide slide-hidden" data-slide="4">
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-indigo-800">📈 Comparaison des algorithmes & interprétation</h2>
+                    <div class="mt-4 space-y-4">
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-yellow-800">✅ Observations typiques :</h3>
+                            <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-700">
+                                <li><strong>SJF</strong> donne souvent le <span class="font-semibold">temps d'attente moyen minimal</span>, idéal pour lots batch.</li>
+                                <li><strong>Round Robin</strong> améliore la réactivité (temps de réponse court) mais peut augmenter l'attente moyenne.</li>
+                                <li><strong>FIFO</strong> peut provoquer l'effet «convoyeur» si un long processus bloque les courts.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-indigo-50 p-5 rounded-xl">
+                            <p class="font-bold text-indigo-900">✏️ Exercice pratique :</p>
+                            <p class="text-gray-800">Avec le simulateur, testez l'ensemble : Processus A (arrivée 0, burst 6), B (arrivée 1, burst 2), C (arrivée 2, burst 8). Calculez temps d'attente moyen pour chaque algo. Comparez.</p>
+                            <div class="mt-3 text-sm text-gray-600">Le simulateur affiche chaque diagramme de Gantt, les temps d'attente individuels et moyenne.</div>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-between">
+                        <button class="prev-btn bg-gray-300 hover:bg-gray-400 px-5 py-2 rounded-lg">← Précédent</button>
+                        <button id="restart-slide" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg">🏁 Revoir le titre</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const totalSlides = 5;  // 0 à 4
+            let processes = [];  // stockage {name, arrival, burst}
+
+            // Mise à jour de l'affichage des processus
+            function updateProcessListUI() {
+                const container = $('#process-list');
+                if (processes.length === 0) {
+                    container.html('<span class="text-gray-400 text-sm">Aucun processus. Ajoutez-en pour simuler.</span>');
+                } else {
+                    let html = '';
+                    processes.forEach((p, idx) => {
+                        html += `<div class="bg-gray-200 rounded-full px-3 py-1 flex items-center gap-2 shadow-sm">
+                                    <span class="font-mono font-bold">${escapeHtml(p.name)}</span>
+                                    <span class="text-xs">A:${p.arrival}</span>
+                                    <span class="text-xs">B:${p.burst}</span>
+                                    <button class="remove-proc text-red-600 hover:text-red-800 font-bold text-lg leading-5" data-index="${idx}">×</button>
+                                </div>`;
+                    });
+                    container.html(html);
+                    $('.remove-proc').on('click', function() {
+                        const idx = $(this).data('index');
+                        processes.splice(idx, 1);
+                        updateProcessListUI();
+                        clearResults();
+                    });
+                }
+            }
+
+            function clearResults() {
+                $('#sim-results').html('<div class="text-gray-500 italic text-center">Les résultats des simulations apparaîtront ici 📊</div>');
+            }
+
+            function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+            // Ajouter processus
+            $('#add-process').on('click', function() {
+                let name = $('#proc-name').val().trim();
+                if(name === "") name = `P${processes.length}`;
+                let arrival = parseInt($('#proc-arrival').val());
+                let burst = parseInt($('#proc-burst').val());
+                if(isNaN(arrival)) arrival = 0;
+                if(isNaN(burst) || burst <= 0) burst = 1;
+                processes.push({ name: name, arrival: arrival, burst: burst });
+                updateProcessListUI();
+                clearResults();
+                $('#proc-name').val('');
+                $('#proc-arrival').val(0);
+                $('#proc-burst').val(4);
+            });
+            $('#reset-processes').on('click', function() {
+                processes = [];
+                updateProcessListUI();
+                clearResults();
+            });
+
+            // Simulation FIFO (FCFS)
+            function simulateFCFS() {
+                if(processes.length === 0) { alert("Veuillez ajouter au moins un processus."); return; }
+                let procs = processes.map(p => ({ ...p, remaining: p.burst, arrival: p.arrival, name: p.name, burst: p.burst }));
+                procs.sort((a,b) => a.arrival - b.arrival);
+                let time = 0;
+                let gantt = [];
+                let results = [];
+                for(let p of procs) {
+                    if(time < p.arrival) time = p.arrival;
+                    let start = time;
+                    let finish = time + p.burst;
+                    gantt.push({ name: p.name, start: start, end: finish });
+                    let turnaround = finish - p.arrival;
+                    let waiting = turnaround - p.burst;
+                    results.push({ ...p, turnaround, waiting, finish });
+                    time = finish;
+                }
+                displayResults(results, gantt, "FIFO (FCFS)");
+            }
+
+            // SJF non préemptif (on trie par burst à chaque instant, mais ne préempte pas)
+            function simulateSJF() {
+                if(processes.length === 0) return alert("Ajoutez des processus");
+                let procs = processes.map(p => ({ ...p, remaining: p.burst, arrival: p.arrival, burst: p.burst, name: p.name, completed: false }));
+                let time = 0;
+                let completed = 0;
+                let gantt = [];
+                let results = [];
+                while(completed < procs.length) {
+                    let available = procs.filter(p => p.arrival <= time && !p.completed);
+                    if(available.length === 0) {
+                        let nextArrival = Math.min(...procs.filter(p => !p.completed).map(p => p.arrival));
+                        time = nextArrival;
+                        continue;
+                    }
+                    available.sort((a,b) => a.burst - b.burst);
+                    let selected = available[0];
+                    let start = time;
+                    let finish = time + selected.burst;
+                    gantt.push({ name: selected.name, start, end: finish });
+                    let turnaround = finish - selected.arrival;
+                    let waiting = turnaround - selected.burst;
+                    results.push({ name: selected.name, arrival: selected.arrival, burst: selected.burst, turnaround, waiting, finish });
+                    selected.completed = true;
+                    time = finish;
+                    completed++;
+                }
+                displayResults(results, gantt, "SJF (non préemptif)");
+            }
+
+            // Round Robin avec quantum = 2
+            function simulateRR() {
+                if(processes.length === 0) return alert("Ajoutez des processus");
+                let quantum = 2;
+                let procs = processes.map(p => ({ name: p.name, arrival: p.arrival, burst: p.burst, remaining: p.burst, originalBurst: p.burst }));
+                procs.sort((a,b) => a.arrival - b.arrival);
+                let time = 0;
+                let queue = [];
+                let results = [];
+                let gantt = [];
+                let idx = 0;
+                let finishCount = 0;
+                let lastArrivals = [];
+                // Pour chaque processus, on garde le temps de premier départ? pas nécessaire; calcul waiting plus tard.
+                while(finishCount < procs.length) {
+                    // Ajouter tous les processus arrivés jusqu'à time et pas encore terminés et pas déjà dans la file?
+                    while(idx < procs.length && procs[idx].arrival <= time) {
+                        queue.push(procs[idx]);
+                        idx++;
+                    }
+                    if(queue.length === 0 && idx < procs.length) {
+                        time = procs[idx].arrival;
+                        continue;
+                    }
+                    let current = queue.shift();
+                    if(current.remaining <= 0) continue;
+                    let execTime = Math.min(quantum, current.remaining);
+                    let start = time;
+                    let end = time + execTime;
+                    gantt.push({ name: current.name, start, end });
+                    time = end;
+                    current.remaining -= execTime;
+                    // Ajouter nouveaux processus arrivés pendant l'exécution
+                    while(idx < procs.length && procs[idx].arrival <= time) {
+                        queue.push(procs[idx]);
+                        idx++;
+                    }
+                    if(current.remaining > 0) {
+                        queue.push(current);
+                    } else {
+                        // processus terminé
+                        let finish = time;
+                        let turnaround = finish - current.arrival;
+                        let waiting = turnaround - current.originalBurst;
+                        results.push({ name: current.name, arrival: current.arrival, burst: current.originalBurst, turnaround, waiting, finish });
+                        finishCount++;
+                    }
+                }
+                // Trier résultats pour affichage
+                results.sort((a,b)=>a.arrival-b.arrival);
+                displayResults(results, gantt, "Round Robin (quantum = 2)");
+            }
+
+            function displayResults(results, gantt, algoName) {
+                let avgWait = results.reduce((sum, r) => sum + r.waiting, 0) / results.length;
+                let html = `<div class="space-y-4">
+                    <div class="font-bold text-lg border-b pb-2 text-indigo-800">📌 ${algoName}</div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm border border-gray-200">
+                            <thead class="bg-gray-100"><tr><th class="p-2">Processus</th><th>Arrivée</th><th>Burst</th><th>Fin</th><th>Turnaround</th><th>Attente</th></tr></thead>
+                            <tbody>`;
+                results.forEach(r => {
+                    html += `<tr class="border-b"><td class="p-2 font-mono">${escapeHtml(r.name)}</td><td>${r.arrival}</td><td>${r.burst}</td><td>${r.finish}</td><td>${r.turnaround}</td><td class="font-semibold">${r.waiting}</td></tr>`;
+                });
+                html += `</tbody></table></div>
+                <div class="bg-indigo-100 p-3 rounded-lg font-semibold">⏱️ Temps d'attente moyen : ${avgWait.toFixed(2)} ms</div>
+                <div><span class="font-bold">📊 Diagramme de Gantt (simplifié) :</span><div class="flex flex-wrap gap-1 mt-2 text-xs font-mono">`;
+                for(let seg of gantt) {
+                    html += `<span class="bg-gray-200 rounded px-2 py-1">[${seg.name} : ${seg.start}→${seg.end}]</span> `;
+                }
+                html += `</div></div></div>`;
+                $('#sim-results').html(html);
+                // Re-render MathJax si besoin (aucune formule ici, mais garde)
+                if (window.MathJax) { MathJax.typesetPromise(); }
+            }
+
+            // Liaison événements simulateurs
+            $('#sim-fcfs').on('click', () => simulateFCFS());
+            $('#sim-sjf').on('click', () => simulateSJF());
+            $('#sim-rr').on('click', () => simulateRR());
+
+            // navigation slides
+            function showSlide(index) {
+                $('.slide').each(function(i, el) {
+                    if(i == index) {
+                        $(el).removeClass('slide-hidden').addClass('slide-active');
+                    } else {
+                        $(el).removeClass('slide-active').addClass('slide-hidden');
+                    }
+                });
+                currentSlide = index;
+                // scroll en haut
+                $('html, body').animate({ scrollTop: 0 }, 100);
+            }
+
+            $('.next-btn').on('click', function() {
+                if(currentSlide + 1 < totalSlides) {
+                    showSlide(currentSlide + 1);
+                } else {
+                    // dernier slide, reste
+                }
+            });
+            $('.prev-btn').on('click', function() {
+                if(currentSlide - 1 >= 0) showSlide(currentSlide - 1);
+            });
+            $('#restart-slide').on('click', function() { showSlide(0); });
+
+            // Initialisation: un jeu de processus d'exemple pour faciliter la compréhension
+            processes = [
+                { name: "P1", arrival: 0, burst: 5 },
+                { name: "P2", arrival: 1, burst: 3 },
+                { name: "P3", arrival: 2, burst: 2 }
+            ];
+            updateProcessListUI();
+            clearResults();
+            // petit message console
+            console.log("Leçon 33 : simulateur d'ordonnancement prêt");
+        });
+    </script>
+</body>
+</html>

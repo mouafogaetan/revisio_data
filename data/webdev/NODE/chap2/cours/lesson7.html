@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Node.js - Leçon 7 : EventEmitter, Buffers & Streams | Cours Backend</title>
+    <!-- Tailwind CSS + Font Awesome + Google Fonts + jQuery -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules (si besoin, utilisé pour des schémas logiques) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .slide-container {
+            transition: transform 0.4s ease-in-out;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background-color: #4f46e5;
+            color: white;
+            transform: scale(1.02);
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .progress-dot.active {
+            background-color: #4f46e5;
+            width: 24px;
+            border-radius: 12px;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        @media (max-width: 640px) {
+            .slide { border-radius: 1.5rem; }
+            h2 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- En-tête léger avec titre de matière -->
+    <div class="bg-indigo-50 border-b border-indigo-100 sticky top-0 z-10 backdrop-blur-sm bg-opacity-90">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="fab fa-node-js text-2xl text-green-700"></i>
+                <span class="font-semibold text-gray-800 text-sm md:text-base">Backend avec Node.js | Lesson 7</span>
+            </div>
+            <div class="text-xs text-gray-500"><i class="fas fa-laptop-code mr-1"></i> Module Core Avancé</div>
+        </div>
+    </div>
+
+    <main class="flex-grow flex items-center justify-center py-6 px-3 md:py-10">
+        <div class="w-full max-w-4xl mx-auto relative">
+            <!-- SLIDES WRAPPER -->
+            <div id="slidesWrapper" class="overflow-hidden rounded-2xl">
+                <div id="slidesContainer" class="slide-container flex transition-transform duration-500 ease-out">
+                    
+                    <!-- SLIDE 1 : TITRE -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <div class="flex flex-col h-full justify-between">
+                            <div>
+                                <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">Chapitre 2 : Modules Core</span>
+                                <h1 class="text-3xl md:text-5xl font-extrabold mt-6 bg-gradient-to-r from-indigo-800 to-emerald-700 bg-clip-text text-transparent">EventEmitter, Buffers & Streams</h1>
+                                <p class="text-gray-600 mt-4 text-lg">Comprendre la puissance des événements, des données binaires et des flux continus dans Node.js</p>
+                                <div class="mt-8 flex flex-wrap gap-3 text-sm text-gray-500">
+                                    <span><i class="fas fa-hourglass-half mr-1"></i> Durée estimée : 35 min</span>
+                                    <span><i class="fas fa-chart-line mr-1"></i> Niveau : Intermédiaire</span>
+                                </div>
+                            </div>
+                            <div class="mt-12 flex justify-center">
+                                <div class="bg-slate-100 p-4 rounded-2xl inline-block">
+                                    <i class="fab fa-node-js text-6xl text-slate-600"></i>
+                                    <i class="fas fa-water text-3xl text-cyan-500 relative -ml-3"></i>
+                                </div>
+                            </div>
+                            <p class="text-center text-xs text-gray-400 mt-8">Appuyez sur ➡️ pour commencer</p>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <div class="h-full flex flex-col">
+                            <div class="flex items-center gap-2 border-b pb-3 mb-5 border-indigo-200">
+                                <i class="fas fa-bullseye text-indigo-600 text-xl"></i>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs d'apprentissage</h2>
+                            </div>
+                            <ul class="space-y-5 text-gray-700">
+                                <li class="flex gap-3 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span><strong>Utiliser EventEmitter</strong> – Créer et écouter des événements personnalisés.</span></li>
+                                <li class="flex gap-3 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span><strong>Comprendre les Buffers</strong> – Manipuler des données binaires brutes.</span></li>
+                                <li class="flex gap-3 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span><strong>Maîtriser les Streams</strong> – Lire/écrire des flux (readable, writable, transform).</span></li>
+                                <li class="flex gap-3 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span><strong>Appliquer les concepts</strong> – Exemples concrets: logger, traitement de fichiers volumineux.</span></li>
+                            </ul>
+                            <div class="mt-8 bg-indigo-50 p-4 rounded-xl">
+                                <p class="text-sm italic text-indigo-800"><i class="fas fa-lightbulb mr-2"></i> À la fin de cette leçon, vous serez capable de créer des architectures basées sur les événements et de traiter des données efficacement.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 3 : EventEmitter - Théorie -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-broadcast-tower text-indigo-500"></i> 1. EventEmitter (module 'events')</h2>
+                        <p class="text-gray-600 mt-2">Le pattern Observer natif de Node.js. Beaucoup d'objets internes (Streams, Serveur HTTP) en héritent.</p>
+                        <div class="mt-5 bg-gray-50 p-4 rounded-xl border">
+                            <p class="font-semibold">Créer un émetteur :</p>
+                            <div class="code-block mt-2"><pre>const EventEmitter = require('events');
+class MonLogger extends EventEmitter {}
+const logger = new MonLogger();
+
+// Écouter un événement
+logger.on('message', (data) => {
+  console.log(`Nouveau message : ${data}`);
+});
+
+// Émettre
+logger.emit('message', 'Hello Node.js !');</pre></div>
+                            <p class="text-xs text-gray-500 mt-2">✔️ Méthodes : <code>on()</code>, <code>once()</code>, <code>emit()</code>, <code>removeListener()</code></p>
+                        </div>
+                        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-amber-800 text-sm">
+                            <i class="fas fa-info-circle mr-1"></i> <strong>À retenir</strong> : Les événements sont parfaits pour découpler les composants (ex: notifier une action utilisateur).
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 4 : EventEmitter - Exemple pratique (jeu de couleurs) -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold"><i class="fas fa-plug text-indigo-500"></i> Cas pratique EventEmitter</h2>
+                        <p class="mb-3">Simulons un serveur de commandes qui émet des événements "order".</p>
+                        <div class="code-block text-sm"><pre>const EventEmitter = require('events');
+const commandHandler = new EventEmitter();
+
+commandHandler.on('order:pizza', (size) => {
+  console.log(`🍕 Préparer une pizza ${size}`);
+});
+commandHandler.on('order:drink', (drink) => {
+  console.log(`🥤 Servir ${drink}`);
+});
+
+// Déclencher
+commandHandler.emit('order:pizza', 'familiale');
+commandHandler.emit('order:drink', 'Coca-cola');</pre></div>
+                        <div class="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl">
+                            <p class="font-medium"><i class="fas fa-microphone-alt mr-1"></i> Exercice express :</p>
+                            <p class="text-sm">Créez un émetteur 'taskComplete' qui affiche "Félicitations !" quand émis. Essayez mentalement ou avec votre terminal plus tard.</p>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 5 : Buffer - concept et manipulation -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-database text-indigo-500"></i> 2. Buffer : données binaires</h2>
+                        <p>Un Buffer est un espace mémoire temporaire (tableau d'octets) utilisé pour traiter des flux bruts (fichiers, réseau, crypto).</p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-5">
+                            <div class="border rounded-xl p-3 bg-white">
+                                <p class="font-semibold">Création :</p>
+                                <code>Buffer.from('Cameroun')</code><br>
+                                <code>Buffer.alloc(10)</code>
+                            </div>
+                            <div class="border rounded-xl p-3 bg-white">
+                                <p class="font-semibold">Conversion :</p>
+                                <code>buf.toString('utf8')</code><br>
+                                <code>buf.toJSON()</code>
+                            </div>
+                        </div>
+                        <div class="code-block mt-4"><pre>const buf = Buffer.from('Node.js 🚀');
+console.log(buf); // <Buffer 4e 6f 64 65 ...>
+console.log(buf.toString('utf8')); // Node.js 🚀
+console.log(buf[0]); // 78 (code ASCII de 'N')</pre></div>
+                        <p class="text-sm text-gray-500 mt-2"><i class="fas fa-shield-alt"></i> Utile pour les fichiers binaires, les web sockets, et les protocoles réseau.</p>
+                    </div>
+
+                    <!-- SLIDE 6 : Streams - Introduction -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold"><i class="fas fa-stream text-indigo-500"></i> 3. Les Streams : traitements à la volée</h2>
+                        <p>Les streams permettent de lire ou écrire des données morceau par morceau, sans tout charger en mémoire. Idéal pour fichiers volumineux ou requêtes réseau.</p>
+                        <div class="mt-4 space-y-3">
+                            <div class="flex items-start gap-3"><i class="fas fa-arrow-down text-blue-500 mt-1"></i><span><strong>Readable Stream</strong> : source de données (ex: lecture fichier).</span></div>
+                            <div class="flex items-start gap-3"><i class="fas fa-arrow-up text-green-500 mt-1"></i><span><strong>Writable Stream</strong> : destination (ex: écriture fichier, réponse HTTP).</span></div>
+                            <div class="flex items-start gap-3"><i class="fas fa-exchange-alt text-purple-500 mt-1"></i><span><strong>Duplex / Transform</strong> : lecture + écriture / modification des données.</span></div>
+                        </div>
+                        <div class="mt-5 p-4 bg-gray-100 rounded-lg">
+                            <p class="font-medium">Schéma conceptuel :</p>
+                            <div class="flex justify-around text-center text-sm mt-2">
+                                <span>📁 Fichier → <span class="font-mono bg-gray-800 text-white px-2 rounded">createReadStream</span> → 🔁 transformation → 🖥️ affichage</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 7 : Exemple concret de Streams (Readable & Writable) -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-xl md:text-2xl font-bold">📂 Lire et écrire avec des streams</h2>
+                        <p class="mb-2">Copier un gros fichier sans surcharger la RAM :</p>
+                        <div class="code-block text-xs md:text-sm"><pre>const fs = require('fs');
+const readStream = fs.createReadStream('gros_fichier.log');
+const writeStream = fs.createWriteStream('copie.log');
+
+readStream.on('data', (chunk) => {
+  console.log(`Reçu ${chunk.length} octets`);
+  writeStream.write(chunk);
+});
+readStream.on('end', () => {
+  writeStream.end();
+  console.log('Copie terminée avec succès');
+});</pre></div>
+                        <p class="text-green-700 mt-3 text-sm bg-green-50 p-2 rounded"><i class="fas fa-check-circle"></i> Node.js émet des événements 'data', 'end', 'error' automatiquement.</p>
+                    </div>
+
+                    <!-- SLIDE 8 : Transform Stream - Transformer à la volée -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold"><i class="fas fa-code-branch"></i> Streams de transformation</h2>
+                        <p>Utilisez <code>stream.Transform</code> pour modifier les données en transit.</p>
+                        <div class="code-block mt-2"><pre>const { Transform } = require('stream');
+const upperCaseTransform = new Transform({
+  transform(chunk, encoding, callback) {
+    this.push(chunk.toString().toUpperCase());
+    callback();
+  }
+});
+process.stdin.pipe(upperCaseTransform).pipe(process.stdout);</pre></div>
+                        <p class="text-sm mt-2"><i class="fas fa-keyboard"></i> Testez mentalement : taper "hello" → affiche "HELLO". Très pratique pour des pipelines de données.</p>
+                    </div>
+
+                    <!-- SLIDE 9 : Récapitulatif & Comparaison -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold">📋 Tableau récapitulatif</h2>
+                        <div class="overflow-x-auto mt-4">
+                            <table class="min-w-full bg-white border rounded-lg text-sm">
+                                <thead class="bg-indigo-100"><tr><th class="p-2">Concept</th><th class="p-2">Rôle principal</th><th class="p-2">Cas d'usage</th></tr></thead>
+                                <tbody class="divide-y">
+                                    <tr><td class="p-2 font-mono">EventEmitter</td><td>Communication asynchrone (pub/sub)</td><td>Capteurs, jeux, serveurs personnalisés</td></tr>
+                                    <tr><td class="p-2 font-mono">Buffer</td><td>Stockage temporaire d'octets</td><td>Manipulation TCP, crypto, images</td></tr>
+                                    <tr><td class="p-2 font-mono">Streams</td><td>Traitement par chunks</td><td>Fichiers volumineux, API vidéo, logs</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-6 bg-indigo-50 p-4 rounded-xl text-sm">
+                            <i class="fas fa-quote-left mr-1"></i> "Les streams et les événements sont au coeur de la performance de Node.js. Un bon développeur Backend les maîtrise."
+                        </div>
+                    </div>
+
+                    <!-- SLIDE 10 : Quiz rapide / évaluation intégrée -->
+                    <div class="slide w-full flex-shrink-0 p-6 md:p-10">
+                        <h2 class="text-2xl font-bold flex gap-2"><i class="fas fa-question-circle"></i> Mini Quiz (Auto-évaluation)</h2>
+                        <div class="space-y-5 mt-4">
+                            <div>
+                                <p class="font-medium">1️⃣ Quelle méthode utilise-t-on pour écouter un événement avec EventEmitter ?</p>
+                                <div class="flex gap-4 mt-1 text-sm"><label><input type="radio" name="quiz1" value="emit"> emit()</label> <label><input type="radio" name="quiz1" value="on"> on()</label> <label><input type="radio" name="quiz1" value="listen"> listen()</label></div>
+                            </div>
+                            <div>
+                                <p class="font-medium">2️⃣ Quel module est idéal pour lire un fichier de 2 Go sans consommer trop de RAM ?</p>
+                                <div class="flex gap-4 mt-1 text-sm"><label><input type="radio" name="quiz2" value="readFileSync"> readFileSync</label> <label><input type="radio" name="quiz2" value="streams"> Streams</label> <label><input type="radio" name="quiz2" value="buffer"> Buffer uniquement</label></div>
+                            </div>
+                            <div>
+                                <p class="font-medium">3️⃣ Un Buffer contient :</p>
+                                <div class="flex gap-4 mt-1 text-sm"><label><input type="radio" name="quiz3" value="string"> Chaîne JavaScript</label> <label><input type="radio" name="quiz3" value="binary"> Données binaires (octets)</label> <label><input type="radio" name="quiz3" value="object"> Objet JSON</label></div>
+                            </div>
+                        </div>
+                        <button id="checkQuizBtn" class="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm transition">Vérifier mes réponses</button>
+                        <div id="quizFeedback" class="mt-3 text-sm hidden font-medium"></div>
+                        <div class="mt-8 border-t pt-4 text-center text-gray-400">
+                            <i class="fas fa-check-double"></i> Félicitations pour avoir étudié ces concepts clés !
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation buttons & progress indicators -->
+            <div class="flex justify-between items-center mt-6 gap-3">
+                <button id="prevSlide" class="nav-btn bg-white border border-gray-300 rounded-full p-2 px-5 shadow-sm disabled:opacity-40" disabled><i class="fas fa-arrow-left"></i> Précédent</button>
+                <div class="flex gap-2 flex-wrap justify-center" id="progressDots"></div>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 text-white rounded-full p-2 px-5 shadow-sm hover:bg-indigo-700">Suivant <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center text-gray-400 text-xs py-5 border-t bg-white/50">
+        <p>© Cours Node.js — Enseignant au Cameroun | Leçon 7 : EventEmitter, Buffers & Streams | Ressources libres</p>
+    </footer>
+
+    <script>
+        $(document).ready(function() {
+            let currentIndex = 0;
+            const slides = $("#slidesContainer .slide");
+            const totalSlides = slides.length;
+            let $container = $("#slidesContainer");
+            
+            function updateSlides() {
+                const width = $("#slidesWrapper").width();
+                $container.css("transform", `translateX(-${currentIndex * 100}%)`);
+                // update dots
+                $(".progress-dot").each(function(idx) {
+                    if(idx === currentIndex) $(this).addClass("active").removeClass("bg-gray-300");
+                    else $(this).removeClass("active").addClass("bg-gray-300");
+                });
+                $("#prevSlide").prop("disabled", currentIndex === 0);
+                $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+            }
+            
+            // Generer dots
+            for (let i = 0; i < totalSlides; i++) {
+                let dot = $(`<div class="progress-dot ${i === 0 ? 'active' : 'bg-gray-300'}" data-index="${i}"></div>`);
+                dot.on("click", function() {
+                    currentIndex = parseInt($(this).data("index"));
+                    updateSlides();
+                });
+                $("#progressDots").append(dot);
+            }
+            
+            $("#nextSlide").on("click", function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            });
+            $("#prevSlide").on("click", function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+            
+            // Quiz correction simple
+            $("#checkQuizBtn").on("click", function() {
+                let q1 = $("input[name='quiz1']:checked").val();
+                let q2 = $("input[name='quiz2']:checked").val();
+                let q3 = $("input[name='quiz3']:checked").val();
+                let score = 0;
+                if (q1 === "on") score++;
+                if (q2 === "streams") score++;
+                if (q3 === "binary") score++;
+                let message = "";
+                if (score === 3) message = "✅ Parfait ! Vous avez bien compris les bases.";
+                else if (score === 2) message = "👍 Bon travail, revoyez les détails sur les buffers.";
+                else message = "📚 Revenez sur les slides, relisez les exemples. Les réponses : 1.on() , 2.Streams , 3.Données binaires.";
+                $("#quizFeedback").removeClass("hidden").html(`<span class="bg-indigo-100 p-2 rounded-lg block">Score : ${score}/3 - ${message}</span>`);
+            });
+            
+            // resize handler: re-calc position
+            $(window).on("resize", function() { updateSlides(); });
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

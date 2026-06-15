@@ -1,0 +1,98 @@
+[
+  {
+    "questionText": "En ASP.NET Core, pourquoi l'Injection de Dépendances (DI) est-elle considérée comme un pilier pour la conception d'API professionnelles ?",
+    "options": [
+      "Elle permet uniquement d'accélérer l'exécution du code en utilisant moins de mémoire RAM.",
+      "Elle favorise le couplage faible entre les classes, ce qui améliore la testabilité et la maintenabilité du code.",
+      "Elle supprime la nécessité d'utiliser des interfaces dans le projet.",
+      "Elle oblige tous les services à être des singletons pour des raisons de sécurité."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La DI permet d'inverser le contrôle des dépendances. En pratique, une classe ne crée plus ses propres dépendances (via `new`), mais les reçoit de l'extérieur. Cela réduit le couplage fort, rendant le code plus facile à tester (on peut injecter des mocks) et à modifier sans impacter toute l'application."
+  },
+  {
+    "questionText": "Vous développez une API qui traite des requêtes HTTP. Vous devez créer un service qui compte le nombre de requêtes effectuées par un utilisateur pendant une session. Quelle durée de vie (lifetime) devez-vous choisir pour ce service ?",
+    "options": [
+      "Transient",
+      "Scoped",
+      "Singleton",
+      "Instance"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La durée de vie `Scoped` est parfaite pour une requête HTTP. Pour chaque requête entrante, un nouveau scope est créé. Un service `Scoped` sera le même tout au long d'une même requête (ex: partagé entre un Controller et un Service métier), mais sera différent d'une requête à l'autre. Idéal pour un compteur par session utilisateur (via le browser)."
+  },
+  {
+    "questionText": "Quel est l'avantage principal d'utiliser le pattern Repository combiné à l'injection de dépendances dans une API .NET ?",
+    "options": [
+      "Cela permet d'écrire des requêtes SQL directement dans le contrôleur pour plus de rapidité.",
+      "Cela supprime le besoin d'utiliser Entity Framework Core.",
+      "Cela permet d'isoler la logique d'accès aux données, de centraliser les requêtes et de remplacer facilement la source de données (ex: passer de SQL Server à une API externe) sans modifier les contrôleurs.",
+      "Cela augmente automatiquement les performances de la base de données sans effort."
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "Le Repository agit comme une abstraction entre la couche métier (ou le contrôleur) et la source de données. Grâce à la DI, on injecte `IRepository` (interface) dans le contrôleur, et on fournit `RepositorySQL` (implémentation concrète). Si on change de base de données, on crée `RepositoryMongoDB` et on modifie l'enregistrement dans `Program.cs` sans toucher aux contrôleurs."
+  },
+  {
+    "questionText": "Quelle est la différence fondamentale entre `AddTransient` et `AddSingleton` lors de l'enregistrement d'un service dans le conteneur DI ?",
+    "options": [
+      "`AddTransient` crée une instance par thread, tandis que `AddSingleton` crée une instance par cœur du processeur.",
+      "`AddTransient` crée une nouvelle instance à chaque demande (à chaque injection), tandis que `AddSingleton` crée une seule instance partagée pendant toute la durée de vie de l'application.",
+      "`AddTransient` est utilisé pour les bases de données, `AddSingleton` pour les services de logging uniquement.",
+      "`AddSingleton` ne peut pas être utilisé avec des interfaces, contrairement à `AddTransient`."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "C'est la base du choix des durées de vie. `Transient` : à chaque fois qu'on demande le service, on reçoit une instance neuve (légère mais non partagée). `Singleton` : une instance unique pour toute l'app (partagée partout). `Scoped` se situe entre les deux (une par requête HTTP)."
+  },
+  {
+    "questionText": "Vous avez une classe `LoggerService` qui doit être réutilisée par tous les contrôleurs et services. Elle ne possède aucun état interne et ne dépend d'aucune requête utilisateur. Quelle est la durée de vie la plus adaptée ?",
+    "options": [
+      "Transient",
+      "Scoped",
+      "Singleton",
+      "WeakReference"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "Un `Singleton` est parfait pour les services sans état (stateless) et thread-safe comme un logger. Une seule instance est créée au démarrage de l'app et utilisée partout. Cela évite de recréer inutilement l'objet à chaque requête (`Transient`) ou scope (`Scoped`), économisant ainsi la mémoire."
+  },
+  {
+    "questionText": "Quelle est la manière standard d'injecter un service dans un contrôleur d'API ASP.NET Core ?",
+    "options": [
+      "En appelant `new MonService()` directement dans l'action du contrôleur.",
+      "En utilisant `IServiceProvider.GetRequiredService<IMonService>()` dans chaque méthode.",
+      "En ajoutant le service comme paramètre du constructeur du contrôleur et en le stockant dans un champ privé.",
+      "En déclarant le service comme `static` dans la classe du contrôleur."
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "C'est le principe de l'Injection de Dépendances par constructeur, la méthode privilégiée dans .NET Core. Le conteneur DI voit quel type attend le constructeur (ex: `IMonService`), vérifie s'il a été enregistré, et fournit l'instance automatiquement lors de la création du contrôleur."
+  },
+  {
+    "questionText": "Que se passe-t-il si un service `Scoped` est injecté dans un service `Singleton` ?",
+    "options": [
+      "Cela fonctionne parfaitement, ASP.NET Core gère automatiquement la promotion de durée de vie.",
+      "Cela provoque une fuite mémoire, mais l'application continue de fonctionner.",
+      "Cela peut provoquer un plantage ou un comportement inattendu (captive dependency), car le Singleton vivra plus longtemps que le Scoped, conservant une référence obsolète.",
+      "Le compilateur C# génère une erreur empêchant l'exécution."
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "C'est une erreur classique appelée 'Captive Dependency'. Un Singleton est créé une fois au démarrage. Si on lui injecte un Scoped (censé être créé à chaque requête), le Singleton gardera la première instance créée pour toutes les requêtes futures, ce qui est souvent faux (ex: conservation d'un `DbContext` trop longtemps). .NET Core émet un warning (`ValidateScopes`)."
+  },
+  {
+    "questionText": "Complétez le code : Pour enregistrer une interface `IProductRepository` avec son implémentation `ProductRepository` en tant que service avec une durée de vie `Scoped`, on utilise dans `Program.cs` : `builder.Services.______<IProductRepository, ProductRepository>();`",
+    "options": [
+      "AddTransient",
+      "AddSingleton",
+      "AddScoped",
+      "AddScope"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "La méthode `AddScoped` est la bonne syntaxe. `AddTransient` pour vie éphémère, `AddSingleton` pour instance unique. `AddScope` n'existe pas. C'est une question de vocabulaire précis en ASP.NET Core."
+  }
+]

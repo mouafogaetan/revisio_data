@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 28 - Gestion des avis clients | API E-commerce NestJS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        body {
+            background: #f8fafc;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .rating-badge {
+            background: #fbbf24;
+            color: #1e293b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="antialiased font-sans">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-5 md:p-8 transition-all">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="text-center my-8 md:my-12">
+                    <span class="inline-block bg-yellow-500 text-white text-xs font-semibold px-3 py-1 rounded-full mb-3">⭐ Avis clients</span>
+                    <h1 class="text-2xl md:text-4xl font-extrabold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent mb-4">Gestion des avis</h1>
+                    <p class="text-lg text-gray-600 max-w-xl mx-auto">Créer, modifier, supprimer des avis et répondre aux clients</p>
+                    <div class="mt-8 text-gray-500 text-sm border-t pt-5 inline-block">
+                        📘 Lesson 28 · Gérer les avis clients
+                    </div>
+                </div>
+                <div class="flex justify-center mt-4">
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-6 rounded-full shadow-md transition">Commencer →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <h2 class="text-2xl md:text-3xl font-bold text-yellow-800 border-l-4 border-yellow-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="space-y-4 text-gray-700">
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-yellow-600 text-xl">1️⃣</span>
+                        <span><strong>Créer un avis</strong> : uniquement après avoir acheté le produit.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-yellow-600 text-xl">2️⃣</span>
+                        <span><strong>Modifier et supprimer</strong> : l'utilisateur peut gérer ses propres avis.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-yellow-600 text-xl">3️⃣</span>
+                        <span><strong>Répondre aux avis</strong> : les admins et vendeurs peuvent répondre.</span>
+                    </div>
+                </div>
+                <div class="flex justify-between mt-10">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : ENTITÉ REVIEW -->
+            <div class="slide" id="slide3">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">📦 Entité Review</h2>
+                <p class="text-gray-700 mb-3">Un avis est lié à un produit et à un utilisateur. Il contient une note, un commentaire et éventuellement des images.</p>
+                <pre><code>// src/reviews/entities/review.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Product } from '../../products/entities/product.entity';
+import { User } from '../../users/entities/user.entity';
+
+@Entity()
+export class Review {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ type: 'int', width: 1 })
+    rating: number;  // 1 à 5 étoiles
+
+    @Column({ type: 'text' })
+    comment: string;
+
+    @Column({ type: 'simple-array', nullable: true })
+    images: string[];  // URLs des images uploadées
+
+    @ManyToOne(() => Product, (product) => product.reviews, { onDelete: 'CASCADE' })
+    product: Product;
+
+    @ManyToOne(() => User, (user) => user.reviews)
+    user: User;
+
+    // Réponse du vendeur/admin
+    @Column({ type: 'text', nullable: true })
+    sellerResponse: string;
+
+    @Column({ type: 'timestamp', nullable: true })
+    respondedAt: Date;
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}</code></pre>
+                <div class="bg-blue-50 p-3 rounded-lg text-sm mt-3">
+                    💡 <strong>Bonnes pratiques</strong> : La note est un entier de 1 à 5. On peut ajouter une validation avec <code>@Min(1)</code> et <code>@Max(5)</code>.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : CRÉATION D'UN AVIS (AVEC VÉRIFICATION D'ACHAT) -->
+            <div class="slide" id="slide4">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">✍️ Créer un avis (vérification d'achat)</h2>
+                <p class="text-gray-700 mb-3">Un client ne peut laisser un avis que s'il a effectivement acheté le produit.</p>
+                <pre><code>// src/reviews/reviews.service.ts
+async create(userId: string, productId: string, createReviewDto: CreateReviewDto) {
+    // 1. Vérifier si l'utilisateur a acheté ce produit
+    const hasPurchased = await this.orderService.hasUserPurchasedProduct(userId, productId);
+    
+    if (!hasPurchased) {
+        throw new ForbiddenException('Vous devez acheter le produit avant de laisser un avis');
+    }
+    
+    // 2. Vérifier si un avis existe déjà pour ce produit par cet utilisateur
+    const existingReview = await this.reviewRepository.findOne({
+        where: { user: { id: userId }, product: { id: productId } }
+    });
+    
+    if (existingReview) {
+        throw new ConflictException('Vous avez déjà laissé un avis pour ce produit');
+    }
+    
+    // 3. Créer l'avis
+    const review = this.reviewRepository.create({
+        ...createReviewDto,
+        user: { id: userId },
+        product: { id: productId }
+    });
+    
+    return this.reviewRepository.save(review);
+}</code></pre>
+                <div class="bg-amber-50 p-3 rounded-lg text-sm mt-3">
+                    🔒 <strong>Sécurité</strong> : La vérification d'achat évite les faux avis et le spam.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : MODIFICATION ET SUPPRESSION -->
+            <div class="slide" id="slide5">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">✏️ Modifier et supprimer son avis</h2>
+                <p class="text-gray-700 mb-3">L'utilisateur ne peut modifier ou supprimer que ses propres avis.</p>
+                <pre><code>// src/reviews/reviews.service.ts
+async update(userId: string, reviewId: string, updateDto: UpdateReviewDto) {
+    const review = await this.reviewRepository.findOne({
+        where: { id: reviewId },
+        relations: ['user']
+    });
+    
+    if (!review) {
+        throw new NotFoundException('Avis non trouvé');
+    }
+    
+    if (review.user.id !== userId) {
+        throw new ForbiddenException('Vous ne pouvez modifier que vos propres avis');
+    }
+    
+    Object.assign(review, updateDto);
+    return this.reviewRepository.save(review);
+}
+
+async remove(userId: string, reviewId: string) {
+    const review = await this.reviewRepository.findOne({
+        where: { id: reviewId },
+        relations: ['user']
+    });
+    
+    if (!review) throw new NotFoundException('Avis non trouvé');
+    if (review.user.id !== userId) throw new ForbiddenException();
+    
+    return this.reviewRepository.remove(review);
+}</code></pre>
+                <div class="bg-green-50 p-3 rounded-lg text-sm mt-3">
+                    ✅ <strong>Règle métier</strong> : Un utilisateur ne peut pas modifier la note d'un avis après 30 jours (à implémenter).
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : RÉPONDRE AUX AVIS (ADMIN/SELLER) -->
+            <div class="slide" id="slide6">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">💬 Répondre aux avis</h2>
+                <p class="text-gray-700 mb-3">Les administrateurs et vendeurs peuvent répondre aux avis clients.</p>
+                <pre><code>// DTO pour la réponse
+export class RespondToReviewDto {
+    @IsString()
+    @IsNotEmpty()
+    response: string;
+}
+
+// Service
+async respondToReview(reviewId: string, sellerResponse: string, userId: string) {
+    const review = await this.reviewRepository.findOne({
+        where: { id: reviewId },
+        relations: ['product']
+    });
+    
+    if (!review) throw new NotFoundException();
+    
+    // Vérifier que l'utilisateur est admin ou propriétaire du produit (seller)
+    const user = await this.userService.findById(userId);
+    const isSeller = user.roles.includes('seller') && review.product.sellerId === userId;
+    const isAdmin = user.roles.includes('admin');
+    
+    if (!isAdmin && !isSeller) {
+        throw new ForbiddenException('Seuls les admins ou le vendeur peuvent répondre');
+    }
+    
+    review.sellerResponse = sellerResponse;
+    review.respondedAt = new Date();
+    
+    return this.reviewRepository.save(review);
+}</code></pre>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : CONTROLLER AVEC ROLES -->
+            <div class="slide" id="slide7">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">🎮 Endpoints du contrôleur</h2>
+                <pre><code>// src/reviews/reviews.controller.ts
+@Controller('reviews')
+export class ReviewsController {
+    @Post()
+    @UseGuards(JwtAuthGuard)
+    async create(@Req() req, @Body() dto: CreateReviewDto) {
+        return this.reviewsService.create(req.user.id, dto.productId, dto);
+    }
+
+    @Patch(':id')
+    @UseGuards(JwtAuthGuard)
+    async update(@Req() req, @Param('id') id: string, @Body() dto: UpdateReviewDto) {
+        return this.reviewsService.update(req.user.id, id, dto);
+    }
+
+    @Delete(':id')
+    @UseGuards(JwtAuthGuard)
+    async remove(@Req() req, @Param('id') id: string) {
+        return this.reviewsService.remove(req.user.id, id);
+    }
+
+    @Post(':id/respond')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('admin', 'seller')
+    async respond(@Param('id') id: string, @Body() dto: RespondToReviewDto, @Req() req) {
+        return this.reviewsService.respondToReview(id, dto.response, req.user.id);
+    }
+
+    @Get('product/:productId')
+    async getProductReviews(@Param('productId') productId: string, @Query() pagination: PaginationDto) {
+        return this.reviewsService.findByProduct(productId, pagination);
+    }
+}</code></pre>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : VÉRIFICATION D'ACHAT (SERVICE) -->
+            <div class="slide" id="slide8">
+                <h2 class="text-2xl font-bold text-yellow-800 mb-3">🛒 Vérification d'achat du produit</h2>
+                <p class="text-gray-700 mb-3">Méthode du service Order pour vérifier si un utilisateur a acheté un produit.</p>
+                <pre><code>// src/orders/orders.service.ts
+async hasUserPurchasedProduct(userId: string, productId: string): Promise&lt;boolean&gt; {
+    const order = await this.orderRepository
+        .createQueryBuilder('order')
+        .innerJoin('order.items', 'item')
+        .where('order.userId = :userId', { userId })
+        .andWhere('item.productId = :productId', { productId })
+        .andWhere('order.status IN (:...statuses)', { 
+            statuses: ['paid', 'shipped', 'delivered'] 
+        })
+        .getOne();
+    
+    return !!order;
+}</code></pre>
+                <div class="bg-purple-50 p-3 rounded-lg text-sm mt-3">
+                    📌 <strong>Note</strong> : Seules les commandes payées et livrées permettent de laisser un avis.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="restartBtn bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-5 rounded-full">🏁 Revoir depuis le début</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Points de navigation -->
+        <div class="flex justify-center gap-2 mt-5 flex-wrap">
+            <span class="slide-dot w-2 h-2 rounded-full bg-yellow-600 transition-all" data-slide="1"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="2"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="3"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="4"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="5"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="6"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="7"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="8"></span>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let current = 1;
+            const total = 8;
+            
+            function updateActiveSlide(n) {
+                $('.slide').removeClass('active');
+                $(`#slide${n}`).addClass('active');
+                current = n;
+                $('.slide-dot').each(function(idx){
+                    if(idx+1 === current) {
+                        $(this).removeClass('bg-gray-300').addClass('bg-yellow-600 w-3 h-3');
+                    } else {
+                        $(this).removeClass('bg-yellow-600 w-3 h-3').addClass('bg-gray-300');
+                    }
+                });
+                $('html, body').animate({ scrollTop: 0 }, 180);
+            }
+            
+            $('.nextBtn').on('click', function(){
+                if(current < total) updateActiveSlide(current+1);
+            });
+            $('.prevBtn').on('click', function(){
+                if(current > 1) updateActiveSlide(current-1);
+            });
+            $('.restartBtn').on('click', function(){
+                updateActiveSlide(1);
+            });
+            $('.slide-dot').each(function(i){
+                $(this).attr('data-slide', i+1);
+                $(this).on('click', function(){
+                    let idx = $(this).data('slide');
+                    updateActiveSlide(parseInt(idx));
+                });
+            });
+        });
+    </script>
+</body>
+</html>

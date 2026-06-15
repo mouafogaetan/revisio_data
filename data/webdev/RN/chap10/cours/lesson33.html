@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Cours React Native - Optimisation des performances (Lesson 33)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .slide { display: none; animation: fadeSlide 0.4s ease; }
+        .slide.active { display: block; }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateX(18px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        body {
+            background: linear-gradient(135deg, #fef9e6 0%, #fdf4dc 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+        .code-block {
+            background: #1e1e2e;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #d97706;
+            color: white;
+        }
+        .progress-bar {
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #d97706;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .badge-perf {
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .tip {
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-3 md:p-5">
+
+<div class="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-amber-100">
+    <!-- En-tête -->
+    <div class="bg-gradient-to-r from-amber-700 to-orange-700 text-white px-5 py-4 flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-tachometer-alt text-2xl"></i>
+            <span class="font-bold text-lg">React Native - Performance</span>
+        </div>
+        <div class="bg-amber-800 px-3 py-1 rounded-full text-sm shadow-sm">
+            Lesson 33 : Optimisation & Profiling
+        </div>
+    </div>
+
+    <!-- Zone slides -->
+    <div class="p-5 md:p-8 min-h-[520px] bg-gray-50">
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : Titre -->
+            <div class="slide active" data-index="0">
+                <div class="text-center py-8 md:py-12">
+                    <i class="fas fa-rocket text-6xl text-amber-600 mb-4"></i>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">⚡ Optimisation des performances</h1>
+                    <p class="text-xl text-amber-700 font-semibold mt-2">Rendre votre app plus rapide et fluide</p>
+                    <div class="h-1 w-28 bg-amber-500 mx-auto my-5 rounded-full"></div>
+                    <p class="text-gray-600 max-w-md mx-auto">React.memo, useMemo, useCallback, FlatList avancé et outils de profiling</p>
+                    <div class="flex flex-wrap justify-center gap-3 mt-8 text-sm text-gray-500">
+                        <span><i class="fas fa-chart-line mr-1"></i> 60 FPS</span>
+                        <span><i class="fas fa-memory mr-1"></i> Moins de re-rendus</span>
+                        <span><i class="fas fa-bug mr-1"></i> Profiling</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs -->
+            <div class="slide" data-index="1">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-5">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-memo text-amber-500 mt-1"></i>
+                        <span>Utiliser <strong>React.memo</strong> pour éviter les rendus inutiles</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-database text-amber-500 mt-1"></i>
+                        <span>Mémoriser des valeurs avec <strong>useMemo</strong></span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-function text-amber-500 mt-1"></i>
+                        <span>Stabiliser des fonctions avec <strong>useCallback</strong></span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-list text-amber-500 mt-1"></i>
+                        <span>Optimiser <strong>FlatList</strong> (getItemLayout, initialNumToRender)</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-chart-simple text-amber-500 mt-1"></i>
+                        <span>Utiliser les outils de <strong>profiling</strong> (React DevTools, Flipper)</span>
+                    </div>
+                </div>
+                <div class="mt-6 tip">
+                    💡 Une application bien optimisée = meilleure expérience utilisateur et batterie préservée.
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : React.memo -->
+            <div class="slide" data-index="2">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">🧠 React.memo : éviter les re-rendus inutiles</h2>
+                <p class="mb-2"><code class="bg-gray-200 px-1 rounded">React.memo</code> est un HOC qui ne re-rend le composant que si ses props changent.</p>
+                <div class="code-block">
+const Button = React.memo(({ title, onPress }) => {<br>
+&nbsp;&nbsp;console.log('Rendu Button');<br>
+&nbsp;&nbsp;return &lt;TouchableOpacity onPress={onPress}&gt;&lt;Text&gt;{title}&lt;/Text&gt;&lt;/TouchableOpacity&gt;;<br>
+});<br><br>
+// Utilisation : le composant ne se re-rendra pas si les props sont identiques
+                </div>
+                <div class="mt-3 bg-yellow-50 p-3 rounded text-sm">
+                    ⚠️ Attention : memo compare superficiellement les objets. Pour des props complexes, utilisez une fonction de comparaison personnalisée (deuxième argument).
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : useMemo -->
+            <div class="slide" data-index="3">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">💾 useMemo : mémoriser des valeurs calculées</h2>
+                <p><code class="bg-gray-200 px-1 rounded">useMemo</code> recalcule la valeur uniquement quand les dépendances changent.</p>
+                <div class="code-block mt-2">
+// Sans useMemo → recalcul à chaque rendu<br>
+const expensiveValue = heavyComputation(data);<br><br>
+// Avec useMemo → recalcul uniquement si 'data' change<br>
+const expensiveValue = useMemo(() => heavyComputation(data), [data]);<br><br>
+// Exemple concret : filtrage d'une grande liste<br>
+const filteredList = useMemo(() => {<br>
+&nbsp;&nbsp;return items.filter(item => item.name.includes(searchTerm));<br>
+}, [items, searchTerm]);
+                </div>
+                <p class="mt-2 text-sm text-gray-600">📌 Utile pour les transformations coûteuses (tri, filtrage, calculs mathématiques).</p>
+            </div>
+
+            <!-- SLIDE 5 : useCallback -->
+            <div class="slide" data-index="4">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">🔄 useCallback : stabiliser les fonctions</h2>
+                <p>Empêche la recréation d'une fonction à chaque rendu, utile pour les props passées à des composants memoïsés.</p>
+                <div class="code-block mt-2">
+// Sans useCallback → nouvelle fonction à chaque rendu<br>
+const handlePress = () => { doSomething(id); };<br><br>
+// Avec useCallback → même fonction tant que les dépendances ne changent pas<br>
+const handlePress = useCallback(() => {<br>
+&nbsp;&nbsp;doSomething(id);<br>
+}, [id]);<br><br>
+// Combiné avec React.memo → évite des re-rendus en chaîne
+                </div>
+                <div class="tip mt-2">
+                    <i class="fas fa-lightbulb text-amber-600"></i> Utilisez toujours useCallback quand vous passez une fonction à un composant enfant optimisé avec memo.
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : FlatList avancé -->
+            <div class="slide" data-index="5">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">📱 Optimisation de FlatList</h2>
+                <p class="mb-2">Pour des listes longues (centaines d'éléments), ces props sont essentielles :</p>
+                <ul class="list-disc list-inside space-y-2 bg-gray-100 p-4 rounded-lg">
+                    <li><code class="bg-gray-300 px-1 rounded">getItemLayout</code> : optimise le calcul de hauteur des éléments (améliore le scroll).</li>
+                    <li><code class="bg-gray-300 px-1 rounded">initialNumToRender</code> : nombre d'éléments rendus au départ (défaut: 10).</li>
+                    <li><code class="bg-gray-300 px-1 rounded">maxToRenderPerBatch</code> : éléments chargés par lot (défaut: 10).</li>
+                    <li><code class="bg-gray-300 px-1 rounded">windowSize</code> : hauteur virtuelle de rendu (défaut: 21).</li>
+                    <li><code class="bg-gray-300 px-1 rounded">removeClippedSubviews</code> : démonte les vues hors écran (économise la mémoire).</li>
+                </ul>
+                <div class="code-block mt-3">
+&lt;FlatList<br>
+&nbsp;&nbsp;data={data}<br>
+&nbsp;&nbsp;renderItem={renderItem}<br>
+&nbsp;&nbsp;keyExtractor={item => item.id}<br>
+&nbsp;&nbsp;getItemLayout={(data, index) => ({ length: 80, offset: 80 * index, index })}<br>
+&nbsp;&nbsp;initialNumToRender={8}<br>
+&nbsp;&nbsp;removeClippedSubviews={true}<br/>
+/&gt;
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Outils de profiling -->
+            <div class="slide" data-index="6">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">🔍 Outils de profiling</h2>
+                <div class="grid gap-3">
+                    <div class="bg-white p-3 rounded shadow-sm">
+                        <i class="fab fa-react text-blue-500 mr-2"></i> <strong>React DevTools</strong> : onglet "Profiler" pour enregistrer les rendus et voir les composants qui se re-rendent trop souvent.
+                    </div>
+                    <div class="bg-white p-3 rounded shadow-sm">
+                        <i class="fas fa-flask text-purple-500 mr-2"></i> <strong>Flipper</strong> (React Native Debugger) : monitorer les performances, réseau, layout.
+                    </div>
+                    <div class="bg-white p-3 rounded shadow-sm">
+                        <i class="fas fa-chart-line text-green-500 mr-2"></i> <strong>console.log + Performance.now()</strong> pour mesurer le temps d'exécution.
+                    </div>
+                </div>
+                <div class="tip mt-3">
+                    🚀 Activez le mode "Highlight updates" dans React DevTools pour visualiser les re-rendus en temps réel.
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Problèmes fréquents -->
+            <div class="slide" data-index="7">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">⚠️ Problèmes courants de performance</h2>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-2"><i class="fas fa-times-circle text-red-500 mt-1"></i> <strong>Fonctions anonymes dans les props</strong> → utiliser useCallback</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-times-circle text-red-500 mt-1"></i> <strong>Objets créés à chaque rendu</strong> → utiliser useMemo</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-times-circle text-red-500 mt-1"></i> <strong>Grandes listes sans getItemLayout</strong> → scroll saccadé</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-times-circle text-red-500 mt-1"></i> <strong>setState dans des composants profonds</strong> → remonter l'état ou utiliser Context avec précaution</li>
+                    <li class="flex items-start gap-2"><i class="fas fa-times-circle text-red-500 mt-1"></i> <strong>Images non optimisées</strong> → utiliser des dimensions fixes, cache</li>
+                </ul>
+            </div>
+
+            <!-- SLIDE 9 : Exercice pratique -->
+            <div class="slide" data-index="8">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">✏️ Exercice : optimisez ce code</h2>
+                <div class="code-block text-sm mb-3">
+// Code problématique : beaucoup de re-rendus<br>
+const Parent = () => {<br>
+&nbsp;&nbsp;const [count, setCount] = useState(0);<br>
+&nbsp;&nbsp;const [items, setItems] = useState([...]);<br>
+&nbsp;&nbsp;const filtered = items.filter(i => i.active);  // recalcul à chaque rendu<br>
+&nbsp;&nbsp;const handlePress = () => console.log('pressed');  // nouvelle fonction<br>
+&nbsp;&nbsp;return &lt;Child items={filtered} onPress={handlePress} /&gt;;<br>
+};
+                </div>
+                <p class="mb-2">Proposez une version optimisée avec useMemo, useCallback, et React.memo sur Child.</p>
+                <details class="mt-2 bg-gray-800 text-white p-3 rounded-lg cursor-pointer">
+                    <summary class="font-semibold text-amber-300">🧩 Voir la solution</summary>
+                    <div class="mt-2 text-xs text-green-300 font-mono">
+const filtered = useMemo(() => items.filter(i => i.active), [items]);<br>
+const handlePress = useCallback(() => console.log('pressed'), []);<br>
+const ChildMemo = React.memo(Child);<br>
+return &lt;ChildMemo items={filtered} onPress={handlePress} /&gt;;
+                    </div>
+                </details>
+            </div>
+
+            <!-- SLIDE 10 : Résumé -->
+            <div class="slide" data-index="9">
+                <h2 class="text-2xl font-bold text-center text-amber-800 mb-5">📌 Récapitulatif</h2>
+                <div class="space-y-3">
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>React.memo</strong> : évite les re-rendus si props identiques</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>useMemo</strong> : mémorise des valeurs calculées</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>useCallback</strong> : stabilise les fonctions</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>FlatList</strong> : getItemLayout, initialNumToRender, removeClippedSubviews</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>Profiling</strong> : React DevTools, Flipper pour détecter les goulets</span></div>
+                </div>
+                <div class="mt-8 text-center text-gray-500 text-sm">
+                    <i class="fas fa-gem text-amber-400 text-2xl"></i>
+                    <p class="mt-2">Une app performante = des utilisateurs heureux !</p>
+                    <button id="restartBtn" class="mt-4 bg-amber-600 text-white px-5 py-2 rounded-full text-sm hover:bg-amber-700 transition shadow">⟳ Revoir du début</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation & progression -->
+    <div class="bg-white border-t border-gray-200 px-5 py-3 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex gap-2">
+            <button id="prevSlide" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full disabled:opacity-50" disabled>
+                <i class="fas fa-chevron-left"></i> Précédent
+            </button>
+            <button id="nextSlide" class="nav-btn bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-full">
+                Suivant <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="text-sm text-gray-500">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+        <div class="progress-bar w-full sm:w-56">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let slides = $('.slide');
+    let total = slides.length;
+    let current = 0;
+
+    function updateSlides() {
+        slides.removeClass('active');
+        $(slides[current]).addClass('active');
+        $('#currentSlideIdx').text(current+1);
+        let percent = ((current+1)/total)*100;
+        $('#progressFill').css('width', percent+'%');
+        $('#prevSlide').prop('disabled', current === 0);
+        $('#nextSlide').prop('disabled', current === total-1);
+    }
+
+    function next() { if(current < total-1) { current++; updateSlides(); } }
+    function prev() { if(current > 0) { current--; updateSlides(); } }
+
+    $('#nextSlide').on('click', next);
+    $('#prevSlide').on('click', prev);
+    $('#restartBtn').on('click', function() { current = 0; updateSlides(); });
+
+    $(document).on('keydown', function(e) {
+        if(e.key === 'ArrowRight') next();
+        if(e.key === 'ArrowLeft') prev();
+    });
+
+    let startX = 0;
+    $('.slide').on('touchstart', function(e) { startX = e.originalEvent.changedTouches[0].screenX; });
+    $('.slide').on('touchend', function(e) {
+        let endX = e.originalEvent.changedTouches[0].screenX;
+        if(endX < startX - 40) next();
+        if(endX > startX + 40) prev();
+    });
+
+    updateSlides();
+});
+</script>
+</body>
+</html>

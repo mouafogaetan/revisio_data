@@ -1,0 +1,144 @@
+[
+  {
+    "intitule": "Calcul et analyse du chiffre d'affaires",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, on souhaite calculer le chiffre d'affaires (CA) pour différentes périodes. La table <code>orders</code> contient les colonnes : <code>total_amount</code> (montant en FCFA), <code>status</code> ('paid', 'pending', 'cancelled'), <code>created_at</code> (timestamp). On considère uniquement les commandes avec status = 'paid'.</p><p>Un développeur écrit la requête TypeORM suivante pour le CA d'aujourd'hui :</p><pre>const today = new Date();\ntoday.setHours(0, 0, 0, 0);\nconst result = await this.orderRepository\n  .createQueryBuilder('order')\n  .select('SUM(order.total_amount)', 'total')\n  .where('order.status = :status', { status: 'paid' })\n  .andWhere('order.created_at >= :today', { today })\n  .getRawOne();</pre><p>Expliquez ce que calcule cette requête et proposez une version pour le CA de la semaine dernière (lundi à dimanche).</p>",
+      "images": [
+        "Schéma de table orders avec colonnes clés pour l'analyse financière"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier ce que retourne la requête actuelle et analyser sa limite concernant le fuseau horaire.",
+        "niveau": "easy",
+        "reponse": "La requête retourne la somme des montants des commandes payées du jour (à partir de minuit). La limite : elle utilise le fuseau horaire du serveur Node.js. En production, il faut stocker les dates en UTC et convertir selon le fuseau du client (ex: Afrique/Douala). Une meilleure approche : utiliser des dates UTC et interroger avec des bornes UTC.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la requête TypeORM (ou SQL) pour calculer le chiffre d'affaires de la semaine dernière (du lundi au dimanche inclus). Utiliser des fonctions de date.",
+        "niveau": "hard",
+        "reponse": "En TypeORM avec PostgreSQL : const lastWeekStart = moment().subtract(1, 'week').startOf('isoWeek').toDate(); const lastWeekEnd = moment().subtract(1, 'week').endOf('isoWeek').toDate(); ... .andWhere('order.created_at BETWEEN :start AND :end', { start: lastWeekStart, end: lastWeekEnd }). En SQL brut : SELECT SUM(total_amount) FROM orders WHERE status='paid' AND created_at BETWEEN date_trunc('week', NOW() - INTERVAL '1 week') AND date_trunc('week', NOW()) - INTERVAL '1 second';",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse des paniers abandonnés",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'administrateur d'une plateforme e-commerce constate une baisse des ventes. Il souhaite analyser les <strong>paniers abandonnés</strong> : paniers créés mais jamais transformés en commande. La base contient les entités <code>Cart</code> (id, userId, createdAt, updatedAt) et <code>CartItem</code> (cartId, productId, quantity). Un panier est considéré 'abandonné' s'il a été créé il y a plus de 2 heures et qu'aucune commande n'est associée.</p><p>Écrire une requête (TypeORM ou SQL) qui liste les 10 paniers abandonnés avec le plus grand nombre d'articles, ainsi que l'email de l'utilisateur associé (s'il est connecté).</p>",
+      "images": [
+        "Diagramme de relations entre Cart, CartItem et User pour l'analyse d'abandon"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décomposer le problème et proposer la structure de la requête (jointures, conditions de temps, filtres).",
+        "niveau": "medium",
+        "reponse": "Il faut : 1) Joindre Cart avec CartItem pour compter les articles. 2) Joindre User pour récupérer l'email. 3) Filtrer les paniers sans commande associée (LEFT JOIN orders WHERE orders.id IS NULL). 4) Condition de temps : carts.created_at < NOW() - INTERVAL '2 hours'. 5) Grouper par panier et user, puis trier par nombre d'articles DESC, limite 10.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la requête SQL complète (PostgreSQL).",
+        "niveau": "hard",
+        "reponse": "```sql\nSELECT c.id, u.email, COUNT(ci.id) as item_count, c.created_at\nFROM carts c\nLEFT JOIN orders o ON o.cart_id = c.id\nLEFT JOIN cart_items ci ON ci.cart_id = c.id\nLEFT JOIN users u ON u.id = c.user_id\nWHERE o.id IS NULL\n  AND c.created_at < NOW() - INTERVAL '2 hours'\nGROUP BY c.id, u.email, c.created_at\nORDER BY item_count DESC\nLIMIT 10;\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": "2.a",
+        "texte": "Justifier pourquoi on utilise LEFT JOIN au lieu de INNER JOIN pour la table orders.",
+        "niveau": "easy",
+        "reponse": "On utilise LEFT JOIN orders pour inclure tous les paniers, même ceux qui n'ont pas de commande associée. La condition WHERE o.id IS NULL filtre ensuite uniquement les paniers sans commande, ce qui donne les paniers abandonnés. Avec un INNER JOIN, on n'obtiendrait que les paniers ayant une commande, ce qui est l'inverse.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Détermination des top produits et catégories populaires",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un administrateur veut identifier les produits les plus vendus (en quantité) et les catégories qui génèrent le plus de revenus. Les tables sont : <code>products</code> (id, name, category_id, price), <code>order_items</code> (order_id, product_id, quantity, unit_price) et <code>categories</code> (id, name). Les commandes sont filtrées sur status = 'paid'.</p><p>Écrire deux requêtes :</p><ul><li>Top 5 produits par quantité vendue.</li><li>Top 3 catégories par chiffre d'affaires généré.</li></ul>",
+      "images": [
+        "Exemple de graphique à barres des produits les plus vendus"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Composer la requête SQL pour le top 5 produits par quantité vendue, en incluant le nom du produit.",
+        "niveau": "medium",
+        "reponse": "```sql\nSELECT p.id, p.name, SUM(oi.quantity) as total_sold\nFROM order_items oi\nJOIN products p ON p.id = oi.product_id\nJOIN orders o ON o.id = oi.order_id\nWHERE o.status = 'paid'\nGROUP BY p.id, p.name\nORDER BY total_sold DESC\nLIMIT 5;\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Composer la requête SQL pour le top 3 catégories par chiffre d'affaires (somme de quantity * unit_price).",
+        "niveau": "hard",
+        "reponse": "```sql\nSELECT c.id, c.name, SUM(oi.quantity * oi.unit_price) as revenue\nFROM order_items oi\nJOIN products p ON p.id = oi.product_id\nJOIN categories c ON c.id = p.category_id\nJOIN orders o ON o.id = oi.order_id\nWHERE o.status = 'paid'\nGROUP BY c.id, c.name\nORDER BY revenue DESC\nLIMIT 3;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation d'un dashboard admin avec agrégations temporelles",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous devez créer un endpoint GET <code>/admin/dashboard/stats</code> qui retourne un tableau de bord complet. Les métriques attendues :</p><ul><li><strong>CA aujourd'hui</strong>, <strong>CA hier</strong> et <strong>variation en pourcentage</strong> ($\\frac{CA_{today} - CA_{yesterday}}{CA_{yesterday}} \\times 100$).</li><li><strong>Nombre de commandes aujourd'hui</strong> et <strong>panier moyen</strong> ($\\frac{CA_{today}}{nb\\_commandes_{today}}$).</li><li><strong>Taux de conversion</strong> : (commandes payées / paniers créés) sur les 30 derniers jours, exprimé en pourcentage.</li></ul><p>Proposez une implémentation dans un service NestJS avec des requêtes TypeORM optimisées (une ou plusieurs requêtes). Incluez la gestion des dates en UTC.</p>",
+      "images": [
+        "Maquette de dashboard e-commerce avec KPI et graphiques"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Organiser la stratégie : combien de requêtes sont nécessaires pour obtenir toutes ces métriques sans surcoût ? Justifier.",
+        "niveau": "hard",
+        "reponse": "On peut faire 2 requêtes principales : 1) Une requête pour les agrégats du jour et d'hier sur orders (SUM(total_amount), COUNT(id)). 2) Une requête séparée sur les 30 derniers jours pour compter les paniers créés et les commandes payées, afin de calculer le taux de conversion. On évite de multiplier les allers-retours base de données.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire le code TypeScript (NestJS + TypeORM) pour calculer les métriques du jour et d'hier, avec la variation. Utiliser des dates UTC.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync getDailyStats() {\n  const todayStart = new Date();\n  todayStart.setUTCHours(0, 0, 0, 0);\n  const todayEnd = new Date(todayStart);\n  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);\n\n  const yesterdayStart = new Date(todayStart);\n  yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);\n  const yesterdayEnd = todayStart;\n\n  const stats = await this.orderRepository\n    .createQueryBuilder('order')\n    .select([\n      'SUM(CASE WHEN order.created_at >= :todayStart AND order.created_at < :todayEnd THEN order.total_amount ELSE 0 END) as ca_today',\n      'COUNT(CASE WHEN order.created_at >= :todayStart AND order.created_at < :todayEnd THEN 1 END) as orders_today',\n      'SUM(CASE WHEN order.created_at >= :yesterdayStart AND order.created_at < :yesterdayEnd THEN order.total_amount ELSE 0 END) as ca_yesterday',\n    ])\n    .where('order.status = :status', { status: 'paid' })\n    .setParameters({ todayStart, todayEnd, yesterdayStart, yesterdayEnd })\n    .getRawOne();\n\n  const variation = stats.ca_yesterday > 0 \n    ? ((stats.ca_today - stats.ca_yesterday) / stats.ca_yesterday) * 100 \n    : 0;\n  const avgCart = stats.orders_today > 0 ? stats.ca_today / stats.orders_today : 0;\n  \n  return { ca_today: stats.ca_today, ca_yesterday: stats.ca_yesterday, variation, orders_today: stats.orders_today, avg_cart: avgCart };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Audit des performances des requêtes dashboard",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un administrateur se plaint que le chargement du dashboard prend plus de 8 secondes alors que la base contient 2 millions de commandes. L'équipe technique identifie la requête suivante comme responsable :</p><pre>SELECT DATE(created_at) as jour, SUM(total_amount) as ca, COUNT(*) as nb_commandes\nFROM orders\nWHERE status = 'paid' AND created_at >= NOW() - INTERVAL '90 days'\nGROUP BY DATE(created_at)\nORDER BY jour DESC;</pre><p>Analysez les problèmes de performance et proposez des améliorations (index, agrégations pré-calculées, cache).</p>",
+      "images": [
+        "Explain plan d'une requête SQL lente avec Seq Scan"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier les goulots d'étranglement potentiels dans cette requête et proposer un index approprié.",
+        "niveau": "hard",
+        "reponse": "Goulots : 1) Filtre sur status + created_at sans index combiné. 2) GROUP BY sur DATE(created_at) empêche l'utilisation d'un index simple sur created_at. 3) Analyse sur 90 jours avec millions de lignes. Correction : créer un index composite (status, created_at). Ensuite, remplacer DATE(created_at) par created_at::date (identique) mais l'index ne sera pas utilisé de façon optimale ; mieux vaut stocker une colonne 'day' pré-calculée ou utiliser un materialized view.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une architecture avec cache Redis pour accélérer le dashboard sans impacter la base à chaque requête. Décrire la stratégie d'invalidation.",
+        "niveau": "very hard",
+        "reponse": "Mettre en cache le résultat agrégé des 90 jours dans Redis avec une clé 'dashboard:revenue:90days' et une TTL de 1 heure. Invalider le cache à chaque nouvelle commande payée (via un événement ou un webhook) en supprimant la clé. Pour les données temps réel (CA aujourd'hui), ne pas mettre en cache ou utiliser un cache très court (30 secondes). On peut aussi utiliser une tâche cron qui pré-calcule les agrégats quotidiennement dans une table de reporting (ex: daily_sales).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

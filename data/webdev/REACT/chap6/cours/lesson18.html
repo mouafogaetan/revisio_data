@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours React - Optimisation des performances : useMemo et useCallback</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        body {
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2);
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            font-family: 'Fira Code', monospace;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .btn-slide:hover {
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        .performance-tip {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .glass-card {
+                padding: 1.2rem !important;
+                border-radius: 1.5rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            pre { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex items-center justify-center">
+
+    <div class="max-w-5xl w-full mx-auto">
+        <div class="glass-card p-6 md:p-10 relative">
+            <!-- Barre de progression et compteur -->
+            <div class="flex justify-between items-center mb-5 text-sm text-gray-500">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-tachometer-alt text-indigo-500"></i>
+                    <span id="slideCounter">Slide 1 / 10</span>
+                </div>
+                <div class="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div id="progressFill" class="progress-bar bg-indigo-600 h-full rounded-full" style="width: 10%"></div>
+                </div>
+            </div>
+
+            <!-- Slides -->
+            <div id="slidesContainer">
+                <!-- SLIDE 1 : Titre -->
+                <div class="slide active" data-index="0">
+                    <div class="text-center py-8 md:py-12">
+                        <div class="inline-flex p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full mb-5 shadow-lg">
+                            <i class="fas fa-rocket text-white text-5xl"></i>
+                        </div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-800 to-purple-800 bg-clip-text text-transparent">Optimisation des performances</h1>
+                        <p class="text-xl text-gray-600 mt-3">useMemo & useCallback</p>
+                        <p class="text-gray-500 mt-5">Initiation à React — Lesson 18</p>
+                        <div class="mt-8 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Utilisez les boutons pour naviguer</div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2 : Objectifs pédagogiques -->
+                <div class="slide" data-index="1">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-5">🎯 Objectifs de la leçon</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre les <strong>problèmes de performance</strong> et les re-rendus inutiles</span></li>
+                        <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser <strong>useMemo</strong> pour mémoriser une valeur calculée</span></li>
+                        <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser <strong>useCallback</strong> pour mémoriser une fonction</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-50 p-4 rounded-xl">
+                        <p><i class="fas fa-graduation-cap text-indigo-600"></i> À la fin de ce cours, vous saurez optimiser vos applications React pour des rendus plus rapides.</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 3 : Pourquoi optimiser ? Les re-rendus inutiles -->
+                <div class="slide" data-index="2">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">🔄 Le problème : les re-rendus inutiles</h2>
+                    <p class="mb-3">En React, un composant se re-rend chaque fois que son état ou ses props changent. Parfois, ces re-rendus sont <strong>inutiles</strong> et ralentissent l'application.</p>
+                    <div class="performance-tip mb-4">
+                        <i class="fas fa-exclamation-triangle text-amber-600"></i> <strong>Exemple problématique :</strong> Un calcul coûteux (filtrage de grande liste, tri, etc.) est refait à chaque rendu, même si les données n'ont pas changé.
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <pre><code>// Ce calcul est refait à chaque rendu, même si 'items' n'a pas changé
+const filteredItems = items.filter(item => 
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+);</code></pre>
+                    </div>
+                </div>
+
+                <!-- SLIDE 4 : useMemo - mémoriser une valeur calculée -->
+                <div class="slide" data-index="3">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">💾 useMemo : mémoriser une valeur</h2>
+                    <p><code class="bg-gray-200 px-1 rounded">useMemo</code> permet de mettre en cache le résultat d’un calcul coûteux et de ne le recalculer que si ses dépendances changent.</p>
+                    <div class="bg-gray-800 rounded-xl p-4 my-3">
+                        <pre><code>import { useMemo } from 'react';
+
+const filteredItems = useMemo(() => {
+    console.log('Calcul coûteux exécuté');
+    return items.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+}, [items, searchTerm]); // Recalcul uniquement si items ou searchTerm change</code></pre>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <i class="fas fa-check-circle text-green-600"></i> <strong>Avantage :</strong> Les calculs lourds ne sont plus exécutés à chaque rendu.
+                    </div>
+                </div>
+
+                <!-- SLIDE 5 : useCallback - mémoriser une fonction -->
+                <div class="slide" data-index="4">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">📦 useCallback : mémoriser une fonction</h2>
+                    <p><code class="bg-gray-200 px-1 rounded">useCallback</code> retourne une version mémorisée de la fonction, qui ne change que si les dépendances changent.</p>
+                    <div class="bg-gray-800 rounded-xl p-4 my-3">
+                        <pre><code>import { useCallback } from 'react';
+
+// Sans useCallback : une nouvelle fonction est créée à chaque rendu
+const handleClick = () => { console.log(count); };
+
+// Avec useCallback : la fonction reste la même entre les rendus
+const handleClick = useCallback(() => {
+    console.log(count);
+}, [count]); // Recrée la fonction uniquement si count change</code></pre>
+                    </div>
+                    <p class="text-sm text-gray-600">Utile quand on passe des fonctions à des composants enfants optimisés avec <code>React.memo</code>.</p>
+                </div>
+
+                <!-- SLIDE 6 : Différence entre useMemo et useCallback -->
+                <div class="slide" data-index="5">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">⚖️ useMemo vs useCallback</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                            <p class="font-bold text-blue-800"><i class="fas fa-calculator"></i> useMemo</p>
+                            <p class="text-sm mt-2">Mémorise une <strong>valeur</strong> (résultat d'un calcul).</p>
+                            <pre class="text-xs mt-2"><code>const result = useMemo(() => 
+    computeExpensiveValue(a, b), [a, b]
+);</code></pre>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                            <p class="font-bold text-purple-800"><i class="fas fa-code"></i> useCallback</p>
+                            <p class="text-sm mt-2">Mémorise une <strong>fonction</strong> (l'identité de la fonction).</p>
+                            <pre class="text-xs mt-2"><code>const fn = useCallback(() => {
+    doSomething(a, b);
+}, [a, b]);</code></pre>
+                        </div>
+                    </div>
+                    <div class="performance-tip mt-4">
+                        <i class="fas fa-lightbulb text-amber-600"></i> <strong>Astuce :</strong> <code>useCallback(fn, deps)</code> équivaut à <code>useMemo(() => fn, deps)</code>.
+                    </div>
+                </div>
+
+                <!-- SLIDE 7 : Exemple concret - Liste filtrée avec useMemo -->
+                <div class="slide" data-index="6">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">📝 Exemple : Filtrage de liste (useMemo)</h2>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <pre><code>function ProductList({ products, searchTerm }) {
+    // ⚠️ Sans useMemo : recalcul à chaque rendu
+    const filtered = products.filter(p =>
+        p.name.includes(searchTerm)
+    );
+
+    // ✅ Avec useMemo : recalcul uniquement si products ou searchTerm change
+    const filteredOptimized = useMemo(() => {
+        console.log('Filtrage exécuté');
+        return products.filter(p => p.name.includes(searchTerm));
+    }, [products, searchTerm]);
+
+    return &lt;div&gt;{filteredOptimized.map(p => &lt;Product key={p.id} {...p} /&gt;)}&lt;/div&gt;;
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- SLIDE 8 : Exemple concret - Callback avec useCallback -->
+                <div class="slide" data-index="7">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">🎛️ Exemple : Callback évite les re-rendus enfants</h2>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <pre><code>function Parent() {
+    const [count, setCount] = useState(0);
+
+    // ❌ Nouvelle fonction créée à chaque rendu → Child se re-rend
+    const handleClick = () => console.log('clicked');
+
+    // ✅ Fonction mémorisée → Child ne se re-rend pas inutilement
+    const handleClickMemo = useCallback(() => {
+        console.log('clicked');
+    }, []);
+
+    return &lt;Child onClick={handleClickMemo} /&gt;;
+}
+
+const Child = React.memo(({ onClick }) => {
+    console.log('Child rendu');
+    return &lt;button onClick={onClick}&gt;Click&lt;/button&gt;;
+});</code></pre>
+                    </div>
+                </div>
+
+                <!-- SLIDE 9 : Bonnes pratiques et pièges à éviter -->
+                <div class="slide" data-index="8">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">⚠️ Bonnes pratiques & pièges</h2>
+                    <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                        <li><strong>N'optimisez pas trop tôt :</strong> Commencez sans useMemo/useCallback, n'optimisez qu'en cas de problème de performance mesuré.</li>
+                        <li><strong>Ne mettez pas tout en useMemo :</strong> La mémorisation a un coût (mémoire). Utilisez-la pour les calculs vraiment coûteux.</li>
+                        <li><strong>Dépendances complètes :</strong> Toujours inclure toutes les valeurs utilisées dans le tableau de dépendances.</li>
+                        <li><strong>useCallback pour les props :</strong> Indispensable quand le composant enfant est enveloppé dans <code>React.memo</code>.</li>
+                    </ul>
+                    <div class="bg-red-50 p-3 rounded-lg mt-4 border-l-4 border-red-500">
+                        <i class="fas fa-ban text-red-600"></i> <strong>À éviter :</strong> useMemo pour des calculs triviaux (addition, concaténation simple).
+                    </div>
+                </div>
+
+                <!-- SLIDE 10 : Exercice pratique & synthèse -->
+                <div class="slide" data-index="9">
+                    <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-600 pl-4 mb-4">🏋️ Exercice & Synthèse</h2>
+                    <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+                        <p class="font-bold text-lg"><i class="fas fa-laptop-code text-indigo-600"></i> À réaliser</p>
+                        <p>Vous avez un composant qui affiche une <strong>liste d'utilisateurs filtrée</strong> et un compteur. À chaque clic sur le compteur, le filtre se recalcule inutilement.</p>
+                        <ul class="list-disc ml-6 mt-2 space-y-1">
+                            <li>Identifiez le problème de performance.</li>
+                            <li>Utilisez <code>useMemo</code> pour mémoriser le résultat du filtre.</li>
+                            <li>Utilisez <code>useCallback</code> pour qu'un bouton de réinitialisation ne provoque pas de re-rendu enfant inutile.</li>
+                        </ul>
+                    </div>
+                    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-green-50 p-3 rounded-xl text-center">
+                            <i class="fas fa-question-circle text-green-600 text-2xl"></i>
+                            <p class="font-medium">Question rapide</p>
+                            <p class="text-sm">Quel hook utiliser pour mémoriser une fonction ?</p>
+                            <p class="text-xs text-gray-500 mt-2">✅ <code>useCallback</code></p>
+                        </div>
+                        <div class="bg-purple-50 p-3 rounded-xl text-center">
+                            <i class="fas fa-rocket text-purple-600 text-2xl"></i>
+                            <p class="font-medium">À retenir</p>
+                            <p class="text-sm">useMemo pour les <strong>valeurs</strong>, useCallback pour les <strong>fonctions</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
+                <button id="prevBtn" class="btn-slide bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-5 rounded-full flex items-center gap-2 disabled:opacity-50"><i class="fas fa-arrow-left"></i> Précédent</button>
+                <div class="flex gap-2" id="dotsNav"></div>
+                <button id="nextBtn" class="btn-slide bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full flex items-center gap-2">Suivant <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+        <p class="text-center text-gray-400 text-sm mt-5">Cours React — Initiation | Optimisation des performances (Lesson 18) — Cameroun 🇨🇲</p>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+                let percent = ((currentIndex+1) / totalSlides) * 100;
+                $('#progressFill').css('width', `${percent}%`);
+                
+                if (currentIndex === 0) {
+                    $('#prevBtn').prop('disabled', true).addClass('opacity-50');
+                } else {
+                    $('#prevBtn').prop('disabled', false).removeClass('opacity-50');
+                }
+                if (currentIndex === totalSlides-1) {
+                    $('#nextBtn').html('Terminé <i class="fas fa-check-circle"></i>');
+                } else {
+                    $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+                }
+                generateDots();
+            }
+
+            function generateDots() {
+                let dotsHtml = '';
+                for (let i = 0; i < totalSlides; i++) {
+                    let activeClass = (i === currentIndex) ? 'bg-indigo-700 w-6' : 'bg-gray-400 w-3';
+                    dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+                }
+                $('#dotsNav').html(dotsHtml);
+                $('.dot').off('click').on('click', function() {
+                    let idx = $(this).data('index');
+                    if (idx !== undefined && idx !== currentIndex) {
+                        currentIndex = idx;
+                        updateSlides();
+                    }
+                });
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                } else if (currentIndex === totalSlides - 1) {
+                    alert("✅ Félicitations ! Vous maîtrisez les hooks d'optimisation useMemo et useCallback.");
+                }
+            });
+
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            // Swipe pour mobile
+            let startX = 0, endX = 0;
+            const container = document.querySelector('.glass-card');
+            container.addEventListener('touchstart', (e) => { startX = e.changedTouches[0].screenX; });
+            container.addEventListener('touchend', (e) => {
+                endX = e.changedTouches[0].screenX;
+                if (endX < startX - 40 && currentIndex < totalSlides-1) { currentIndex++; updateSlides(); }
+                if (endX > startX + 40 && currentIndex > 0) { currentIndex--; updateSlides(); }
+            });
+
+            updateSlides();
+
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

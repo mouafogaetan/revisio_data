@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 46 : Remboursements (Refund) | API E-commerce</title>
+  <!-- Tailwind CSS + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body { background: #f3f4f6; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .slide-card { transition: all 0.2s ease; }
+    .progress-fill { transition: width 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
+    pre { white-space: pre-wrap; word-break: break-word; tab-size: 2; }
+    button:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; }
+    .status-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+    @media (max-width: 640px) {
+      .slide-content { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-3 md:px-5 py-5 md:py-8">
+    <!-- Barre sticky -->
+    <div class="sticky top-0 z-20 bg-white/85 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-6 flex flex-wrap items-center justify-between gap-3 border border-gray-100">
+      <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">NestJS • E-commerce</span>
+        <span class="text-gray-600 text-sm font-medium hidden sm:inline-block">Leçon 46 : Remboursements</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="slideCounter" class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">1 / 7</span>
+        <div class="hidden sm:block w-36 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div id="progressFill" class="progress-fill h-full bg-indigo-500 rounded-full" style="width: 14%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="slidesContainer" class="relative"></div>
+
+    <!-- Navigation slides -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Précédent
+      </button>
+      <span class="text-xs text-gray-400 hidden md:block">← / →  ou glisser</span>
+      <button id="nextSlide" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        Suivant
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+
+    <div class="text-center text-gray-400 text-xs mt-8 pt-4 border-t border-gray-200">
+      🇨🇲 Cours API e-commerce — Enseignant au Cameroun | Remboursements Stripe/PayPal, Refund entity
+    </div>
+  </div>
+
+  <script>
+    // Slides pour la leçon 46 (lesson46) : Refund entity, remboursements partiels/totaux
+    const slidesData = [
+      { // Slide 1 - Titre
+        type: "title",
+        title: "💰 Gestion des remboursements (Refund)",
+        subtitle: "Entité Refund, remboursements Stripe/PayPal, validation",
+        badge: "Leçon 46 • NestJS + Stripe/PayPal",
+        desc: "Apprenez à gérer les demandes de remboursement, les remboursements partiels ou totaux, et l'intégration avec les providers de paiement."
+      },
+      { // Slide 2 - Objectifs (selon programme)
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        items: [
+          "Créer une entité Refund (id, orderId, amount, reason, status, paymentProviderRefundId)",
+          "Implémenter les remboursements partiels ou totaux via Stripe/PayPal",
+          "Valider ou rejeter les demandes de remboursement"
+        ]
+      },
+      { // Slide 3 - Entité Refund
+        type: "code-example",
+        title: "📄 1. Entité Refund (TypeORM)",
+        code: `// refund.entity.ts
+import { Entity, Column, ManyToOne } from 'typeorm';
+import { Order } from './order.entity';
+
+export enum RefundStatus {
+  PENDING = 'pending',    // demande en attente
+  APPROVED = 'approved',  // approuvé, remboursement à traiter
+  PROCESSED = 'processed',// remboursement effectué
+  REJECTED = 'rejected'   // rejeté
+}
+
+@Entity()
+export class Refund {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Order)
+  order: Order;
+
+  @Column('decimal', { precision: 12, scale: 2 })
+  amount: number; // montant remboursé (peut être partiel)
+
+  @Column('text')
+  reason: string; // motif du remboursement
+
+  @Column({ type: 'enum', enum: RefundStatus, default: RefundStatus.PENDING })
+  status: RefundStatus;
+
+  @Column({ nullable: true })
+  paymentProviderRefundId: string; // id retourné par Stripe/PayPal
+
+  @CreateDateColumn()
+  requestedAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}`,
+        explanation: "✅ L'entité Refund est liée à une commande. On stocke le montant, le motif, et le statut. `paymentProviderRefundId` permet de lier au remboursement Stripe/PayPal."
+      },
+      { // Slide 4 - Création d'une demande de remboursement
+        type: "code-example",
+        title: "📝 2. Demande de remboursement (client)",
+        code: `// refunds.controller.ts
+@Post()
+@UseGuards(JwtAuthGuard)
+async requestRefund(
+  @Body() createRefundDto: CreateRefundDto,
+  @CurrentUser() user: User,
+) {
+  // Vérifier que la commande appartient à l'utilisateur et est payée
+  const order = await this.orderService.findOne(createRefundDto.orderId);
+  if (!order || order.user.id !== user.id) {
+    throw new ForbiddenException('Commande non trouvée ou non autorisée');
+  }
+  if (order.status !== OrderStatus.PAID) {
+    throw new BadRequestException('Seules les commandes payées peuvent être remboursées');
+  }
+  if (createRefundDto.amount > order.total) {
+    throw new BadRequestException('Montant supérieur au total de la commande');
+  }
+  return this.refundService.createRequest(createRefundDto);
+}`,
+        explanation: "✅ Le client crée une demande. On vérifie les droits et la cohérence du montant. Le statut initial est `PENDING`."
+      },
+      { // Slide 5 - Traitement du remboursement via Stripe
+        type: "code-example",
+        title: "💳 3. Remboursement Stripe (admin/seller)",
+        code: `// refunds.service.ts
+async processRefund(refundId: number): Promise<Refund> {
+  const refund = await this.refundRepo.findOne({ where: { id: refundId }, relations: ['order'] });
+  if (!refund) throw new NotFoundException();
+  if (refund.status !== RefundStatus.PENDING) {
+    throw new BadRequestException('Demande déjà traitée');
+  }
+
+  const order = refund.order;
+  // Appel à Stripe
+  const stripeRefund = await this.stripe.refunds.create({
+    payment_intent: order.paymentIntentId,
+    amount: Math.round(refund.amount * 100), // en centimes
+    reason: 'requested_by_customer',
+  });
+
+  // Mise à jour
+  refund.status = RefundStatus.PROCESSED;
+  refund.paymentProviderRefundId = stripeRefund.id;
+  await this.refundRepo.save(refund);
+
+  // Option : mettre à jour le statut de la commande si remboursement total
+  if (refund.amount === order.total) {
+    order.status = OrderStatus.CANCELLED;
+    await this.orderRepo.save(order);
+  }
+  return refund;
+}`,
+        explanation: "✅ L'admin valide la demande et déclenche le remboursement Stripe (total ou partiel). On met à jour le statut de la commande si total remboursé."
+      },
+      { // Slide 6 - Remboursement PayPal et validation
+        type: "code-example",
+        title: "💰 4. Remboursement PayPal",
+        code: `// paypal-refund.service.ts
+async refundPayPalOrder(refundId: number): Promise<Refund> {
+  const refund = await this.refundRepo.findOne({ where: { id: refundId }, relations: ['order'] });
+  const order = refund.order;
+  const accessToken = await this.getPayPalAccessToken();
+
+  const response = await axios.post(
+    \`https://api-m.sandbox.paypal.com/v2/payments/captures/\${order.payPalCaptureId}/refund\`,
+    {
+      amount: {
+        value: refund.amount.toString(),
+        currency_code: 'EUR',
+      },
+      note_to_payer: refund.reason,
+    },
+    { headers: { Authorization: \`Bearer \${accessToken}\`, 'Content-Type': 'application/json' } }
+  );
+
+  refund.status = RefundStatus.PROCESSED;
+  refund.paymentProviderRefundId = response.data.id;
+  await this.refundRepo.save(refund);
+  return refund;
+}`,
+        explanation: "✅ Pour PayPal, on utilise l'API REST v2 : endpoint `/captures/{capture_id}/refund`. Le montant peut être partiel."
+      },
+      { // Slide 7 - Récapitulatif & bonnes pratiques
+        type: "recap",
+        title: "✅ Récapitulatif & astuces pratiques",
+        items: [
+          "Refund : entité avec statuts (pending, approved, processed, rejected).",
+          "Un remboursement peut être partiel ou total.",
+          "Appels API Stripe (refunds.create) ou PayPal (capture refund).",
+          "Ne jamais approuver automatiquement un remboursement sans validation humaine (sauf logique métier spécifique).",
+          "Conserver la trace du remboursement (providerRefundId) pour litiges."
+        ],
+        finalTip: "🧠 Pensez à journaliser les remboursements pour l'audit. Pour Stripe, utilisez les webhooks `charge.refunded` pour être notifié en temps réel. Pour les remboursements partiels, laissez la commande en statut 'partially_refunded' si nécessaire."
+      }
+    ];
+
+    let currentSlide = 0;
+    const total = slidesData.length;
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/\\n/g, '\n');
+    }
+
+    function renderSlide(index) {
+      const data = slidesData[index];
+      const container = $("#slidesContainer");
+      container.empty();
+
+      let html = `<div class="slide-card bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all">`;
+      html += `<div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-5 py-2 border-b border-indigo-100 flex justify-between items-center">
+                  <span class="text-xs font-mono text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">slide ${index+1}/${total}</span>
+                  <span class="text-purple-400 text-xs">refunds & remboursements</span>
+                </div>`;
+
+      if (data.type === "title") {
+        html += `<div class="p-6 md:p-10 text-center">
+                  <div class="inline-block mb-3 px-4 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-bold">${data.badge}</div>
+                  <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-5">${data.title}</h1>
+                  <p class="text-xl text-gray-600 max-w-2xl mx-auto">${data.subtitle}</p>
+                  <div class="mt-7 text-gray-500 border-t border-gray-200 inline-block pt-3">${data.desc}</div>
+                  <div class="mt-6 flex justify-center"><div class="w-16 h-1 bg-indigo-400 rounded-full"></div></div>
+                </div>`;
+      }
+      else if (data.type === "objectifs") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-4 mb-6">${data.title}</h2>
+                  <ul class="space-y-4">`;
+        data.items.forEach(item => {
+          html += `<li class="flex items-start gap-3"><span class="inline-flex items-center justify-center bg-green-100 text-green-700 rounded-full w-6 h-6 text-sm mt-0.5">✓</span><span class="text-gray-700 text-lg">${item}</span></li>`;
+        });
+        html += `</ul></div>`;
+      }
+      else if (data.type === "code-example") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                    <div class="flex items-center gap-2 bg-gray-800 px-4 py-2 text-gray-300 text-xs font-mono"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="w-3 h-3 rounded-full bg-yellow-500"></span><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="ml-2">TypeScript / NestJS</span></div>
+                    <pre class="text-sm md:text-base text-gray-200 p-5 overflow-x-auto font-mono"><code>${escapeHtml(data.code)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-purple-50 p-4 rounded-xl text-purple-800 border-l-4 border-purple-400">${data.explanation}</div>
+                </div>`;
+      }
+      else if (data.type === "recap") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3 mb-5">📌 ${data.title}</h2>
+                  <ul class="space-y-3 mb-6">
+                    ${data.items.map(item => `<li class="flex gap-2 items-start"><span class="text-indigo-500 text-xl">▹</span><span class="text-gray-700">${item}</span></li>`).join('')}
+                  </ul>
+                  <div class="bg-gradient-to-r from-purple-50 to-indigo-50 p-5 rounded-2xl border border-indigo-200 text-indigo-900 font-medium shadow-inner">${data.finalTip}</div>
+                </div>`;
+      }
+
+      html += `</div>`;
+      container.html(html);
+
+      $("#slideCounter").text(`${index+1} / ${total}`);
+      let percent = ((index+1) / total) * 100;
+      $("#progressFill").css("width", `${percent}%`);
+      $("#prevSlide").prop("disabled", index === 0);
+      $("#nextSlide").prop("disabled", index === total-1);
+      if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function next() { if (currentSlide < total-1) { currentSlide++; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+    function prev() { if (currentSlide > 0) { currentSlide--; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+
+    $(document).ready(function() {
+      renderSlide(0);
+      $("#nextSlide").on("click", next);
+      $("#prevSlide").on("click", prev);
+      $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") { next(); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { prev(); e.preventDefault(); }
+      });
+      let touchstartX = 0;
+      $("body").on("touchstart", function(e) { touchstartX = e.originalEvent.touches[0].clientX; });
+      $("body").on("touchend", function(e) {
+        if (!touchstartX) return;
+        let endX = e.originalEvent.changedTouches[0].clientX;
+        let diff = endX - touchstartX;
+        if (Math.abs(diff) > 50) { diff > 0 ? prev() : next(); touchstartX = 0; }
+      });
+    });
+  </script>
+</body>
+</html>

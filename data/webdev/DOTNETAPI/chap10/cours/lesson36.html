@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 36 : Health Checks - API .NET (ASP.NET Core)</title>
+    <!-- Tailwind CSS + Font Awesome (icônes) + Google Fonts pour lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Tailwind pour améliorer le contraste et couleurs douces -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E3A5F',    // bleu profond mais calme
+                        secondary: '#2C5F8A',
+                        accent: '#4A90E2',
+                        softBg: '#F8FAFE',
+                        cardBg: '#FFFFFF',
+                        textDark: '#1F2937',
+                        textMuted: '#4B5563'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules si nécessaire (préparé) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles additionnels pour slides et transitions douces */
+        body {
+            background: linear-gradient(135deg, #eef2f9 0%, #e0e8f2 100%);
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+        }
+        .btn-nav:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* pour les petits écrans, marges adaptées */
+        @media (max-width: 640px) {
+            .card-padding {
+                padding: 1.25rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        /* custom scrollbar soft */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Menlo', 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide deck -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+            <!-- Entête fixe avec titre de la matière / leçon -->
+            <div class="bg-primary px-5 py-4 md:px-8 flex flex-wrap justify-between items-center gap-3">
+                <div>
+                    <span class="text-white/80 text-xs font-semibold uppercase tracking-wide">API .NET (ASP.NET Core) · Cours complet</span>
+                    <h1 class="text-white text-xl md:text-2xl font-bold mt-1">Lesson 36 : Health Checks pour API en production</h1>
+                </div>
+                <div class="bg-white/20 rounded-full px-3 py-1 text-white text-sm font-medium">
+                    <i class="fas fa-heartbeat mr-1"></i> Monitoring & disponibilité
+                </div>
+            </div>
+            
+            <!-- Indicateur de progression + numéro slide -->
+            <div class="bg-gray-50 border-b border-gray-200 px-5 py-3 flex justify-between items-center text-sm text-gray-600">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-chalkboard-teacher text-accent"></i>
+                    <span>Chapitre 10 : Déployer l'API en production</span>
+                </div>
+                <div class="font-medium">
+                    <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+                </div>
+            </div>
+            
+            <!-- Barre de progression horizontale -->
+            <div class="h-1 w-full bg-gray-200">
+                <div id="progressFill" class="h-full bg-accent progress-bar" style="width: 0%;"></div>
+            </div>
+            
+            <!-- Zone des slides (dynamique) -->
+            <div id="slidesContainer" class="slide-container min-h-[500px] bg-softBg p-5 md:p-8">
+                <!-- Les slides seront injectées ici via jQuery -->
+            </div>
+            
+            <!-- Navigation boutons -->
+            <div class="bg-white border-t border-gray-200 px-5 py-4 flex justify-between items-center">
+                <button id="prevBtn" class="btn-nav bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"><i class="fas fa-arrow-left"></i> Précédent</button>
+                <div class="flex gap-2">
+                    <span id="slideIndicator" class="text-sm text-gray-500"></span>
+                </div>
+                <button id="nextBtn" class="btn-nav bg-primary hover:bg-secondary text-white font-semibold py-2 px-5 rounded-full transition flex items-center gap-2">Suivant <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+        
+        <!-- petite note pédagogique -->
+        <div class="text-center text-xs text-gray-500 mt-6">
+            <i class="fas fa-mobile-alt"></i> Navigation tactile / clavier optimisée | Cours conçu pour le Cameroun
+        </div>
+    </div>
+
+    <script>
+        // Structure de la leçon 36: slide 1 => Titre, slide 2 => objectifs, puis slides de contenu détaillé
+        // D'après les objectifs Lesson36: 
+        // "Implémenter des health checks avec AddHealthChecks()", 
+        // "Vérifier la disponibilité de la base de données et des services externes",
+        // "Exposer l’endpoint /health pour la surveillance"
+        
+        // Définition des slides (contenu HTML)
+        const slidesData = [
+            {   // Slide 0 : Titre principal
+                type: "title",
+                content: `
+                    <div class="flex flex-col items-center justify-center text-center py-8 md:py-12">
+                        <div class="bg-white rounded-full p-4 shadow-md inline-flex mb-5">
+                            <i class="fas fa-heartbeat text-5xl text-accent"></i>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-primary mb-4">Health Checks dans ASP.NET Core</h2>
+                        <p class="text-lg text-textMuted max-w-2xl mx-auto">Surveiller la santé de votre API en production : base de données, services tiers et métriques essentielles</p>
+                        <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-chart-line"></i> Monitoring</span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-database"></i> Base de données</span>
+                            <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-cloud-upload-alt"></i> Déploiement pro</span>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 1 : Objectifs pédagogiques
+                type: "objectives",
+                content: `
+                    <div class="max-w-3xl mx-auto">
+                        <div class="flex items-center gap-3 mb-6 border-b border-accent/30 pb-3">
+                            <i class="fas fa-bullseye text-3xl text-accent"></i>
+                            <h2 class="text-2xl md:text-3xl font-bold text-primary">Objectifs de la leçon</h2>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-accent">
+                                <i class="fas fa-plus-circle text-accent text-xl mb-2"></i>
+                                <p class="font-semibold text-gray-800">Implémenter les health checks avec <code class="bg-gray-100 px-1 rounded">AddHealthChecks()</code></p>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-accent">
+                                <i class="fas fa-database text-accent text-xl mb-2"></i>
+                                <p class="font-semibold text-gray-800">Vérifier la disponibilité de la base de données et des services externes</p>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-accent">
+                                <i class="fas fa-globe text-accent text-xl mb-2"></i>
+                                <p class="font-semibold text-gray-800">Exposer l'endpoint <code class="bg-gray-100 px-1 rounded">/health</code> pour la surveillance (orchestrateurs, Kubernetes, Azure)</p>
+                            </div>
+                            <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-accent">
+                                <i class="fas fa-chart-simple text-accent text-xl mb-2"></i>
+                                <p class="font-semibold text-gray-800">Comprendre les codes retour: Healthy, Degraded, Unhealthy</p>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 2 : Introduction & concept Health Checks
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary flex items-center gap-2"><i class="fas fa-stethoscope"></i> Qu'est-ce qu'un Health Check ?</h2>
+                        <p class="mt-3 text-gray-700 leading-relaxed">Les health checks (ou contrôles de santé) permettent de s'assurer qu'une API fonctionne correctement. En production, les équipes d'exploitation ou les équilibreurs de charge (load balancers) interrogent régulièrement un endpoint spécial pour décider si le service doit recevoir du trafic ou être redémarré.</p>
+                        <div class="bg-blue-50 p-4 rounded-xl mt-5 border border-blue-200">
+                            <i class="fas fa-lightbulb text-yellow-600 mr-2"></i> <span class="font-semibold">À retenir :</span> ASP.NET Core propose un middleware prêt à l'emploi : <code class="bg-gray-800 text-white px-1 rounded">Microsoft.Extensions.Diagnostics.HealthChecks</code> intégré.
+                        </div>
+                        <div class="mt-5 grid md:grid-cols-2 gap-4">
+                            <div class="bg-white rounded-lg p-4 shadow">
+                                <i class="fas fa-chart-line text-green-600 text-xl"></i>
+                                <h3 class="font-bold mt-2">Healthy (200 OK)</h3>
+                                <p class="text-sm text-gray-600">Tous les composants vérifiés fonctionnent correctement.</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 shadow">
+                                <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
+                                <h3 class="font-bold mt-2">Degraded (200 avec warning)</h3>
+                                <p class="text-sm text-gray-600">L'API fonctionne mais certains services présentent des latences ou dégradations.</p>
+                            </div>
+                            <div class="bg-white rounded-lg p-4 shadow">
+                                <i class="fas fa-skull-crosswalk text-red-600 text-xl"></i>
+                                <h3 class="font-bold mt-2">Unhealthy (503 Service Unavailable)</h3>
+                                <p class="text-sm text-gray-600">Composant critique en échec (ex: base de données inaccessible).</p>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 3 : Mise en place des health checks de base
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary">🩺 Implémentation avec <code>AddHealthChecks()</code></h2>
+                        <p class="mt-2 text-gray-700">Dans <span class="font-mono bg-gray-100 px-1">Program.cs</span>, ajoutez les health checks de base en quelques lignes :</p>
+                        <div class="code-block mt-4">
+                            <span class="text-green-400">// 1. Ajouter le service HealthChecks</span><br>
+                            builder.Services.AddHealthChecks();<br><br>
+                            <span class="text-green-400">// 2. Middleware pour exposer /health</span><br>
+                            app.MapHealthChecks("/health");<br><br>
+                            <span class="text-yellow-300">// Par défaut, retourne un simple "Healthy" si tout va bien.</span>
+                        </div>
+                        <p class="mt-4 text-gray-700">Maintenant, un appel GET à <code class="bg-gray-200 px-1 rounded">/health</code> retourne un statut 200 avec le texte "Healthy". Utile pour les orchestrateurs de conteneurs (Kubernetes liveness probe).</p>
+                        <div class="bg-amber-50 p-3 rounded-md mt-3 text-sm">
+                            <i class="fas fa-terminal text-amber-700"></i> Testez avec curl ou votre navigateur : <span class="font-mono">GET /health</span> → réponse "Healthy"
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 4 : Vérifier la base de données avec EF Core
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary">🗄️ Health Check sur la base de données (SQL Server / PostgreSQL)</h2>
+                        <p class="mt-2">Pour vérifier la connectivité à votre base de données, installez le package spécifique :</p>
+                        <div class="code-block mt-2">
+                            dotnet add package Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore
+                        </div>
+                        <p class="mt-3">Ensuite, enregistrez le check pour votre DbContext :</p>
+                        <div class="code-block mt-2">
+                            builder.Services.AddHealthChecks()<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;.AddDbContextCheck&lt;ApplicationDbContext&gt;("database");
+                        </div>
+                        <p class="mt-3 text-gray-700">Ce test vérifie que la base de données répond aux requêtes. Si la connexion échoue, l'état devient <span class="text-red-600 font-semibold">Unhealthy</span>.</p>
+                        <div class="bg-green-50 p-3 rounded-lg mt-3">
+                            <i class="fas fa-check-circle text-green-600"></i> <strong>Bonnes pratiques :</strong> testez également la disponibilité de services externes (Redis, API tierces) avec <code>AddUrlGroup()</code> ou packages communautaires.
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 5 : Services externes / personnalisés
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary">🔌 Vérifier des services externes (APIs, message broker)</h2>
+                        <p class="text-gray-700">ASP.NET Core permet de créer des health checks personnalisés en implémentant <code class="bg-gray-100 px-1">IHealthCheck</code>. Exemple : contrôler une API externe météo.</p>
+                        <div class="code-block mt-3 text-sm">
+                            public class ExternalApiHealthCheck : IHealthCheck <br>
+                            { <br>
+                            &nbsp;&nbsp;public async Task&lt;HealthCheckResult&gt; CheckHealthAsync(...) <br>
+                            &nbsp;&nbsp;{ <br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;// Effectuer un ping HTTP <br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;var response = await httpClient.GetAsync("https://api.exemple.com/health"); <br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;return response.IsSuccessStatusCode ? <br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;HealthCheckResult.Healthy() : HealthCheckResult.Unhealthy("API externe indisponible"); <br>
+                            &nbsp;&nbsp;} <br>
+                            } <br>
+                        </div>
+                        <p class="mt-2 text-gray-700">Ensuite enregistrez : <code class="bg-gray-100">builder.Services.AddHealthChecks().AddCheck&lt;ExternalApiHealthCheck&gt;("externe");</code></p>
+                    </div>
+                `
+            },
+            {   // Slide 6 : Endpoint /health avancé (json détaillé, tags)
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary">📊 Personnaliser la réponse /health (JSON enrichi)</h2>
+                        <p>Par défaut, le endpoint retourne un simple texte. Pour la surveillance moderne, on préfère un objet JSON détaillant chaque composant.</p>
+                        <div class="code-block mt-3">
+                            app.MapHealthChecks("/health", new HealthCheckOptions<br>
+                            {<br>
+                            &nbsp;&nbsp;&nbsp;ResponseWriter = async (context, report) => <br>
+                            &nbsp;&nbsp;&nbsp;{<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;context.Response.ContentType = "application/json";<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var result = new { status = report.Status.ToString(), checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() }) };<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;await context.Response.WriteAsync(JsonSerializer.Serialize(result));<br>
+                            &nbsp;&nbsp;&nbsp;}<br>
+                            });
+                        </div>
+                        <p class="mt-3">Ainsi vous obtenez des détails précis sur chaque service (DB, cache, etc.). Recommandé pour les plateformes comme Azure App Service, AWS, ou Prometheus.</p>
+                    </div>
+                `
+            },
+            {   // Slide 7 : Health checks dans un environnement réel + Docker / K8s
+                content: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary">🚀 Exemple complet pour la production</h2>
+                        <div class="grid md:grid-cols-2 gap-4 mt-4">
+                            <div class="bg-white p-4 rounded-xl shadow">
+                                <i class="fab fa-docker text-blue-500 text-2xl"></i>
+                                <h3 class="font-bold mt-1">Dans un Dockerfile</h3>
+                                <p class="text-sm text-gray-600">HEALTHCHECK --interval=30s CMD curl -f http://localhost/health || exit 1</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow">
+                                <i class="fas fa-cloud-upload-alt text-primary text-2xl"></i>
+                                <h3 class="font-bold mt-1">Kubernetes (liveness & readiness)</h3>
+                                <p class="text-sm text-gray-600">livenessProbe: httpGet: path: /health port: 8080</p>
+                            </div>
+                        </div>
+                        <p class="mt-5">Les health checks sont essentiels pour les redémarrages automatiques et le routage du trafic. L'endpoint <span class="font-mono bg-gray-100 px-1">/health</span> doit être rapide et léger.</p>
+                        <div class="mt-4 p-3 bg-indigo-50 rounded-lg">
+                            <i class="fas fa-mobile-alt"></i> <strong>En résumé :</strong> pour une API robuste, intégrez toujours les health checks — votre équipe d’exploitation vous remerciera !
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 8 : Exercice / Mise en pratique (auto évaluation)
+                content: `
+                    <div class="text-center">
+                        <i class="fas fa-pen-ruler text-5xl text-accent mb-3"></i>
+                        <h2 class="text-2xl font-bold text-primary">📝 À vous de jouer !</h2>
+                        <p class="mt-4 max-w-2xl mx-auto">Ajoutez des health checks à votre propre projet API .NET. Vérifiez la disponibilité de SQL Server, puis exposez un endpoint JSON.</p>
+                        <div class="bg-gray-100 p-4 rounded-2xl mt-6 text-left">
+                            <p class="font-semibold"><i class="fas fa-check-square text-green-600"></i> Mini projet personnel :</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-1 text-gray-700">
+                                <li>Créer une nouvelle API ou reprendre un projet existant.</li>
+                                <li>Installer le package EntityFrameworkCore health checks.</li>
+                                <li>Configurer MapHealthChecks avec un writer JSON personnalisé.</li>
+                                <li>Tester en simulant une panne DB (arrêter SQL Server) et observer l'état Unhealthy.</li>
+                            </ul>
+                        </div>
+                        <p class="mt-5 text-sm italic text-gray-500">Le contrôle de santé est votre premier rempart contre les pannes silencieuses.</p>
+                    </div>
+                `
+            }
+        ];
+        
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+        
+        // Mise à jour de l'affichage du slide et de la progression
+        function renderSlide(index) {
+            $('.slide').removeClass('active');
+            const slideHtml = slidesData[index].content;
+            // On maintient un seul container pour slide courant
+            // Notre approche: remplacer contenu du wrapper dédié (mais on gère l'état)
+            // Mieux : nous réinjectons la slide courante dans le container parent en gardant une div unique
+            // On évite les conflits
+            $('#slidesContainer').html(`<div class="slide active fade-in">${slideHtml}</div>`);
+            // Si besoin d'exécuter mathjax sur nouveau contenu
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            $('#currentSlideIdx').text(index+1);
+            $('#totalSlides').text(totalSlides);
+            let progressPercent = ((index+1) / totalSlides) * 100;
+            $('#progressFill').css('width', progressPercent + '%');
+            $('#slideIndicator').html(`<i class="fas fa-layer-group"></i> Slide ${index+1} sur ${totalSlides}`);
+            // Gérer état des boutons
+            $('#prevBtn').prop('disabled', index === 0);
+            $('#nextBtn').prop('disabled', index === totalSlides-1);
+            if (index === totalSlides-1) {
+                $('#nextBtn').html('Terminé <i class="fas fa-check-circle"></i>');
+            } else {
+                $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+            }
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                renderSlide(currentSlide);
+                // Scroll en haut pour confort sur mobile
+                $('html, body').animate({ scrollTop: $('.slide-container').offset().top - 20 }, 200);
+            }
+        }
+        
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide(currentSlide);
+                $('html, body').animate({ scrollTop: $('.slide-container').offset().top - 20 }, 200);
+            }
+        }
+        
+        // Gestion des touches clavier (gauche/droite)
+        $(document).keydown(function(e) {
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+                e.preventDefault();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+                e.preventDefault();
+            }
+        });
+        
+        // Initialisation
+        $(document).ready(function() {
+            totalSlides = slidesData.length;
+            $('#totalSlides').text(totalSlides);
+            renderSlide(0);
+            $('#prevBtn').on('click', prevSlide);
+            $('#nextBtn').on('click', nextSlide);
+            // ajout swipe pour mobile (simple)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('#slidesContainer').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesContainer').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchStartX - touchEndX > 50) {
+                    nextSlide();
+                } else if (touchEndX - touchStartX > 50) {
+                    prevSlide();
+                }
+            });
+        });
+    </script>
+    <!-- petite adaptation supplémentaire pour rendre les extraits de code plus lisibles -->
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 37 : Générer APK / AAB et publier sur Google Play | Flutter</title>
+  <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (optionnel pour d'éventuelles formules, mais pas indispensable ici) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Transition douce pour les slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out;
+    }
+    .slide-hidden {
+      display: none;
+    }
+    /* Amélioration du défilement sur mobile */
+    body {
+      overflow-x: hidden;
+    }
+    /* Personnalisation des boutons de navigation */
+    .nav-btn {
+      transition: all 0.2s ease;
+    }
+    .nav-btn:active {
+      transform: scale(0.96);
+    }
+    /* Hauteur minimale pour que le slide tienne sur petit écran */
+    .slide-container {
+      min-height: 70vh;
+    }
+    /* Bullet point personnalisé */
+    .custom-list li {
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .custom-list li::before {
+      content: "▹";
+      color: #3b82f6;
+      font-weight: bold;
+      display: inline-block;
+      width: 1.25rem;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 font-sans antialiased">
+
+  <!-- Conteneur principal avec padding sécurisé -->
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    
+    <!-- Carte principale qui contient les slides -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+      
+      <!-- En-tête fixe avec progression -->
+      <div class="bg-indigo-700 px-5 py-4 flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center space-x-2">
+          <span class="text-white text-lg font-bold">📱 Flutter - Publication</span>
+          <span class="bg-indigo-900 text-indigo-100 text-xs px-2 py-1 rounded-full">Leçon 37/39</span>
+        </div>
+        <div class="text-white text-sm bg-indigo-800 px-3 py-1 rounded-full">
+          <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+        </div>
+      </div>
+      
+      <!-- Zone dynamique des slides (affichage unique) -->
+      <div id="slidesContainer" class="relative">
+        <!-- Les slides seront injectées ici par jQuery -->
+      </div>
+      
+      <!-- Pied de page avec navigation -->
+      <div class="bg-slate-50 px-5 py-4 border-t border-slate-200 flex justify-between items-center">
+        <button id="prevBtn" class="nav-btn bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium py-2 px-4 rounded-lg shadow-sm flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          ◀ Précédent
+        </button>
+        <div class="text-xs text-slate-500 hidden md:block">
+          ✨ Utilisez les flèches ou ces boutons
+        </div>
+        <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-lg shadow-md flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition">
+          Suivant ▶
+        </button>
+      </div>
+    </div>
+    
+    <!-- Petit message d'accessibilité -->
+    <div class="text-center text-xs text-slate-400 mt-6">
+      Support mobile & desktop — Slide actif affiché ci-dessus
+    </div>
+  </div>
+
+  <script>
+    // Définition des slides pour la leçon 37 : Générer APK/AAB et publier sur Play Console
+    // Slide 0 : Titre principal
+    // Slide 1 : Objectifs d'apprentissage
+    // Slides 2 à 5 : Contenu de la leçon (étapes, explications)
+    const slidesData = [
+      {
+        type: "title",
+        title: "📦 Générer l’APK / AAB",
+        subtitle: "Préparez votre application Flutter pour le Google Play Store",
+        icon: "🚀"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Comprendre la différence entre APK et AAB (Android App Bundle)",
+          "Générer un APK de débogage ou de release avec Flutter",
+          "Créer un keystore (signature sécurisée) pour l’application",
+          "Construire un AAB (format recommandé pour Google Play)",
+          "Télécharger et publier l’application sur Google Play Console"
+        ]
+      },
+      {
+        type: "content",
+        title: "🔍 1. APK vs AAB : lequel choisir ?",
+        paragraphs: [
+          "L’APK (Android Package Kit) est le format d’installation classique. Il contient tout le code et les ressources pour une architecture spécifique.",
+          "L’AAB (Android App Bundle) est le format moderne recommandé par Google. Il permet de générer des APK optimisés par appareil (taille réduite jusqu’à 30%).",
+          "Pour le Play Store, publiez en .aab. Pour un partage direct (test, hors store), utilisez l’APK."
+        ],
+        note: "💡 Depuis août 2021, Google exige que les nouvelles applications utilisent l’AAB. Privilégiez toujours flutter build appbundle pour la publication."
+      },
+      {
+        type: "content",
+        title: "🔐 2. Créer un keystore (signature de l'application)",
+        paragraphs: [
+          "Avant de générer une version release, vous devez signer votre application avec un keystore (fichier contenant votre clé privée).",
+          "Ouvrez un terminal et exécutez la commande :",
+          "<code class='bg-gray-800 text-white px-3 py-1 rounded text-sm block my-2'>keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload</code>",
+          "Sur Windows, remplacez le chemin par <code class='bg-gray-100 px-1'>%USERPROFILE%\\upload-keystore.jks</code>. Retenez le mot de passe et les alias !",
+          "Placez le fichier .jks dans le dossier <span class='font-mono bg-slate-100 px-1'>android/app</span> de votre projet."
+        ],
+        note: "⚠️ Ne commitez jamais votre keystore dans Git. Ajoutez-le dans .gitignore"
+      },
+      {
+        type: "content",
+        title: "⚙️ 3. Configurer les signatures (key.properties)",
+        paragraphs: [
+          "Créez un fichier <span class='font-bold'>android/key.properties</span> avec le contenu suivant :",
+          "<pre class='bg-gray-800 text-green-300 p-3 rounded-lg text-sm overflow-x-auto'>storePassword=votre_mdp_store\nkeyPassword=votre_mdp_key\nkeyAlias=upload\nstoreFile=upload-keystore.jks</pre>",
+          "Ensuite, modifiez <span class='font-mono'>android/app/build.gradle</span> pour charger cette configuration :",
+          "<pre class='bg-gray-800 text-green-300 p-3 rounded-lg text-sm overflow-x-auto'>def keystoreProperties = new Properties()\ndef keystorePropertiesFile = rootProject.file('key.properties')\nif (keystorePropertiesFile.exists()) {\n    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n}</pre>",
+          "Dans la section <span class='font-mono'>signingConfigs</span>, ajoutez la configuration release avec le keystore."
+        ]
+      },
+      {
+        type: "content",
+        title: "🏗️ 4. Générer l’APK / AAB en mode release",
+        paragraphs: [
+          "Une fois la signature configurée, ouvrez un terminal à la racine du projet Flutter.",
+          "▶️ Pour générer un APK : <span class='bg-slate-100 font-mono px-2 py-0.5 rounded'>flutter build apk --release</span>",
+          "L’APK se trouvera dans <span class='font-mono'>build/app/outputs/flutter-apk/app-release.apk</span>",
+          "▶️ Pour générer un AAB (recommandé) : <span class='bg-slate-100 font-mono px-2 py-0.5 rounded'>flutter build appbundle --release</span>",
+          "Le fichier .aab se trouve dans <span class='font-mono'>build/app/outputs/bundle/release/app-release.aab</span>",
+          "Vous pouvez installer l’APK sur un vrai appareil pour tester ; l’AAB est destiné au Play Store uniquement."
+        ],
+        warning: "⚠️ Pensez à vérifier la version dans pubspec.yaml et le versionCode dans android/app/build.gradle avant chaque build release."
+      },
+      {
+        type: "content",
+        title: "📲 5. Publier sur Google Play Console",
+        paragraphs: [
+          "Créez un compte développeur Google Play (frais unique de 25$). Connectez-vous sur <a href='https://play.google.com/console' target='_blank' class='text-indigo-600 underline'>play.google.com/console</a>.",
+          "Cliquez sur « Créer une application » et remplissez les informations (nom, description, catégorie).",
+          "Dans l'onglet « Production » > « Créer une nouvelle version », déposez votre fichier .aab ou .apk.",
+          "Google analysera automatiquement l’APK/AAB. Remplissez ensuite la fiche de store (graphiques, icônes, captures d’écran).",
+          "Soumettez pour examen. Après validation (24h-48h), l’application sera disponible en téléchargement."
+        ],
+        note: "📌 Pour les mises à jour, incrémentez versionCode et versionName puis regénérez l’AAB."
+      },
+      {
+        type: "recap",
+        title: "✅ Récapitulatif & bonnes pratiques",
+        items: [
+          "Utiliser AAB pour le Play Store, APK pour le sideload.",
+          "Toujours signer avec keystore personnel, sécuriser les mots de passe.",
+          "Vérifier la taille de l’application (utilisez --split-per-abi pour APK multiple si besoin).",
+          "Avant publication, testez la release sur un vrai appareil: <code>flutter run --release</code>",
+          "N'oubliez pas de générer les icônes adaptées avec <code>flutter_launcher_icons</code>."
+        ]
+      }
+    ];
+
+    let currentIndex = 0;
+    let total = slidesData.length;
+    
+    // Fonction pour générer un slide selon son type
+    function renderSlide(slide, idx) {
+      switch(slide.type) {
+        case "title":
+          return `
+            <div class="slide slide-${idx} px-6 py-10 md:py-16 text-center bg-gradient-to-br from-indigo-50 to-white">
+              <div class="text-6xl mb-4">${slide.icon || "📦"}</div>
+              <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-800 mb-3">${slide.title}</h1>
+              <p class="text-xl text-slate-600 max-w-xl mx-auto">${slide.subtitle}</p>
+              <div class="mt-8 flex justify-center">
+                <div class="bg-indigo-100 rounded-full px-4 py-2 text-indigo-700 text-sm">Flutter · Android · Google Play</div>
+              </div>
+            </div>
+          `;
+        case "objectives":
+          return `
+            <div class="slide slide-${idx} px-6 py-8 bg-white">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-l-4 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+              <ul class="custom-list space-y-3 text-slate-700 text-base md:text-lg">
+                ${slide.objectives.map(obj => `<li>${obj}</li>`).join('')}
+              </ul>
+              <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm italic">
+                💪 À la fin de cette leçon, vous saurez préparer et publier votre première app Flutter sur Google Play.
+              </div>
+            </div>
+          `;
+        case "content":
+          return `
+            <div class="slide slide-${idx} px-6 py-8 bg-white">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-l-4 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+              <div class="space-y-4 text-slate-700">
+                ${slide.paragraphs.map(p => {
+                  if(p.includes('<code') || p.includes('<pre') || p.includes('<span class="font-mono')) {
+                    return `<div class="prose prose-slate max-w-none">${p}</div>`;
+                  }
+                  return `<p class="leading-relaxed">${p}</p>`;
+                }).join('')}
+              </div>
+              ${slide.note ? `<div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-blue-800 text-sm">💡 ${slide.note}</div>` : ''}
+              ${slide.warning ? `<div class="mt-4 bg-amber-50 border-l-4 border-amber-500 p-4 rounded text-amber-800 text-sm">⚠️ ${slide.warning}</div>` : ''}
+            </div>
+          `;
+        case "recap":
+          return `
+            <div class="slide slide-${idx} px-6 py-8 bg-white">
+              <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-l-4 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+              <ul class="space-y-3 list-disc pl-5 text-slate-700">
+                ${slide.items.map(item => `<li class="leading-relaxed">${item}</li>`).join('')}
+              </ul>
+              <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">✅ APK généré</span>
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">✅ AAB prêt</span>
+                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">✅ Play Store publié</span>
+              </div>
+            </div>
+          `;
+        default:
+          return `<div class="slide slide-${idx} p-6">Contenu non défini</div>`;
+      }
+    }
+
+    // Mise à jour de l'affichage: ne montrer que le slide courant
+    function updateSlideVisibility() {
+      $('.slide').addClass('slide-hidden');
+      $(`.slide-${currentIndex}`).removeClass('slide-hidden');
+      $('#slideCounter').text(currentIndex + 1);
+      $('#totalSlides').text(total);
+      // Gérer l'état des boutons prev/next
+      $('#prevBtn').prop('disabled', currentIndex === 0);
+      $('#nextBtn').prop('disabled', currentIndex === total - 1);
+    }
+
+    // Construire tous les slides et les injecter
+    function buildSlides() {
+      let slidesHtml = '';
+      slidesData.forEach((slide, idx) => {
+        slidesHtml += renderSlide(slide, idx);
+      });
+      $('#slidesContainer').html(slidesHtml);
+      // Cacher tous les slides sauf le premier
+      $('.slide').addClass('slide-hidden');
+      $(`.slide-0`).removeClass('slide-hidden');
+      $('#totalSlides').text(total);
+      $('#slideCounter').text('1');
+      // Ajouter un support tactiles / swipe optionnel (simple)
+      let touchStartX = 0;
+      let touchEndX = 0;
+      $('#slidesContainer').on('touchstart', function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $('#slidesContainer').on('touchend', function(e) {
+        touchEndX = e.originalEvent.changedTouches[0].clientX;
+        if (touchStartX - touchEndX > 70 && currentIndex < total-1) {
+          goNext();
+        } else if (touchEndX - touchStartX > 70 && currentIndex > 0) {
+          goPrev();
+        }
+      });
+    }
+
+    // Navigation
+    function goNext() {
+      if (currentIndex < total - 1) {
+        currentIndex++;
+        updateSlideVisibility();
+      }
+    }
+    function goPrev() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlideVisibility();
+      }
+    }
+
+    // Événements des boutons + raccourcis clavier
+    $(document).ready(function() {
+      buildSlides();
+      
+      $('#nextBtn').on('click', goNext);
+      $('#prevBtn').on('click', goPrev);
+      
+      $(document).on('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          goNext();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          goPrev();
+        }
+      });
+      
+      // Mise à jour après construction
+      updateSlideVisibility();
+    });
+  </script>
+  
+  <!-- Ajout d'un style supplémentaire pour améliorer les blocs de code -->
+  <style>
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-x: auto;
+      font-family: 'Menlo', 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    code {
+      font-family: 'Menlo', 'Courier New', monospace;
+      background-color: #f1f5f9;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .slide {
+      background: white;
+    }
+    /* Sur très petit écran, les boutons plus grands */
+    @media (max-width: 480px) {
+      .nav-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+      }
+      .slide {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+    /* Liens style */
+    a {
+      color: #4f46e5;
+      text-decoration: underline;
+    }
+    a:hover {
+      color: #4338ca;
+    }
+    /* Personnalisation des puces pour objectifs */
+    .custom-list li::before {
+      content: "✓";
+      color: #10b981;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+  </style>
+</body>
+</html>

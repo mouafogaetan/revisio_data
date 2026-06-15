@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Gestion avancée du panier : stocks, lock et expiration | NestJS E-commerce</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (utile si formules) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body {
+      background: #eef2ff;
+    }
+    .slide-card {
+      transition: all 0.2s ease-in-out;
+    }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      font-family: 'Courier New', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .nav-dot {
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    @media (max-width: 640px) {
+      .code-block {
+        font-size: 0.7rem;
+        padding: 0.75rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+  <div id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <div class="text-center">
+        <span class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">🛒 Module Panier • E-commerce</span>
+        <h1 class="text-3xl md:text-5xl font-extrabold mt-6 text-gray-800">Gestion des stocks & <br><span class="text-indigo-600">Expiration du panier</span></h1>
+        <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Vérifier la disponibilité, bloquer temporairement le stock, <br>et nettoyer les paniers abandonnés automatiquement.</p>
+        <div class="flex flex-wrap justify-center gap-3 mt-8">
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">📦 Stock réservé</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">⏱️ Lock temporaire</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🗑️ Expiration panier</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-500 pl-4 text-gray-800">🎯 Objectifs de la leçon</h2>
+      <div class="grid md:grid-cols-2 gap-5 mt-8">
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Vérifier la disponibilité</strong> du stock avant chaque ajout/modification</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Implémenter un <strong>verrouillage temporaire</strong> des articles en cours de validation</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Gérer l'<strong>expiration automatique</strong> des paniers inactifs</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Utiliser <strong>Redis</strong> ou une colonne <code>expiresAt</code> pour les locks</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Éviter les <strong>surenchères / ruptures</strong> lors du paiement</span></div>
+      </div>
+      <div class="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl text-indigo-800 text-sm">
+        💡 “Un produit affiché comme disponible peut devenir indisponible pendant que l’utilisateur remplit son formulaire de commande. La réservation temporaire résout ce problème.”
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : Vérification de stock à l'ajout -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🔍 Vérification du stock avant ajout au panier</h2>
+      <p class="text-gray-700">À chaque tentative d’ajout ou modification de quantité, on interroge le stock réel (variation de produit) et on bloque si quantité > stock disponible.</p>
+      <div class="code-block mt-4">
+        <pre><code>// Dans CartService
+async addToCart(userId: number, variationId: number, quantity: number) {
+  const variation = await this.variationRepo.findOne({ where: { id: variationId } });
+  if (!variation) throw new NotFoundException('Variation inexistante');
+  
+  if (variation.stock < quantity) {
+    throw new BadRequestException(`Stock insuffisant. Disponible : ${variation.stock}`);
+  }
+  
+  // ... ajout au panier (pas encore de réservation permanente)
+}</code></pre>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">⚠️ Cette vérification <strong>simple</strong> évite d’ajouter plus que le stock, mais ne réserve pas le produit. Deux clients pourraient encore commander le même article simultanément.</p>
+    </div>
+
+    <!-- SLIDE 4 : Blocage temporaire (Lock) avec Redis -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🔒 Lock temporaire des articles (pendant checkout)</h2>
+      <p class="text-gray-700">Lorsque l’utilisateur valide son panier (étape de paiement), on réserve le stock pour quelques minutes. Si le paiement échoue ou expire, on libère.</p>
+      <div class="code-block mt-4">
+        <pre><code>// Réservation temporaire avec Redis (TTL = 10 min)
+async reserveStock(cart: Cart, ttlSeconds = 600) {
+  for (const item of cart.items) {
+    const key = `stock:lock:${item.productVariation.id}`;
+    const reserved = await this.redisClient.incr(key);
+    if (reserved > item.productVariation.stock) {
+      // Pas assez de stock → annuler la réservation partielle
+      await this.releaseStock(cart);
+      throw new ConflictException('Stock insuffisant pour finaliser la commande');
+    }
+    await this.redisClient.expire(key, ttlSeconds);
+  }
+  // stock réservé avec succès
+}</code></pre>
+      </div>
+      <div class="bg-yellow-50 p-4 rounded-xl mt-3 border-l-4 border-yellow-400">
+        <p class="font-semibold">📌 Alternative sans Redis :</p>
+        <p class="text-yellow-800">Ajouter une colonne <code>reservedUntil</code> dans la table <code>cart_item</code> ou <code>product_variation</code>, et un champ <code>reservedQuantity</code>. Plus complexe en production, Redis reste recommandé.</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 : Expiration automatique du panier (cron job) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">⏰ Expiration des paniers abandonnés</h2>
+      <p class="text-gray-700">Un panier non finalisé après un certain délai (ex: 24h) doit être vidé et les réserves libérées.</p>
+      <div class="grid md:grid-cols-2 gap-5 mt-3">
+        <div class="code-block">
+          <pre><code>// Entité Cart – ajout d'un champ expiresAt
+@Entity()
+export class Cart {
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date;
+
+  @BeforeUpdate()
+  updateExpiration() {
+    if (!this.isActive) this.expiresAt = null;
+    else this.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
+}</code></pre>
+        </div>
+        <div class="code-block">
+          <pre><code>// Tâche cron (NestJS + @nestjs/schedule)
+@Cron('0 0 * * *') // chaque nuit
+async cleanExpiredCarts() {
+  const expiredCarts = await this.cartRepo
+    .createQueryBuilder('cart')
+    .where('cart.expiresAt &lt; :now', { now: new Date() })
+    .getMany();
+
+  for (const cart of expiredCarts) {
+    await this.releaseStockForCart(cart);  // libère les locks Redis
+    cart.items = [];
+    cart.expiresAt = null;
+    await this.cartRepo.save(cart);
+  }
+}</code></pre>
+        </div>
+      </div>
+      <p class="text-gray-600 text-sm mt-3">🎯 On peut aussi déclencher l’expiration après chaque action utilisateur (reset du timer) ou utiliser une file Bull/Redis.</p>
+    </div>
+
+    <!-- SLIDE 6 : Fusion réservation + expiration – schéma conceptuel -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🧠 Flux complet : panier → réservation → commande</h2>
+      <div class="bg-gray-100 p-5 rounded-xl font-mono text-sm space-y-2 mt-3">
+        <p>1️⃣ <strong>Ajout produit</strong> → vérification stock (sans réserver)</p>
+        <p>2️⃣ <strong>Checkout (étape paiement)</strong> → appel à <code>reserveStock()</code> (lock Redis TTL 10–15 min)</p>
+        <p>3️⃣ <strong>Paiement réussi</strong> → on transforme la réservation en vente : décrémenter stock réel, supprimer les locks</p>
+        <p>4️⃣ <strong>Paiement échoué / panier expiré</strong> → libérer les locks (Redis DEL), panier redevient modifiable</p>
+        <p>5️⃣ <strong>Panier inactif > 24h</strong> → cron nettoie, libère les éventuels vestiges</p>
+      </div>
+      <div class="code-block mt-4">
+        <pre><code>// finalisation après paiement
+async finalizeOrder(cartId: number) {
+  const cart = await this.getCartWithItems(cartId);
+  // 1. vérifier que les locks existent encore
+  for (const item of cart.items) {
+    const key = `stock:lock:${item.productVariation.id}`;
+    const reserved = await this.redisClient.get(key);
+    if (!reserved) throw new BadRequestException('Réservation expirée, recommencez');
+  }
+  // 2. décrémenter le stock réel
+  for (const item of cart.items) {
+    await this.variationRepo.decrement({ id: item.productVariation.id }, 'stock', item.quantity);
+    await this.redisClient.del(`stock:lock:${item.productVariation.id}`);
+  }
+  // 3. créer la commande, vider le panier...
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 : Gestion des erreurs et race conditions -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">⚠️ Éviter les conditions de concurrence (race conditions)</h2>
+      <p class="text-gray-700">Deux requêtes simultanées pourraient réserver plus que le stock. Utilisez des <strong>transactions atomiques</strong> ou des <strong>verrous optimistes</strong>.</p>
+      <div class="code-block mt-4">
+        <pre><code>// Exemple avec incr atomique de Redis (déjà fait)
+const reserved = await this.redisClient.incr(key);
+if (reserved > stock) {
+  // rollback
+}
+
+// Alternative avec transaction SQL + SELECT FOR UPDATE
+await this.dataSource.transaction(async manager => {
+  const variation = await manager.findOne(ProductVariation, { 
+    where: { id }, 
+    lock: { mode: 'pessimistic_write' } 
+  });
+  if (variation.stock < quantity) throw new Error();
+  variation.stock -= quantity;
+  await manager.save(variation);
+});</code></pre>
+      </div>
+      <div class="bg-green-50 p-3 rounded-lg mt-2 text-green-800 text-sm">✅ Les locks Redis avec incr + TTL sont simples et efficaces pour les paniers.</div>
+    </div>
+
+    <!-- SLIDE 8 : Cas pratique – Implémentation simplifiée dans le service -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🛠️ Exercice guidé : Implémentez la réservation temporaire</h2>
+      <p class="text-gray-700">Complétez le code ci-dessous pour ajouter une méthode <code>releaseExpiredLocks()</code> qui libère les clés Redis expirées (sans attendre le cron).</p>
+      <div class="code-block bg-gray-900">
+        <pre><code>// À compléter (dans CartService)
+async releaseExpiredLocks(variationId: number, userId?: number) {
+  // 1. Récupérer la clé Redis associée
+  const key = `stock:lock:${variationId}`;
+  // 2. Vérifier si elle existe et si elle appartient à ce panier (optionnel)
+  // 3. Supprimer la clé si sa valeur correspond à l'ID du panier ou si aucune activité récente
+}</code></pre>
+      </div>
+      <button id="revealSolution" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full transition shadow-md">🔍 Voir correction</button>
+      <div id="solutionPanel" class="mt-4 hidden bg-gray-100 p-4 rounded-xl border border-indigo-200">
+        <p class="font-bold text-indigo-800">✅ Solution possible :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto"><code>async releaseExpiredLocks(variationId: number) {
+  const key = `stock:lock:${variationId}`;
+  const ttl = await this.redisClient.ttl(key);
+  if (ttl <= 0) {
+    await this.redisClient.del(key);
+    return true;
+  }
+  return false;
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 : Bonnes pratiques & résumé -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">📌 Bonnes pratiques à retenir</h2>
+      <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4">
+        <li>✅ Toujours <strong>vérifier le stock avant d'ajouter</strong> au panier (sans réserver).</li>
+        <li>✅ Réserver le stock <strong>le plus tard possible</strong> (étape de paiement) pour éviter de bloquer les produits trop longtemps.</li>
+        <li>✅ Utiliser un TTL court (10–15 min) pour les locks de paiement.</li>
+        <li>✅ Avoir un cron ou un worker qui nettoie les paniers abandonnés (24h).</li>
+        <li>✅ Stocker l'<strong>expiration du panier</strong> en base pour faciliter le nettoyage.</li>
+        <li>✅ Pour les sites à fort trafic, considérer un système de file d'attente (Bull/Redis) pour les réservations.</li>
+      </ul>
+      <div class="mt-6 p-4 bg-indigo-50 rounded-2xl text-center text-indigo-900">
+        <p class="font-semibold">🎯 En résumé : Vérifier, Réserver temporairement, Confirmer, Libérer si abandon.</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 10 : Conclusion & prochaines étapes -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10">
+      <h2 class="text-2xl font-bold text-gray-800">🏁 Conclusion – Maîtrise des stocks dynamiques</h2>
+      <p class="text-gray-700 mt-3">Vous savez désormais :</p>
+      <ul class="list-disc list-inside mt-2 text-gray-700">
+        <li>Vérifier le stock en temps réel</li>
+        <li>Réserver des produits avec Redis (lock + TTL)</li>
+        <li>Expirer automatiquement les paniers inactifs</li>
+        <li>Éviter les surventes lors des pics de trafic</li>
+      </ul>
+      <div class="mt-6 text-center text-gray-500 border-t pt-6 text-sm">
+        📘 Lesson 18 – Vérification de stock, lock temporaire, expiration du panier · API E-commerce NestJS (Cameroun 🇨🇲)
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation buttons & dots -->
+  <div class="flex justify-center items-center flex-wrap gap-3 mt-8">
+    <button id="prevSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow disabled:opacity-40 transition">◀ Précédent</button>
+    <div id="dotsPanel" class="flex gap-2 mx-2 flex-wrap justify-center"></div>
+    <button id="nextSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow transition">Suivant ▶</button>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    let slides = $('.slide-card');
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+    function updateSlides() {
+      slides.each(function(idx) {
+        if (idx === currentIndex) $(this).show().removeClass('hidden');
+        else $(this).hide();
+      });
+      $('#dotsPanel .dot').each(function(idx) {
+        if (idx === currentIndex) $(this).css('background', '#4f46e5').css({ width: '0.75rem', height: '0.75rem' });
+        else $(this).css('background', '#cbd5e1').css({ width: '0.6rem', height: '0.6rem' });
+      });
+      $('#prevSlideBtn').prop('disabled', currentIndex === 0);
+      $('#nextSlideBtn').prop('disabled', currentIndex === totalSlides - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderDots() {
+      const $container = $('#dotsPanel');
+      $container.empty();
+      for (let i = 0; i < totalSlides; i++) {
+        const $dot = $('<div>')
+          .addClass('dot rounded-full mx-1 transition-all')
+          .css({ width: '0.6rem', height: '0.6rem', background: '#cbd5e1', cursor: 'pointer' });
+        $dot.data('index', i);
+        $dot.on('click', function() { currentIndex = $(this).data('index'); updateSlides(); });
+        $container.append($dot);
+      }
+    }
+
+    $('#nextSlideBtn').on('click', () => { if (currentIndex < totalSlides - 1) { currentIndex++; updateSlides(); } });
+    $('#prevSlideBtn').on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+    $(document).on('keydown', (e) => {
+      if (e.key === 'ArrowRight') $('#nextSlideBtn').trigger('click');
+      if (e.key === 'ArrowLeft') $('#prevSlideBtn').trigger('click');
+    });
+
+    // Révéler la solution de l'exercice
+    $('#revealSolution').on('click', function() {
+      $('#solutionPanel').toggleClass('hidden');
+      if (!$('#solutionPanel').hasClass('hidden')) {
+        $('html, body').animate({ scrollTop: $('#solutionPanel').offset().top - 20 }, 300);
+      }
+    });
+
+    renderDots();
+    updateSlides();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 16 : Navigation Flutter - Naviguer entre écrans</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où, même si peu de formules ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police Google Fonts pour plus de lisibilité -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #f6f9fc 0%, #eef2f5 100%);
+            min-height: 100vh;
+        }
+        /* Style swipe / slides container */
+        .slide-container {
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            will-change: transform;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.02);
+            transition: all 0.2s;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 0 0.25rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* Navigation dots active */
+        .dot-active {
+            background-color: #3b82f6;
+            width: 2rem;
+            opacity: 1;
+        }
+        .dot-inactive {
+            background-color: #cbd5e1;
+            width: 0.6rem;
+        }
+        /* transitions smooth */
+        .fade-text {
+            transition: opacity 0.2s ease;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge-flutter {
+            background: #0a5b8c;
+            color: white;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4 md:p-6 font-sans">
+
+    <div class="max-w-4xl w-full mx-auto relative">
+        <!-- indicateur de slide + compteur -->
+        <div class="flex justify-between items-center mb-4 px-2">
+            <div class="text-sm font-medium bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm text-gray-700">
+                📱 Flutter – Navigation
+            </div>
+            <div class="text-sm font-medium bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm text-gray-700">
+                <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+            </div>
+        </div>
+
+        <!-- SLIDES WRAPPER (carrousel horizontal) -->
+        <div class="overflow-hidden rounded-2xl shadow-2xl">
+            <div id="slidesWrapper" class="slide-container flex flex-nowrap transition-transform duration-500 ease-out" style="transform: translateX(0%);">
+                <!-- Les slides seront injectées dynamiquement avec JS -->
+            </div>
+        </div>
+
+        <!-- Navigation controls -->
+        <div class="flex justify-between items-center mt-6 gap-3 px-2">
+            <button id="prevBtn" class="nav-button bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2.5 px-5 rounded-xl shadow-md transition-all duration-200 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                ← Précédent
+            </button>
+            <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+            <button id="nextBtn" class="nav-button bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition-all duration-200 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                Suivant →
+            </button>
+        </div>
+
+        <!-- petit message pour swipe (mobile) -->
+        <p class="text-center text-xs text-gray-500 mt-5">👆 Faites glisser les slides horizontalement sur mobile</p>
+    </div>
+
+    <script>
+        // Définition du contenu des slides pour la LESSON 16 (Naviguer avec Navigator.push et pop)
+        // D'après les objectifs : Navigator.push(), pop(), passage de données, retour avec résultat.
+        const slidesData = [
+            {
+                type: "title",
+                title: "📱 Navigation dans Flutter",
+                subtitle: "Leçon 16 : Déplacez-vous entre les écrans comme un pro !",
+                icon: "🧭"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Naviguer entre écrans avec Navigator.push() et Navigator.pop()",
+                    "✅ Passer des données d’un écran à un autre (arguments)",
+                    "✅ Retourner un résultat vers l’écran précédent (Navigator.pop avec data)",
+                    "✅ Comprendre la pile de navigation (stack)"
+                ]
+            },
+            {
+                type: "content",
+                title: "🗺️ Qu'est-ce que la navigation ?",
+                content: `
+                    <p class="mb-3 text-gray-800">Une application mobile comporte souvent plusieurs écrans (page d'accueil, profil, détails…). <strong class="text-blue-700">Flutter</strong> utilise une <strong class="bg-blue-100 px-1 rounded">pile (stack)</strong> pour gérer les écrans : quand vous allez vers un nouvel écran, il est <strong>empilé</strong> au-dessus du précédent. Appuyer sur "Retour" le dépile.</p>
+                    <div class="bg-indigo-50 p-4 rounded-xl border-l-8 border-indigo-400 mt-2">
+                        <p class="font-semibold">📌 Analogie :</p>
+                        <p>Comme une pile d'assiettes : la nouvelle assiette se pose sur le dessus. Quand on a fini, on l'enlève et on retrouve l'assiette du dessous.</p>
+                    </div>
+                    <div class="mt-4 flex justify-center">
+                        <svg width="260" height="110" viewBox="0 0 280 100" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+                            <rect x="20" y="30" width="70" height="50" rx="8" fill="#2563eb" fill-opacity="0.2" stroke="#2563eb" stroke-width="2"/>
+                            <text x="55" y="60" text-anchor="middle" fill="#1e3a8a" font-size="12" font-weight="bold">Écran A</text>
+                            <rect x="110" y="20" width="70" height="55" rx="8" fill="#3b82f6" fill-opacity="0.3" stroke="#3b82f6" stroke-width="2"/>
+                            <text x="145" y="50" text-anchor="middle" fill="#1e3a8a" font-size="12" font-weight="bold">Écran B</text>
+                            <text x="145" y="68" text-anchor="middle" fill="#4b5563" font-size="9">(au dessus)</text>
+                            <path d="M95 55 L105 50" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+                            <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f97316"/></marker></defs>
+                            <text x="88" y="42" fill="#ea580c" font-size="10">push</text>
+                            <rect x="200" y="35" width="70" height="50" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+                            <text x="235" y="65" text-anchor="middle" fill="#334155" font-size="12">Écran C</text>
+                            <text x="235" y="82" text-anchor="middle" fill="#6b7280" font-size="9">(tout en haut)</text>
+                        </svg>
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "⬆️ Navigator.push() – Aller vers un écran",
+                content: `
+                    <p>La méthode <code class="bg-gray-200 px-1 rounded">Navigator.push(context, MaterialPageRoute(builder: (context) => NouvelEcran()))</code> permet d’afficher un nouvel écran.</p>
+                    <div class="code-block mt-3 mb-3 text-sm">
+                        <span class="text-yellow-300">// Exemple simple : bouton qui ouvre une page Détail</span><br>
+                        ElevatedButton(<br>
+                        &nbsp;&nbsp;onPressed: () {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;Navigator.push(context,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MaterialPageRoute(builder: (context) => DetailScreen()),<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;);<br>
+                        &nbsp;&nbsp;},<br>
+                        &nbsp;&nbsp;child: Text('Voir détail'),<br>
+                        );
+                    </div>
+                    <p class="text-gray-600">🔁 Chaque appel à <strong>push</strong> ajoute une route sur la pile. Flutter gère automatiquement le bouton retour (AppBar).</p>
+                `
+            },
+            {
+                type: "content",
+                title: "⬇️ Navigator.pop() – Revenir en arrière",
+                content: `
+                    <p>Pour fermer l'écran courant et revenir au précédent, on utilise <code class="bg-gray-200 px-1 rounded">Navigator.pop(context)</code>. C’est comme retirer la dernière assiette de la pile.</p>
+                    <div class="code-block mt-3">
+                        <span class="text-green-300">// Exemple : bouton retour personnalisé</span><br>
+                        IconButton(<br>
+                        &nbsp;&nbsp;icon: Icon(Icons.arrow_back),<br>
+                        &nbsp;&nbsp;onPressed: () {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;Navigator.pop(context);<br>
+                        &nbsp;&nbsp;},<br>
+                        );
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-3 border border-amber-200">
+                        💡 <strong>Astuce :</strong> Sur Android, le bouton physique "Retour" déclenche aussi un pop() automatique.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "📤 Passer des données entre écrans",
+                content: `
+                    <p>Pour envoyer des données (ex: un nom, un id) vers l'écran suivant, on utilise le <strong>constructeur</strong> du widget cible.</p>
+                    <div class="code-block mt-2">
+                        // 1. Définir la classe d'accueil avec paramètre<br>
+                        class DetailScreen extends StatelessWidget {<br>
+                        &nbsp;&nbsp;final String productName;<br>
+                        &nbsp;&nbsp;DetailScreen({required this.productName});<br>
+                        &nbsp;&nbsp;...<br>
+                        }<br><br>
+                        // 2. Lors du push :<br>
+                        Navigator.push(context, MaterialPageRoute(builder: (context) =><br>
+                        &nbsp;&nbsp;DetailScreen(productName: "T-shirt Flutter")<br>
+                        ));
+                    </div>
+                    <p class="mt-2">✅ L'écran de détail récupère <code>widget.productName</code> et peut l'afficher.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔄 Retourner un résultat (pop avec données)",
+                content: `
+                    <p>Parfois, l'écran suivant doit <strong>renvoyer une information</strong> (ex: un texte saisi, un choix). On utilise alors <code class="bg-gray-200 px-1 rounded">Navigator.pop(context, resultat)</code> et on attend le résultat avec <code>async/await</code>.</p>
+                    <div class="code-block my-3">
+                        // Écran A (appelant)<br>
+                        void _openSelection() async {<br>
+                        &nbsp;&nbsp;final result = await Navigator.push(context,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;MaterialPageRoute(builder: (context) => SelectionScreen())<br>
+                        &nbsp;&nbsp;);<br>
+                        &nbsp;&nbsp;print("Résultat reçu: $result");<br>
+                        }<br><br>
+                        // Écran B (renvoie une valeur)<br>
+                        ElevatedButton(<br>
+                        &nbsp;&nbsp;onPressed: () => Navigator.pop(context, "Valeur choisie : Oui"),<br>
+                        &nbsp;&nbsp;child: Text("Valider et retourner"),<br>
+                        );
+                    </div>
+                    <p>🎉 C’est très pratique pour des boîtes de dialogue ou des formulaires simples !</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🏗️ Exemple complet d’application mini",
+                content: `
+                    <p>Imaginons une première page avec un bouton "Voir profil" qui envoie le nom d'utilisateur, et la page profil peut revenir avec un message.</p>
+                    <div class="bg-gray-800 rounded-xl p-3 text-white text-sm font-mono overflow-x-auto">
+                        // main.dart<br>
+                        class HomePage extends StatelessWidget { ...<br>
+                        &nbsp;&nbsp;Navigator.push(context, MaterialPageRoute(builder: (_) => ProfilePage(userName: "Grace")));<br>
+                        }<br><br>
+                        class ProfilePage extends StatelessWidget {<br>
+                        &nbsp;&nbsp;final String userName;<br>
+                        &nbsp;&nbsp;...<br>
+                        &nbsp;&nbsp;onPressed: () => Navigator.pop(context, "Merci d'avoir visité $userName");<br>
+                        }<br>
+                    </div>
+                    <div class="mt-3 p-2 bg-green-100 rounded text-green-800">🔁 Lors du pop, la HomePage peut afficher un snackbar avec le résultat !</div>
+                `
+            },
+            {
+                type: "conclusion",
+                title: "📝 Résumé & Bonnes pratiques",
+                summary: [
+                    "Navigator.push() ➕ ajoute un écran (route) sur la pile.",
+                    "Navigator.pop() ➖ retire l'écran actuel.",
+                    "Pour passer des données ➡️ utiliser les paramètres du constructeur.",
+                    "Pour recevoir un résultat ⬅️ utiliser await Navigator.push() et envoyer les données dans pop().",
+                    "Toujours utiliser MaterialPageRoute (ou CupertinoPageRoute) pour de belles transitions."
+                ],
+                footer: "🎯 Exercice pratique : Créez deux écrans, le premier avec un champ texte, le second affiche le texte saisi et un bouton retour avec confirmation."
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer HTML d'un slide en fonction du type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide-card w-full flex-shrink-0 p-6 md:p-10 flex flex-col items-center justify-center min-h-[480px] md:min-h-[520px]">
+                        <div class="text-7xl mb-6">${slide.icon || "📱"}</div>
+                        <h1 class="text-4xl md:text-5xl font-extrabold text-center bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-gray-600 text-xl mt-5 text-center max-w-md">${slide.subtitle}</p>
+                        <div class="mt-10 flex items-center gap-2 text-blue-500"><span class="animate-pulse">👇</span> Glissez ou utilisez les boutons</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                return `
+                    <div class="slide-card w-full flex-shrink-0 p-6 md:p-8 min-h-[480px] md:min-h-[520px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-4 border-blue-400 inline-block pb-2 mb-6">${slide.title}</h2>
+                        <ul class="space-y-4 mt-4">
+                            ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><span class="text-blue-500 text-xl">✔️</span> ${obj}</li>`).join('')}
+                        </ul>
+                        <div class="mt-10 bg-blue-50 p-4 rounded-xl">
+                            <p class="text-blue-800">🎓 À la fin de cette leçon, vous serez capable de créer des applications multi-écrans fluides !</p>
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                return `
+                    <div class="slide-card w-full flex-shrink-0 p-6 md:p-8 min-h-[480px] md:min-h-[520px] overflow-y-auto">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-5">📘 ${slide.title}</h2>
+                        <div class="prose prose-lg max-w-none text-gray-700">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "conclusion") {
+                return `
+                    <div class="slide-card w-full flex-shrink-0 p-6 md:p-8 min-h-[480px] md:min-h-[520px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-5">🏁 ${slide.title}</h2>
+                        <div class="bg-indigo-50 rounded-2xl p-5">
+                            <ul class="space-y-3">
+                                ${slide.summary.map(p => `<li class="flex gap-2"><span class="text-indigo-600 font-bold">➡️</span> ${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="mt-6 p-4 bg-gray-100 rounded-xl italic text-gray-700">
+                            💡 "${slide.footer}"
+                        </div>
+                        <div class="mt-6 text-center text-sm text-gray-500">
+                            🔁 Fin du cours. Révisez et testez ces concepts dans votre IDE Flutter !
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="slide-card w-full flex-shrink-0 p-6">Contenu</div>`;
+        }
+
+        // Construction du DOM des slides
+        function buildSlides() {
+            const container = $("#slidesWrapper");
+            container.empty();
+            slidesData.forEach((slide, i) => {
+                const slideHtml = renderSlide(slide, i);
+                container.append(`<div class="w-full flex-shrink-0 px-1">${slideHtml}</div>`);
+            });
+            $("#totalSlides").text(totalSlides);
+            updateDots();
+            updateButtons();
+        }
+
+        function updateDots() {
+            const dotsContainer = $("#dotsContainer");
+            dotsContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = $(`<button class="h-2 rounded-full transition-all duration-300 mx-1 ${i === currentIndex ? 'dot-active w-8 bg-blue-600' : 'dot-inactive w-2 bg-gray-400 hover:bg-gray-500'}" data-index="${i}"></button>`);
+                dot.on("click", function() {
+                    const idx = parseInt($(this).data("index"));
+                    goToSlide(idx);
+                });
+                dotsContainer.append(dot);
+            }
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            if (index === currentIndex) return;
+            currentIndex = index;
+            const percent = - (currentIndex * 100);
+            $(".slide-container").css("transform", `translateX(${percent}%)`);
+            $("#currentSlideIdx").text(currentIndex + 1);
+            updateDots();
+            updateButtons();
+        }
+
+        function updateButtons() {
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === totalSlides - 1);
+        }
+
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) goToSlide(currentIndex - 1);
+        }
+
+        // Gestion des événements tactiles (swipe horizontal)
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        function handleTouchStart(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        }
+        function handleTouchMove(e) {
+            touchEndX = e.originalEvent.touches[0].clientX;
+        }
+        function handleTouchEnd() {
+            if (touchStartX - touchEndX > 60) {
+                // swipe gauche -> suivant
+                nextSlide();
+            }
+            if (touchEndX - touchStartX > 60) {
+                // swipe droite -> précédent
+                prevSlide();
+            }
+            touchStartX = 0;
+            touchEndX = 0;
+        }
+
+        $(document).ready(function() {
+            buildSlides();
+            // Attacher events aux boutons
+            $("#prevBtn").on("click", prevSlide);
+            $("#nextBtn").on("click", nextSlide);
+
+            // swipe sur le wrapper des slides
+            const slidesWrapper = document.getElementById("slidesWrapper");
+            if (slidesWrapper) {
+                $(slidesWrapper).on("touchstart", handleTouchStart);
+                $(slidesWrapper).on("touchmove", handleTouchMove);
+                $(slidesWrapper).on("touchend", handleTouchEnd);
+            }
+
+            // navigation au clavier (flèches gauche/droite)
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowLeft") {
+                    prevSlide();
+                    e.preventDefault();
+                } else if (e.key === "ArrowRight") {
+                    nextSlide();
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+    <!-- petite surcouche pour le rendu des blocs de code -->
+    <style>
+        .code-block code, .code-block {
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }
+        .slide-card {
+            transition: all 0.2s;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</body>
+</html>

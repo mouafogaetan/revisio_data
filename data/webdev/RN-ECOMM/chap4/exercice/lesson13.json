@@ -1,0 +1,84 @@
+[
+  {
+    "intitule": "Exercice 1 : Implémenter la gestion locale des favoris avec Zustand (Compétence)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce React Native. Vous devez implémenter la fonctionnalité \"Favoris\" (likes) permettant à l'utilisateur de marquer des produits. Pour la version initiale, les favoris sont stockés localement avec <code>Zustand</code> et <code>AsyncStorage</code>.</p><p>Un produit est représenté par : <code>{ id: number, name: string, price: number, image: string }</code>.</p>",
+      "images": [
+        "interface mobile montrant une liste de produits avec icône cœur pleine/vide pour les favoris"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez le store Zustand <code>useFavoritesStore</code> contenant : un tableau <code>favorites</code> (listes des produits favoris), une fonction <code>addFavorite(product)</code> pour ajouter, <code>removeFavorite(productId)</code> pour supprimer, et <code>isFavorite(productId)</code> pour vérifier si un produit est favori.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { create } from 'zustand';\nimport { persist, createJSONStorage } from 'zustand/middleware';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\ninterface Product {\n  id: number;\n  name: string;\n  price: number;\n  image: string;\n}\n\ninterface FavoritesState {\n  favorites: Product[];\n  addFavorite: (product: Product) => void;\n  removeFavorite: (productId: number) => void;\n  isFavorite: (productId: number) => boolean;\n}\n\nexport const useFavoritesStore = create<FavoritesState>()(\n  persist(\n    (set, get) => ({\n      favorites: [],\n      addFavorite: (product) =>\n        set((state) => ({\n          favorites: state.favorites.some(p => p.id === product.id)\n            ? state.favorites\n            : [...state.favorites, product],\n        })),\n      removeFavorite: (productId) =>\n        set((state) => ({\n          favorites: state.favorites.filter((p) => p.id !== productId),\n        })),\n      isFavorite: (productId) =>\n        get().favorites.some((p) => p.id === productId),\n    }),\n    {\n      name: 'favorites-storage',\n      storage: createJSONStorage(() => AsyncStorage),\n    }\n  )\n);\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez pourquoi l'utilisation du middleware <code>persist</code> avec <code>AsyncStorage</code> est essentielle pour cette fonctionnalité.",
+            "niveau": "medium",
+            "reponse": "Le middleware <code>persist</code> permet de sauvegarder automatiquement l'état des favoris dans le stockage persistant (<code>AsyncStorage</code>). Sans cela, les favoris seraient perdus à chaque redémarrage de l'application. Avec la persistance, l'utilisateur retrouve ses favoris même après avoir fermé et rouvert l'application."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Écrivez le code d'un composant <code>FavoriteButton</code> qui affiche une icône cœur pleine si le produit est favori, vide sinon, et bascule l'état au clic.",
+            "niveau": "medium",
+            "reponse": "```tsx\nimport { TouchableOpacity } from 'react-native';\nimport { Ionicons } from '@expo/vector-icons';\nimport { useFavoritesStore } from '../store/favoritesStore';\n\nexport function FavoriteButton({ product }) {\n  const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();\n  const favorited = isFavorite(product.id);\n\n  const toggleFavorite = () => {\n    if (favorited) {\n      removeFavorite(product.id);\n    } else {\n      addFavorite(product);\n    }\n  };\n\n  return (\n    <TouchableOpacity onPress={toggleFavorite}>\n      <Ionicons\n        name={favorited ? 'heart' : 'heart-outline'}\n        size={24}\n        color={favorited ? '#ef4444' : '#9ca3af'}\n      />\n    </TouchableOpacity>\n  );\n}\n```"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Analysez les limites du stockage local uniquement pour les favoris dans une application e-commerce. Quels problèmes peuvent survenir lorsque l'utilisateur change d'appareil ou réinstalle l'application ?",
+        "niveau": "hard",
+        "reponse": "Les limites principales sont : (1) les favoris ne sont pas synchronisés entre plusieurs appareils (téléphone, tablette) car chaque appareil a son propre AsyncStorage ; (2) si l'utilisateur désinstalle puis réinstalle l'application, toutes les données locales sont effacées ; (3) l'utilisateur perd ses favoris lors de la réinitialisation d'usine de l'appareil. De plus, on ne peut pas exploiter ces données pour du marketing (analytique, recommandations) ou des notifications push personnalisées (ex: \"article en promotion dans vos favoris\").",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Exercice 2 : Synchronisation des favoris avec le backend (Ressource)",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'application doit désormais synchroniser les favoris avec un backend REST. L'API propose les endpoints :</p><ul><li><code>GET /api/favorites</code> : récupère la liste des IDs des produits favoris de l'utilisateur connecté</li><li><code>POST /api/favorites</code> : ajoute un produit aux favoris (body : <code>{ productId }</code>)</li><li><code>DELETE /api/favorites/{productId}</code> : retire un produit des favoris</li></ul><p>L'authentification se fait par token JWT stocké dans <code>SecureStore</code>.</p>",
+      "images": [
+        "schéma d'architecture montrant l'app mobile, le stockage local, l'API backend et la base de données"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez la stratégie de synchronisation au démarrage de l'application : comment fusionner les favoris locaux (non synchronisés) avec ceux du serveur ?",
+        "niveau": "hard",
+        "reponse": "Stratégie recommandée : 1) Récupérer les favoris locaux depuis Zustand/AsyncStorage. 2) Appeler <code>GET /api/favorites</code> pour obtenir les favoris serveur. 3) Fusionner les deux listes (union des IDs). 4) Pour chaque favori local absent du serveur, appeler <code>POST /api/favorites</code>. 5) Mettre à jour le store local avec la liste fusionnée. Cette approche garantit qu'aucun favori n'est perdu, même si l'utilisateur était hors ligne lors de l'ajout.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez comment gérer un conflit si le même produit a été retiré localement mais ajouté sur le serveur (ou vice-versa) pendant que l'utilisateur était hors ligne.",
+            "niveau": "hard",
+            "reponse": "Il faut implémenter une stratégie de résolution : la règle la plus courante est de considérer que l'état serveur est la source de vérité après la synchronisation, car il reflète l'intention la plus récente sur n'importe quel appareil. On peut aussi conserver un timestamp local et comparer avec la date de modification du serveur (si l'API fournit <code>updatedAt</code>). Pour une solution plus simple, on peut demander à l'utilisateur de confirmer en cas de conflit (ex: popup \"Vous avez ajouté ce produit hors ligne, voulez-vous le garder ?\").",
+            "niveau": "hard"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposez une implémentation de la fonction <code>syncFavoritesWithBackend</code> utilisant <code>@tanstack/react-query</code> et le store Zustand.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nimport { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';\nimport { useFavoritesStore } from '../store/favoritesStore';\nimport { api } from '../services/api';\n\nexport function useFavoritesSync() {\n  const queryClient = useQueryClient();\n  const { favorites, addFavorite, removeFavorite, setFavorites } = useFavoritesStore();\n\n  // Récupération des favoris serveur\n  const { data: serverFavorites = [] } = useQuery({\n    queryKey: ['favorites'],\n    queryFn: () => api.get('/favorites').then(res => res.data),\n    enabled: !!authToken,\n  });\n\n  // Mutation ajout\n  const addMutation = useMutation({\n    mutationFn: (productId: number) => api.post('/favorites', { productId }),\n    onSuccess: (_, productId) => {\n      queryClient.invalidateQueries(['favorites']);\n    },\n  });\n\n  // Mutation suppression\n  const removeMutation = useMutation({\n    mutationFn: (productId: number) => api.delete(`/favorites/${productId}`),\n    onSuccess: () => queryClient.invalidateQueries(['favorites']),\n  });\n\n  // Synchronisation\n  const sync = async () => {\n    const localIds = favorites.map(p => p.id);\n    const serverIds = serverFavorites;\n    \n    // Ajouter au serveur ce qui est local mais pas serveur\n    const toAdd = localIds.filter(id => !serverIds.includes(id));\n    for (const id of toAdd) await addMutation.mutateAsync(id);\n    \n    // Supprimer du serveur ce qui est serveur mais pas local\n    const toRemove = serverIds.filter(id => !localIds.includes(id));\n    for (const id of toRemove) await removeMutation.mutateAsync(id);\n    \n    // Rafraîchir le store local avec l'état serveur\n    setFavorites(serverFavorites.map(id => ({ id })));\n  };\n\n  return { sync, isSyncing: addMutation.isPending || removeMutation.isPending };\n}\n```",
+            "niveau": "very hard"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Évaluez l'impact des notifications push basées sur les favoris : comment informer l'utilisateur qu'un produit mis en favori est en promotion ? Proposez une implémentation avec <code>expo-notifications</code>.",
+        "niveau": "very hard",
+        "reponse": "L'impact est positif car il augmente l'engagement et les conversions. Implémentation : côté backend, un worker écoute les changements de prix ou les promotions. Pour chaque utilisateur ayant ce produit en favori, on envoie une notification push via Expo Notification Service (token stocké à la connexion). Côté mobile, on configure <code>expo-notifications</code> : demande de permission, écouteur <code>addNotificationReceivedListener</code>, et gestion du deep link pour ouvrir directement le produit concerné. Il faut aussi prévoir un mécanisme de rate limiting pour ne pas spammer l'utilisateur.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

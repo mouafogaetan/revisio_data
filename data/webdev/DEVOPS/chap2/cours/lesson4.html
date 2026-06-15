@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours DevOps - Leçon 4 : Architecture Linux & SSH</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, pour formules mais ici peu utile, on l'inclut par précaution) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Smooth transitions pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        body {
+            background: #f0f9ff; /* fond doux */
+        }
+        /* Personnalisation des scrollbars pour un meilleur confort */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Conteneur principal avec espacement adapté -->
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Navigation slides (indicateur + boutons) -->
+        <div class="bg-white/70 backdrop-blur-sm rounded-full shadow-md p-2 mb-6 sticky top-2 z-10 flex justify-between items-center">
+            <button id="prevSlide" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed shadow text-sm md:text-base">◀ Précédent</button>
+            <span id="slideCounter" class="text-gray-700 font-medium text-sm md:text-base">Slide 1 / ?</span>
+            <button id="nextSlide" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed shadow text-sm md:text-base">Suivant ▶</button>
+        </div>
+
+        <!-- Zone des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide slide-active" data-index="0">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+                    <div class="bg-gradient-to-r from-blue-800 to-indigo-700 p-6 md:p-10 text-white">
+                        <p class="text-sm uppercase tracking-wider font-semibold opacity-80">Initiation au DevOps | Chapitre 2</p>
+                        <h1 class="text-3xl md:text-5xl font-extrabold mt-2 leading-tight">🐧 Architecture Linux &<br>Connexion SSH</h1>
+                        <div class="w-20 h-1 bg-yellow-400 mt-6 rounded-full"></div>
+                        <p class="text-lg md:text-xl mt-4 font-light">Comprendre le cœur des serveurs modernes</p>
+                    </div>
+                    <div class="p-6 md:p-8 bg-gray-50">
+                        <div class="flex flex-wrap gap-4 justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="bg-blue-100 text-blue-800 text-sm font-mono px-3 py-1 rounded-full">📘 Leçon 4</span>
+                                <span class="bg-green-100 text-green-800 text-sm font-mono px-3 py-1 rounded-full">⚙️ DevOps</span>
+                            </div>
+                            <div class="text-gray-500 text-sm">🎓 Enseignant: Cours Cameroun</div>
+                        </div>
+                        <!-- Dessin simple d'un penguin / terminal (schéma minimal) -->
+                        <div class="mt-6 flex justify-center">
+                            <svg width="160" height="100" viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-gray-600">
+                                <rect x="20" y="40" width="160" height="40" rx="8" fill="#1e293b" stroke="#0f172a" stroke-width="2"/>
+                                <text x="30" y="65" fill="#38bdf8" font-size="14" font-family="monospace">$ ssh user@server</text>
+                                <circle cx="70" cy="25" r="16" fill="#2d3748" stroke="#1e293b" stroke-width="2"/>
+                                <circle cx="64" cy="22" r="2" fill="white"/>
+                                <circle cx="76" cy="22" r="2" fill="white"/>
+                                <polygon points="70,30 67,36 73,36" fill="#facc15"/>
+                                <path d="M55 38 L50 48 L65 45 Z" fill="#334155"/>
+                                <path d="M85 38 L90 48 L75 45 Z" fill="#334155"/>
+                            </svg>
+                        </div>
+                        <p class="text-center text-gray-500 text-sm mt-3">🔐 Sécurisez vos connexions à distance</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide slide-hidden" data-index="1">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+                    <div class="bg-blue-50 p-6 border-b border-blue-200">
+                        <h2 class="text-2xl md:text-3xl font-bold text-blue-900 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8 space-y-5">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-blue-100 rounded-full p-2 mt-0.5"><span class="text-blue-700 font-bold text-lg">1</span></div>
+                            <p class="text-gray-700 text-lg">Comprendre l'architecture Linux et les principales distributions (Ubuntu, CentOS, Debian).</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="bg-blue-100 rounded-full p-2 mt-0.5"><span class="text-blue-700 font-bold text-lg">2</span></div>
+                            <p class="text-gray-700 text-lg">Se connecter en SSH à un serveur distant en toute sécurité.</p>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="bg-blue-100 rounded-full p-2 mt-0.5"><span class="text-blue-700 font-bold text-lg">3</span></div>
+                            <p class="text-gray-700 text-lg">Connaître la structure du système de fichiers Linux (/, /home, /etc, /var, /usr).</p>
+                        </div>
+                        <div class="mt-6 bg-amber-50 p-4 rounded-xl border-l-4 border-amber-400">
+                            <p class="text-amber-800 text-sm font-medium">💡 À la fin de ce cours, vous serez capable d'administrer un serveur Linux et d'établir des connexions à distance comme un professionnel.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Qu'est-ce que Linux et son architecture -->
+            <div class="slide slide-hidden" data-index="2">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-5">
+                        <h2 class="text-2xl font-bold">🧠 Architecture Linux : le cerveau des serveurs</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-700 leading-relaxed">Linux est un système d’exploitation open source, stable et sécurisé. Il est partout : serveurs web, smartphones Android, supercalculateurs.</p>
+                        <div class="my-6 bg-gray-100 p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-800">📌 Composants clés :</h3>
+                            <ul class="list-disc list-inside space-y-1 mt-2 text-gray-700">
+                                <li><span class="font-mono font-bold">Noyau (Kernel)</span> : cœur du système, dialogue avec le matériel.</li>
+                                <li><span class="font-mono font-bold">Shell</span> : interpréteur de commandes (bash, zsh).</li>
+                                <li><span class="font-mono font-bold">Système de fichiers</span> : organisation des données.</li>
+                                <li><span class="font-mono font-bold">Distributions</span> : Ubuntu (débutant), Debian (stable), CentOS (entreprise).</li>
+                            </ul>
+                        </div>
+                        <!-- Petit dessin de l'architecture simplifiée -->
+                        <div class="flex justify-center my-4">
+                            <svg width="300" height="130" viewBox="0 0 350 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="80" width="330" height="30" fill="#94a3b8" rx="6" />
+                                <text x="130" y="100" fill="white" font-size="12" font-weight="bold">Matériel (CPU, RAM, Disque)</text>
+                                <rect x="30" y="45" width="290" height="35" fill="#475569" rx="6" />
+                                <text x="115" y="66" fill="white" font-size="13">Noyau Linux (Kernel)</text>
+                                <rect x="60" y="10" width="220" height="35" fill="#3b82f6" rx="6" />
+                                <text x="115" y="32" fill="white" font-size="13">Shell & Applications</text>
+                                <line x1="100" y1="45" x2="90" y2="80" stroke="#facc15" stroke-width="2" stroke-dasharray="4"/>
+                                <line x1="250" y1="45" x2="260" y2="80" stroke="#facc15" stroke-width="2" stroke-dasharray="4"/>
+                            </svg>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg mt-3">
+                            <p class="text-green-800 text-sm">🌍 <strong>Distribution populaire au Cameroun :</strong> Ubuntu LTS (Long Term Support) facilite la prise en main.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : SSH - Connexion sécurisée -->
+            <div class="slide slide-hidden" data-index="3">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-indigo-700 text-white p-5">
+                        <h2 class="text-2xl font-bold">🔌 SSH : La porte sécurisée vers vos serveurs</h2>
+                    </div>
+                    <div class="p-6">
+                        <p><span class="font-bold text-gray-800">SSH (Secure Shell)</span> est un protocole permettant d’exécuter des commandes sur une machine distante de façon chiffrée.</p>
+                        <div class="bg-gray-800 text-green-300 p-4 rounded-lg font-mono text-sm my-5 overflow-x-auto">
+                            <p>$ ssh utilisateur@192.168.1.100</p>
+                            <p>$ ssh -i ma_clef.pem ubuntu@mon-serveur.com</p>
+                        </div>
+                        <h3 class="font-bold text-lg mt-4">📝 Étapes pour une connexion SSH :</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700 mt-2">
+                            <li>Le serveur distant doit avoir un service SSH actif (OpenSSH).</li>
+                            <li>Connaître l'adresse IP ou le nom de domaine.</li>
+                            <li>Utiliser un nom d'utilisateur et un mot de passe (ou une clé SSH).</li>
+                            <li>Commande de base : <code class="bg-gray-100 px-1 rounded">ssh user@host</code></li>
+                        </ol>
+                        <div class="mt-5 p-3 bg-yellow-50 border-l-4 border-yellow-500">
+                            <p class="text-yellow-800 text-sm">⚠️ <strong>Astuce :</strong> sous Windows, utilisez PowerShell ou Git Bash ; sous Linux/macOS, terminal intégré.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : Structure des fichiers Linux (arborescence) -->
+            <div class="slide slide-hidden" data-index="4">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-emerald-800 text-white p-5">
+                        <h2 class="text-2xl font-bold">📂 Où se trouve quoi ? La hiérarchie FHS</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="mb-3">Linux suit la norme FHS (Filesystem Hierarchy Standard). Tout part de la racine <code class="bg-gray-100 px-1">/</code>.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/home</span> : dossiers personnels des utilisateurs.
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/etc</span> : fichiers de configuration système.
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/var</span> : données variables (logs, bases de données).
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/usr</span> : programmes et bibliothèques utilisateurs.
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/bin</span> : commandes essentielles.
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-lg shadow-sm">
+                                <span class="font-mono font-bold text-blue-700">/root</span> : dossier de l'administrateur (root).
+                            </div>
+                        </div>
+                        <!-- schéma simple d'arborescence -->
+                        <div class="mt-6 bg-gray-100 p-3 rounded-md font-mono text-xs md:text-sm overflow-x-auto">
+                            <pre class="text-gray-700">
+/
+├── home/
+│   └── eleve/
+├── etc/
+│   └── ssh/
+├── var/
+│   └── log/
+├── usr/
+│   └── bin/
+└── ...
+                            </pre>
+                        </div>
+                        <p class="text-gray-600 mt-3 italic">📌 Naviguer dans ces répertoires est indispensable pour tout DevOps.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : Pratique - Commandes SSH & astuces -->
+            <div class="slide slide-hidden" data-index="5">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-orange-700 text-white p-5">
+                        <h2 class="text-2xl font-bold">⌨️ Mise en pratique : Première connexion</h2>
+                    </div>
+                    <div class="p-6">
+                        <p><strong>Simulation de connexion locale :</strong> Pour tester SSH, on peut se connecter à sa propre machine via <code class="bg-gray-100">ssh localhost</code> (si service activé).</p>
+                        <div class="border border-gray-200 rounded-lg p-4 my-4 bg-gradient-to-r from-gray-50 to-white">
+                            <p class="font-semibold">🔐 Générer une clé SSH (sécurité renforcée) :</p>
+                            <div class="bg-black text-green-400 p-3 rounded font-mono text-xs md:text-sm mt-2">
+                                $ ssh-keygen -t ed25519 -C "votre-email@exemple.com"<br>
+                                $ ssh-copy-id utilisateur@serveur
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-3 mt-4">
+                            <div class="bg-blue-50 p-3 rounded-md flex-1">
+                                <span class="font-bold">✅ Vérifier la connexion :</span> ssh -v user@host
+                            </div>
+                            <div class="bg-blue-50 p-3 rounded-md flex-1">
+                                <span class="font-bold">📂 Transférer fichier :</span> scp fichier user@host:~/chemin
+                            </div>
+                        </div>
+                        <div class="bg-teal-50 p-3 rounded-lg mt-4 text-teal-800 text-sm">
+                            💡 <strong>Rappel :</strong> Dans le cadre du cours au Cameroun, nous utiliserons des VM locales ou des services cloud gratuits pour pratiquer.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Récapitulatif & quiz rapide -->
+            <div class="slide slide-hidden" data-index="6">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-purple-800 text-white p-5">
+                        <h2 class="text-2xl font-bold">🧪 Vérification des acquis</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="font-medium mb-4">Questions pour ancrer vos connaissances :</p>
+                        <div class="space-y-3">
+                            <div class="border-b pb-2">
+                                <p class="font-mono text-blue-800">1️⃣ Quelle commande utilise-t-on pour se connecter à un serveur distant ?</p>
+                                <p class="text-gray-600 text-sm bg-gray-50 p-1 rounded">👉 <code class="bg-gray-200 px-1">ssh nom@adresse_ip</code></p>
+                            </div>
+                            <div class="border-b pb-2">
+                                <p class="font-mono text-blue-800">2️⃣ Où sont stockés les journaux système (logs) ?</p>
+                                <p class="text-gray-600 text-sm bg-gray-50 p-1 rounded">👉 Dans le dossier <code>/var/log/</code></p>
+                            </div>
+                            <div class="border-b pb-2">
+                                <p class="font-mono text-blue-800">3️⃣ Citez deux distributions Linux populaires en entreprise.</p>
+                                <p class="text-gray-600 text-sm bg-gray-50 p-1 rounded">👉 Ubuntu Server, Debian, Rocky Linux, etc.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-indigo-50 p-4 rounded-lg text-center">
+                            <p class="text-indigo-800">🎯 <strong>Objectif atteint ?</strong> Vous savez désormais définir l’architecture Linux, utiliser SSH et connaître l’arborescence.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 8 : Ressources / Exercice maison -->
+            <div class="slide slide-hidden" data-index="7">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-pink-700 text-white p-5">
+                        <h2 class="text-2xl font-bold">📚 Exercices & ressources</h2>
+                    </div>
+                    <div class="p-6">
+                        <p><strong>Mini-projet :</strong> Installer une machine virtuelle Ubuntu (via VirtualBox) et activez SSH. Connectez-vous depuis votre terminal.</p>
+                        <div class="bg-gray-100 p-4 rounded my-4">
+                            <p class="font-bold">🔧 Étapes conseillées :</p>
+                            <ul class="list-disc list-inside space-y-1 mt-1">
+                                <li>Téléchargez Ubuntu Server 22.04 LTS.</li>
+                                <li>Lancez <code>sudo apt install openssh-server</code></li>
+                                <li>Vérifiez avec <code>systemctl status ssh</code></li>
+                                <li>Connectez-vous depuis l'hôte : <code>ssh user@ip_vm</code></li>
+                            </ul>
+                        </div>
+                        <p class="text-sm text-gray-500">Ressources complémentaires : <a href="#" class="text-blue-600 underline">Documentation OpenSSH</a> - <a href="#" class="text-blue-600 underline">Linux Journey (gratuit)</a></p>
+                        <div class="mt-5 text-center text-gray-400 text-xs">© Cours DevOps - Enseignant Cameroun | Leçon 4: Architecture Linux & SSH</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Affichage mobile friendly avec marges consolidées -->
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIdx = 0;
+            
+            function updateCounter(){
+                $('#slideCounter').text(`Slide ${currentIdx+1} / ${totalSlides}`);
+                // Gestion état boutons
+                $('#prevSlide').prop('disabled', currentIdx === 0);
+                $('#nextSlide').prop('disabled', currentIdx === totalSlides-1);
+            }
+            
+            function showSlide(index){
+                if(index < 0) index = 0;
+                if(index >= totalSlides) index = totalSlides-1;
+                slides.each(function(i){
+                    if(i === index){
+                        $(this).removeClass('slide-hidden').addClass('slide-active');
+                    } else {
+                        $(this).removeClass('slide-active').addClass('slide-hidden');
+                    }
+                });
+                currentIdx = index;
+                updateCounter();
+                // scroll en douceur vers le haut pour mobile
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            }
+            
+            $('#nextSlide').on('click', function(){
+                if(currentIdx < totalSlides-1){
+                    showSlide(currentIdx+1);
+                }
+            });
+            $('#prevSlide').on('click', function(){
+                if(currentIdx > 0){
+                    showSlide(currentIdx-1);
+                }
+            });
+            
+            // Gestions touches clavier (gauche/droite) pour une meilleure expérience
+            $(document).on('keydown', function(e){
+                if(e.key === 'ArrowRight'){
+                    $('#nextSlide').click();
+                } else if(e.key === 'ArrowLeft'){
+                    $('#prevSlide').click();
+                }
+            });
+            
+            // Init
+            showSlide(0);
+        });
+    </script>
+    <!-- Petit correctif pour les images de recherche (selon consigne) mais nous n'avons pas utilisé d'img src vide ; si besoin de diagramme complexe, on le ferait -->
+    <!-- Conforme à la demande "si compliqué à dessiner insérer img src='' alt description" mais nous avons dessiné les schémas nous-mêmes -->
+</body>
+</html>

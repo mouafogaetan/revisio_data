@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 21 : Exposer des applications avec Kubernetes - Services & Ingress</title>
+  <!-- Tailwind CSS CDN + base typography -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (optionnel, pour formules si besoin, mais on le garde) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transition douce entre les slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+    }
+    .hidden-slide {
+      display: none;
+      opacity: 0;
+    }
+    .active-slide {
+      display: block;
+      opacity: 1;
+    }
+    /* pour le rendu des petits écrans, ajustement des cards */
+    @media (max-width: 640px) {
+      .slide-content {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+    /* personnalisation des bulles de navigation */
+    .nav-btn {
+      transition: all 0.2s;
+    }
+    .nav-btn:active {
+      transform: scale(0.96);
+    }
+    /* diagramme SVG inline pour illustrer les services */
+    .diagram-svg {
+      background: #f8fafc;
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 font-sans antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <!-- Conteneur principal slides -->
+    <div id="slides-container" class="relative">
+      
+      <!-- SLIDE 1 : Titre de la leçon -->
+      <div class="slide active-slide" data-slide="0">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+          <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-8 md:py-10">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-white drop-shadow-sm">🌐 Exposer des applications dans Kubernetes</h1>
+            <p class="text-indigo-100 text-lg md:text-xl mt-3 font-medium">Services (ClusterIP, NodePort, LoadBalancer) & Ingress Controller</p>
+            <div class="mt-6 flex flex-wrap gap-3 text-sm text-indigo-100">
+              <span class="bg-white/20 px-3 py-1 rounded-full">K8s Networking</span>
+              <span class="bg-white/20 px-3 py-1 rounded-full">Leçon 21</span>
+              <span class="bg-white/20 px-3 py-1 rounded-full">DevOps</span>
+            </div>
+          </div>
+          <div class="p-6 md:p-8 text-center">
+            <div class="flex justify-center mb-4">
+              <svg class="w-20 h-20 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l4-4 4 4m0 6l-4 4-4-4m4-10v16"></path></svg>
+            </div>
+            <p class="text-gray-600 text-base md:text-lg">Découvrons comment exposer vos applications Kubernetes au monde extérieur, choisir le bon Service et utiliser un Ingress pour le routage HTTP/HTTPS.</p>
+            <button class="next-slide mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-full shadow-md transition nav-btn">Commencer la leçon →</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 2 : Objectifs pédagogiques -->
+      <div class="slide hidden-slide" data-slide="1">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div class="bg-gradient-to-r from-emerald-700 to-teal-600 px-6 py-5">
+            <h2 class="text-2xl md:text-3xl font-bold text-white">🎯 Objectifs de la leçon</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <ul class="space-y-4 text-gray-700">
+              <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Exposer des Pods</strong> avec les types de Service : ClusterIP, NodePort, LoadBalancer.</span></li>
+              <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Configurer un Ingress Controller</strong> pour le routage HTTP/HTTPS intelligent.</span></li>
+              <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span><strong>Comprendre le DNS interne</strong> (CoreDNS / kube-dns) pour la communication entre services.</span></li>
+              <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✔️</span> <span>Savoir choisir la bonne méthode d’exposition selon le contexte (dev, prod, cloud).</span></li>
+            </ul>
+            <div class="mt-8 flex justify-between">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-5 rounded-full transition">← Précédent</button>
+              <button class="next-slide bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-5 rounded-full transition">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 3 : Pourquoi exposer ?  Services dans Kubernetes -->
+      <div class="slide hidden-slide" data-slide="2">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="border-b border-gray-200 px-6 py-4 bg-gray-50 rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-gray-800">📡 Services Kubernetes : le pont vers l'extérieur</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <p class="text-gray-700 mb-4">Les Pods sont éphémères et ont des adresses IP qui changent. Un <strong class="text-indigo-700">Service</strong> fournit une IP stable et une découverte de service.</p>
+            <div class="grid md:grid-cols-3 gap-5 mt-5">
+              <div class="bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500"><span class="font-bold text-blue-800">ClusterIP</span><p class="text-sm mt-1">Interne uniquement. Idéal pour communication microservices.</p></div>
+              <div class="bg-green-50 p-4 rounded-xl border-l-4 border-green-500"><span class="font-bold text-green-800">NodePort</span><p class="text-sm mt-1">Expose sur un port statique de chaque nœud (30000-32767). Accessible via &lt;NodeIP&gt;:NodePort.</p></div>
+              <div class="bg-purple-50 p-4 rounded-xl border-l-4 border-purple-500"><span class="font-bold text-purple-800">LoadBalancer</span><p class="text-sm mt-1">Utilise un équilibreur de charge cloud (AWS, Azure, GCP). Donne une IP publique.</p></div>
+            </div>
+            <!-- Petit dessin SVG -->
+            <div class="mt-8 flex justify-center">
+              <svg width="100%" height="auto" viewBox="0 0 500 180" class="diagram-svg max-w-full p-2">
+                <rect x="10" y="60" width="100" height="40" fill="#3b82f6" rx="8" />
+                <text x="35" y="85" fill="white" font-size="12">Pod App</text>
+                <rect x="150" y="20" width="140" height="50" fill="#f97316" rx="8" />
+                <text x="165" y="50" fill="white" font-size="12">Service ClusterIP</text>
+                <rect x="330" y="60" width="100" height="40" fill="#10b981" rx="8" />
+                <text x="355" y="85" fill="white" font-size="12">NodePort</text>
+                <path d="M110 80 L140 50" stroke="#6b7280" stroke-width="2" stroke-dasharray="4"/>
+                <path d="M290 45 L320 65" stroke="#6b7280" stroke-width="2"/>
+                <text x="160" y="130" fill="#4b5563" font-size="12">DNS interne (CoreDNS) → nom_service.namespace</text>
+              </svg>
+            </div>
+            <div class="mt-6 bg-gray-100 p-4 rounded-lg">
+              <p class="text-sm text-gray-600">💡 <span class="font-semibold">À retenir :</span> Chaque Service reçoit une adresse IP virtuelle et un nom DNS résolu par CoreDNS. Par exemple, <code class="bg-gray-800 text-white px-1 rounded">mon-service.mon-namespace.svc.cluster.local</code></p>
+            </div>
+            <div class="flex justify-between mt-8">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 4 : Exemples concrets de ClusterIP & NodePort -->
+      <div class="slide hidden-slide" data-slide="3">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-4 rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-white">🔌 Démo : ClusterIP & NodePort en YAML</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <p class="mb-3 text-gray-700">Voici comment créer un Service de type <code class="bg-gray-100 px-1 rounded">NodePort</code> pour exposer une application web sur un port de vos nœuds :</p>
+            <div class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto text-sm font-mono">
+              <pre>apiVersion: v1
+kind: Service
+metadata:
+  name: mon-app-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: mon-app
+  ports:
+    - port: 80          # port du service
+      targetPort: 8080  # port du conteneur
+      nodePort: 31000   # optionnel, plage 30000-32767</pre>
+            </div>
+            <p class="mt-5 text-gray-700">Pour y accéder : <code class="bg-gray-200 px-2 py-1 rounded">curl http://&lt;IP_Noeud&gt;:31000</code> . En production, on préfère LoadBalancer sur cloud.</p>
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mt-5 rounded">
+              <p class="text-amber-800 text-sm">⚠️ NodePort n'est pas sécurisé directement sans firewall. Idéal pour tests ou environnements on-premise simples.</p>
+            </div>
+            <div class="flex justify-between mt-8">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-sky-600 hover:bg-sky-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 5 : Ingress Controller et routage intelligent -->
+      <div class="slide hidden-slide" data-slide="4">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-4 rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-white">🚦 Ingress : le contrôleur de trafic HTTP</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <p class="mb-4">Un <strong class="text-fuchsia-700">Ingress</strong> agit comme un reverse proxy pour exposer plusieurs services sous un même équilibreur de charge. Idéal pour le routage basé sur le nom d'hôte ou le chemin.</p>
+            <!-- diagramme SVG Ingress simple -->
+            <div class="bg-gray-50 p-4 rounded-xl my-4 flex justify-center">
+              <svg width="450" height="150" viewBox="0 0 450 150" class="max-w-full">
+                <rect x="20" y="50" width="100" height="45" fill="#8b5cf6" rx="8" />
+                <text x="45" y="78" fill="white" font-size="12">Ingress Controller</text>
+                <path d="M120 75 L170 75" stroke="#475569" stroke-width="2" />
+                <rect x="180" y="35" width="100" height="35" fill="#f59e0b" rx="6" />
+                <text x="195" y="57" fill="white" font-size="11">Service A</text>
+                <rect x="180" y="90" width="100" height="35" fill="#f59e0b" rx="6" />
+                <text x="195" y="112" fill="white" font-size="11">Service B</text>
+                <text x="20" y="30" fill="#1e293b" font-size="12">Requête externe → &lt;exemple.com/api&gt;</text>
+                <text x="20" y="135" fill="#1e293b" font-size="12">Routage selon règles : / → Service A, /admin → Service B</text>
+              </svg>
+            </div>
+            <div class="bg-gray-900 rounded-xl p-4 text-sm font-mono text-gray-100 mt-2 overflow-x-auto">
+              <pre>apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+spec:
+  rules:
+  - host: monapp.exemple.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 80</pre>
+            </div>
+            <p class="text-sm text-gray-500 mt-3">👉 Pour utiliser Ingress, il faut d'abord installer un contrôleur (NGINX Ingress, Traefik, HAProxy...).</p>
+            <div class="flex justify-between mt-6">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-violet-600 hover:bg-violet-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 6 : DNS interne (CoreDNS) explication -->
+      <div class="slide hidden-slide" data-slide="5">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="bg-gray-800 text-white px-6 py-4 rounded-t-2xl">
+            <h2 class="text-2xl font-bold">🌍 DNS interne kube-dns / CoreDNS</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <p class="mb-3">Dans Kubernetes, chaque Service reçoit automatiquement un enregistrement DNS. Les Pods peuvent communiquer en utilisant le nom du service plutôt que l'IP.</p>
+            <div class="grid sm:grid-cols-2 gap-4 mt-4">
+              <div class="border rounded-xl p-3 bg-indigo-50"><span class="font-mono text-sm">mon-service</span><p class="text-xs text-gray-600">Dans le même namespace</p></div>
+              <div class="border rounded-xl p-3 bg-indigo-50"><span class="font-mono text-sm">mon-service.mon-namespace</span><p class="text-xs text-gray-600">Dans un autre namespace</p></div>
+              <div class="border rounded-xl p-3 bg-indigo-50"><span class="font-mono text-sm">mon-service.mon-namespace.svc.cluster.local</span><p class="text-xs">Nom complet (FQDN)</p></div>
+            </div>
+            <div class="mt-6 bg-green-50 p-4 rounded-lg border border-green-200">
+              <p class="font-semibold text-green-800">✨ Astuce pratique :</p>
+              <p class="text-sm">Pour tester la résolution DNS depuis un Pod, utilisez <code class="bg-gray-800 text-white px-1 rounded">nslookup mon-service</code> ou <code class="bg-gray-800 text-white px-1 rounded">cat /etc/resolv.conf</code> dans le Pod.</p>
+            </div>
+            <div class="flex justify-between mt-8">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-gray-800 hover:bg-gray-900 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 7 : cas d'usage LoadBalancer et cloud -->
+      <div class="slide hidden-slide" data-slide="6">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="bg-gradient-to-r from-blue-800 to-indigo-800 px-6 py-4 rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-white">☁️ LoadBalancer : exposition cloud native</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <p>Sur AWS, Azure ou GCP, le type <strong class="text-indigo-700">LoadBalancer</strong> provisionne automatiquement un équilibreur de charge externe avec une IP publique.</p>
+            <div class="bg-gray-100 p-4 rounded-xl my-4">
+              <p class="font-mono text-sm">apiVersion: v1<br>kind: Service<br>metadata: name: mon-app-lb<br>spec:<br>  type: LoadBalancer<br>  ports:<br>  - port: 80<br>    targetPort: 8080<br>  selector:<br>    app: mon-app</p>
+            </div>
+            <p>Une fois déployé, <code class="bg-gray-200 px-1">kubectl get svc</code> affiche une colonne EXTERNAL-IP. Parfait pour la production.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">AWS ELB</span>
+              <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">Azure Load Balancer</span>
+              <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">GCP Cloud Load Balancing</span>
+            </div>
+            <div class="flex justify-between mt-8">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-indigo-800 hover:bg-indigo-900 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 8 : Mini quiz / vérification des compréhensions -->
+      <div class="slide hidden-slide" data-slide="7">
+        <div class="bg-white rounded-2xl shadow-xl">
+          <div class="bg-yellow-600 px-6 py-4 rounded-t-2xl">
+            <h2 class="text-2xl font-bold text-white">🧠 Vérifions vos acquis</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <div class="space-y-5">
+              <div class="border-b pb-3">
+                <p class="font-medium">1️⃣ Quel type de Service utiliseriez-vous pour rendre une application accessible depuis Internet sur un cloud public ?</p>
+                <div class="mt-2 text-sm text-gray-600">✅ Réponse : LoadBalancer (ou Ingress avec un contrôleur). NodePort pour les tests.</div>
+              </div>
+              <div class="border-b pb-3">
+                <p class="font-medium">2️⃣ Vrai ou faux ? Ingress permet le routage basé sur le chemin URL comme <code>/api</code> vers un service et <code>/web</code> vers un autre.</p>
+                <div class="mt-2 text-sm text-gray-600">✅ Vrai ! L'Ingress est parfait pour le routage dynamique HTTP/HTTPS.</div>
+              </div>
+              <div>
+                <p class="font-medium">3️⃣ À quoi sert CoreDNS dans un cluster Kubernetes ?</p>
+                <div class="mt-2 text-sm text-gray-600">✅ Il fournit la résolution DNS interne pour que les Pods trouvent les Services par leur nom.</div>
+              </div>
+            </div>
+            <div class="bg-indigo-50 p-4 rounded-xl mt-6">
+              <p class="text-indigo-900 text-sm">💪 <strong>Petite commande utile :</strong> <code class="bg-white px-1 rounded">kubectl expose deployment mon-deploy --type=NodePort --port=80 --target-port=8080</code> pour exposer rapidement.</p>
+            </div>
+            <div class="flex justify-between mt-8">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+              <button class="next-slide bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SLIDE 9 : Récapitulatif et fin de leçon -->
+      <div class="slide hidden-slide" data-slide="8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden text-center">
+          <div class="bg-gradient-to-r from-green-700 to-teal-700 px-6 py-8">
+            <h2 class="text-3xl font-bold text-white">🏁 Bravo ! Résumé de la leçon</h2>
+          </div>
+          <div class="p-6 md:p-8">
+            <div class="grid md:grid-cols-2 gap-5 text-left">
+              <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">📌 Service ClusterIP</span> – Communication interne, par défaut.</div>
+              <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">📌 Service NodePort</span> – Exposition simple sur port des nœuds.</div>
+              <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">📌 Service LoadBalancer</span> – IP publique, cloud provider.</div>
+              <div class="bg-green-50 p-4 rounded-xl"><span class="font-bold">📌 Ingress Controller</span> – Routage avancé, TLS, virtual hosting.</div>
+              <div class="bg-green-50 p-4 rounded-xl col-span-2"><span class="font-bold">🌐 DNS interne</span> : chaque service reçoit un enregistrement A (ex: <span class="font-mono">mon-svc.default.svc.cluster.local</span>).</div>
+            </div>
+            <p class="mt-8 text-gray-600">Vous savez maintenant exposer des applications Kubernetes avec élégance. Entraînez-vous avec minikube !</p>
+            <div class="mt-8 flex justify-center gap-4">
+              <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Revoir</button>
+              <button id="restart-slides" class="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-6 rounded-full shadow">Recommencer la leçon</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- indicateur de progression style dots -->
+    <div class="flex justify-center gap-2 mt-8 flex-wrap" id="slide-dots">
+      <!-- les dots seront générés dynamiquement via jQuery -->
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function(){
+      let currentIndex = 0;
+      const slides = $('.slide');
+      const totalSlides = slides.length;
+      
+      function updateSlidesVisibility() {
+        slides.each(function(idx) {
+          if(idx === currentIndex) {
+            $(this).removeClass('hidden-slide').addClass('active-slide');
+          } else {
+            $(this).removeClass('active-slide').addClass('hidden-slide');
+          }
+        });
+        updateDots();
+      }
+      
+      function updateDots() {
+        let dotsHtml = '';
+        for(let i=0; i<totalSlides; i++) {
+          let activeClass = (i === currentIndex) ? 'bg-indigo-700 w-6' : 'bg-gray-300 w-3';
+          dotsHtml += `<button class="dot-btn h-3 rounded-full ${activeClass} transition-all mx-1 focus:outline-none" data-index="${i}"></button>`;
+        }
+        $('#slide-dots').html(dotsHtml);
+        // ajouter événements aux dots
+        $('.dot-btn').on('click', function() {
+          let idx = parseInt($(this).data('index'));
+          if(!isNaN(idx) && idx >=0 && idx < totalSlides) {
+            currentIndex = idx;
+            updateSlidesVisibility();
+          }
+        });
+      }
+      
+      function nextSlide() {
+        if(currentIndex < totalSlides - 1) {
+          currentIndex++;
+          updateSlidesVisibility();
+        } else {
+          // boucle ou reste: on peut rester sur dernier slide
+          if(currentIndex === totalSlides-1) {
+            // on ne change rien, mais on pourrait afficher un message optionnel
+          }
+        }
+      }
+      
+      function prevSlide() {
+        if(currentIndex > 0) {
+          currentIndex--;
+          updateSlidesVisibility();
+        }
+      }
+      
+      // gestion des clics sur les boutons next / prev
+      $(document).on('click', '.next-slide', nextSlide);
+      $(document).on('click', '.prev-slide', prevSlide);
+      $(document).on('click', '#restart-slides', function() {
+        currentIndex = 0;
+        updateSlidesVisibility();
+      });
+      
+      // initialisation
+      updateSlidesVisibility();
+      
+      // support du swipe sur mobile avec touches jquery simplifié (optionnel)
+      let touchStartX = 0;
+      $(document).on('touchstart', '.slide', function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $(document).on('touchend', '.slide', function(e) {
+        if(touchStartX === 0) return;
+        let endX = e.originalEvent.changedTouches[0].clientX;
+        let diff = endX - touchStartX;
+        if(Math.abs(diff) > 50) {
+          if(diff > 0) prevSlide();
+          else nextSlide();
+        }
+        touchStartX = 0;
+      });
+      
+      // Navigation au clavier
+      $(document).keydown(function(e) {
+        if(e.key === 'ArrowLeft') prevSlide();
+        else if(e.key === 'ArrowRight') nextSlide();
+      });
+      
+    });
+  </script>
+</body>
+</html>

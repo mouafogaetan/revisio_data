@@ -1,0 +1,120 @@
+[
+  {
+    "intitule": "Synchronisation du panier local avec le backend",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce React Native utilisant <strong>Zustand</strong> avec <strong>persist middleware</strong> (AsyncStorage) pour le panier, un utilisateur non connecté ajoute 3 produits à son panier. Il se connecte ensuite. Le backend possède un panier existant contenant 2 autres produits (issus d'une session précédente sur un autre appareil).</p><p><strong>Consigne :</strong> Décrivez les étapes nécessaires pour implémenter une stratégie de <strong>fusion (merge)</strong> des paniers qui :</p><ul><li>conserve tous les produits (pas de suppression)</li><li>additionne les quantités pour un même produit</li><li>supprime les doublons</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la stratégie de synchronisation du panier local avec le backend après authentification.",
+        "niveau": "medium",
+        "reponse": "Après authentification, l'application doit : 1) Récupérer le panier utilisateur depuis le backend (panier distant), 2) Récupérer le panier local depuis AsyncStorage (via le store Zustand), 3) Fusionner les deux paniers en additionnant les quantités des produits identiques, 4) Envoyer le panier fusionné vers le backend (PUT/POST), 5) Mettre à jour le store local avec le panier fusionné, 6) Vider/remplacer l'ancien panier local non authentifié.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Justifier pourquoi il ne faut pas simplement écraser le panier distant par le panier local (ou l'inverse).",
+            "niveau": "medium",
+            "reponse": "Écraser le panier distant par le panier local ferait perdre les articles ajoutés sur d'autres appareils. Écraser le panier local par le panier distant ferait perdre les articles ajoutés hors ligne. La fusion préserve les deux ensembles et offre une meilleure expérience utilisateur."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposer une fonction de fusion (pseudo-code ou code TypeScript) qui prend deux paniers (local et distant) et retourne un panier fusionné.",
+            "niveau": "hard",
+            "reponse": "```typescript\nfunction mergeCarts(localCart: CartItem[], remoteCart: CartItem[]): CartItem[] {\n  const cartMap = new Map<string, CartItem>();\n  \n  // Ajouter tous les articles du panier distant\n  remoteCart.forEach(item => {\n    cartMap.set(item.productId, { ...item });\n  });\n  \n  // Fusionner les articles du panier local\n  localCart.forEach(localItem => {\n    const existing = cartMap.get(localItem.productId);\n    if (existing) {\n      // Additionner les quantités\n      existing.quantity += localItem.quantity;\n    } else {\n      cartMap.set(localItem.productId, { ...localItem });\n    }\n  });\n  \n  return Array.from(cartMap.values());\n}\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des conflits offline → online",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client utilise votre application e-commerce dans une zone avec une connexion Internet instable (Cameroun - zones rurales). Voici le scénario :</p><ol><li>L'utilisateur est connecté, son panier contient [Produit A: 2 units].</li><li>Il perd la connexion Internet (mode offline).</li><li>Il ajoute 3 units du Produit A (passant de 2 à 5).</li><li>Simultanément, sur un autre appareil (ordinateur), il avait déjà modifié son panier : le Produit A passe à 4 units.</li><li>La connexion est rétablie.</li></ol><p><strong>Problème :</strong> Le backend reçoit deux versions différentes du panier pour le même utilisateur (offline 5 units vs distant 4 units).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier les types de conflits possibles dans ce scénario (écriture-écriture).",
+        "niveau": "medium",
+        "reponse": "Conflit d'écriture-écriture sur la même ressource (panier) et sur la même propriété (quantité du Produit A). Les deux opérations (offline et sur autre appareil) modifient la même donnée sans coordination préalable.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposer une stratégie de résolution de conflit adaptée à une application e-commerce. (Plusieurs solutions possibles : Last Write Wins, fusion incrémentale, versioning vectoriel, ou demande à l'utilisateur). Justifier votre choix.",
+            "niveau": "very hard",
+            "reponse": "Stratégie recommandée : <strong>Fusion incrémentale avec horodatage + validation utilisateur</strong>. Pourquoi ? Last Write Wins (LWW) ferait perdre des données. Versioning vectoriel est trop complexe pour un panier. Demander à l'utilisateur : \"Votre panier mobile a 5 unités, votre panier web a 4 unités. Que voulez-vous garder ?\" avec option 'Fusionner (9 units)'. C'est transparent et respecte la volonté du client. Alternative : appliquer le delta (offline a ajouté +3, distant a modifié de 2 à 4, donc fusion = 2+3 =5 OU 4+3? Non déterministe). Le mieux est d'afficher un dialogue de résolution."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Écrire le pseudo-code de la fonction <code>resolveCartConflict(localVersion, remoteVersion, lastSyncTimestamp)</code> qui détecte un conflit et retourne la version à conserver après résolution.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nfunction resolveCartConflict(localCart, remoteCart, lastSyncTimestamp) {\n  // Détection de conflit : comparaison des versions\n  const hasConflict = JSON.stringify(localCart) !== JSON.stringify(remoteCart);\n  \n  if (!hasConflict) return remoteCart;\n  \n  // Stratégie: Demander à l'utilisateur via un callback\n  // Mais pour une fonction pure, on retourne un objet signalant le conflit\n  return {\n    status: 'CONFLICT',\n    local: localCart,\n    remote: remoteCart,\n    resolution: 'USER_CHOICE'\n  };\n}\n\n// Version avancée avec fusion automatique pour produits sans conflit\ntype ConflictResolution = 'KEEP_LOCAL' | 'KEEP_REMOTE' | 'MERGE' | 'ASK_USER';\n\nfunction autoMergeCarts(local, remote, resolution: ConflictResolution) {\n  switch(resolution) {\n    case 'MERGE':\n      const merged = [...remote];\n      local.forEach(localItem => {\n        const existing = merged.find(i => i.id === localItem.id);\n        if(existing) existing.quantity += localItem.quantity;\n        else merged.push(localItem);\n      });\n      return merged;\n    case 'KEEP_LOCAL': return local;\n    case 'KEEP_REMOTE': return remote;\n    default: throw new Error('Résolution manuelle requise');\n  }\n}\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du merge du panier après connexion",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans votre store Zustand (<code>cartStore</code>), vous avez un panier persistant avec <code>persist()</code>. Un utilisateur non connecté remplit son panier, puis se connecte. Complétez le code ci-dessous pour :</p><ul><li>Fusionner le panier local avec le panier distant (récupéré depuis l'API)</li><li>Envoyer le panier fusionné au backend</li><li>Mettre à jour le store local</li><li>Supprimer les données du panier \"invité\" après connexion</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Compléter la fonction <code>syncCartAfterLogin</code> ci-dessous.",
+        "niveau": "hard",
+        "reponse": "Voir code complet ci-dessous.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "```typescript\n// État initial du store\nconst useCartStore = create(\n  persist(\n    (set, get) => ({\n      items: [],\n      isGuestCart: true,\n      \n      addItem: (product, quantity) => { /* ... */ },\n      \n      syncCartAfterLogin: async (userId, apiClient) => {\n        // ÉTAPE 1: Récupérer le panier local (guest)\n        const localItems = get().items;\n        \n        // ÉTAPE 2: Récupérer le panier distant depuis l'API\n        // À COMPLÉTER\n        \n        // ÉTAPE 3: Fusionner les deux paniers (addition des quantités)\n        // À COMPLÉTER\n        \n        // ÉTAPE 4: Envoyer le panier fusionné au backend\n        // À COMPLÉTER\n        \n        // ÉTAPE 5: Mettre à jour le store avec le panier fusionné\n        // À COMPLÉTER\n        \n        // ÉTAPE 6: Marquer le panier comme authentifié (non guest)\n        // À COMPLÉTER\n      }\n    }),\n    { name: 'cart-storage' }\n  )\n);\n```<br>Compléter les parties manquantes.",
+            "niveau": "hard",
+            "reponse": "```typescript\nsyncCartAfterLogin: async (userId, apiClient) => {\n  const localItems = get().items;\n  \n  // ÉTAPE 2: Récupérer le panier distant\n  const remoteCart = await apiClient.get(`/carts/${userId}`);\n  const remoteItems = remoteCart.items || [];\n  \n  // ÉTAPE 3: Fusionner\n  const mergedMap = new Map();\n  \n  // Ajouter les articles distants\n  remoteItems.forEach(item => {\n    mergedMap.set(item.productId, { ...item });\n  });\n  \n  // Fusionner les articles locaux\n  localItems.forEach(localItem => {\n    const existing = mergedMap.get(localItem.productId);\n    if (existing) {\n      existing.quantity += localItem.quantity;\n    } else {\n      mergedMap.set(localItem.productId, { ...localItem });\n    }\n  });\n  \n  const mergedItems = Array.from(mergedMap.values());\n  \n  // ÉTAPE 4: Envoyer au backend\n  await apiClient.put(`/carts/${userId}`, { items: mergedItems });\n  \n  // ÉTAPE 5: Mettre à jour le store\n  set({ items: mergedItems });\n  \n  // ÉTAPE 6: Marquer comme authentifié\n  set({ isGuestCart: false });\n  \n  // Optionnel: vider la persistence guest (le next render utilisera le nouveau state)\n}\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Cas pratique : Problème de livraison en zone rurale",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce pour <strong>\"Market Africa\"</strong>, une startup qui livre des produits dans tout le Cameroun (Douala, Yaoundé, mais aussi zones rurales avec connexion très faible). Le cahier des charges exige :</p><ul><li>Le client peut ajouter des produits même hors ligne (le panier est stocké localement).</li><li>À la reconnexion, le panier doit être synchronisé avec le backend.</li><li>Le backend peut avoir été modifié entre-temps (autre session).</li><li>En cas de conflit de stock (produit plus disponible), le client doit être informé.</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une architecture complète de synchronisation offline-first du panier.",
+        "niveau": "very hard",
+        "reponse": "1. Stockage local : Zustand + persist (AsyncStorage) + `@react-native-async-storage/async-storage`. 2. File d'attente de requêtes : `react-native-offline` ou `redux-offline` ou implémentation maison avec `@react-native-community/netinfo`. 3. Stratégie de résolution de conflits : timestamp vectoriel simplifié (date de dernière modif par article). 4. Gestion des indisponibilités : flag `pendingSync` pour les actions hors ligne. 5. Au retour en ligne : lecture de la file, rejeu des requêtes (ajout panier, suppression, modif quantité) dans l'ordre. 6. Vérification de stock : pour chaque article, requête GET /stock/:productId avant validation. 7. Notification de l'utilisateur : toast/alerte pour les ruptures de stock.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Dessiner (décrire textuellement) un diagramme de séquence pour le scénario : 'Ajout de produit hors ligne → Reconnexion → Conflit de stock (produit épuisé)'.",
+            "niveau": "very hard",
+            "reponse": "1. Client (hors ligne) : App utilisateur clique 'Ajouter au panier' (produit X). 2. Store Zustand : mise à jour locale du panier (items += 1). 3. Store ajoute l'action dans 'pendingQueue' (type: 'ADD_TO_CART', productId, quantity, timestamp). 4. NetInfo détecte retour en ligne → déclenche sync. 5. App lit la file d'attente. 6. Pour chaque action 'ADD_TO_CART', envoie POST /cart/add (produit X). 7. Backend vérifie le stock de X → stock = 0. 8. Backend retourne 409 Conflict ou 400 Bad Request (stock insuffisant). 9. App reçoit l'erreur, affiche une alerte : 'Le produit X n'est plus disponible. Veuillez le retirer du panier.'. 10. App propose de supprimer X du panier local. 11. L'utilisateur confirme, store local supprime X. 12. Envoie DELETE /cart/item/X pour synchroniser la suppression. 13. Mise à jour de l'interface utilisateur."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Écrire une fonction <code>retryPendingOperations(apiClient, queueStore)</code> qui rejoue les opérations en attente et gère les erreurs de conflit.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nasync function retryPendingOperations(apiClient, queueStore, cartStore) {\n  const pendingOps = queueStore.getPendingOperations();\n  \n  for (const op of pendingOps) {\n    try {\n      switch(op.type) {\n        case 'ADD_TO_CART':\n          await apiClient.post('/cart/add', { productId: op.productId, quantity: op.quantity });\n          break;\n        case 'UPDATE_QUANTITY':\n          await apiClient.put('/cart/update', { productId: op.productId, quantity: op.quantity });\n          break;\n        case 'REMOVE_ITEM':\n          await apiClient.delete(`/cart/item/${op.productId}`);\n          break;\n      }\n      // Succès : retirer de la file\n      queueStore.removeOperation(op.id);\n    } catch (error) {\n      if (error.response?.status === 409 || error.response?.status === 400) {\n        // Conflit de stock ou indisponibilité\n        const productName = error.response.data.productName;\n        const userConfirmed = await showConflictDialog(\n          `Le produit ${productName} n'est plus disponible. Retirer du panier ?`\n        );\n        if (userConfirmed) {\n          cartStore.removeItem(op.productId);\n          await apiClient.delete(`/cart/item/${op.productId}`);\n          queueStore.removeOperation(op.id);\n        }\n      } else if (error.response?.status === 401) {\n        // Token expiré : re-authentification\n        await refreshToken();\n        // Re-tenter l'opération après refresh (récursion ou boucle)\n      } else {\n        // Erreur réseau temporaire : conserver dans la file\n        console.log('Réessai plus tard', error);\n      }\n    }\n  }\n}\n```"
+          }
+        ]
+      }
+    ]
+  }
+]

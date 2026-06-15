@@ -1,0 +1,167 @@
+[
+  {
+    "intitule": "Comprendre le Dark Mode et la persistance des thèmes",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans le développement d'une application mobile e-commerce avec React Native, on souhaite implémenter un mode sombre (dark mode) et mémoriser le choix de l'utilisateur. Réponds aux questions ci-dessous pour vérifier ta compréhension des concepts.</p>",
+      "images": [
+        "icône de soleil et de lune pour thème clair/sombre",
+        "schéma simple d'une application mobile avec un switch jour/nuit"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rappelle quel est le rôle principal de la bibliothèque React Navigation dans la gestion du thème dynamique d'une application React Native.",
+        "niveau": "easy",
+        "reponse": "React Navigation fournit un système de thème (NavigationContainer theme) qui permet de synchroniser les couleurs des barres de navigation, des écrans et des composants de navigation avec le thème global de l'application (clair ou sombre). Il peut réagir dynamiquement aux changements de thème.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Explique pourquoi il est important d'utiliser React Native Paper (ou une bibliothèque similaire) pour gérer le thème dynamique plutôt que de coder manuellement toutes les couleurs.",
+        "niveau": "medium",
+        "reponse": "React Native Paper propose un système de thème intégré avec des couleurs prédéfinies (claires et sombres) et des composants adaptatifs (Button, Card, TextInput). Cela permet de gagner du temps, d'assurer une cohérence visuelle et de faciliter le changement global de thème sans modifier chaque composant un par un. Il suffit de changer le `Provider` avec le thème souhaité.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décris la méthode utilisée pour persister la préférence utilisateur (choix du thème : clair, sombre ou automatique) avec AsyncStorage.",
+        "niveau": "medium",
+        "reponse": "On utilise AsyncStorage.setItem() pour enregistrer la valeur du thème (ex : 'light', 'dark', 'system') lorsque l'utilisateur change l'option dans l'application. Au démarrage de l'app, on charge cette valeur avec AsyncStorage.getItem() avant de rendre l'interface, afin d'appliquer le bon thème immédiatement. On écoute aussi les changements du système (appearance) si l'option 'automatique' est choisie.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter un commutateur de thème avec persistance",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Tu développes une application de e-commerce (commande de vêtements) avec React Native. Le client demande : <br/> - Un commutateur (switch) dans l'écran Profil pour basculer entre thème clair, thème sombre et thème système. <br/> - La préférence doit rester enregistrée même après fermeture de l'application. <br/> - Les couleurs des composants React Native Paper doivent s'adapter dynamiquement.<br/><br/> Rédige le code TypeScript (extrait) pour implémenter cette fonctionnalité et réponds aux questions ci-dessous.</p>",
+      "images": [
+        "capture d'écran d'une application avec un thème clair puis sombre",
+        "schéma de persistance de donnée : utilisateur -> AsyncStorage -> application"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Conçois un hook personnalisé `useThemePreference` qui gère l'état du thème (light, dark, system) et sa persistance dans AsyncStorage. Inclut les fonctions pour changer le thème et charger la valeur initiale.",
+        "niveau": "very hard",
+        "reponse": "Voici un exemple de hook utilisant useState, useEffect et AsyncStorage : \n\n```typescript\nimport { useState, useEffect } from 'react';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport { useColorScheme } from 'react-native';\n\ntype ThemeMode = 'light' | 'dark' | 'system';\n\nconst THEME_KEY = 'app_theme_preference';\n\nexport const useThemePreference = () => {\n  const systemScheme = useColorScheme(); // 'light' ou 'dark' du système\n  const [themeMode, setThemeMode] = useState<ThemeMode>('system');\n  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light');\n\n  // Charger la préférence sauvegardée\n  useEffect(() => {\n    const loadTheme = async () => {\n      const saved = await AsyncStorage.getItem(THEME_KEY);\n      if (saved === 'light' || saved === 'dark' || saved === 'system') {\n        setThemeMode(saved);\n      }\n    };\n    loadTheme();\n  }, []);\n\n  // Calculer le thème effectif (light/dark) selon le mode choisi et le système\n  useEffect(() => {\n    let newEffective: 'light' | 'dark' = 'light';\n    if (themeMode === 'system') {\n      newEffective = systemScheme === 'dark' ? 'dark' : 'light';\n    } else {\n      newEffective = themeMode;\n    }\n    setEffectiveTheme(newEffective);\n  }, [themeMode, systemScheme]);\n\n  // Sauvegarder le mode quand il change\n  const saveThemeMode = async (mode: ThemeMode) => {\n    setThemeMode(mode);\n    await AsyncStorage.setItem(THEME_KEY, mode);\n  };\n\n  return { themeMode, effectiveTheme, saveThemeMode };\n};\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Modifie ce hook pour qu'il s'abonne aux changements de thème système en temps réel (ColorScheme change).",
+            "niveau": "hard",
+            "reponse": "Le hook utilise déjà `useColorScheme()` de React Native, qui se met automatiquement à jour quand l'utilisateur change le thème système dans les réglages. Il n'est pas nécessaire d'ajouter un abonnement supplémentaire. Pour être complet, on peut forcer un useEffect qui dépend de `systemScheme`. Dans le code ci-dessus, le useEffect avec dépendance [themeMode, systemScheme] recalcule `effectiveTheme` à chaque changement système, ce qui est suffisant."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Implémente un composant `ThemeSwitch` qui affiche un bouton avec trois options (clair, sombre, automatique) et qui appelle la fonction de sauvegarde. Tu utiliseras le hook précédent.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport React from 'react';\nimport { View, Text, TouchableOpacity, StyleSheet } from 'react-native';\nimport { useThemePreference } from '../hooks/useThemePreference';\n\nexport const ThemeSwitch = () => {\n  const { themeMode, saveThemeMode } = useThemePreference();\n\n  const options = [\n    { label: 'Clair', value: 'light' },\n    { label: 'Sombre', value: 'dark' },\n    { label: 'Auto', value: 'system' },\n  ];\n\n  return (\n    <View style={styles.container}>\n      <Text style={styles.title}>Thème</Text>\n      <View style={styles.optionsRow}>\n        {options.map(opt => (\n          <TouchableOpacity\n            key={opt.value}\n            style={[\n              styles.option,\n              themeMode === opt.value && styles.activeOption\n            ]}\n            onPress={() => saveThemeMode(opt.value as any)}\n          >\n            <Text style={themeMode === opt.value ? styles.activeText : styles.text}>\n              {opt.label}\n            </Text>\n          </TouchableOpacity>\n        ))}\n      </View>\n    </View>\n  );\n};\n\nconst styles = StyleSheet.create({ /* styles simplifiés */ });\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Montre comment intégrer le thème effectif (effectiveTheme) à React Native Paper et à React Navigation dans le composant racine App.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport React from 'react';\nimport { Provider as PaperProvider, DarkTheme as PaperDark, DefaultTheme as PaperDefault } from 'react-native-paper';\nimport { NavigationContainer, DarkTheme as NavigationDark, DefaultTheme as NavigationDefault } from '@react-navigation/native';\nimport { useThemePreference } from './hooks/useThemePreference';\nimport AppNavigator from './navigation/AppNavigator';\n\nexport default function App() {\n  const { effectiveTheme } = useThemePreference();\n  const isDark = effectiveTheme === 'dark';\n\n  const paperTheme = isDark ? PaperDark : PaperDefault;\n  const navTheme = isDark ? NavigationDark : NavigationDefault;\n\n  return (\n    <PaperProvider theme={paperTheme}>\n      <NavigationContainer theme={navTheme}>\n        <AppNavigator />\n      </NavigationContainer>\n    </PaperProvider>\n  );\n}\n```\n\nCela garantit que tous les composants Paper et la navigation réagissent instantanément au changement de thème.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Déboguer une erreur de persistance du thème",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un développeur junior a écrit le code suivant pour gérer le thème. Mais après avoir fermé et rouvert l'application, le thème revient toujours en mode clair, même si l'utilisateur avait choisi le mode sombre. Identifie les erreurs et propose une correction complète.</p>\n<pre><code>\n// useThemeBuggy.js\nimport { useState } from 'react';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\nexport const useThemeBuggy = () => {\n  const [isDark, setIsDark] = useState(false);\n\n  const toggleTheme = async () => {\n    const newValue = !isDark;\n    setIsDark(newValue);\n    await AsyncStorage.setItem('darkMode', JSON.stringify(newValue));\n  };\n\n  const loadTheme = async () => {\n    const saved = await AsyncStorage.getItem('darkMode');\n    if (saved !== null) {\n      setIsDark(JSON.parse(saved));\n    }\n  };\n  loadTheme(); // appel direct dans le corps du hook\n\n  return { isDark, toggleTheme };\n};\n</code></pre>",
+      "images": [
+        "schéma d’un cycle de rendu React avec des appels asynchrones"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifie les problèmes principaux dans ce hook (au moins deux).",
+        "niveau": "medium",
+        "reponse": "1. Le `loadTheme()` est appelé directement dans le corps du hook à chaque rendu, ce qui provoque des appels AsyncStorage multiples et inutiles. 2. Il manque `useEffect` pour exécuter le chargement uniquement au montage du composant. 3. Le chargement étant asynchrone, le state initial `false` peut s'afficher avant le résultat, causant un flash du mauvais thème. 4. Aucune gestion du chargement ni du thème système.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Réécris correctement ce hook en respectant les bonnes pratiques (utilisation de useEffect, gestion de l'état initial avec chargement, eventuellement ajout du support du thème système).",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { useState, useEffect } from 'react';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\nimport { useColorScheme } from 'react-native';\n\nexport const useThemeFixed = () => {\n  const [isDark, setIsDark] = useState(false);\n  const [isLoading, setIsLoading] = useState(true);\n  const systemScheme = useColorScheme();\n\n  // Charger la préférence au montage\n  useEffect(() => {\n    const loadTheme = async () => {\n      try {\n        const saved = await AsyncStorage.getItem('darkMode');\n        if (saved !== null) {\n          setIsDark(JSON.parse(saved));\n        } else {\n          // Option par défaut : suivre le système\n          setIsDark(systemScheme === 'dark');\n        }\n      } catch (error) {\n        console.error(error);\n      } finally {\n        setIsLoading(false);\n      }\n    };\n    loadTheme();\n  }, [systemScheme]);\n\n  const toggleTheme = async () => {\n    const newValue = !isDark;\n    setIsDark(newValue);\n    await AsyncStorage.setItem('darkMode', JSON.stringify(newValue));\n  };\n\n  return { isDark, isLoading, toggleTheme };\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Adapter les couleurs d'un composant personnalisé",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application utilisant React Native Paper, tu as créé un composant `PromoBanner` qui affiche une bannière de réduction. Actuellement, son fond est codé en dur (<code>backgroundColor: '#f0f0f0'</code>).<br/> Adapte ce composant pour qu'il utilise dynamiquement les couleurs du thème Paper (clair et sombre) sans introduire de bugs visuels.</p>",
+      "images": [
+        "composant bannière en thème clair puis en thème sombre pour comparer"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Explique comment récupérer la couleur de fond du thème actif dans un composant fonctionnel utilisant React Native Paper.",
+        "niveau": "easy",
+        "reponse": "On utilise le hook `useTheme()` fourni par react-native-paper. Cela retourne l'objet theme courant (qui change automatiquement quand le Provider reçoit un nouveau thème). On peut alors lire `theme.colors.background`, `theme.colors.surface`, etc. Exemple : `const { colors } = useTheme();` puis `backgroundColor: colors.surface`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Réécris le composant `PromoBanner` pour qu’il s’adapte aux thèmes clair et sombre. Le texte doit être lisible (contraste élevé) et le fond doit respecter la surface secondaire du thème (par exemple `colors.surface`). Ajoute une prop optionnelle pour personnaliser la couleur.",
+        "niveau": "medium",
+        "reponse": "```jsx\nimport React from 'react';\nimport { View, Text, StyleSheet } from 'react-native';\nimport { useTheme } from 'react-native-paper';\n\nconst PromoBanner = ({ customBackground, message }) => {\n  const { colors, dark } = useTheme();\n  const backgroundColor = customBackground || colors.surface;\n  // Pour un bon contraste en mode sombre, s'assurer que le texte est clair\n  const textColor = dark ? '#ffffff' : colors.text;\n\n  return (\n    <View style={[styles.banner, { backgroundColor }]}>\n      <Text style={[styles.text, { color: textColor }]}>\n        {message || 'Promotion spéciale ! -20% sur tout'}\n      </Text>\n    </View>\n  );\n};\n\nconst styles = StyleSheet.create({\n  banner: { padding: 16, borderRadius: 8, margin: 8 },\n  text: { fontWeight: 'bold', fontSize: 16 }\n});\n\nexport default PromoBanner;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser les performances du changement de thème",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce complexe avec plus de 50 écrans et de nombreux composants, basculer du thème clair au thème sombre provoque un léger ralentissement (l'interface se fige 300ms). En utilisant les notions de React et de React Native Paper, propose une stratégie pour diagnostiquer et résoudre ce problème de performance.</p>",
+      "images": [
+        "diagramme de flame (flame graph) avec des re-rendus excessifs"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Justifie pourquoi le changement de thème peut entraîner des ralentissements dans une grande application.",
+        "niveau": "medium",
+        "reponse": "Lorsque le thème change, le `ThemeProvider` de Paper propage un nouveau contexte, ce qui force tous les composants consommateurs (via `useTheme`) à se re-rendre. Si l'application n'est pas optimisée, cela peut entraîner des cascades de rendus inutiles, surtout si certains composants sont lourds (longues listes, animations). Le problème est amplifié par le grand nombre d'écrans.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Énumère trois techniques d'optimisation que tu mettrais en place pour réduire le temps de changement de thème.",
+        "niveau": "hard",
+        "reponse": "1. **Mémorisation des composants** : Utiliser `React.memo` sur les composants qui ne dépendent pas directement du thème ou dont les props ne changent pas. 2. **Spécialisation du contexte** : Éviter de propager tout l'objet theme, mais créer un petit contexte avec seulement les couleurs utilisées fréquemment. 3. **Découpage du rendu** : Pour les longues listes (FlashList), garantir que les items sont `memo` et que les fonctions de rendu sont stables avec `useCallback`. 4. **Éviter les rendus inutiles** : Vérifier que les composants qui utilisent `useTheme` ne sont pas re-rendus à cause d'ancêtres non mémorisés. 5. **Utiliser `useDebugValue` et les outils de profilage React DevTools / Flipper** pour identifier les composants lents.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédige un petit extrait de code montrant comment éviter le re-rendu d'un composant `ProductCard` qui n'utilise pas directement le thème mais qui est enfant d'un composant qui utilise `useTheme`.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport React from 'react';\nimport { View, Text } from 'react-native';\nimport { useTheme } from 'react-native-paper';\n\n// Composant parent qui utilise le thème\nconst ProductList = ({ products }) => {\n  const { colors } = useTheme();\n  return (\n    <View style={{ backgroundColor: colors.background }}>\n      {products.map(p => (\n        <MemoizedProductCard key={p.id} product={p} />\n      ))}\n    </View>\n  );\n};\n\n// Composant enfant optimisé avec React.memo\nconst ProductCard = React.memo(({ product }) => {\n  return (\n    <View>\n      <Text>{product.name}</Text>\n    </View>\n  );\n});\n\nconst MemoizedProductCard = React.memo(ProductCard);\n```\nAinsi, même si `ProductList` est re-rendu à cause du thème, `ProductCard` ne se re-rendra pas tant que ses props (ici `product`) n'ont pas changé.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

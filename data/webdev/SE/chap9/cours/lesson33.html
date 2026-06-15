@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 33 : Collaboration et Revues de Code | Génie Logiciel</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, mais prêt pour d'éventuelles formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles supplémentaires pour fluidité et slides */
+        body {
+            background: #f4f7fc; /* fond doux */
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* adapté aux petits écrans */
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* liens et survol agréable */
+        .interactive-hover:hover {
+            background-color: #eef2ff;
+        }
+        /* liste objectifs plus lisible */
+        .objective-list li {
+            margin-bottom: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen p-3 md:p-6">
+
+    <main class="flex-1 max-w-4xl mx-auto w-full">
+        <!-- Conteneur slides -->
+        <div id="slidesWrapper" class="relative">
+            <!-- slide actuel dynamique -->
+            <div id="currentSlide" class="slide-container"></div>
+
+            <!-- navigation + indicateur de progression -->
+            <div class="flex flex-wrap justify-between items-center mt-6 gap-3">
+                <button id="prevSlideBtn" class="nav-btn bg-white/80 backdrop-blur-sm border border-gray-300 hover:bg-gray-100 px-5 py-2 rounded-full font-medium text-gray-700 shadow-sm flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="flex flex-col items-center">
+                    <div class="text-sm font-medium text-gray-600 bg-white/70 px-3 py-1 rounded-full">
+                        Slide <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+                    </div>
+                    <div class="w-48 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                        <div id="progressFill" class="progress-bar h-full bg-blue-500 rounded-full" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <button id="nextSlideBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full font-medium shadow-md flex items-center gap-1 transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+
+        <!-- petite note pédagogique footer -->
+        <footer class="text-center text-xs text-gray-400 mt-8 pb-2">
+            Cours d'initiation au Génie logiciel — Cameroun | Collaboration & revues de code
+        </footer>
+    </main>
+
+    <script>
+        // ------------------------------
+        // DONNÉES DES SLIDES : LEÇON 33
+        // D'après objectifsLesson (lesson33)
+        // Objectifs: 
+        // 0: Comprendre l'importance de la communication dans le développement
+        // 1: Utiliser les outils collaboratifs (Slack, Teams, Discord, Confluence)
+        // 2: Maîtriser les revues de code (code review) et le pair programming
+        // ------------------------------
+        const slidesData = [
+            {
+                type: "title",
+                title: "👥 Collaboration & Qualité",
+                subtitle: "Revues de code, outils d'équipe et communication",
+                chapter: "Leçon 33 · Génie logiciel",
+                bgDecor: "🎯"
+            },
+            {
+                type: "objectives",
+                title: "🎓 Objectifs d’apprentissage",
+                objectives: [
+                    "Comprendre l'importance de la communication dans le développement logiciel",
+                    "Utiliser les outils collaboratifs modernes (Slack, Teams, Discord, Confluence)",
+                    "Maîtriser les revues de code (code review) et le pair programming"
+                ]
+            },
+            {
+                type: "content",
+                title: "📢 Pourquoi la communication est essentielle ?",
+                content: `
+                    <p class="mb-3">Le génie logiciel n'est pas seulement une affaire de code. <strong>80% des échecs projets sont liés à des problèmes de communication</strong>.</p>
+                    <ul class="list-disc pl-6 space-y-2 mt-2">
+                        <li>Partager la vision et les exigences entre équipes</li>
+                        <li>Résoudre plus vite les bugs et les blocages</li>
+                        <li>Améliorer la cohésion et réduire les malentendus</li>
+                        <li>Faciliter l'intégration des nouveaux membres</li>
+                    </ul>
+                    <div class="mt-4 p-3 bg-blue-50 rounded-xl border-l-4 border-blue-400 text-sm">
+                        💡 <strong>Le saviez-vous ?</strong> Dans les méthodes agiles, l'équipe se parle chaque jour (daily meeting) pour éliminer les obstacles.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🛠️ Outils collaboratifs (messagerie & documentation)",
+                content: `
+                    <p class="mb-2">Ces plateformes permettent de centraliser les échanges, de garder des traces et d'organiser les connaissances.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div class="bg-gray-50 rounded-lg p-3 shadow-sm"><span class="font-bold">💬 Slack</span> – Canaux, messages directs, intégrations avec GitHub/Jira.</div>
+                        <div class="bg-gray-50 rounded-lg p-3 shadow-sm"><span class="font-bold">📅 Microsoft Teams</span> – Visioconférence, partage de fichiers, très utilisé en entreprise.</div>
+                        <div class="bg-gray-50 rounded-lg p-3 shadow-sm"><span class="font-bold">🎮 Discord</span> – Communautés dev, salons vocaux/textes, bots d'automatisation.</div>
+                        <div class="bg-gray-50 rounded-lg p-3 shadow-sm"><span class="font-bold">📘 Confluence</span> – Wiki d'équipe, documentation technique, compte-rendus.</div>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-600">🔗 <strong>Bonnes pratiques :</strong> Utiliser des fils dédiés, ne pas noyer d'informations, privilégier l'écrit pour les décisions importantes.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔎 Revue de code (Code Review) : pourquoi et comment ?",
+                content: `
+                    <p>La <strong>revue de code</strong> est l'examen systématique du code par un ou plusieurs développeurs avant son intégration. C'est un pilier de la qualité.</p>
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <span class="font-semibold text-green-700">✅ Bénéfices</span>
+                            <ul class="list-disc pl-5 text-sm mt-1">
+                                <li>Détecter bugs / failles sécurité</li>
+                                <li>Partager les connaissances</li>
+                                <li>Améliorer la maintenabilité</li>
+                                <li>Respecter les standards de l'équipe</li>
+                            </ul>
+                        </div>
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <span class="font-semibold text-amber-700">📋 Bonnes pratiques</span>
+                            <ul class="list-disc pl-5 text-sm mt-1">
+                                <li>Petits lots de changements (max 400 lignes)</li>
+                                <li>Commentaires constructifs, pas personnels</li>
+                                <li>Utiliser des listes de vérification (checklist)</li>
+                                <li>Outils: GitHub PR, GitLab MR, Gerrit</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <figure class="mt-4 text-center bg-gray-100 rounded-xl p-3 text-sm italic">
+                        <img src="" alt="schéma simple d'une revue de code : développeur crée une pull request, relecteur commente, modifications, validation" class="w-full max-w-xs mx-auto opacity-90 border rounded-md">
+                        <figcaption>📌 Processus typique : Pull Request → Review → Modifications → Merge</figcaption>
+                    </figure>
+                `
+            },
+            {
+                type: "content",
+                title: "👯‍♂️ Pair Programming : deux têtes valent mieux qu'une",
+                content: `
+                    <p>Le <strong>programmation en binôme</strong> (pair programming) est une pratique Agile où deux développeurs travaillent sur la même station :</p>
+                    <div class="flex flex-wrap gap-4 my-4">
+                        <div class="flex-1 min-w-[150px] bg-indigo-50 p-3 rounded-lg">
+                            <span class="font-bold">👨‍💻 Driver</span> – écrit le code, se concentre sur la syntaxe.
+                        </div>
+                        <div class="flex-1 min-w-[150px] bg-purple-50 p-3 rounded-lg">
+                            <span class="font-bold">🧠 Navigator</span> – examine, réfléchit à la stratégie, anticipe les erreurs.
+                        </div>
+                    </div>
+                    <ul class="list-disc pl-6 space-y-1">
+                        <li>Réduction des bugs dès l'écriture</li>
+                        <li>Transfert de compétences en temps réel</li>
+                        <li>Moins de distractions, meilleure concentration</li>
+                        <li>Renforce l'esprit d'équipe et la propriété collective du code</li>
+                    </ul>
+                    <div class="mt-3 p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">⚠️ À alterner régulièrement les rôles pour éviter la fatigue.</div>
+                `
+            },
+            {
+                type: "content",
+                title: "💬 Conseils pour des revues de code réussies",
+                content: `
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-600 text-xl">✔️</span>
+                            <span><strong>Automatisez avant la relecture</strong> – Linters, tests automatisés, formatage (CI/CD). La review se concentre sur la conception et la logique.</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-600 text-xl">✔️</span>
+                            <span><strong>Commentaires aimables et précis</strong> : "Que penses-tu de renommer cette variable ?" au lieu de "C'est mauvais".</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-600 text-xl">✔️</span>
+                            <span><strong>Fixer des délais raisonnables</strong> : répondre dans la journée pour débloquer l'équipe.</span>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="text-green-600 text-xl">✔️</span>
+                            <span><strong>Relecture croisée</strong> – alterner les reviewers pour une meilleure couverture.</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 bg-gray-100 p-3 rounded-xl text-center text-sm">
+                        🧪 <span class="font-medium">Métrique utile</span> : le taux d'acceptation des PR et le temps moyen avant fusion (lead time).
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🌍 Collaboration à distance & synchrone/asynchrone",
+                content: `
+                    <p>Aujourd’hui, les équipes sont souvent réparties. Maîtriser à la fois la communication synchrone (réunions, calls) et asynchrone (messages, documents) est crucial.</p>
+                    <div class="grid grid-cols-2 gap-3 my-3">
+                        <div class="border rounded-lg p-2 text-center bg-white shadow-sm">
+                            <span class="font-bold text-blue-700">⏱️ Synchrone</span>
+                            <p class="text-sm">Daily meeting, revue de sprint, pair programming en visio.</p>
+                        </div>
+                        <div class="border rounded-lg p-2 text-center bg-white shadow-sm">
+                            <span class="font-bold text-indigo-700">📨 Asynchrone</span>
+                            <p class="text-sm">Revue de code sur GitHub, commentaires sur Confluence, décisions par emails.</p>
+                        </div>
+                    </div>
+                    <p>✅ <strong>Bon équilibre :</strong> utiliser les appels pour les discussions complexes, et les outils écrits pour la traçabilité.</p>
+                `
+            },
+            {
+                type: "recap",
+                title: "📌 Récapitulons les essentiels",
+                items: [
+                    "La communication évite les dérives et améliore la qualité du logiciel",
+                    "Slack, Teams, Discord, Confluence sont des alliés quotidiens",
+                    "La revue de code réduit les bugs et diffuse les bonnes pratiques",
+                    "Le pair programming favorise l'apprentissage continu et la cohésion"
+                ]
+            },
+            {
+                type: "exercise",
+                title: "🧩 Activité / Réflexion",
+                content: `
+                    <p class="font-medium">Mise en situation (en groupe ou réflexion individuelle) :</p>
+                    <ul class="list-decimal pl-5 mt-2 space-y-2">
+                        <li>Imaginez une équipe de 4 développeurs. Quels outils collaboratifs choisiriez-vous et pourquoi ?</li>
+                        <li>Proposez 3 règles pour une revue de code bienveillante et efficace.</li>
+                        <li>Quel serait l'impact sur un projet si aucune revue de code n'est pratiquée ?</li>
+                    </ul>
+                    <div class="mt-4 p-2 bg-gray-50 rounded text-sm">
+                        💬 À discuter en classe ou sur le forum de la classe.
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        const total = slidesData.length;
+
+        // fonctions de rendu des slides
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            let html = '';
+            const baseCardClass = "slide-card p-5 md:p-8 transition-all duration-200";
+
+            if (slide.type === 'title') {
+                html = `
+                    <div class="${baseCardClass} bg-gradient-to-br from-blue-50 to-indigo-50 text-center">
+                        <div class="text-6xl mb-4">${slide.bgDecor || '📘'}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+                        <p class="text-xl md:text-2xl text-blue-700 font-medium">${slide.subtitle}</p>
+                        <div class="mt-6 border-t border-gray-200 pt-4 text-gray-500">${slide.chapter}</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectives') {
+                html = `
+                    <div class="${baseCardClass} border-l-8 border-l-green-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 flex items-center gap-2">${slide.title}</h2>
+                        <ul class="objective-list space-y-3 mt-2">
+                            ${slide.objectives.map(obj => `<li class="flex items-start gap-2 text-gray-700"><span class="text-green-600 text-xl">✓</span> <span class="text-base md:text-lg">${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-5 text-sm text-gray-500 italic">🎯 À la fin de cette leçon, vous serez capable d’appliquer ces compétences.</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                html = `
+                    <div class="${baseCardClass}">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4">${slide.title}</h2>
+                        <div class="prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'recap') {
+                html = `
+                    <div class="${baseCardClass} bg-amber-50/50">
+                        <h2 class="text-2xl md:text-3xl font-bold text-amber-800 mb-4">${slide.title}</h2>
+                        <ul class="space-y-3">
+                            ${slide.items.map(item => `<li class="flex gap-2"><span class="text-amber-600 font-bold text-xl">•</span> <span class="text-gray-800 text-lg">${item}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-5 p-3 bg-white rounded-lg text-center text-gray-600">✨ Ces concepts sont la clé d’une équipe performante.</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'exercise') {
+                html = `
+                    <div class="${baseCardClass} bg-white border-2 border-dashed border-blue-300">
+                        <h2 class="text-2xl md:text-3xl font-bold text-blue-800 mb-3">${slide.title}</h2>
+                        <div class="text-gray-800">
+                            ${slide.content}
+                        </div>
+                        <div class="mt-5 flex justify-end text-sm text-blue-600">✏️ Échangez vos réponses avec vos camarades.</div>
+                    </div>
+                `;
+            }
+
+            $('#currentSlide').fadeOut(150, function() {
+                $(this).html(html);
+                $(this).fadeIn(200);
+                // Mise à jour compteur + barre
+                $('#slideCounter').text(index+1);
+                $('#totalSlides').text(total);
+                const progressPercent = ((index) / (total-1)) * 100;
+                $('#progressFill').css('width', `${progressPercent}%`);
+                
+                // Gestion état boutons
+                $('#prevSlideBtn').prop('disabled', index === 0);
+                if (index === 0) {
+                    $('#prevSlideBtn').addClass('opacity-50');
+                } else {
+                    $('#prevSlideBtn').removeClass('opacity-50');
+                }
+                if (index === total-1) {
+                    $('#nextSlideBtn').prop('disabled', true).addClass('opacity-50');
+                } else {
+                    $('#nextSlideBtn').prop('disabled', false).removeClass('opacity-50');
+                }
+                // scroll en haut doucement
+                $('html, body').animate({ scrollTop: 0 }, 100);
+                // si MathJax présent et qu'il y a des formules potentielles, on relance (aucune ici mais sécurité)
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            });
+        }
+
+        // navigation
+        function nextSlide() {
+            if (currentIndex < total-1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        }
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+
+        // initialisation + événements
+        $(document).ready(function() {
+            renderSlide(0);
+            $('#nextSlideBtn').on('click', nextSlide);
+            $('#prevSlideBtn').on('click', prevSlide);
+            // touches clavier (optionnel, confort)
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                }
+            });
+            // swipe simple pour mobile (optionnel jQuery)
+            let touchStartX = 0;
+            $('#slidesWrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesWrapper').on('touchend', function(e) {
+                if (!touchStartX) return;
+                const touchEndX = e.originalEvent.changedTouches[0].clientX;
+                const diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 70) {
+                    if (diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+</body>
+</html>

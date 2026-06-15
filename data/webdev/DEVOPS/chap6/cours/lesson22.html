@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Kubernetes : ConfigMap & Secret | Cours DevOps</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules mathématiques) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisations pour un confort visuel et diapositives */
+        body {
+            background: #f1f5f9;
+            font-family: system-ui, 'Segoe UI', 'Inter', sans-serif;
+        }
+        .slide-container {
+            max-width: 1100px;
+            margin: 1.5rem auto;
+            transition: all 0.2s ease;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 1.75rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, opacity 0.3s;
+            overflow: hidden;
+        }
+        .nav-btn {
+            background: white;
+            border-radius: 60px;
+            padding: 0.6rem 1.2rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            color: white;
+            transform: scale(0.97);
+        }
+        .progress-bar {
+            height: 5px;
+            background: #cbd5e1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #0f3b5c;
+            border-radius: 10px;
+            transition: width 0.25s ease;
+        }
+        .badge-chapitre {
+            background: #e6f0fa;
+            color: #0c4a6e;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: #0f172a;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1.2rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .highlight-yaml {
+            color: #facc15;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+            h1 { font-size: 1.7rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        /* couleurs sobres et lisibles */
+        .prose a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        footer {
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="slide-container px-4 md:px-6" id="app">
+    <!-- Barre de progression globale -->
+    <div class="progress-bar mb-4">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <!-- Zone slide principale -->
+    <div id="slideWrapper" class="relative">
+        <!-- le contenu des slides sera injecté dynamiquement -->
+    </div>
+
+    <!-- Navigation + indicateur de slide -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mt-6 mb-8">
+        <button id="prevSlide" class="nav-btn flex items-center gap-1 px-5 py-2 border border-gray-200"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> Précédent</button>
+        <div class="text-sm font-medium text-slate-600 bg-white/80 px-4 py-2 rounded-full shadow-sm" id="slideCounter">Slide 1 / 7</div>
+        <button id="nextSlide" class="nav-btn flex items-center gap-1 px-5 py-2 border border-gray-200">Suivant <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+    </div>
+    <footer class="text-center text-slate-500 border-t border-slate-200 pt-5 mt-2">
+        📘 Leçon 22 · Kubernetes · Gestion des ConfigMap & Secrets | Cours DevOps - Cameroun
+    </footer>
+</div>
+
+<script>
+    // Définition des slides pour la lesson22 : ConfigMap et Secret
+    // D'après les objectifs de "lesson22" : 
+    // 0: Utiliser ConfigMap pour la configuration non sensible
+    // 1: Utiliser Secret pour les données sensibles (mots de passe, tokens)
+    // 2: Monter ConfigMap et Secret comme variables d'environnement ou fichiers
+
+    const slides = [
+        { // Slide 0 : Titre + intro Kubernetes Config / Secrets
+            type: "title",
+            title: "🔐 Kubernetes : ConfigMap & Secret",
+            subtitle: "Gérer la configuration applicative et les secrets",
+            description: "Leçon 22 · Module DevOps · Orchestration de conteneurs"
+        },
+        { // Slide 1 : Objectifs pédagogiques
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            items: [
+                "✅ Comprendre l'utilité de ConfigMap pour la configuration non sensible (variables d’environnement, fichiers de config).",
+                "✅ Maîtriser les Secrets Kubernetes pour stocker et injecter des données sensibles (mots de passe, tokens, clés API).",
+                "✅ Savoir monter ConfigMap et Secret comme variables d’environnement ou comme fichiers dans un Pod."
+            ]
+        },
+        { // Slide 2 : ConfigMap - définition et exemples
+            type: "content",
+            title: "📦 ConfigMap : configuration découplée",
+            content: `
+                <p class="mb-3">Le <code class="bg-slate-100 px-1">ConfigMap</code> permet de dissocier les données de configuration des images conteneur. Idéal pour : variables d’environnement, paramètres d’application, fichiers de configuration.</p>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 my-4">
+                    <p class="font-semibold">✨ Exemple : ConfigMap depuis la ligne de commande</p>
+                    <pre class="text-sm"><code>kubectl create configmap app-config --from-literal=DB_HOST=postgres-svc --from-literal=APP_MODE=production</code></pre>
+                    <p class="font-semibold mt-3">📄 Ou avec un fichier YAML :</p>
+                    <pre><code>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+data:
+  app.properties: |
+    timeout=30s
+    theme=dark
+  LOG_LEVEL: info</code></pre>
+                </div>
+                <p>💡 <strong>À retenir :</strong> Les ConfigMap ne sont pas chiffrées, elles conviennent aux données non sensibles.</p>
+            `
+        },
+        { // Slide 3 : Secret - données sensibles
+            type: "content",
+            title: "🤫 Secret : protéger vos données sensibles",
+            content: `
+                <p>Les <code>Secret</code> stockent des informations comme mots de passe, tokens OAuth, ou clés SSH. Ils sont encodés en base64 (attention : base64 n’est pas un chiffrement, mais Kubernetes peut les chiffrer au repos via <code>encryption-provider</code>).</p>
+                <div class="grid md:grid-cols-2 gap-4 my-4">
+                    <div class="bg-indigo-50 p-3 rounded-lg">
+                        <span class="font-bold">🔧 Création impérative :</span>
+                        <pre class="mt-2 text-xs"><code>kubectl create secret generic db-secret \
+  --from-literal=password=MyP@ssw0rd \
+  --from-literal=username=admin</code></pre>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-lg">
+                        <span class="font-bold">📄 Secret en YAML :</span>
+                        <pre class="mt-2 text-xs"><code>apiVersion: v1
+kind: Secret
+metadata:
+  name: api-secret
+type: Opaque
+data:
+  API_KEY: dXNlci1zZWNyZXQK   # echo -n 'user-secret' | base64</code></pre>
+                    </div>
+                </div>
+                <div class="bg-amber-50 p-3 rounded-lg border-l-4 border-amber-500">
+                    ⚠️ <strong>Bonnes pratiques :</strong> Ne versionnez jamais de secrets en clair dans Git. Utilisez des outils comme Sealed Secrets, Vault ou External Secrets Operator.
+                </div>
+            `
+        },
+        { // Slide 4 : Monter ConfigMap et Secret comme variables d'environnement
+            type: "content",
+            title: "🌿 Monter ConfigMap & Secret en variables d'environnement",
+            content: `
+                <p>Dans un Pod, on peut injecter chaque clé d’un ConfigMap ou Secret en tant que variable d’environnement.</p>
+                <div class="bg-gray-900 rounded-xl my-3 overflow-x-auto">
+                    <pre class="text-green-200"><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-app
+spec:
+  containers:
+  - name: myapp
+    image: nginx
+    env:
+    - name: DB_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: DB_HOST
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: db-secret
+          key: password
+    - name: USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: db-secret
+          key: username</code></pre>
+                </div>
+                <p>✔️ <strong>Vérification dans le conteneur :</strong> <code>kubectl exec demo-app -- env | grep DB_</code></p>
+                <p>🎯 Cela permet d’adapter le comportement d’une application sans reconstruire l’image.</p>
+            `
+        },
+        { // Slide 5 : Monter en tant que volumes (fichiers)
+            type: "content",
+            title: "📁 Monter ConfigMap et Secret en tant que fichiers",
+            content: `
+                <p>Parfois, une application attend un fichier de configuration. On peut monter un ConfigMap ou Secret directement dans le système de fichiers du conteneur.</p>
+                <div class="bg-gray-900 rounded-xl p-3 my-3">
+                    <pre class="text-green-200"><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: config-pod
+spec:
+  containers:
+  - name: app
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: config-vol
+      mountPath: /etc/config
+    - name: secret-vol
+      mountPath: /etc/secrets
+      readOnly: true
+  volumes:
+  - name: config-vol
+    configMap:
+      name: web-config
+  - name: secret-vol
+    secret:
+      secretName: api-secret</code></pre>
+                </div>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li>🔹 Chaque clé du ConfigMap devient un fichier dans <code>/etc/config</code>.</li>
+                    <li>🔹 Les secrets sont montés avec des permissions 0400 par défaut, sécurité renforcée.</li>
+                    <li>🔹 Les fichiers se mettent à jour automatiquement si le ConfigMap/Secret change (avec délai kubelet).</li>
+                </ul>
+            `
+        },
+        { // Slide 6 : Astuces pratiques + résumé schématique (dessiné avec SVG)
+            type: "content",
+            title: "📌 Résumé & bonnes pratiques",
+            content: `
+                <div class="flex flex-wrap gap-4 justify-between items-start">
+                    <div class="flex-1 min-w-[200px]">
+                        <h3 class="font-bold text-lg">🧠 Points clés</h3>
+                        <ul class="list-disc pl-5 space-y-1 mt-2">
+                            <li>✅ <strong>ConfigMap</strong> → données non sensibles (variables, flags, fichiers conf).</li>
+                            <li>✅ <strong>Secret</strong> → données sensibles (mots de passe, clés, tokens).</li>
+                            <li>✅ Injection possible via <code>env</code> ou <code>volumeMounts</code>.</li>
+                            <li>✅ Ne jamais exposer les secrets en clair dans les manifests versionnés.</li>
+                            <li>✅ Utiliser des namespaces pour isoler les configurations.</li>
+                        </ul>
+                    </div>
+                    <div class="flex-1 bg-white rounded-2xl p-3 shadow-md border border-slate-200">
+                        <svg viewBox="0 0 280 160" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="20" width="100" height="45" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+                            <text x="30" y="47" font-size="8" fill="#0f172a">ConfigMap</text>
+                            <text x="30" y="58" font-size="6" fill="#334155">(app.conf, LOG_LEVEL)</text>
+                            
+                            <rect x="10" y="90" width="100" height="45" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+                            <text x="30" y="117" font-size="8" fill="#0f172a">Secret</text>
+                            <text x="30" y="128" font-size="6" fill="#334155">(pwd, token, API key)</text>
+                            
+                            <path d="M120 42 L170 42 L170 70 L200 70" stroke="#475569" fill="none" stroke-width="1.8" stroke-dasharray="4 2"/>
+                            <path d="M195 65 L200 70 L195 75" fill="#475569"/>
+                            <text x="135" y="36" font-size="6" fill="#1e293b">envFrom / valueFrom</text>
+                            
+                            <rect x="205" y="45" width="65" height="50" rx="10" fill="#d9f99d" stroke="#4d7c0f" stroke-width="1.5"/>
+                            <text x="218" y="68" font-size="8" font-weight="bold" fill="#0f172a">Pod</text>
+                            <text x="218" y="82" font-size="6" fill="#1e293b">variables env</text>
+                            
+                            <path d="M70 135 L70 150 L200 150 L200 100" stroke="#64748b" fill="none" stroke-width="1.5" stroke-dasharray="4 2"/>
+                            <path d="M195 95 L200 100 L195 105" fill="#64748b"/>
+                            <text x="115" y="145" font-size="6" fill="#1e293b">volumeMounts → fichiers</text>
+                            <circle cx="68" cy="68" r="4" fill="#3b82f6"/>
+                            <circle cx="68" cy="112" r="4" fill="#ef4444"/>
+                        </svg>
+                        <p class="text-xs text-center text-slate-500 mt-1">Schéma : injection de ConfigMap et Secret dans un Pod</p>
+                    </div>
+                </div>
+                <div class="mt-5 p-3 bg-emerald-50 rounded-xl">
+                    🌍 <span class="font-semibold">Exemple concret :</span> Une application web peut lire ses variables d'environnement (<code>DB_USER</code>, <code>DB_PASSWORD</code>) depuis un Secret, tandis que le niveau de log et l'url d'API externe proviennent d'un ConfigMap.
+                </div>
+            `
+        }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+    function updateProgress() {
+        let percent = ((currentIndex + 1) / totalSlides) * 100;
+        $("#progressFill").css("width", percent + "%");
+        $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+    }
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        let html = `<div class="slide-card p-6 md:p-8 transition-all duration-300">`;
+        
+        // En-tête générique avec badge matière
+        html += `<div class="flex justify-between items-start flex-wrap gap-2 mb-4"><span class="badge-chapitre">📘 Kubernetes · Chap 6 · Leçon 22</span><span class="text-xs text-slate-400">🔐 Config & Secrets</span></div>`;
+        
+        if (slide.type === "title") {
+            html += `<div class="text-center py-6 md:py-10">
+                        <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-xl text-slate-600 mt-3">${slide.subtitle}</p>
+                        <div class="mt-8 text-slate-500 italic">${slide.description}</div>
+                        <div class="mt-8 flex justify-center">
+                            <svg class="w-12 h-12 text-slate-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path></svg>
+                        </div>
+                     </div>`;
+        } 
+        else if (slide.type === "objectifs") {
+            html += `<h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-l-8 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                    <ul class="space-y-4">`;
+            slide.items.forEach(item => {
+                html += `<li class="flex items-start gap-3 bg-slate-50 p-3 rounded-xl"><span class="text-indigo-600 text-xl">📌</span> <span class="text-gray-700">${item}</span></li>`;
+            });
+            html += `</ul>`;
+        } 
+        else if (slide.type === "content") {
+            html += `<h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>
+                    <div class="prose max-w-none text-slate-700 space-y-4">${slide.content}</div>`;
+        }
+        
+        // décoration fin slide
+        html += `<div class="mt-8 pt-4 text-right text-xs text-slate-400 border-t border-slate-100">lesson22 · Configuration externalisée</div>`;
+        html += `</div>`;
+        
+        $("#slideWrapper").fadeOut(150, function() {
+            $(this).html(html);
+            $(this).fadeIn(200);
+            // réappliquer styles supplémentaires si besoin (ex MathJax)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+        updateProgress();
+    }
+
+    function nextSlide() {
+        if (currentIndex + 1 < totalSlides) {
+            currentIndex++;
+            renderSlide(currentIndex);
+        } else {
+            // dernier slide on peut afficher une notification subtile
+            alert("🎉 Félicitations ! Vous avez terminé la leçon 22. Bravo !");
+        }
+    }
+
+    function prevSlide() {
+        if (currentIndex - 1 >= 0) {
+            currentIndex--;
+            renderSlide(currentIndex);
+        } else {
+            // premier slide déjà
+            alert("📖 Vous êtes au début du cours.");
+        }
+    }
+
+    // Gestion clavier
+    $(document).keydown(function(e) {
+        if (e.key === "ArrowRight") {
+            nextSlide();
+        } else if (e.key === "ArrowLeft") {
+            prevSlide();
+        }
+    });
+
+    // Événements boutons
+    $("#nextSlide").on("click", nextSlide);
+    $("#prevSlide").on("click", prevSlide);
+
+    // Initialisation premier slide
+    renderSlide(0);
+
+    // Petite correction pour mobile / tailwind
+    const meta = document.createElement('meta');
+    meta.name = "viewport";
+    meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes";
+    document.head.appendChild(meta);
+</script>
+</body>
+</html>

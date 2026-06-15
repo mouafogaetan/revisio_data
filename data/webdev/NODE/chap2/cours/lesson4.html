@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 4 : Module FS - Manipulation de fichiers | Node.js</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules, au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide-container { transition: opacity 0.25s ease-in-out; }
+        .fadeIn { animation: fadeSlide 0.3s ease-out; }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-btn:active { transform: scale(0.96); }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 antialiased">
+
+    <main class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-blue-200">
+            <!-- en-tête -->
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-700 px-5 py-4 text-white flex justify-between items-center flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📁</span>
+                    <span class="font-bold tracking-wide">Backend Node.js | Modules Core</span>
+                </div>
+                <span class="bg-white/20 text-xs px-3 py-1 rounded-full">Leçon 4 · Module File System (fs)</span>
+            </div>
+
+            <!-- zone slides dynamiques -->
+            <div id="slides-wrapper" class="p-5 md:p-8 min-h-[500px] flex flex-col">
+                <!-- contenu injecté -->
+            </div>
+
+            <!-- navigation -->
+            <div class="border-t border-gray-200 bg-gray-50/90 px-5 py-4 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex gap-2">
+                    <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-blue-100 text-blue-800 font-medium py-2 px-4 rounded-xl shadow-sm flex items-center gap-1 text-sm md:text-base transition">◀ Précédent</button>
+                    <button id="nextSlide" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-xl shadow-md flex items-center gap-1 text-sm md:text-base transition">Suivant ▶</button>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-1 rounded-full shadow-inner">
+                    <span id="slideCounter">Slide 1 / 1</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                    <span class="hidden sm:inline">Module FS</span>
+                </div>
+                <div class="flex gap-1" id="dotsIndicator"></div>
+            </div>
+        </div>
+        <p class="text-center text-xs text-gray-500 mt-5">🔁 Utilisez les boutons ou flèches ← → pour naviguer. Découvrez comment lire, écrire et manipuler des fichiers avec Node.js.</p>
+    </main>
+
+    <script>
+        // ----- SLIDES POUR LEÇON 4 (Module FS) -----
+        const slides = [
+            { // Slide 0 : Titre
+                type: "title",
+                content: `
+                    <div class="flex flex-col items-center justify-center text-center h-full min-h-[450px]">
+                        <div class="bg-blue-100 rounded-full p-4 mb-5 shadow-md">
+                            <svg class="w-12 h-12 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        </div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">Module File System (fs)</h1>
+                        <p class="text-gray-600 max-w-xl mx-auto mt-4 text-lg">Lire, écrire et manipuler des fichiers dans Node.js de manière synchrone, asynchrone et avec promesses</p>
+                        <div class="flex flex-wrap gap-2 justify-center mt-6 text-sm">
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">📖 readFile / writeFile</span>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">🔄 fs.promises</span>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">📂 readdir / mkdir</span>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">🗑️ unlink / rm</span>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 1 : Objectifs
+                type: "objectifs",
+                content: `
+                    <div class="h-full">
+                        <h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-l-5 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div class="bg-blue-50 rounded-xl p-4 shadow-sm"><div class="font-bold text-blue-800">1. Comprendre</div><p class="text-gray-700">L'importance du module fs pour la manipulation de fichiers (lecture/écriture).</p></div>
+                            <div class="bg-blue-50 rounded-xl p-4 shadow-sm"><div class="font-bold text-blue-800">2. Appliquer</div><p class="text-gray-700">Les méthodes synchrones et asynchrones (callbacks).</p></div>
+                            <div class="bg-blue-50 rounded-xl p-4 shadow-sm"><div class="font-bold text-blue-800">3. Maîtriser</div><p class="text-gray-700">Les versions promesses (fs.promises) et async/await.</p></div>
+                            <div class="bg-blue-50 rounded-xl p-4 shadow-sm"><div class="font-bold text-blue-800">4. Utiliser</div><p class="text-gray-700">Les opérations sur les répertoires (lire, créer, supprimer).</p></div>
+                        </div>
+                        <div class="mt-6 p-3 bg-indigo-50 rounded-lg text-indigo-800 text-sm italic">💡 À la fin, vous saurez manipuler des fichiers et répertoires de manière robuste en Node.js.</div>
+                    </div>
+                `
+            },
+            { // Slide 2 : Introduction et import du module
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800 flex items-center gap-2">📦 Introduction au module "fs"</h2>
+                        <p class="mt-2 text-gray-700">Le module <code class="bg-gray-100 px-1 rounded">fs</code> (File System) est un module core de Node.js. Il permet d'interagir avec le système de fichiers.</p>
+                        <div class="bg-gray-800 text-green-300 p-4 rounded-lg mt-3">
+                            <pre><code>// Importer le module fs (CommonJS)
+const fs = require('fs');
+
+// Version avec promesses (Node.js 10+)
+const fsPromises = require('fs').promises;
+
+// ES Modules (package.json "type": "module")
+import fs from 'fs';
+import fsPromises from 'fs/promises';</code></pre>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-2">⚠️ Toutes les opérations peuvent être synchrones (bloquantes) ou asynchrones (recommandé).</p>
+                    </div>
+                `
+            },
+            { // Slide 3 : Lecture de fichiers (sync, async, promises)
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800">📖 Lecture de fichiers</h2>
+                        <div class="space-y-3 mt-3">
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="font-bold">🔹 Lecture synchrone (bloquante)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>try {
+    const data = fs.readFileSync('fichier.txt', 'utf8');
+    console.log(data);
+} catch (err) { console.error(err); }</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="font-bold">🔹 Lecture asynchrone (callback)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>fs.readFile('fichier.txt', 'utf8', (err, data) => {
+    if (err) throw err;
+    console.log(data);
+});</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg border">
+                                <span class="font-bold">🔹 Lecture avec promesses (recommandée)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>async function readFile() {
+    try {
+        const data = await fs.promises.readFile('fichier.txt', 'utf8');
+        console.log(data);
+    } catch (err) { console.error(err); }
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 4 : Écriture de fichiers
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800">✍️ Écriture de fichiers</h2>
+                        <p class="text-gray-700">Écrire ou remplacer le contenu d'un fichier.</p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">📝 writeFile (écrase)</span>
+                                <pre class="bg-gray-800 text-green-200 p-2 rounded text-xs mt-1"><code>// Asynchrone
+fs.writeFile('output.txt', 'Hello Node!', (err) => {
+    if (err) throw err;
+    console.log('Fichier sauvegardé');
+});
+
+// Promesses
+await fs.promises.writeFile('output.txt', 'Nouveau contenu');</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">➕ appendFile (ajout)</span>
+                                <pre class="bg-gray-800 text-green-200 p-2 rounded text-xs mt-1"><code>fs.appendFile('log.txt', 'Nouvelle ligne\\n', (err) => {
+    if (err) throw err;
+});</code></pre>
+                            </div>
+                        </div>
+                        <div class="mt-3 bg-amber-50 p-3 rounded text-amber-800 text-sm">
+                            💡 <strong>Bonnes pratiques :</strong> Toujours gérer les erreurs. Pour les gros fichiers, utilisez les streams.
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 5 : Manipulation des répertoires
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800">📁 Travailler avec des répertoires</h2>
+                        <div class="space-y-3 mt-3">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">📂 Lire le contenu d'un dossier :</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>const files = await fs.promises.readdir('./monDossier');
+console.log(files); // ['fichier1.txt', 'image.png', ...]</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">📁 Créer un dossier :</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>await fs.promises.mkdir('./nouveauDossier', { recursive: true });</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">🗑️ Supprimer un fichier (unlink) ou dossier (rmdir) :</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>await fs.promises.unlink('./fichier.txt');
+await fs.promises.rmdir('./dossierVide'); // dossier vide
+// Pour supprimer récursivement : fsPromises.rm('./dossier', { recursive: true })</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 6 : Vérifier l'existence, renommer, copier
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800">🔄 Autres opérations utiles</h2>
+                        <div class="grid md:grid-cols-2 gap-4 mt-3">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">🔍 Vérifier l'existence (access)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>try {
+    await fs.promises.access('fichier.txt', fs.constants.F_OK);
+    console.log('Le fichier existe');
+} catch { console.log('N existe pas'); }</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">✏️ Renommer / déplacer</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>await fs.promises.rename('ancien.txt', 'nouveau.txt');</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">📋 Copier un fichier (Node 8.5+)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>await fs.promises.copyFile('source.txt', 'destination.txt');</code></pre>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <span class="font-bold">ℹ️ Informations (stats)</span>
+                                <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-1"><code>const stats = await fs.promises.stat('fichier.txt');
+console.log(stats.size, stats.isDirectory());</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 7 : Bonnes pratiques & conclusion
+                type: "content",
+                content: `
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-blue-800">✅ Bonnes pratiques avec le module fs</h2>
+                        <ul class="list-disc list-inside space-y-2 mt-3 text-gray-700">
+                            <li><strong>Privilégier les versions asynchrones (callbacks/promises)</strong> pour ne pas bloquer l'event loop.</li>
+                            <li><strong>Utiliser async/await avec fs.promises</strong> pour un code plus lisible.</li>
+                            <li><strong>Toujours gérer les erreurs</strong> (try/catch ou callback err).</li>
+                            <li><strong>Préférer les streams</strong> pour les gros fichiers (gestion mémoire efficace).</li>
+                            <li><strong>Éviter les chemins absolus durs</strong> ; utiliser path.join(__dirname, 'fichier.txt').</li>
+                        </ul>
+                        <div class="mt-5 bg-green-50 p-4 rounded-xl border border-green-300 text-green-800 text-center">
+                            🚀 Le module fs est la porte d'entrée vers la gestion de fichiers en Node.js !
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlideIndex = 0;
+        const totalSlides = slides.length;
+
+        function renderSlide() {
+            const data = slides[currentSlideIndex];
+            $('#slides-wrapper').html(`<div class="slide-container fadeIn w-full">${data.content}</div>`);
+            $('#slideCounter').text(`Slide ${currentSlideIndex+1} / ${totalSlides}`);
+
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                const active = i === currentSlideIndex ? 'bg-blue-600 w-6' : 'bg-gray-300 w-2';
+                dotsHtml += `<button class="dot-indicator h-2 rounded-full transition-all ${active} mx-1 hover:bg-blue-400" data-index="${i}"></button>`;
+            }
+            $('#dotsIndicator').html(dotsHtml);
+            $('.dot-indicator').on('click', function() {
+                const idx = parseInt($(this).data('index'));
+                if (!isNaN(idx) && idx !== currentSlideIndex && idx >=0 && idx < totalSlides) {
+                    currentSlideIndex = idx;
+                    renderSlide();
+                }
+            });
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        $('#prevSlide').on('click', () => {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                renderSlide();
+            }
+        });
+        $('#nextSlide').on('click', () => {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                renderSlide();
+            } else {
+                if (currentSlideIndex === totalSlides-1) {
+                    const notif = $('<div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-800 text-white text-sm px-5 py-2 rounded-full shadow-lg z-50">✅ Fin du cours sur le module FS !</div>');
+                    $('body').append(notif);
+                    setTimeout(() => notif.fadeOut(500, function(){ $(this).remove(); }), 2500);
+                }
+            }
+        });
+
+        $(document).on('keydown', (e) => {
+            if (e.key === 'ArrowLeft') $('#prevSlide').click();
+            if (e.key === 'ArrowRight') $('#nextSlide').click();
+        });
+
+        renderSlide();
+    </script>
+</body>
+</html>

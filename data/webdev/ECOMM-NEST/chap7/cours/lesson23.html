@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 23 - Intégration Stripe | API E-commerce NestJS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        body {
+            background: #f8fafc;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .stripe-badge {
+            background: linear-gradient(135deg, #635bff 0%, #008cdd 100%);
+            color: white;
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="antialiased font-sans">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-5 md:p-8 transition-all">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="text-center my-8 md:my-12">
+                    <span class="inline-block stripe-badge mb-3">Stripe · Paiement</span>
+                    <h1 class="text-2xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-700 bg-clip-text text-transparent mb-4">Intégration Stripe</h1>
+                    <p class="text-lg text-gray-600 max-w-xl mx-auto">Installation, PaymentIntent, webhooks et gestion des paiements sécurisés</p>
+                    <div class="mt-8 text-gray-500 text-sm border-t pt-5 inline-block">
+                        📘 Lesson 23 · Intégrer les solutions de paiement
+                    </div>
+                </div>
+                <div class="flex justify-center mt-4">
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-full shadow-md transition">Commencer →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="space-y-4 text-gray-700">
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-indigo-600 text-xl">1️⃣</span>
+                        <span><strong>Installer et configurer Stripe</strong> : npm package et clés API.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-indigo-600 text-xl">2️⃣</span>
+                        <span><strong>Créer un PaymentIntent</strong> : gérer le montant, la devise et récupérer le client secret.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl">
+                        <span class="text-indigo-600 text-xl">3️⃣</span>
+                        <span><strong>Implémenter les webhooks</strong> : écouter les événements Stripe (payment_succeeded).</span>
+                    </div>
+                </div>
+                <div class="flex justify-between mt-10">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : INSTALLATION ET CONFIGURATION -->
+            <div class="slide" id="slide3">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">📦 Installation de Stripe</h2>
+                <p class="mb-2 text-gray-700">Commande d'installation :</p>
+                <pre><code>npm install stripe @nestjs/config</code></pre>
+                <p class="mt-4 font-semibold text-gray-800 mb-2">Configuration dans le fichier <code>.env</code> :</p>
+                <pre><code>STRIPE_SECRET_KEY=sk_test_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+STRIPE_CURRENCY=eur</code></pre>
+                <p class="mt-4 font-semibold text-gray-800 mb-2">Module Stripe personnalisé :</p>
+                <pre><code>// src/stripe/stripe.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
+
+@Module({
+  providers: [
+    {
+      provide: 'STRIPE_CLIENT',
+      useFactory: (configService: ConfigService) => {
+        return new Stripe(configService.get('STRIPE_SECRET_KEY'), {
+          apiVersion: '2023-10-16',
+        });
+      },
+      inject: [ConfigService],
+    },
+  ],
+  exports: ['STRIPE_CLIENT'],
+})
+export class StripeModule {}</code></pre>
+                <div class="bg-amber-50 p-3 rounded-lg text-sm mt-3">
+                    ⚠️ <strong>Sécurité</strong> : Ne jamais committer les clés Stripe. Utilisez toujours les variables d'environnement.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : CRÉATION D'UN PAYMENTINTENT -->
+            <div class="slide" id="slide4">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">💳 Création d'un PaymentIntent</h2>
+                <p class="text-gray-700 mb-3">Le PaymentIntent représente l'intention de paiement du client. Il contient le montant, la devise et le client secret.</p>
+                <pre><code>// src/payments/payments.service.ts
+import { Inject, Injectable } from '@nestjs/common';
+import Stripe from 'stripe';
+
+@Injectable()
+export class PaymentsService {
+  constructor(@Inject('STRIPE_CLIENT') private stripe: Stripe) {}
+
+  async createPaymentIntent(amount: number, currency: string = 'eur') {
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Stripe utilise les centimes
+      currency,
+      payment_method_types: ['card'],
+      metadata: {
+        orderId: 'temp_' + Date.now(),
+      },
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
+  }
+}</code></pre>
+                <div class="bg-blue-50 p-3 rounded-lg text-sm mt-3">
+                    💡 <strong>Astuce</strong> : Les montants doivent être en centimes (ex: 10.50€ → 1050). Utilisez <code>Math.round(amount * 100)</code> pour éviter les erreurs de flottants.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : CONTROLLER POUR PAYMENTINTENT -->
+            <div class="slide" id="slide5">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🌐 Endpoint de création de PaymentIntent</h2>
+                <pre><code>// src/payments/payments.controller.ts
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { PaymentsService } from './payments.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+@Controller('payments')
+export class PaymentsController {
+  constructor(private paymentsService: PaymentsService) {}
+
+  @Post('create-intent')
+  @UseGuards(JwtAuthGuard)
+  async createPaymentIntent(@Body() body: { amount: number; currency?: string }) {
+    return this.paymentsService.createPaymentIntent(
+      body.amount,
+      body.currency || 'eur'
+    );
+  }
+}</code></pre>
+                <p class="text-gray-700 mt-3">Le frontend reçoit le <code>clientSecret</code> et l'utilise avec Stripe.js pour confirmer le paiement.</p>
+                <div class="bg-green-50 p-3 rounded-lg text-sm mt-3">
+                    🔐 <strong>Sécurité</strong> : Le client secret ne doit jamais être exposé dans les logs ou les URLs.
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : WEBHOOKS STRIPE -->
+            <div class="slide" id="slide6">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🔔 Webhooks Stripe</h2>
+                <p class="text-gray-700 mb-3">Les webhooks permettent à Stripe de notifier votre API lorsqu'un événement se produit (paiement réussi, échec, remboursement...).</p>
+                <pre><code>// src/webhooks/stripe-webhook.controller.ts
+import { Controller, Post, RawBodyRequest, Req, Headers } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
+
+@Controller('webhooks/stripe')
+export class StripeWebhookController {
+  constructor(private configService: ConfigService) {}
+
+  @Post()
+  async handleWebhook(@Req() req: RawBodyRequest&lt;Request&gt;) {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET');
+    
+    let event: Stripe.Event;
+    try {
+      event = this.stripe.webhooks.constructEvent(
+        req.rawBody,
+        sig,
+        webhookSecret
+      );
+    } catch (err) {
+      throw new BadRequestException(`Webhook Error: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        await this.handlePaymentSuccess(paymentIntent);
+        break;
+      case 'payment_intent.payment_failed':
+        await this.handlePaymentFailure(event.data.object);
+        break;
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+    
+    return { received: true };
+  }
+}</code></pre>
+                <div class="bg-red-50 p-3 rounded-lg text-sm mt-3">
+                    🚨 <strong>Important</strong> : Pour utiliser le raw body, désactivez le body parser global :
+                    <code class="block bg-gray-800 text-gray-200 p-2 rounded mt-1">app.useRawBody();</code>
+                </div>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : CONFIGURATION DU RAW BODY -->
+            <div class="slide" id="slide7">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">⚙️ Configuration du raw body</h2>
+                <p class="text-gray-700 mb-3">Dans <code>main.ts</code>, il faut configurer NestJS pour conserver le body brut :</p>
+                <pre><code>// main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { json, raw } from 'express';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // Route spéciale pour le webhook Stripe (body brut)
+  app.use('/webhooks/stripe', raw({ type: 'application/json' }));
+  
+  // Reste des routes avec JSON normal
+  app.use(json());
+  
+  await app.listen(3000);
+}
+bootstrap();</code></pre>
+                <p class="text-gray-700 mt-3">Configuration du webhook dans le dashboard Stripe :</p>
+                <ul class="list-disc list-inside text-gray-700 text-sm space-y-1 ml-2 mt-2">
+                    <li>URL : <code>https://votredomaine.com/webhooks/stripe</code></li>
+                    <li>Événements à écouter : <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code></li>
+                    <li>Récupérer la clé secrète du webhook (whsec_xxx)</li>
+                </ul>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : GESTION DES ÉVÉNEMENTS + FLUX COMPLET -->
+            <div class="slide" id="slide8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🔄 Flux complet du paiement</h2>
+                <div class="bg-gray-100 rounded-xl p-4 text-center">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs font-mono">
+                        <div class="bg-white p-2 rounded shadow">1. Frontend demande un PaymentIntent</div>
+                        <div class="text-indigo-600 text-xl">→</div>
+                        <div class="bg-white p-2 rounded shadow">2. API crée le PaymentIntent</div>
+                        <div class="text-indigo-600 text-xl">→</div>
+                        <div class="bg-white p-2 rounded shadow">3. Frontend confirme avec Stripe.js</div>
+                        <div class="text-indigo-600 text-xl">→</div>
+                        <div class="bg-white p-2 rounded shadow">4. Stripe envoie webhook payment_intent.succeeded</div>
+                        <div class="text-indigo-600 text-xl">→</div>
+                        <div class="bg-white p-2 rounded shadow">5. API valide la commande</div>
+                    </div>
+                </div>
+                <pre class="mt-4"><code>// Gestion du succès de paiement
+async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata.orderId;
+  // Mettre à jour le statut de la commande
+  await this.orderService.updateStatus(orderId, 'paid');
+  // Envoyer email de confirmation
+  await this.emailService.sendOrderConfirmation(orderId);
+  // Vider le panier
+  await this.cartService.clearCart(orderId);
+}</code></pre>
+                <div class="flex justify-between mt-6">
+                    <button class="prevBtn bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">← Précédent</button>
+                    <button class="restartBtn bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-5 rounded-full">🏁 Revoir depuis le début</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Points de navigation -->
+        <div class="flex justify-center gap-2 mt-5 flex-wrap">
+            <span class="slide-dot w-2 h-2 rounded-full bg-indigo-600 transition-all" data-slide="1"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="2"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="3"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="4"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="5"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="6"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="7"></span>
+            <span class="slide-dot w-2 h-2 rounded-full bg-gray-300 transition-all" data-slide="8"></span>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let current = 1;
+            const total = 8;
+            
+            function updateActiveSlide(n) {
+                $('.slide').removeClass('active');
+                $(`#slide${n}`).addClass('active');
+                current = n;
+                $('.slide-dot').each(function(idx){
+                    if(idx+1 === current) {
+                        $(this).removeClass('bg-gray-300').addClass('bg-indigo-600 w-3 h-3');
+                    } else {
+                        $(this).removeClass('bg-indigo-600 w-3 h-3').addClass('bg-gray-300');
+                    }
+                });
+                $('html, body').animate({ scrollTop: 0 }, 180);
+            }
+            
+            $('.nextBtn').on('click', function(){
+                if(current < total) updateActiveSlide(current+1);
+            });
+            $('.prevBtn').on('click', function(){
+                if(current > 1) updateActiveSlide(current-1);
+            });
+            $('.restartBtn').on('click', function(){
+                updateActiveSlide(1);
+            });
+            $('.slide-dot').each(function(i){
+                $(this).attr('data-slide', i+1);
+                $(this).on('click', function(){
+                    let idx = $(this).data('slide');
+                    updateActiveSlide(parseInt(idx));
+                });
+            });
+        });
+    </script>
+</body>
+</html>

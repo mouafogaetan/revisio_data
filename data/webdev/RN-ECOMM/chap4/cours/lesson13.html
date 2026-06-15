@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cours React Native | Lesson 13 : Favoris & Notifications Push</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Styles pour le défilement par slides */
+    .slide-container {
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      height: 100vh;
+      scroll-behavior: smooth;
+    }
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9fafb;
+    }
+    .slide-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .slide-container::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+    .slide-container::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+    .nav-dot {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .nav-dot.active {
+      background-color: #3b82f6;
+      transform: scale(1.2);
+    }
+    .card-code {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card-code:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 antialiased">
+
+  <div class="slide-container">
+    
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide px-4 py-12" id="slide1">
+      <div class="max-w-3xl mx-auto text-center">
+        <span class="text-sm font-semibold tracking-wider text-pink-600 uppercase bg-pink-100 px-3 py-1 rounded-full">Lesson 13 · React Native</span>
+        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mt-6 leading-tight">
+          Gérer les favoris ❤️<br>et les <span class="text-pink-600">notifications push</span>
+        </h1>
+        <div class="w-24 h-1 bg-pink-500 mx-auto my-6 rounded-full"></div>
+        <p class="text-xl text-gray-600 max-w-2xl mx-auto mt-4">
+          Stockage local des favoris, synchronisation avec l'API backend, et envoi de notifications push pour les promotions.
+        </p>
+        <div class="mt-12 flex justify-center gap-4 flex-wrap">
+          <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2">
+            <span class="text-2xl">⭐</span>
+            <span class="font-medium">Favoris locaux</span>
+          </div>
+          <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2">
+            <span class="text-2xl">🔄</span>
+            <span class="font-medium">Synchronisation API</span>
+          </div>
+          <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2">
+            <span class="text-2xl">📲</span>
+            <span class="font-medium">Notifications push</span>
+          </div>
+        </div>
+        <div class="mt-16 text-gray-400 text-sm">
+          <span class="animate-pulse inline-block">⬇️</span> Faites défiler pour découvrir
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide px-4 py-12 bg-gradient-to-br from-pink-50 to-white" id="slide2">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8 border-l-4 border-pink-500 pl-4">🎯 Objectifs de la leçon</h2>
+        <div class="space-y-5">
+          <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+            <div class="text-pink-500 text-xl">1️⃣</div>
+            <div><span class="font-semibold">Gérer les favoris localement</span> avec Zustand et AsyncStorage.</div>
+          </div>
+          <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+            <div class="text-pink-500 text-xl">2️⃣</div>
+            <div><span class="font-semibold">Synchroniser les favoris</span> avec l'API backend après connexion.</div>
+          </div>
+          <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+            <div class="text-pink-500 text-xl">3️⃣</div>
+            <div><span class="font-semibold">Configurer les notifications push</span> (Expo Notifications) pour informer l'utilisateur des promotions sur ses favoris.</div>
+          </div>
+          <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm">
+            <div class="text-pink-500 text-xl">4️⃣</div>
+            <div>Comprendre le <span class="font-semibold">cycle de vie des tokens push</span> et la gestion des permissions.</div>
+          </div>
+        </div>
+        <div class="mt-10 text-center text-gray-500 text-sm italic">
+          💡 Les favoris améliorent l'engagement utilisateur et permettent des campagnes marketing ciblées.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : STORE DES FAVORIS (LOCAL) -->
+    <div class="slide px-4 py-12" id="slide3">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">⭐ Store des favoris (local)</h2>
+        <p class="text-gray-600 mb-4">On crée un store Zustand avec persistance pour gérer la liste des produits favoris de l'utilisateur, même hors ligne.</p>
+        <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto card-code">
+          <pre class="whitespace-pre-wrap"><span class="text-green-300">// stores/favoritesStore.js</span>
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const useFavoritesStore = create(
+  persist(
+    (set, get) => ({
+      favorites: [], // Liste des IDs ou objets produits
+      toggleFavorite: (product) => {
+        const exists = get().favorites.some(p => p.id === product.id);
+        let newFavorites;
+        if (exists) {
+          newFavorites = get().favorites.filter(p => p.id !== product.id);
+        } else {
+          newFavorites = [...get().favorites, product];
+        }
+        set({ favorites: newFavorites });
+      },
+      isFavorite: (productId) => get().favorites.some(p => p.id === productId),
+      syncFromBackend: (backendFavorites) => set({ favorites: backendFavorites }),
+      clearFavorites: () => set({ favorites: [] }),
+    }),
+    {
+      name: 'favorites-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
+export default useFavoritesStore;</pre>
+        </div>
+        <div class="mt-4 bg-yellow-50 p-3 rounded-lg text-yellow-800 text-sm">
+          📌 Note : On stocke les objets complets ou seulement les IDs selon les besoins. Pour une synchro efficace, on peut ne stocker que les IDs.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 : SYNCHRONISATION AVEC L'API BACKEND -->
+    <div class="slide px-4 py-12 bg-gray-50" id="slide4">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔄 Synchronisation backend</h2>
+        <p class="mb-3">Lorsque l'utilisateur se connecte, on doit fusionner les favoris locaux avec ceux du serveur (généralement on prend l'intersection ou on privilégie le serveur).</p>
+        <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+          <pre class="whitespace-pre-wrap"><span class="text-green-300">// Synchronisation après login</span>
+import useFavoritesStore from './stores/favoritesStore';
+import api from './services/api';
+
+async function syncFavoritesWithBackend() {
+  const { favorites, syncFromBackend } = useFavoritesStore.getState();
+  
+  try {
+    // 1. Envoyer les favoris locaux vers le backend (merge)
+    await api.post('/favorites/sync', { favorites });
+    
+    // 2. Récupérer la version serveur à jour
+    const response = await api.get('/favorites');
+    syncFromBackend(response.data);
+    
+    console.log('✅ Favoris synchronisés');
+  } catch (error) {
+    console.error('Erreur synchro favoris', error);
+  }
+}</pre>
+        </div>
+        <div class="mt-5 flex flex-col md:flex-row gap-4">
+          <div class="bg-white p-4 rounded-lg shadow flex-1">
+            <span class="font-bold text-pink-600">📤 Upload local → serveur</span>
+            <p class="text-sm mt-1">Envoi des favoris locaux pour mise à jour du compte utilisateur.</p>
+          </div>
+          <div class="bg-white p-4 rounded-lg shadow flex-1">
+            <span class="font-bold text-blue-600">📥 Téléchargement serveur → local</span>
+            <p class="text-sm mt-1">Récupération des favoris distants et écrasement local.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 : NOTIFICATIONS PUSH - CONFIGURATION -->
+    <div class="slide px-4 py-12" id="slide5">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📲 Notifications push avec Expo</h2>
+        <p class="mb-3">Expo Notifications permet d'envoyer des notifications même lorsque l'app est en arrière-plan. Pour les promotions sur les favoris, le backend peut cibler les utilisateurs ayant certains produits en favoris.</p>
+        <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+          <pre class="whitespace-pre-wrap"><span class="text-green-300">// Installation</span>
+expo install expo-notifications expo-device
+
+<span class="text-green-300">// Demander les permissions et récupérer le token push</span>
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+async function registerForPushNotificationsAsync() {
+  if (!Device.isDevice) return;
+  
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  
+  if (finalStatus !== 'granted') return;
+  
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  console.log('📱 Expo Push Token:', token);
+  
+  // Envoyer ce token à votre backend associé à l'utilisateur
+  await api.post('/users/push-token', { token });
+  
+  return token;
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 : RECEVOIR ET GÉRER LES NOTIFICATIONS -->
+    <div class="slide px-4 py-12 bg-gray-50" id="slide6">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔔 Réception et gestion des notifications</h2>
+        <p class="mb-3">Mettre en place un écouteur pour réagir aux notifications (ex: ouvrir l'écran du produit en promotion).</p>
+        <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+          <pre class="whitespace-pre-wrap"><span class="text-green-300">// App.js ou composant racine</span>
+import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export default function App() {
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification reçue en avant-plan', notification);
+    });
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const productId = response.notification.request.content.data.productId;
+      // Navigation vers l'écran du produit
+      navigation.navigate('Product', { id: productId });
+    });
+
+    return () => {
+      subscription.remove();
+      responseSubscription.remove();
+    };
+  }, []);
+
+  // ... reste de l'app
+}</pre>
+        </div>
+        <div class="mt-4 bg-blue-50 p-3 rounded-lg text-blue-800 text-sm">
+          🚀 Astuce : Utilisez le champ `data` de la notification pour transmettre des informations (productId, screen, etc.).
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 : ENVOI DE NOTIFICATIONS CIBLÉES (BACKEND) -->
+    <div class="slide px-4 py-12" id="slide7">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🎯 Cibler les utilisateurs par favoris</h2>
+        <p class="mb-3">Le backend, lorsqu'un produit en favori est en promotion, peut envoyer une notification push à tous les utilisateurs ayant ce produit dans leurs favoris.</p>
+        <div class="bg-white rounded-xl p-5 shadow-md border border-gray-200">
+          <p class="font-mono text-sm"><span class="text-green-600">// Exemple d'envoi depuis un serveur Node.js (Expo Push API)</span></p>
+          <pre class="bg-gray-800 text-white p-4 rounded-lg text-xs overflow-x-auto mt-2"><code>const messages = usersWithFavorite.map(user => ({
+  to: user.pushToken,
+  sound: 'default',
+  title: '🔥 Promotion Flash !',
+  body: `Le produit ${product.name} que vous aimez est à -30% aujourd'hui !`,
+  data: { productId: product.id, screen: 'Product' },
+}));
+
+await fetch('https://exp.host/--/api/v2/push/send', {
+  method: 'POST',
+  headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+  body: JSON.stringify(messages),
+});</code></pre>
+        </div>
+        <div class="mt-4 flex justify-center gap-3">
+          <div class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm">❤️ Favoris</div>
+          <span>→</span>
+          <div class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">📢 Notification push</div>
+          <span>→</span>
+          <div class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">📱 Engagement</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 : GESTION DES PROMOTIONS (INTÉGRATION AVEC FAVORIS) -->
+    <div class="slide px-4 py-12" id="slide8">
+      <div class="max-w-3xl mx-auto">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🏷️ Promotions sur les favoris</h2>
+        <p class="mb-4">Une approche courante est d'ajouter un champ `onSale` ou `discount` aux produits, puis de vérifier si un produit favori est en promotion pour déclencher une notification.</p>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div class="bg-white p-4 rounded-xl shadow">
+            <span class="font-bold block text-lg">📱 Côté mobile</span>
+            <ul class="list-disc pl-5 mt-2 text-sm space-y-1">
+              <li>Store des favoris (local/serveur)</li>
+              <li>Polling ou WebSocket pour détecter promo</li>
+              <li>Affichage d'un badge 🔥 sur le produit</li>
+            </ul>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow">
+            <span class="font-bold block text-lg">🖥️ Côté serveur</span>
+            <ul class="list-disc pl-5 mt-2 text-sm space-y-1">
+              <li>Planification de tâches (cron jobs)</li>
+              <li>Vérification des nouveaux produits en promo</li>
+              <li>Envoi groupé aux tokens des utilisateurs concernés</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-6 p-3 bg-gray-100 rounded-lg text-center">
+          <p class="text-gray-700">Le taux de conversion via notifications push sur favoris est généralement <span class="font-bold">2 à 3 fois plus élevé</span> qu'une publicité classique.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 : EXEMPLE VISUEL SIMPLE (DESSIN) -->
+    <div class="slide px-4 py-12 bg-white" id="slide9">
+      <div class="max-w-3xl mx-auto text-center">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">📱 Interface utilisateur : Favoris</h2>
+        <div class="bg-gray-100 p-6 rounded-2xl inline-block">
+          <!-- Petit dessin ascii/texte stylisé représentant un écran de favoris -->
+          <div class="bg-white rounded-xl shadow-lg p-4 w-64 mx-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+              <span class="font-bold">❤️ Mes favoris</span>
+              <span class="text-xs text-gray-400">3 articles</span>
+            </div>
+            <div class="mt-3 space-y-2">
+              <div class="flex justify-between items-center"><span>📱 Smartphone X</span><span class="text-red-500">❤️</span></div>
+              <div class="flex justify-between items-center"><span>🎧 Écouteurs BT</span><span class="text-red-500">❤️</span></div>
+              <div class="flex justify-between items-center"><span>⌚ Montre connectée</span><span class="text-red-500">❤️</span></div>
+            </div>
+            <div class="mt-3 text-xs text-gray-400 border-t pt-2">Synchronisé avec le cloud</div>
+          </div>
+        </div>
+        <p class="mt-4 text-gray-600">L'icône ❤️ permet d'ajouter/retirer des favoris. Les modifications sont persistées localement et synchronisées lors de la connexion.</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 10 : BONNES PRATIQUES & RÉCAPITULATIF -->
+    <div class="slide px-4 py-12 bg-gradient-to-tr from-gray-100 to-gray-200" id="slide10">
+      <div class="max-w-2xl mx-auto text-center">
+        <h2 class="text-3xl font-bold text-gray-800">🏁 Récapitulatif</h2>
+        <div class="mt-6 space-y-3 text-left bg-white p-6 rounded-2xl shadow">
+          <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Store Zustand pour les favoris avec persistance AsyncStorage</div>
+          <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Synchronisation backend au login (merge local ↔ distant)</div>
+          <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Configuration Expo Notifications (permissions, token)</div>
+          <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Envoi ciblé de notifications push pour les promotions sur favoris</div>
+          <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Gestion des réponses aux notifications (deep linking)</div>
+        </div>
+        <p class="mt-6 text-gray-700">Prochaine leçon : Mise en place d'Axios, gestion des tokens JWT et refresh token.</p>
+        <div class="mt-10 w-20 h-1 bg-pink-400 mx-auto rounded-full"></div>
+        <p class="text-xs text-gray-400 mt-6">Lesson 13 — Développement d'application e-commerce multiplateforme (Cameroun)</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barre de navigation (dots) -->
+  <div class="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 z-10 bg-white/70 p-2 rounded-full shadow-md backdrop-blur-sm">
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="0"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="1"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="2"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="3"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="4"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="5"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="6"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="7"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="8"></div>
+    <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="9"></div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      const $slides = $('.slide');
+      const $dots = $('.nav-dot');
+      const $container = $('.slide-container');
+
+      function updateActiveDot() {
+        let scrollPos = $container.scrollTop();
+        let slideIndex = Math.round(scrollPos / window.innerHeight);
+        if (slideIndex < 0) slideIndex = 0;
+        if (slideIndex >= $slides.length) slideIndex = $slides.length - 1;
+        $dots.removeClass('active bg-blue-500').addClass('bg-gray-400');
+        $dots.eq(slideIndex).removeClass('bg-gray-400').addClass('active bg-blue-500');
+      }
+
+      $container.on('scroll', function() {
+        updateActiveDot();
+      });
+
+      $dots.on('click', function() {
+        let idx = $(this).data('slide');
+        if (idx === undefined) idx = $dots.index(this);
+        let targetTop = idx * window.innerHeight;
+        $container.animate({ scrollTop: targetTop }, 300);
+      });
+
+      updateActiveDot();
+
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    });
+  </script>
+</body>
+</html>

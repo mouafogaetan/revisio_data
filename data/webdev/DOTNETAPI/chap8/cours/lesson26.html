@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>API .NET - Lesson 26 : Architecture professionnelle (Services, DTOs, AutoMapper)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { display: none; animation: fadeIn 0.4s ease-out; }
+        .slide.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-btn { transition: all 0.2s; }
+        .nav-btn:hover:not(:disabled) { background-color: #1e3a8a; transform: scale(1.02); }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .progress-bar { transition: width 0.3s ease; }
+        .code-block { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 0.8rem; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active p-8 md:p-12 text-center" id="slide1">
+                <div class="flex justify-center mb-5">
+                    <div class="bg-indigo-100 rounded-full p-4 text-indigo-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                </div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">Structurer une API .NET professionnelle</h1>
+                <p class="text-gray-500 text-lg">Lesson 26 – API .NET (ASP.NET Core)</p>
+                <div class="mt-4 flex flex-wrap justify-center gap-2">
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs">Couches</span>
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs">Services</span>
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs">DTOs</span>
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs">AutoMapper</span>
+                </div>
+                <div class="mt-10 text-sm text-gray-400">Cliquez sur Suivant →</div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-8 md:p-12" id="slide2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-indigo-600 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <ul class="space-y-3 text-gray-700">
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Comprendre</strong> pourquoi séparer l’API en couches (Controllers, Services, Repository, DTOs).</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Implémenter</strong> le pattern Service pour isoler la logique métier.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Maîtriser</strong> les DTO (Data Transfer Objects) pour éviter l’exposition directe des entités.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Utiliser</strong> AutoMapper pour mapper automatiquement Entités ↔ DTOs.</span></li>
+                </ul>
+                <div class="mt-6 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm">
+                    💡 À la fin, vous saurez construire une API maintenable, testable et évolutive.
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : PROBLÉMATIQUE DES CONTROLLERS "FAT" -->
+            <div class="slide p-8 md:p-12" id="slide3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚠️ Le problème du controller "gros" (Fat Controller)</h2>
+                <p class="mb-3">Quand on met <strong>toute la logique métier, l’accès aux données et la validation</strong> directement dans le controller, on obtient :</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 mb-4">
+                    <li>Un code difficile à tester (besoin de la base réelle)</li>
+                    <li>Du code dupliqué entre plusieurs endpoints</li>
+                    <li>Une maintenance compliquée (tout est mélangé)</li>
+                    <li>Des difficultés pour changer la source de données</li>
+                </ul>
+                <div class="code-block text-sm">
+// ❌ Mauvais exemple
+[ApiController]
+[Route("api/products")]
+public class ProductsController : ControllerBase
+{
+    private readonly AppDbContext _context;
+    public ProductsController(AppDbContext context) => _context = context;
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var products = await _context.Products.ToListAsync();
+        return Ok(products); // expose directement l'entité !
+    }
+}
+                </div>
+                <p class="mt-3 text-sm text-red-600">Solution : séparer en couches (Separation of Concerns).</p>
+            </div>
+
+            <!-- SLIDE 4 : ARCHITECTURE EN COUCHES -->
+            <div class="slide p-8 md:p-12" id="slide4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🏗️ Architecture recommandée (Clean Architecture simplifiée)</h2>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <div class="flex flex-col md:flex-row justify-around gap-2 text-sm">
+                        <div class="bg-white p-3 rounded shadow"><strong>🌐 Controllers</strong><br>Réception requêtes, renvoi réponses</div>
+                        <div class="text-2xl">→</div>
+                        <div class="bg-white p-3 rounded shadow"><strong>⚙️ Services</strong><br>Logique métier, orchestration</div>
+                        <div class="text-2xl">→</div>
+                        <div class="bg-white p-3 rounded shadow"><strong>🗄️ Repository</strong><br>Accès aux données (EF Core)</div>
+                    </div>
+                </div>
+                <p class="mt-4 font-semibold">📦 DTOs (Data Transfer Objects) :</p>
+                <p>Les contrôleurs ne renvoient jamais directement les entités. On utilise des DTOs pour contrôler exactement les données exposées.</p>
+                <div class="code-block mt-2 text-xs">
+// ProductDto.cs
+public class ProductDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+    // pas de champ "InternalStock" par exemple
+}
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : PATTERN SERVICE + DTO EN ACTION -->
+            <div class="slide p-8 md:p-12" id="slide5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Mise en pratique : Service et DTO</h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="font-semibold">1. Interface et Service</p>
+                        <div class="code-block text-xs">
+public interface IProductService
+{
+    Task<IEnumerable<ProductDto>> GetAllProductsAsync();
+}
+public class ProductService : IProductService
+{
+    private readonly IProductRepository _repository;
+    private readonly IMapper _mapper;
+    public ProductService(IProductRepository repository, IMapper mapper)
+        => (_repository, _mapper) = (repository, mapper);
+
+    public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
+    {
+        var products = await _repository.GetAllAsync();
+        return _mapper.Map<IEnumerable<ProductDto>>(products);
+    }
+}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-semibold">2. Controller allégé</p>
+                        <div class="code-block text-xs">
+[ApiController]
+[Route("api/products")]
+public class ProductsController : ControllerBase
+{
+    private readonly IProductService _service;
+    public ProductsController(IProductService service) => _service = service;
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var productsDto = await _service.GetAllProductsAsync();
+        return Ok(productsDto);
+    }
+}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : AUTOMAPPER -->
+            <div class="slide p-8 md:p-12" id="slide6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔄 AutoMapper : simplifier les mappings</h2>
+                <p>AutoMapper évite d’écrire manuellement `productDto.Name = product.Name`. Il suffit de déclarer un <strong>profil</strong>.</p>
+                <div class="code-block text-xs">
+// 1. Installer AutoMapper.Extensions.Microsoft.DependencyInjection
+// 2. Créer un profil
+public class MappingProfile : Profile
+{
+    public MappingProfile()
+    {
+        CreateMap&lt;Product, ProductDto&gt;();
+        CreateMap&lt;CreateProductDto, Product&gt;(); // pour la création
+    }
+}
+// 3. Dans Program.cs
+builder.Services.AddAutoMapper(typeof(Program));
+                </div>
+                <div class="mt-3 bg-green-50 p-3 rounded text-green-800 text-sm">
+                    ✅ AutoMapper supporte les conventions : propriétés de même nom sont automatiquement mappées.
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : BONNES PRATIQUES ET TESTS -->
+            <div class="slide p-8 md:p-12" id="slide7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🧪 Testabilité et avantages</h2>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li>On peut <strong>mocker</strong> le service dans les tests du controller.</li>
+                    <li>On peut <strong>mocker</strong> le repository dans les tests du service.</li>
+                    <li>Chaque couche a une responsabilité unique (SRP).</li>
+                    <li>On peut changer la source de données (SQL → API externe) sans impacter le controller.</li>
+                </ul>
+                <div class="code-block text-xs mt-3">
+// Exemple test unitaire du service avec Moq
+var mockRepo = new Mock&lt;IProductRepository&gt;();
+mockRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(products);
+var service = new ProductService(mockRepo.Object, mapper);
+var result = await service.GetAllProductsAsync();
+Assert.Equal(2, result.Count());
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RÉSUMÉ & QUIZ -->
+            <div class="slide p-8 md:p-12" id="slide8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Récapitulatif & vérification</h2>
+                <div class="space-y-4">
+                    <div class="border p-4 rounded-lg">
+                        <p class="font-semibold">1. Pourquoi ne faut-il pas exposer directement l’entité `Product` dans le controller ?</p>
+                        <textarea id="q1" rows="2" class="w-full border rounded p-2 text-sm mt-1" placeholder="Votre réponse..."></textarea>
+                    </div>
+                    <div class="border p-4 rounded-lg">
+                        <p class="font-semibold">2. Quel est le rôle du pattern Service ?</p>
+                        <textarea id="q2" rows="2" class="w-full border rounded p-2 text-sm mt-1" placeholder="Votre réponse..."></textarea>
+                    </div>
+                    <div class="border p-4 rounded-lg">
+                        <p class="font-semibold">3. Que permet AutoMapper ?</p>
+                        <textarea id="q3" rows="2" class="w-full border rounded p-2 text-sm mt-1" placeholder="Votre réponse..."></textarea>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button id="checkAnswersBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">🔍 Voir corrigé</button>
+                </div>
+                <div id="feedback" class="mt-3 text-sm text-gray-700 hidden bg-gray-100 p-3 rounded"></div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-200">
+                <button id="prevBtn" class="nav-btn bg-gray-300 text-gray-700 px-4 py-2 rounded-lg disabled:opacity-50" disabled>◀ Précédent</button>
+                <div class="text-sm text-gray-500">Slide <span id="currentSlideNum">1</span> / <span id="totalSlidesNum">8</span></div>
+                <button id="nextBtn" class="nav-btn bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Suivant ▶</button>
+            </div>
+            <div class="h-1 bg-gray-200 w-full"><div id="progressBar" class="progress-bar h-full bg-indigo-600 w-[12.5%]"></div></div>
+        </div>
+        <div class="text-center text-xs text-gray-400 mt-6">📘 API .NET – Lesson 26 : Architecture professionnelle (Services, DTOs, AutoMapper)</div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const slides = $('.slide');
+            let current = 0;
+            const total = slides.length;
+            $('#totalSlidesNum').text(total);
+            function update() {
+                slides.removeClass('active');
+                $(slides[current]).addClass('active');
+                $('#currentSlideNum').text(current+1);
+                $('#prevBtn').prop('disabled', current === 0);
+                $('#nextBtn').prop('disabled', current === total-1);
+                $('#progressBar').css('width', ((current+1)/total)*100 + '%');
+            }
+            $('#nextBtn').on('click', function() { if(current < total-1) { current++; update(); window.scrollTo(0,0); } });
+            $('#prevBtn').on('click', function() { if(current > 0) { current--; update(); window.scrollTo(0,0); } });
+            
+            $('#checkAnswersBtn').on('click', function() {
+                let feedbackHtml = "<strong>✏️ Éléments de correction :</strong><br><br>";
+                feedbackHtml += "1️⃣ Exposer directement une entité viole le principe d'encapsulation, peut révéler des champs sensibles (mot de passe, stock interne), et rend le contrat d'API fragile aux changements de base de données.<br><br>";
+                feedbackHtml += "2️⃣ Le pattern Service isole la logique métier (règles de gestion, calculs, orchestrations) hors des contrôleurs. Il permet la réutilisation, la testabilité et respecte le principe de responsabilité unique.<br><br>";
+                feedbackHtml += "3️⃣ AutoMapper est une bibliothèque qui automatise le mapping (copie) entre objets de types différents, par exemple d’une entité `Product` vers un DTO `ProductDto`, évitant ainsi le code manuel répétitif.";
+                $('#feedback').html(feedbackHtml).removeClass('hidden');
+            });
+        });
+    </script>
+</body>
+</html>

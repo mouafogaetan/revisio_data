@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 10 : useEffect - Cycle de vie et effets secondaires</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #b45309;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background-color: #1e1e2f;
+            color: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            font-family: 'Fira Code', monospace;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .demo-box {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.2rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            border: 1px solid #fcd34d;
+        }
+        .lifecycle-badge {
+            background-color: #f59e0b;
+            color: white;
+            border-radius: 999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.7rem;
+            font-family: monospace;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.65rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active p-6 md:p-10 text-center" data-slide="0">
+            <div class="inline-block bg-amber-100 text-amber-800 px-4 py-1 rounded-full text-sm font-semibold mb-3">React Native - Hooks Avancés</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-amber-700 to-orange-700 bg-clip-text text-transparent">useEffect</h1>
+            <p class="text-lg md:text-xl text-gray-600 mt-4">Cycle de vie et effets secondaires dans React Native</p>
+            <div class="w-20 h-1 bg-amber-500 mx-auto rounded-full my-5"></div>
+            <p class="text-gray-500 max-w-md mx-auto">Maîtrisez les moments clés : montage, mise à jour et démontage des composants.</p>
+            <!-- Petit schéma du cycle de vie -->
+            <div class="flex justify-center mt-8">
+                <svg width="280" height="100" viewBox="0 0 350 110">
+                    <rect x="10" y="10" width="100" height="40" rx="10" fill="#fcd34d" stroke="#d97706" stroke-width="2"/>
+                    <text x="60" y="35" fill="#78350f" font-size="10" text-anchor="middle">Montage</text>
+                    <path d="M110 30 L140 30" stroke="#d97706" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="145" y="10" width="100" height="40" rx="10" fill="#fcd34d" stroke="#d97706" stroke-width="2"/>
+                    <text x="195" y="35" fill="#78350f" font-size="10" text-anchor="middle">Mise à jour</text>
+                    <path d="M245 30 L275 30" stroke="#d97706" stroke-width="2" marker-end="url(#arrowM)"/>
+                    <rect x="280" y="10" width="60" height="40" rx="10" fill="#fcd34d" stroke="#d97706" stroke-width="2"/>
+                    <text x="310" y="35" fill="#78350f" font-size="9" text-anchor="middle">Démontage</text>
+                    <defs>
+                        <marker id="arrowM" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L6,3 L0,6 Z" fill="#d97706"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            <button class="next-slide mt-6 bg-amber-600 text-white px-8 py-3 rounded-full font-medium shadow-lg hover:bg-amber-700 transition">Commencer →</button>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10" data-slide="1">
+            <div class="flex items-center gap-3 border-b border-amber-200 pb-3 mb-5">
+                <span class="text-3xl">🎯</span>
+                <h2 class="text-2xl md:text-3xl font-bold text-amber-800">Objectifs de la leçon</h2>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="bg-amber-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🔄 useEffect</span><br>Exécuter du code après le rendu du composant.</div>
+                <div class="bg-amber-50 p-4 rounded-xl shadow-sm"><span class="font-bold">📦 Tableau de dépendances</span><br>Contrôler quand l'effet se réexécute.</div>
+                <div class="bg-amber-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🧹 Cleanup function</span><br>Nettoyer les abonnements, timers et requêtes.</div>
+                <div class="bg-amber-50 p-4 rounded-xl shadow-sm"><span class="font-bold">⏱️ Cycle de vie</span><br>Comprendre montage, mise à jour, démontage.</div>
+            </div>
+            <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-3 rounded text-sm">💡 <span class="font-bold">useEffect</span> est le hook qui remplace les méthodes de cycle de vie des composants de classe.</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 3 : QU'EST-CE QUE useEffect ? -->
+        <div class="slide p-6 md:p-10" data-slide="2">
+            <div class="flex gap-2 items-center"><span class="text-3xl">🤔</span><h2 class="text-2xl font-bold text-amber-800">Qu'est-ce que useEffect ?</h2></div>
+            <p class="mt-2"><code>useEffect</code> permet de réaliser des <span class="font-bold">effets secondaires</span> dans vos composants :</p>
+            <ul class="list-disc pl-6 mt-3 space-y-1">
+                <li>Appels API (fetch)</li>
+                <li>Abonnements (WebSocket, listeners)</li>
+                <li>Manipulation directe du DOM (ou du composant natif)</li>
+                <li>Timers (setTimeout, setInterval)</li>
+                <li>Mise à jour du titre de la page</li>
+            </ul>
+            <div class="bg-gray-900 rounded-xl mt-4 overflow-auto">
+                <pre><code>import { useEffect } from 'react';
+
+function MonComposant() {
+  useEffect(() => {
+    // Code exécuté APRÈS le rendu
+    console.log('Effet exécuté !');
+    
+    // Optionnel : fonction de nettoyage
+    return () => {
+      console.log('Nettoyage avant démontage');
+    };
+  }, []); // Tableau de dépendances
+  
+  return &lt;View&gt;&lt;Text&gt;Composant&lt;/Text&gt;&lt;/View&gt;;
+}</code></pre>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 4 : LE TABLEAU DE DÉPENDANCES -->
+        <div class="slide p-6 md:p-10" data-slide="3">
+            <h2 class="text-2xl font-bold flex gap-2"><span>📋</span> Tableau de dépendances</h2>
+            <p>Il contrôle quand l'effet se réexécute :</p>
+            <div class="grid md:grid-cols-3 gap-3 mt-4">
+                <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <p class="font-bold text-green-700">[]</p>
+                    <p class="text-sm">Exécuté <span class="font-bold">une seule fois</span> après le montage</p>
+                    <code class="text-xs">équivalent à componentDidMount</code>
+                </div>
+                <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                    <p class="font-bold text-yellow-700">[dep1, dep2]</p>
+                    <p class="text-sm">Exécuté au montage et à chaque <span class="font-bold">changement</span> de dep1 ou dep2</p>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                    <p class="font-bold text-red-700">(pas de tableau)</p>
+                    <p class="text-sm">Exécuté <span class="font-bold">après chaque rendu</span> (⚠️ risqué !)</p>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-xl mt-4 overflow-auto">
+                <pre><code>function Example({ userId }) {
+  // 1 seul fois au montage
+  useEffect(() => { console.log('Montage'); }, []);
+  
+  // À chaque changement de userId
+  useEffect(() => { fetchUser(userId); }, [userId]);
+  
+  // À chaque rendu (déconseillé)
+  useEffect(() => { console.log('Rerender'); });
+}</code></pre>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 5 : FONCTION DE NETTOYAGE (CLEANUP) -->
+        <div class="slide p-6 md:p-10" data-slide="4">
+            <h2 class="text-2xl font-bold flex gap-2"><span>🧹</span> La fonction de nettoyage</h2>
+            <p>La fonction retournée par useEffect s'exécute :</p>
+            <ul class="list-disc pl-6 mt-2">
+                <li>Avant le démontage du composant</li>
+                <li>Avant la ré-exécution de l'effet (pour éviter les fuites mémoire)</li>
+            </ul>
+            <div class="bg-gray-900 rounded-xl mt-4 overflow-auto">
+                <pre><code>useEffect(() => {
+  const timer = setInterval(() => {
+    console.log('Tick');
+  }, 1000);
+  
+  // Nettoyage : on arrête le timer
+  return () => {
+    clearInterval(timer);
+    console.log('Timer arrêté');
+  };
+}, []);</code></pre>
+            </div>
+            <div class="mt-3 p-2 bg-red-50 rounded text-sm">
+                ⚠️ <span class="font-bold">Attention :</span> Sans nettoyage, les timers et abonnements continuent de s'exécuter en arrière-plan, causant des fuites mémoire !
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 6 : EXEMPLE PRATIQUE - API CALL -->
+        <div class="slide p-6 md:p-10" data-slide="5">
+            <h2 class="text-2xl font-bold">📡 Exemple : Appel API avec useEffect</h2>
+            <div class="bg-gray-900 rounded-xl mt-3 overflow-auto">
+                <pre><code>function UserList() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true; // Flag pour éviter setState après démontage
+    
+    fetch('https://jsonplaceholder.typicode.com/users')
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted) {
+          setUsers(data);
+          setLoading(false);
+        }
+      })
+      .catch(err => console.error(err));
+    
+    return () => { isMounted = false; }; // Nettoyage
+  }, []); // Une seule fois au montage
+
+  if (loading) return &lt;Text&gt;Chargement...&lt;/Text&gt;;
+  return &lt;FlatList data={users} renderItem={...} /&gt;;
+}</code></pre>
+            </div>
+            <div class="mt-3 p-2 bg-amber-50 rounded text-sm">✨ <span class="font-bold">Astuce :</span> Toujours annuler les requêtes asynchrones ou utiliser un flag au démontage pour éviter les "memory leaks".</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 7 : DÉMO INTERACTIVE -->
+        <div class="slide p-6 md:p-10" data-slide="6">
+            <h2 class="text-2xl font-bold">🎮 Démo interactive</h2>
+            <p>Simulation d'un effet avec timer et nettoyage.</p>
+            <div class="demo-box mt-3" id="timer-demo">
+                <p class="font-semibold text-amber-700">⏱️ Timer actif :</p>
+                <p id="timer-value" class="text-2xl font-bold text-amber-600">0</p>
+                <div class="flex gap-3 mt-3">
+                    <button id="start-timer" class="bg-green-600 text-white px-4 py-2 rounded-full">Démarrer</button>
+                    <button id="stop-timer" class="bg-red-600 text-white px-4 py-2 rounded-full">Arrêter</button>
+                    <button id="reset-timer" class="bg-gray-500 text-white px-4 py-2 rounded-full">Reset</button>
+                </div>
+                <div id="timer-log" class="mt-3 text-xs text-gray-500 bg-gray-100 p-2 rounded"></div>
+                <p class="text-xs text-gray-400 mt-2">💡 C'est comme si un useEffect gérait le timer avec une fonction de nettoyage !</p>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 8 : COMPARAISON AVEC LE CYCLE DE VIE CLASSIQUE -->
+        <div class="slide p-6 md:p-10" data-slide="7">
+            <h2 class="text-2xl font-bold">📊 useEffect vs composants de classe</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-3">
+                <div class="bg-gray-100 p-3 rounded-lg">
+                    <p class="font-bold text-gray-700">Composant fonctionnel (moderne)</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 mt-1"><code>useEffect(() => {
+  // componentDidMount
+  return () => { /* componentWillUnmount */ };
+}, []);
+
+useEffect(() => {
+  // componentDidUpdate
+}, [dep]);</code></pre>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-lg">
+                    <p class="font-bold text-gray-700">Composant de classe (ancien)</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 mt-1"><code>componentDidMount() {}
+componentDidUpdate() {}
+componentWillUnmount() {}</code></pre>
+                </div>
+            </div>
+            <div class="mt-4 p-2 bg-green-50 rounded text-sm">✅ <span class="font-bold">Avantage :</span> useEffect regroupe logique liée, contrairement aux méthodes de cycle de vie qui fragmentent le code.</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 9 : PIÈGES COURANTS -->
+        <div class="slide p-6 md:p-10" data-slide="8">
+            <h2 class="text-2xl font-bold text-red-600">⚠️ Pièges à éviter</h2>
+            <div class="space-y-3 mt-4">
+                <div class="bg-red-50 p-3 rounded-lg border-l-4 border-red-500">
+                    <p class="font-bold">❌ Boucle infinie</p>
+                    <pre class="text-xs bg-white p-2 mt-1"><code>useEffect(() => {
+  setCount(count + 1); // setState dans l'effet
+}); // pas de dépendances → rerender infini !</code></pre>
+                </div>
+                <div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-500">
+                    <p class="font-bold">⚠️ Dépendances manquantes</p>
+                    <pre class="text-xs bg-white p-2 mt-1"><code>useEffect(() => {
+  fetchUser(userId); // userId utilisé mais pas dans les dépendances
+}, []); // eslint-disable-next-line (mauvaise pratique)</code></pre>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg border-l-4 border-red-500">
+                    <p class="font-bold">❌ SetState après démontage</p>
+                    <pre class="text-xs bg-white p-2 mt-1"><code>// Solution : utiliser un flag isMounted ou AbortController</code></pre>
+                </div>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 10 : QUIZ -->
+        <div class="slide p-6 md:p-10" data-slide="9">
+            <h2 class="text-2xl font-bold text-amber-800">🧪 Quiz - Vérifiez votre compréhension</h2>
+            <div class="bg-white rounded-xl shadow p-4 mt-2 space-y-4">
+                <div><p class="font-medium">1️⃣ Que fait le tableau de dépendances vide <code>[]</code> ?</p>
+                    <label class="block"><input type="radio" name="quiz1" value="a"> L'effet s'exécute après chaque rendu</label>
+                    <label class="block"><input type="radio" name="quiz1" value="b"> L'effet s'exécute une seule fois après le montage</label>
+                    <label class="block"><input type="radio" name="quiz1" value="c"> L'effet ne s'exécute jamais</label>
+                </div>
+                <div><p class="font-medium">2️⃣ Quand la fonction de nettoyage (cleanup) est-elle appelée ?</p>
+                    <label class="block"><input type="radio" name="quiz2" value="a"> À chaque rendu</label>
+                    <label class="block"><input type="radio" name="quiz2" value="b"> Avant le démontage et avant la ré-exécution de l'effet</label>
+                    <label class="block"><input type="radio" name="quiz2" value="c"> Uniquement au montage</label>
+                </div>
+                <div><p class="font-medium">3️⃣ Que risque-t-on si on omet le tableau de dépendances ?</p>
+                    <label class="block"><input type="radio" name="quiz3" value="a"> Rien, c'est optionnel</label>
+                    <label class="block"><input type="radio" name="quiz3" value="b"> L'effet s'exécute après chaque rendu, possible boucle infinie</label>
+                    <label class="block"><input type="radio" name="quiz3" value="c"> Une erreur de compilation</label>
+                </div>
+                <button id="checkQuiz" class="bg-amber-600 text-white px-5 py-2 rounded-full hover:bg-amber-700">Vérifier</button>
+                <div id="quizResult" class="text-sm font-medium"></div>
+            </div>
+            <div class="flex justify-between mt-6"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-amber-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 11 : FÉLICITATIONS -->
+        <div class="slide p-6 md:p-10 text-center" data-slide="10">
+            <div class="text-6xl mb-3">🎉🏆</div>
+            <h2 class="text-3xl font-bold text-amber-700">Félicitations !</h2>
+            <p class="mt-3 text-gray-600">Vous maîtrisez maintenant useEffect, les dépendances et la fonction de nettoyage.</p>
+            <p class="mt-2 text-sm">Pratiquez en créant une application météo qui se rafraîchit toutes les minutes !</p>
+            <button class="restart-slides mt-8 bg-gray-700 text-white px-6 py-2 rounded-full shadow">Revoir la leçon</button>
+        </div>
+
+    </div>
+
+    <!-- Barre de progression -->
+    <div class="mt-5 flex justify-center items-center gap-3 text-xs text-gray-500">
+        <span id="slide-counter">1</span> / <span id="total-slides">11</span>
+        <div class="w-40 bg-gray-200 rounded-full h-1.5">
+            <div id="progress-fill" class="bg-amber-600 h-1.5 rounded-full progress-bar" style="width: 9%"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let currentSlide = 0;
+        const slides = $('.slide');
+        const total = slides.length;
+        $('#total-slides').text(total);
+        
+        function updateSlides(){
+            slides.removeClass('active');
+            $(slides[currentSlide]).addClass('active');
+            $('#slide-counter').text(currentSlide+1);
+            let percent = ((currentSlide+1)/total)*100;
+            $('#progress-fill').css('width', percent+'%');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function next(){ if(currentSlide < total-1){ currentSlide++; updateSlides(); } }
+        function prev(){ if(currentSlide > 0){ currentSlide--; updateSlides(); } }
+        
+        $('.next-slide').on('click', next);
+        $('.prev-slide').on('click', prev);
+        $('.restart-slides').on('click', function(){ currentSlide = 0; updateSlides(); });
+        
+        $(document).on('keydown', function(e){
+            if(e.key === 'ArrowRight') next();
+            if(e.key === 'ArrowLeft') prev();
+        });
+        
+        // Démo timer interactive
+        let timerInterval = null;
+        let timerValue = 0;
+        
+        function updateTimerDisplay() {
+            $('#timer-value').text(timerValue);
+            $('#timer-log').prepend(`<div>⏰ Tick à ${timerValue}s (${new Date().toLocaleTimeString()})</div>`);
+            if($('#timer-log div').length > 5) $('#timer-log div:last').remove();
+        }
+        
+        $('#start-timer').on('click', function(){
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timerValue++;
+                updateTimerDisplay();
+            }, 1000);
+            $('#timer-log').prepend(`<div class="text-green-600">▶️ Timer démarré</div>`);
+        });
+        
+        $('#stop-timer').on('click', function(){
+            if(timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                $('#timer-log').prepend(`<div class="text-red-600">⏹️ Timer arrêté (cleanup !)</div>`);
+            }
+        });
+        
+        $('#reset-timer').on('click', function(){
+            timerValue = 0;
+            updateTimerDisplay();
+            $('#timer-log').prepend(`<div>🔄 Timer réinitialisé à 0</div>`);
+        });
+        
+        // Nettoyage implicite quand on change de slide ? (optionnel)
+        // QUIZ
+        $('#checkQuiz').on('click', function(){
+            let q1 = $('input[name="quiz1"]:checked').val();
+            let q2 = $('input[name="quiz2"]:checked').val();
+            let q3 = $('input[name="quiz3"]:checked').val();
+            if(q1 === 'b' && q2 === 'b' && q3 === 'b'){
+                $('#quizResult').html('<span class="text-green-600 font-semibold">✔️ Parfait ! Vous maîtrisez les bases de useEffect.</span>');
+            } else {
+                let feedback = '';
+                if(q1 !== 'b') feedback += '[] = exécution unique au montage. ';
+                if(q2 !== 'b') feedback += 'Cleanup avant démontage et avant ré-exécution. ';
+                if(q3 !== 'b') feedback += 'Oublier les dépendances cause des exécutions excessives.';
+                $('#quizResult').html('<span class="text-red-600">❌ ' + feedback + '</span>');
+            }
+        });
+    });
+</script>
+</body>
+</html>

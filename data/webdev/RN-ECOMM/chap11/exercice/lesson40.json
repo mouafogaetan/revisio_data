@@ -1,0 +1,156 @@
+[
+  {
+    "intitule": "Nettoyage des effets et fuites mémoire",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un composant React Native, on utilise <code>useEffect</code> pour démarrer un intervalle qui met à jour un compteur toutes les secondes, et on s'abonne à un événement <code>AppState</code> pour détecter quand l'application passe en arrière-plan. Si on ne nettoie pas ces effets, des fuites mémoire et des comportements inattendus peuvent survenir.</p><p>On modélise le nombre d'instances non nettoyées après $n$ montages/démontages par la suite $U_n = U_{n-1} + 2$ avec $U_0 = 0$ (chaque montage ajoute 2 listeners non nettoyés).</p>",
+      "images": [
+        "schéma illustrant le cycle de vie d'un composant avec useEffect (mount, update, unmount) et la fonction de cleanup",
+        "graphique montrant la croissance linéaire des fuites mémoire en fonction du nombre de navigations"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un exemple de code <code>useEffect</code> avec <code>setInterval</code> qui inclut la fonction de nettoyage (cleanup) pour éviter les fuites mémoire.",
+        "niveau": "medium",
+        "reponse": "```javascript\nuseEffect(() => {\n  const interval = setInterval(() => {\n    setCount(prev => prev + 1);\n  }, 1000);\n\n  return () => clearInterval(interval);\n}, []);\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Calculer le nombre de listeners non nettoyés $U_n$ après $n = 10$ cycles de montage/démontage. Interpréter le résultat.",
+        "niveau": "easy",
+        "reponse": "$U_{10} = 2 \\times 10 = 20$ listeners non nettoyés. Cela signifie qu'après 10 navigations vers cet écran et retours, 20 processus (intervalles, abonnements) continuent de tourner en arrière-plan, consommant batterie et mémoire.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi l'oubli de cleanup dans un <code>useEffect</code> peut provoquer des erreurs du type \"Can't perform a React state update on an unmounted component\".",
+        "niveau": "hard",
+        "reponse": "Lorsqu'un composant est démonté (unmounted), ses états ne doivent plus être mis à jour. Si un intervalle ou une promesse asynchrone tente d'appeler une fonction `setState` après le démontage, React lance cet avertissement. La fonction de cleanup doit annuler l'intervalle ou ignorer les mises à jour (via un flag `isMounted`). Cela évite les fuites mémoire et les comportements imprévisibles.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation des re-rendus avec useCallback et useMemo",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous développez un écran de catalogue qui affiche une liste de 500 produits. Chaque produit est un composant enfant <code>ProductItem</code>. La liste peut être filtrée par catégorie et triée par prix. Les fonctions de filtrage et de tri sont passées aux enfants. Actuellement, chaque changement de filtre entraîne un re-rendu de tous les produits, même ceux qui n'ont pas changé.</p><p>Le temps de rendu moyen par produit est de $t_p = 5$ ms. Le nombre de produits affichés est $N = 500$. On souhaite optimiser en utilisant <code>useCallback</code>, <code>useMemo</code> et <code>React.memo</code>.</p>",
+      "images": [
+        "schéma comparant le re-rendu sans mémoïsation (tous les enfants) vs avec mémoïsation (seulement les enfants modifiés)",
+        "graphique montrant le gain de temps (secondes) en fonction de N avec et sans mémoïsation"
+      ],
+      "questions": [
+        {
+          "numero": 1,
+          "texte": "Calculer le temps total de rendu $T_{total}$ sans optimisation lorsqu'un filtre change (tous les produits sont re-rendus). Exprimer $T_{total}$ en fonction de $N$ et $t_p$.",
+          "niveau": "easy",
+          "reponse": "$T_{total} = N \\times t_p = 500 \\times 5 = 2500$ ms soit 2.5 secondes. Ce temps est excessif pour un simple changement de filtre et rend l'application non fluide.",
+          "sousQuestions": []
+        },
+        {
+          "numero": 2,
+          "texte": "Écrire un exemple d'utilisation de <code>React.memo</code> pour le composant <code>ProductItem</code> afin d'éviter les re-rendus inutiles. Justifier pourquoi cela suffit parfois.",
+          "niveau": "medium",
+          "reponse": "```jsx\nconst ProductItem = React.memo(({ product, onPress }) => {\n  return (\n    <TouchableOpacity onPress={() => onPress(product.id)}>\n      <Text>{product.name}</Text>\n    </TouchableOpacity>\n  );\n});\n```\n`React.memo` effectue une comparaison superficielle des props. Si les props `product` et `onPress` n'ont pas changé (même référence), le composant enfant ne sera pas re-rendu. Cela réduit considérablement le nombre de rendus lors du filtrage.",
+          "sousQuestions": []
+        },
+        {
+          "numero": 3,
+          "texte": "Expliquer pourquoi les fonctions passées comme props doivent être enveloppées dans <code>useCallback</code> pour que <code>React.memo</code> fonctionne correctement. Donner un exemple.",
+          "niveau": "hard",
+          "reponse": "Sans `useCallback`, une nouvelle fonction est créée à chaque rendu du parent. Même si `React.memo` compare les props, la nouvelle fonction a une référence différente → le composant enfant est re-rendu. Avec `useCallback`, la même référence est réutilisée tant que les dépendances ne changent pas.\n\n```jsx\nconst handlePress = useCallback((productId) => {\n  navigation.navigate('Product', { id: productId });\n}, [navigation]);\n```",
+          "sousQuestions": []
+        },
+        {
+          "numero": 4,
+          "texte": "Quand utiliser <code>useMemo</code> plutôt que <code>useCallback</code> ? Proposer un exemple concret pour la liste de produits.",
+          "niveau": "medium",
+          "reponse": "`useCallback` mémoïse une fonction, `useMemo` mémoïse le résultat d'un calcul coûteux. Pour la liste filtrée et triée :\n```jsx\nconst filteredProducts = useMemo(() => {\n  return products\n    .filter(p => p.category === selectedCategory)\n    .sort((a, b) => a.price - b.price);\n}, [products, selectedCategory]);\n```\nAinsi, le filtrage et le tri ne sont recalculés que si `products` ou `selectedCategory` changent.",
+          "sousQuestions": []
+        }
+      ]
+    }
+  },
+  {
+    "intitule": "Analyse des performances avec et sans mémoïsation",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Une équipe de développement a mesuré les performances de leur écran de recherche de produits. Sans optimisation, chaque frappe dans la barre de recherche déclenche un re-rendu complet de la liste de 1000 produits. Avec optimisation (<code>useMemo</code>, <code>useCallback</code>, <code>React.memo</code>), seuls les composants réellement modifiés sont re-rendus.</p><p>Les métriques sont : $T_{sans} = 120$ ms par frappe, $T_{avec} = 8$ ms par frappe. L'utilisateur tape en moyenne 15 caractères pour sa recherche.</p>",
+      "images": [
+        "graphique comparatif des temps de réponse par frappe (barres)",
+        "visualisation du nombre de re-rendus d'enfants avant/après optimisation"
+      ],
+      "questions": [
+        {
+          "numero": 1,
+          "texte": "Calculer le temps total de traitement pour une recherche complète (15 frappes) avec et sans optimisation.",
+          "niveau": "easy",
+          "reponse": "Sans optimisation : $15 \\times 120 = 1800$ ms (1.8 secondes). Avec optimisation : $15 \\times 8 = 120$ ms (0.12 seconde). L'optimisation apporte un gain de $1800 - 120 = 1680$ ms (1.68 secondes), soit une amélioration de 93.3%.",
+          "sousQuestions": []
+        },
+        {
+          "numero": 2,
+          "texte": "Discuter l'impact sur l'expérience utilisateur (UX) et l'autonomie de la batterie. Proposer une optimisation supplémentaire (debouncing).",
+          "niveau": "medium",
+          "reponse": "Un délai de 1.8 secondes cumulé pendant la frappe rend l'application lente et frustrante (l'utilisateur voit un décalage entre sa frappe et l'affichage). La batterie est sur-sollicitée par les calculs intenses. Une optimisation supplémentaire est le **debouncing** : attendre 300ms après la dernière frappe pour lancer la recherche, réduisant le nombre de calculs de 15 à 1.",
+          "sousQuestions": []
+        },
+        {
+          "numero": 3,
+          "texte": "Expliquer pourquoi l'ajout systématique de <code>useMemo</code> et <code>useCallback</code> sur toutes les valeurs peut être contre-productif.",
+          "niveau": "very hard",
+          "reponse": "La mémoïsation a un coût mémoire (stockage des valeurs) et un coût CPU (comparaison des dépendances). Sur des valeurs simples (booléens, petits tableaux) ou des calculs triviaux, le coût de la mémoïsation peut dépasser le gain. Il faut réserver `useMemo/useCallback` aux calculs complexes (filtrage, tri, transformations) et aux fonctions passées à des composants mémoïsés. Une règle d'or : ne pas optimiser prématurément ; mesurer d'abord les performances réelles.",
+          "sousQuestions": []
+        }
+      ]
+    }
+  },
+  {
+    "intitule": "Détection et résolution de fuites mémoire avec cleanup",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Dans une application React Native, un écran <code>ProductDetail</code> charge les détails d'un produit via une API. Voici le code actuel (problématique) :</p><pre><code>useEffect(() => {\n  fetchProduct(productId).then(data => setProduct(data));\n}, [productId]);</code></pre><p>Les utilisateurs signalent que l'application devient lente après avoir consulté plusieurs produits. Les outils de développement montrent une augmentation constante de la mémoire.</p>",
+      "images": [
+        "capture d'écran des outils de développement (React DevTools, Memory Profiler) montrant une fuite mémoire",
+        "schéma expliquant le problème du state update sur composant démonté"
+      ],
+      "questions": [
+        {
+          "numero": 1,
+          "texte": "Identifier le problème dans le code ci-dessus. Expliquer pourquoi il cause une fuite mémoire.",
+          "niveau": "medium",
+          "reponse": "Le problème est l'absence de cleanup. Si l'utilisateur navigue vers un autre écran avant que la requête ne soit terminée, la promesse se résout et tente d'appeler `setProduct` alors que le composant est démonté. Cela provoque une erreur silencieuse et la promesse reste en mémoire (pas de garbage collection), d'où la fuite.",
+          "sousQuestions": []
+        },
+        {
+          "numero": 2,
+          "texte": "Rédiger la version corrigée du code utilisant un flag <code>isMounted</code> ou <code>AbortController</code> pour nettoyer la requête.",
+          "niveau": "hard",
+          "reponse": "```javascript\nuseEffect(() => {\n  let isMounted = true;\n  const controller = new AbortController();\n\n  const loadProduct = async () => {\n    try {\n      const data = await fetchProduct(productId, { signal: controller.signal });\n      if (isMounted) setProduct(data);\n    } catch (error) {\n      if (isMounted && error.name !== 'AbortError') console.error(error);\n    }\n  };\n\n  loadProduct();\n\n  return () => {\n    isMounted = false;\n    controller.abort();\n  };\n}, [productId]);\n```",
+          "sousQuestions": [
+            {
+              "numero": "2.a",
+              "texte": "Expliquer pourquoi un simple flag <code>isMounted</code> n'arrête pas la requête réseau elle-même.",
+              "niveau": "medium",
+              "reponse": "Le flag `isMounted` empêche seulement l'appel à `setProduct` après démontage, mais la requête réseau continue de s'exécuter et de consommer des ressources (bande passante, CPU). `AbortController` annule réellement la requête, libérant immédiatement les ressources."
+            }
+          ]
+        },
+        {
+          "numero": 3,
+          "texte": "Proposer une approche alternative utilisant une bibliothèque comme TanStack Query (react-query) qui gère automatiquement le cleanup et le cache.",
+          "niveau": "medium",
+          "reponse": "```jsx\nconst { data: product, isLoading } = useQuery({\n  queryKey: ['product', productId],\n  queryFn: () => fetchProduct(productId),\n});\n```\nTanStack Query annule automatiquement les requêtes en cours lorsque le composant est démonté ou que les clés de requête changent. Il gère aussi le cache, le re-fetch et la gestion d'erreur, éliminant le besoin d'écrire manuellement le cleanup.",
+          "sousQuestions": []
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "intitule": "Configuration d'EAS Build et génération des clés de signature",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez préparer votre application Expo pour la publication sur les stores. La première étape consiste à configurer <strong>EAS Build</strong> et à générer les clés de signature pour iOS et Android.</p>",
+      "images": ["EAS Build configuration dashboard", "Android keystore generation command line", "Apple certificate creation in developer portal"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les commandes et étapes nécessaires pour initialiser EAS Build dans un projet Expo existant.",
+        "niveau": "medium",
+        "reponse": "```bash\n# 1. Installer EAS CLI globalement\nnpm install -g eas-cli\n\n# 2. Se connecter à son compte Expo\neas login\n\n# 3. Configurer le projet (crée eas.json)\neas build:configure\n\n# 4. Pour Android : générer la clé de signature (keystore)\neas credentials\n#    Choisir 'Android' → 'Generate new keystore'\n\n# 5. Pour iOS : générer les certificats et profils de provisioning\neas credentials\n#    Choisir 'iOS' → 'Generate new Apple Distribution Certificate'\n\n# 6. Vérifier la configuration\neas build:list\n```\nLe fichier `eas.json` contient les profils de build (development, preview, production).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer à quoi sert le fichier `eas.json` et citer ses sections principales.",
+            "niveau": "easy",
+            "reponse": "`eas.json` configure les différentes options de build. Sections principales :\n- `cli` : version d'EAS CLI requise\n- `build` : profils de build (development, preview, production)\n- `submit` : configuration pour la soumission aux stores (optionnel)\n\nExemple de profil production :\n```json\n{\n  \"production\": {\n    \"node\": \"18.0.0\",\n    \"android\": {\n      \"buildType\": \"apk\"\n    },\n    \"ios\": {\n      \"image\": \"latest\"\n    }\n  }\n}\n```"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Lister les prérequis pour générer les clés de signature iOS (certificat de distribution et profil de provisioning).",
+        "niveau": "hard",
+        "reponse": "**Prérequis pour iOS :**\n1. Un compte Apple Developer actif (99$/an).\n2. Un Apple ID avec le rôle 'Admin' ou 'App Manager'.\n3. Un Bundle ID unique (ex: `com.monapp.ecommerce`).\n4. Un certificat de distribution Apple (généré via EAS ou manuellement via Keychain).\n5. Un profil de provisioning de distribution (généré automatiquement par EAS).\n6. Une clé API Apple (pour l'automatisation) ou authentification via le navigateur.\n\n**Commandes EAS :**\n```bash\neas credentials\n# Choisir iOS → Generate new Apple Distribution Certificate\neas build:configure\n```\nEAS gère automatiquement la création du certificat et du profil via l'API Apple.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création des builds de production pour Android et iOS",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'application e-commerce est prête à être publiée. Vous devez générer les builds de production : <strong>AAB</strong> pour le Play Store et <strong>IPA</strong> pour l'App Store (ou <strong>APK</strong> pour distribution manuelle).</p>",
+      "images": ["EAS build production command output", "Android AAB file structure diagram", "iOS IPA file generation"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les commandes EAS Build pour générer respectivement un APK (test), un AAB (Play Store) et un IPA (App Store). Expliquer les différences.",
+        "niveau": "medium",
+        "reponse": "```bash\n# APK (fichier unique pour installation manuelle)\neas build --platform android --profile production --output apk\n\n# AAB (Android App Bundle - recommandé pour Play Store)\neas build --platform android --profile production --output aab\n\n# IPA (iOS) - nécessite un Mac ou EAS Build avec serveur Apple)\neas build --platform ios --profile production\n```\n**Différences :**\n- **APK** : fichier unique, plus lourd, distribution manuelle.\n- **AAB** : format optimisé, Play Store génère des APK par appareil (taille réduite de 30-50%).\n- **IPA** : format iOS, nécessite un certificat de distribution Apple.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer comment inclure des variables d'environnement spécifiques pour la production (ex: API_URL, SENTRY_DSN).",
+            "niveau": "medium",
+            "reponse": "Créer un fichier `.env.production` :\n```\nEXPO_PUBLIC_API_URL=https://api.monapp.com\nEXPO_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/xxx\n```\nPuis dans `eas.json` :\n```json\n{\n  \"production\": {\n    \"env\": {\n      \"EXPO_PUBLIC_API_URL\": \"https://api.monapp.com\",\n      \"EXPO_PUBLIC_SENTRY_DSN\": \"https://xxx@sentry.io/xxx\"\n    }\n  }\n}\n```\nOu utiliser `--env-file` : `eas build --env-file .env.production`."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Développer un script CI/CD (GitHub Actions) qui automatise le build Android et iOS à chaque push sur la branche `main`.",
+        "niveau": "very hard",
+        "reponse": "```yaml\n# .github/workflows/eas-build.yml\nname: EAS Build\non:\n  push:\n    branches: [main]\n\njobs:\n  build-android:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - uses: actions/setup-node@v3\n        with:\n          node-version: 18\n      - run: npm ci\n      - uses: expo/expo-github-action@v8\n        with:\n          expo-version: latest\n          eas-version: latest\n          token: ${{ secrets.EXPO_TOKEN }}\n      - run: eas build --platform android --profile production --non-interactive\n\n  build-ios:\n    runs-on: macos-latest\n    steps:\n      - uses: actions/checkout@v3\n      - uses: actions/setup-node@v3\n        with:\n          node-version: 18\n      - run: npm ci\n      - uses: expo/expo-github-action@v8\n        with:\n          expo-version: latest\n          eas-version: latest\n          token: ${{ secrets.EXPO_TOKEN }}\n      - run: eas build --platform ios --profile production --non-interactive\n```\n**Prérequis :** Variables secrètes dans GitHub : `EXPO_TOKEN` (créé depuis expo.dev), `APPLE_APP_SPECIFIC_PASSWORD` si nécessaire.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des versions et mises à jour OTA (Over-The-Air)",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre application e-commerce est publiée. Vous devez gérer le versioning (semver) et proposer des mises à jour OTA pour les correctifs d'interface sans passer par le rejet des stores.</p>",
+      "images": ["Expo updates OTA diagram", "app.json version and runtime version configuration", "EAS update command line"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la différence entre `version` (app.json) et `runtimeVersion` (app.json) dans le contexte d'EAS Update.",
+        "niveau": "hard",
+        "reponse": "- **`version`** (ex: `1.2.3`) : version affichée dans les stores (Play Store/App Store). Modifiable uniquement via un nouveau build soumis aux stores.\n- **`runtimeVersion`** (ex: `1.0.0`) : version du moteur JavaScript et des assets natifs. Détermine la compatibilité des mises à jour OTA. Si le runtimeVersion change, EAS Update ne peut plus appliquer de patch OTA (il faut un build natif).\n\n**Stratégie recommandée :**\n```json\n{\n  \"expo\": {\n    \"version\": \"1.0.0\",\n    \"runtimeVersion\": {\n      \"policy\": \"appVersion\"\n    }\n  }\n}\n```\n`policy: \"appVersion\"` lie runtimeVersion à version. Un changement de version mineure nécessite un build complet.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Décrire comment publier une mise à jour OTA (correctif d'un composant) sans passer par les stores.",
+            "niveau": "medium",
+            "reponse": "```bash\n# 1. Installer EAS Update\nnpm install expo-updates\n\n# 2. Configurer app.json\n{\n  \"expo\": {\n    \"updates\": {\n      \"url\": \"https://u.expo.dev/votre-projet-id\"\n    }\n  }\n}\n\n# 3. Publier la mise à jour\neas update --branch production --message \"Correction du panier\"\n\n# 4. (Optionnel) Promouvoir sur une autre branche\neas update:branch:create --from production --to staging\n```\nLa mise à jour est téléchargée silencieusement au prochain démarrage de l'application.",
+          },
+          {
+            "numero": "1.b",
+            "texte": "Analyser les risques des mises à jour OTA (quand ne pas les utiliser).",
+            "niveau": "hard",
+            "reponse": "**Risques :**\n1. **Modifications natives** (ex: ajout d'un module avec code natif) → nécessitent un build store.\n2. **Faille de sécurité** dans une dépendance → OTA peut corriger le JS mais pas le code natif.\n3. **Perte de confiance** si mise à jour buguée (impossible de revenir en arrière sans nouvelle OTA).\n4. **Compatibilité** : si runtimeVersion change, l'OTA échoue.\n\n**Bonnes pratiques :** Tester l'OTA sur un canal `staging` avant `production`. Garder un rollback plan (`eas update:rollback`)."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Diagnostic et résolution d'erreurs de build",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Lors d'un build EAS en production, l'erreur suivante apparaît : <code>EAS Build failed: Gradle build failed with unknown error</code>. Le log indique : <code>Execution failed for task ':app:checkReleaseDuplicateClasses'.</code></p>",
+      "images": ["EAS build error log screenshot", "Gradle dependency conflict diagram", "expo doctor output"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Diagnostiquer la cause probable de cette erreur et proposer une procédure de résolution.",
+        "niveau": "hard",
+        "reponse": "**Cause probable :** Conflit de dépendances Android. Une même bibliothèque est incluse deux fois avec des versions différentes (ex: `androidx.core:core:1.9.0` et `1.12.0`).\n\n**Procédure de résolution :**\n1. Lancer `expo doctor` pour détecter les problèmes de configuration.\n2. Mettre à jour toutes les dépendances Expo : `npx expo install --fix`.\n3. Ajouter dans `android/app/build.gradle` :\n```gradle\nconfigurations.all {\n  resolutionStrategy {\n    force 'androidx.core:core:1.10.1'\n  }\n}\n```\n4. Nettoyer le cache Gradle : `cd android && ./gradlew clean`.\n5. Rebuild avec EAS : `eas build --platform android --profile production --clear-cache`.\n6. Si persiste, exécuter `npx expo run:android` en local pour un détail plus précis.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer comment ajouter un plugin de résolution personnalisé dans `eas.json` pour contourner les conflits.",
+            "niveau": "very hard",
+            "reponse": "Créer un fichier `plugins/resolve-conflicts.js` :\n```javascript\nmodule.exports = function resolveConflicts(config) {\n  // Modifier la configuration Gradle\n  config.android?.gradle?.properties?.push('android.useAndroidX=true');\n  config.android?.gradle?.properties?.push('android.enableJetifier=true');\n  \n  return config;\n};\n```\nDans `eas.json` :\n```json\n{\n  \"production\": {\n    \"android\": {\n      \"gradleProperties\": {\n        \"android.useAndroidX\": \"true\",\n        \"android.enableJetifier\": \"true\"\n      }\n    },\n    \"plugins\": [\"./plugins/resolve-conflicts.js\"]\n  }\n}\n```\nPlus simple : utiliser `expo prebuild --clean` pour régénérer les dossiers natifs.",
+          }
+        ]
+      }
+    ]
+  }
+]

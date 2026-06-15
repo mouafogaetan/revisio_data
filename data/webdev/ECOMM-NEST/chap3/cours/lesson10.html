@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 10 : Guards JWT, RolesGuard et protection des routes - API E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s;
+            overflow: hidden;
+        }
+        .nav-button {
+            transition: all 0.2s ease;
+            background-color: #166534;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            background-color: #14532d;
+            transform: scale(1.02);
+        }
+        .nav-button:active {
+            transform: scale(0.98);
+        }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #15803d;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 1rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #15803d;
+            border-radius: 2px;
+            width: 0%;
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .guard-tag {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border: 1px solid #86efac;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="slide-container" id="app">
+    <div id="slides-wrapper" class="relative"></div>
+    <div class="flex flex-col items-center mt-6 gap-4">
+        <div class="w-full max-w-md progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div class="flex gap-6 justify-center flex-wrap">
+            <button id="prevBtn" class="nav-button"><span class="mr-1">◀</span> Précédent</button>
+            <span id="pageIndicator" class="text-gray-700 font-medium bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full">Slide 1 / 1</span>
+            <button id="nextBtn" class="nav-button">Suivant <span class="ml-1">▶</span></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Slides pour la lesson10 : Guards JWT, RolesGuard et protection des routes
+    const slides = [
+        { // Slide 0 : Titre
+            title: "Lesson 10 - Guards : Sécurisation des routes API",
+            content: `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                    <div class="bg-green-100 text-green-800 rounded-full px-6 py-2 text-sm font-semibold mb-4">Chapitre 3 - Authentification & Autorisation</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent mb-6">Guards NestJS<br>JwtAuthGuard & RolesGuard</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl mx-auto">Protégez les routes de votre API e-commerce : authentification JWT et autorisation par rôles (admin, seller, customer).</p>
+                    <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🛡️ JwtAuthGuard</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">👥 RolesGuard</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🎯 @Roles() decorator</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🔐 Route protection</span>
+                    </div>
+                    <div class="mt-6 bg-green-50 p-4 rounded-xl border border-green-200 max-w-lg mx-auto">
+                        <p class="text-sm text-green-800"><span class="font-bold">🎯 Objectif :</span> Seul un utilisateur authentifié avec les bons rôles peut accéder à certaines ressources.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 1 : Objectifs
+            title: "Objectifs de la leçon",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl md:text-3xl font-bold text-green-800 border-l-8 border-green-500 pl-4 mb-6">🎯 Objectifs pédagogiques</h2>
+                    <ul class="space-y-5 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Comprendre le concept de <strong>Guard</strong> dans NestJS (authentification et autorisation)</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Implémenter <strong>JwtAuthGuard</strong> pour valider les tokens JWT</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Créer un <strong>RolesGuard</strong> personnalisé avec le décorateur <strong>@Roles()</strong></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Protéger les routes sensibles (admin, seller, customer) avec les guards</li>
+                    </ul>
+                    <div class="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200">
+                        <p class="text-green-800"><span class="font-bold">💡 Rappel :</span> Un Guard détermine si une requête doit être traitée ou non (canActivate). Il s'exécute avant le middleware et après les intercepteurs.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 2 : Qu'est-ce qu'un Guard NestJS ?
+            title: "1. Guard : Authentification et Autorisation",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">🛡️ Les Guards dans NestJS</h2>
+                    <p>Un guard est une classe décorée avec <span class="guard-tag">@Injectable()</span> qui implémente <span class="guard-tag">CanActivate</span>. Il a une seule méthode <span class="guard-tag">canActivate()</span> qui retourne un booléen :</p>
+                    <ul class="list-disc pl-6 mt-3 space-y-2">
+                        <li><strong>true</strong> → la requête est acceptée (le contrôleur est exécuté)</li>
+                        <li><strong>false</strong> → la requête est rejetée (généralement erreur 401 ou 403)</li>
+                    </ul>
+                    <div class="code-block my-5">
+                        <pre>// Exemple simplifié d'un guard
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    return request.headers.authorization === 'secret-token';
+  }
+}</pre>
+                    </div>
+                    <p>📌 Utilisation : <span class="guard-tag">@UseGuards(AuthGuard)</span> sur un contrôleur ou une méthode.</p>
+                </div>
+            `
+        },
+        { // Slide 3 : JwtAuthGuard (Passport)
+            title: "2. JwtAuthGuard avec Passport",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">🔐 JwtAuthGuard : validation du token</h2>
+                    <p>NestJS fournit une intégration avec Passport. On crée un guard qui étend <span class="guard-tag">AuthGuard('jwt')</span> :</p>
+                    <div class="code-block my-5">
+                        <pre>// jwt-auth.guard.ts
+import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext) {
+    // Appelle la stratégie JWT définie précédemment
+    return super.canActivate(context);
+  }
+
+  handleRequest(err, user, info) {
+    if (err || !user) {
+      throw err || new UnauthorizedException('Token invalide ou expiré');
+    }
+    return user;
+  }
+}</pre>
+                    </div>
+                    <p>✅ Ce guard vérifie automatiquement : signature JWT, expiration, et charge l'utilisateur dans <span class="font-mono">request.user</span>.</p>
+                </div>
+            `
+        },
+        { // Slide 4 : Utilisation du JwtAuthGuard
+            title: "3. Protéger les routes avec JwtAuthGuard",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">🔒 Application sur les contrôleurs</h2>
+                    <div class="code-block my-5">
+                        <pre>// orders.controller.ts
+import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+@Controller('orders')
+@UseGuards(JwtAuthGuard)  // Protection sur TOUTES les routes du contrôleur
+export class OrdersController {
+  
+  @Get()
+  getOrders(@Request() req) {
+    // req.user contient l'utilisateur extrait du token
+    return this.ordersService.findByUser(req.user.id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard) // Peut aussi être au niveau méthode
+  createOrder(@Request() req) {
+    return this.ordersService.create(req.user.id);
+  }
+}</pre>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-3">
+                        <p class="font-bold text-amber-800">⚠️ Important :</p>
+                        <p class="text-sm">Le header doit contenir : <span class="font-mono">Authorization: Bearer &lt;votre_token_jwt&gt;</span></p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 5 : RolesGuard (Autorisation par rôles)
+            title: "4. RolesGuard : autorisation basée sur les rôles",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">👥 Création du RolesGuard</h2>
+                    <div class="code-block my-5">
+                        <pre>// roles.guard.ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { ROLES_KEY } from './roles.decorator';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride&lt;string[]&gt;(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    
+    if (!requiredRoles) {
+      return true; // Pas de rôle requis → accès libre
+    }
+    
+    const { user } = context.switchToHttp().getRequest();
+    if (!user) return false;
+    
+    // Vérifie si l'utilisateur a au moins un des rôles requis
+    return requiredRoles.some(role => user.roles?.includes(role));
+  }
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 6 : Décorateur @Roles()
+            title: "5. Décorateur @Roles()",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">🏷️ Création du décorateur personnalisé</h2>
+                    <div class="code-block my-5">
+                        <pre>// roles.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);</pre>
+                    </div>
+                    <p>Utilisation du décorateur :</p>
+                    <div class="code-block my-3">
+                        <pre>// products.controller.ts
+@Controller('products')
+@UseGuards(JwtAuthGuard, RolesGuard)  // Double guard
+export class ProductsController {
+  
+  @Post()
+  @Roles('admin', 'seller')  // Seuls admin ou seller peuvent créer
+  createProduct() { ... }
+  
+  @Delete(':id')
+  @Roles('admin')  // Seul l'admin peut supprimer
+  deleteProduct() { ... }
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 7 : Schéma des Guards
+            title: "6. Schéma d'exécution des Guards",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">📊 Flux d'exécution</h2>
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                        <p class="font-mono text-sm leading-relaxed">
+                        1. Requête HTTP entrante<br>
+                        ↓<br>
+                        2. Middlewares globaux<br>
+                        ↓<br>
+                        3. <span class="font-bold text-green-700">Guards (canActivate)</span><br>
+                        &nbsp;&nbsp;&nbsp;├─ JwtAuthGuard : valide le token JWT<br>
+                        &nbsp;&nbsp;&nbsp;└─ RolesGuard : vérifie les rôles<br>
+                        ↓<br>
+                        4. Intercepteurs (avant)<br>
+                        ↓<br>
+                        5. Pipes (validation des DTO)<br>
+                        ↓<br>
+                        6. Contrôleur + Service (logique métier)<br>
+                        ↓<br>
+                        7. Intercepteurs (après)<br>
+                        ↓<br>
+                        8. Réponse HTTP<br>
+                        </p>
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p class="text-blue-800 text-sm">💡 Si un guard retourne false, la requête est bloquée et la réponse est une erreur (401 ou 403).</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 8 : Cas concret - Routes de l'API e-commerce
+            title: "7. Application à l'API e-commerce",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">🛒 Protection des routes selon les rôles</h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-xl">
+                            <thead class="bg-gray-100">
+                                <tr><th class="p-3 text-left">Route</th><th class="p-3 text-left">Méthode</th><th class="p-3 text-left">Roles requis</th><th class="p-3 text-left">Guard</th></tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr><td class="p-3 font-mono text-sm">/auth/register</td><td>POST</td><td>public</td><td>Aucun</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/auth/login</td><td>POST</td><td>public</td><td>Aucun</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/products</td><td>GET</td><td>public</td><td>Aucun (ou cache)</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/products</td><td>POST</td><td>admin, seller</td><td>JwtAuthGuard + RolesGuard</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/orders</td><td>GET</td><td>customer, admin</td><td>JwtAuthGuard + RolesGuard</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/admin/users</td><td>GET</td><td>admin</td><td>JwtAuthGuard + RolesGuard</td></tr>
+                                <tr><td class="p-3 font-mono text-sm">/cart</td><td>POST</td><td>customer</td><td>JwtAuthGuard</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 9 : Résumé et exercice
+            title: "Résumé & Exercice",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-green-700 mb-4">📌 Ce qu'il faut retenir</h2>
+                    <ul class="list-disc pl-6 space-y-3 text-gray-700 mb-6">
+                        <li><strong>Guard</strong> = vérifie si la requête peut atteindre le contrôleur</li>
+                        <li><strong>JwtAuthGuard</strong> : valide le token JWT et extrait l'utilisateur (<span class="font-mono">req.user</span>)</li>
+                        <li><strong>RolesGuard</strong> : vérifie que l'utilisateur a les rôles requis via <span class="font-mono">@Roles()</span></li>
+                        <li>On peut chaîner plusieurs guards : <span class="font-mono">@UseGuards(JwtAuthGuard, RolesGuard)</span></li>
+                        <li>Les guards s'appliquent au niveau global, contrôleur ou méthode</li>
+                    </ul>
+                    <div class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                        <p class="font-bold text-green-800">🧪 Exercice pratique :</p>
+                        <p>1. Créez un guard <span class="font-mono">OwnerGuard</span> qui vérifie que l'utilisateur connecté est le propriétaire de la ressource (ex: un utilisateur ne peut modifier que son propre profil).</p>
+                        <p>2. Ajoutez la vérification suivante : <span class="font-mono">req.user.id === req.params.id</span> (sauf pour admin).</p>
+                        <details class="mt-3"><summary class="cursor-pointer text-green-600 font-medium">🔍 Voir une solution</summary>
+                        <div class="code-block mt-2 text-xs">@Injectable()<br>export class OwnerGuard implements CanActivate {<br>  constructor(private reflector: Reflector) {}<br>  canActivate(context: ExecutionContext): boolean {<br>    const request = context.switchToHttp().getRequest();<br>    const user = request.user;<br>    const resourceId = request.params.id;<br>    if (user.roles.includes('admin')) return true;<br>    return user.id === parseInt(resourceId);<br>  }<br>}</div>
+                        </details>
+                    </div>
+                </div>
+            `
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        const html = `
+            <div class="slide-card overflow-hidden">
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-3 border-b border-green-200">
+                    <h3 class="font-semibold text-green-800">${slide.title}</h3>
+                </div>
+                <div>
+                    ${slide.content}
+                </div>
+            </div>
+        `;
+        $("#slides-wrapper").html(html);
+        $("#pageIndicator").text(`Slide ${index+1} / ${totalSlides}`);
+        const progressPercent = (index / (totalSlides - 1)) * 100;
+        $("#progress-fill").css("width", `${progressPercent}%`);
+        
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            alert("🎉 Félicitations ! Vous maîtrisez les guards d'authentification et d'autorisation dans NestJS.");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+        } else {
+            alert("Début de la leçon.");
+        }
+    }
+
+    renderSlide(0);
+    $("#nextBtn").on("click", nextSlide);
+    $("#prevBtn").on("click", prevSlide);
+    
+    $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+    });
+</script>
+</body>
+</html>

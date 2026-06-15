@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 19 : Maîtriser le Sprint, Estimation et Kanban | Génie Logiciel</title>
+    <!-- Tailwind CSS + CDN pour faciliter la lecture sur mobile -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules éventuelles (gardé pour compatibilité) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Polices & ajustements supplémentaires -->
+    <style>
+        /* transitions douces pour le défilement diapo */
+        .slide-transition {
+            transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+        }
+        /* Personnalisation scrollbar discrète */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        body {
+            background: #f8fafc;
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+        }
+        /* Pour que les slides aient une hauteur flexible */
+        .slide-container {
+            min-height: 70vh;
+        }
+        .card {
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+        }
+        .badge-scrum {
+            background: #0f172a;
+        }
+        button:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- enveloppe principale avec padding safe sur mobile -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+        
+        <!-- Navigation diapos + indicateur -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <div class="flex gap-3 items-center">
+                <button id="prevSlide" class="bg-white hover:bg-slate-100 text-slate-800 font-semibold py-2 px-5 rounded-full shadow-md transition-all duration-200 border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                    ← Précédent
+                </button>
+                <button id="nextSlide" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all duration-200">
+                    Suivant →
+                </button>
+            </div>
+            <div class="text-sm font-medium text-slate-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
+                Diapositive <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+            </div>
+        </div>
+
+        <!-- conteneur des slides (carousel simple avec jQuery) -->
+        <div id="slidesWrapper" class="relative overflow-hidden rounded-3xl shadow-xl">
+            <!-- les slides seront injectées dynamiquement via jQuery pour garder le contenu propre, mais on peut aussi définir en dur -->
+            <div id="slidesContainer" class="slide-transition"></div>
+        </div>
+
+        <!-- petit indicateur de progression / dots (mobile friendly) -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dotsContainer"></div>
+
+        <!-- pied de page informatif -->
+        <div class="text-center text-xs text-slate-500 mt-8 border-t pt-5 border-slate-200">
+            <span>📘 Matière: Initiation au Génie Logiciel | Classe: Développement Web | Leçon 19: Sprint, estimation & Kanban</span>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        // Données de la leçon 19 d'après le JSON d'origine 
+        // (objectifs: Maîtriser le Sprint (planification, daily, revue, rétrospective)
+        //  Estimer avec les points de story (planning poker)
+        //  Utiliser un tableau Kanban (To Do, In Progress, Done)
+        // Nous allons construire un cours complet, accessible, en slides.
+        // --------------------------------------------------------------
+        
+        // Définition des slides :
+        // Slide 0 : Titre + introduction
+        // Slide 1 : Objectifs pédagogiques (reprenant les 3 objectifs de la lesson19)
+        // Slide 2 : Le Sprint - cœur de Scrum (planification, daily, revue, rétro)
+        // Slide 3 : Estimation avec les Story Points et Planning Poker
+        // Slide 4 : Tableau Kanban (To Do, In Progress, Done) + principes
+        // Slide 5 : Petit récapitulatif / mise en pratique
+        // Total = 6 slides
+        const slidesData = [
+            {
+                type: "title",
+                title: "📌 Maîtriser le Sprint, l’estimation agile et Kanban",
+                subtitle: "Scrum en action · Points de story · Visualisation du flux",
+                icon: "🏃‍♂️🔥"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Maîtriser le Sprint (planification, daily scrum, revue, rétrospective)",
+                    "Estimer avec les points de story (planning poker)",
+                    "Utiliser un tableau Kanban (To Do, In Progress, Done)"
+                ]
+            },
+            {
+                type: "sprint",
+                title: "🏆 Le Sprint : moteur de Scrum",
+                content: [
+                    "Un Sprint est une itération de durée fixe (1 à 4 semaines) où une équipe crée un incrément de produit potentiellement livrable.",
+                    "🔹 Planification du Sprint : l’équipe sélectionne les éléments du Product Backlog et définit l’objectif du Sprint.",
+                    "🔹 Daily Scrum : réunion quotidienne de 15 min (3 questions : hier, aujourd’hui, obstacles).",
+                    "🔹 Revue de Sprint : démonstration du travail accompli aux parties prenantes.",
+                    "🔹 Rétrospective : moment d’amélioration continue (ce qui a bien fonctionné, axes d’amélioration)."
+                ],
+                schema: "Sprint : Planif → Daily (chaque jour) → Revue → Rétro → incrément"
+            },
+            {
+                type: "estimation",
+                title: "📊 Estimation agile : Story Points & Planning Poker",
+                content: [
+                    "Les Story Points mesurent l’effort relatif, la complexité et l’incertitude d’une tâche (pas des heures).",
+                    "✅ Échelles courantes : Fibonacci (1,2,3,5,8,13,21) ou T-shirt (XS, S, M, L, XL).",
+                    "🎲 Planning Poker : technique où chaque membre vote simultanément avec des cartes. Discussion jusqu’à consensus.",
+                    "💡 La vélocité de l’équipe (nombre de points réalisés par Sprint) permet de prévoir les prochains Sprints.",
+                    "✔️ Avantages : évite la sous-estimation, responsabilise l’équipe, améliore la précision."
+                ],
+                tip: "💡 Conseil : comparez toujours les stories avec une référence (ex: 'une story simple = 2 points')"
+            },
+            {
+                type: "kanban",
+                title: "📋 Tableau Kanban : visualiser le flux de travail",
+                content: [
+                    "Un tableau Kanban se compose de colonnes qui représentent les étapes du processus (ex: À faire, En cours, Test, Terminé).",
+                    "🎯 Colonnes de base : To Do (Backlog), In Progress, Done. On peut ajouter 'Review' ou 'Blocked'.",
+                    "📌 Limitation du Work In Progress (WIP) : empêche la surcharge et améliore le débit.",
+                    "🔄 Différence avec Scrum : Kanban est continu, pas de Sprints fixes. Mais combiner (Scrumban) est possible.",
+                    "✨ Outils : Trello, Jira (tableau Kanban), Asana, Notion. Même un tableau physique avec post-it !"
+                ],
+                visual: "To Do 🟡 | In Progress 🔵 | Done 🟢  (WIP: max 2 cartes par personne)"
+            },
+            {
+                type: "recap",
+                title: "✨ Récapitulons ✨",
+                summary: [
+                    "✔️ Sprint = container d’activités Scrum (planification → daily → revue → rétro).",
+                    "✔️ Story points = estimation relative, planning poker = méthode collaborative.",
+                    "✔️ Kanban = visualisation continue avec limites WIP pour fluidifier la livraison.",
+                    "✔️ Ces pratiques améliorent la prédictibilité, la transparence et la qualité.",
+                    "🎓 À retenir : L’agilité privilégie l’adaptation et l’humain. Entraînez-vous avec des ateliers!"
+                ],
+                cta: "Passez à l’action : simulez un planning poker ou créez un tableau Kanban pour un projet fictif."
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'une slide selon son type
+        function renderSlide(slide, idx) {
+            switch(slide.type) {
+                case "title":
+                    return `
+                        <div class="card bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-indigo-100">
+                            <div class="text-center">
+                                <div class="text-7xl mb-4">${slide.icon}</div>
+                                <h1 class="text-3xl md:text-5xl font-extrabold text-slate-800 tracking-tight">${slide.title}</h1>
+                                <p class="text-lg md:text-xl text-slate-600 mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                                <div class="mt-8 flex justify-center gap-2 text-sm text-indigo-700 font-medium bg-indigo-100/60 inline-flex px-5 py-2 rounded-full">
+                                    📍 Leçon 19 · Sprint · Estimation · Kanban
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                case "objectifs":
+                    return `
+                        <div class="card bg-white p-6 md:p-9 rounded-3xl shadow-md border-l-8 border-l-amber-500">
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2"><span class="text-3xl">📚</span> ${slide.title}</h2>
+                            <ul class="mt-6 space-y-4">
+                                ${slide.objectives.map(obj => `
+                                    <li class="flex items-start gap-3 text-gray-700 text-base md:text-lg">
+                                        <span class="text-emerald-600 text-xl">✓</span>
+                                        <span>${obj}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                            <div class="mt-6 p-3 bg-amber-50 rounded-xl text-amber-800 text-sm italic">
+                                ⭐ À la fin de cette leçon, vous serez capable d'animer un sprint et d'utiliser des outils agiles.
+                            </div>
+                        </div>
+                    `;
+                case "sprint":
+                    return `
+                        <div class="card bg-white p-6 md:p-9 rounded-3xl shadow-md">
+                            <h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-l-4 border-blue-500 pl-3 mb-5">${slide.title}</h2>
+                            <div class="space-y-4 text-gray-700">
+                                ${slide.content.map(para => `<p class="text-base md:text-lg leading-relaxed">${para}</p>`).join('')}
+                            </div>
+                            <div class="mt-6 bg-slate-100 p-4 rounded-xl font-mono text-sm text-slate-700 flex flex-wrap justify-between items-center">
+                                <span class="font-semibold">🔄 Cycle du Sprint :</span>
+                                <span class="bg-slate-800 text-white px-3 py-1 rounded-full text-xs">Planification</span> ➡️ 
+                                <span class="bg-slate-800 text-white px-3 py-1 rounded-full text-xs">Daily Scrum</span> ➡️ 
+                                <span class="bg-slate-800 text-white px-3 py-1 rounded-full text-xs">Revue</span> ➡️ 
+                                <span class="bg-slate-800 text-white px-3 py-1 rounded-full text-xs">Rétro</span>
+                            </div>
+                            <!-- mini dessin ascii / texte représentatif -->
+                            <div class="mt-4 text-center text-xs text-gray-500 border-t pt-3">Schéma simplifié : [ Sprint Backlog ] → Développement incrémental → Incrément livrable ✅</div>
+                        </div>
+                    `;
+                case "estimation":
+                    return `
+                        <div class="card bg-white p-6 md:p-9 rounded-3xl shadow-md">
+                            <h2 class="text-2xl md:text-3xl font-bold text-purple-800 border-l-4 border-purple-500 pl-3 mb-5">${slide.title}</h2>
+                            <div class="space-y-4">
+                                ${slide.content.map(para => `<p class="text-gray-700 text-base md:text-lg">${para}</p>`).join('')}
+                                <div class="bg-purple-50 p-4 rounded-2xl mt-2 flex flex-col md:flex-row gap-3 items-start">
+                                    <div class="text-3xl">🃏</div>
+                                    <div><span class="font-bold">🎲 Exemple de jeu Planning Poker :</span> Chaque développeur choisit une carte (1,2,3,5,8...). Si les votes diffèrent, on discute puis on revote.</div>
+                                </div>
+                                ${slide.tip ? `<div class="mt-3 bg-blue-50 p-3 rounded-lg text-blue-800">${slide.tip}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                case "kanban":
+                    return `
+                        <div class="card bg-white p-6 md:p-9 rounded-3xl shadow-md">
+                            <h2 class="text-2xl md:text-3xl font-bold text-teal-800 border-l-4 border-teal-500 pl-3 mb-5">${slide.title}</h2>
+                            <div class="space-y-4">
+                                ${slide.content.map(para => `<p class="text-gray-700 text-base md:text-lg">${para}</p>`).join('')}
+                                <div class="grid grid-cols-3 gap-2 mt-4 text-center font-semibold">
+                                    <div class="bg-amber-100 p-3 rounded-xl shadow-sm">📋 À FAIRE <span class="block text-sm font-normal">(Backlog)</span></div>
+                                    <div class="bg-sky-100 p-3 rounded-xl shadow-sm">⚙️ EN COURS <span class="block text-sm font-normal">WIP limité</span></div>
+                                    <div class="bg-emerald-100 p-3 rounded-xl shadow-sm">✅ TERMINÉ <span class="block text-sm font-normal">Done</span></div>
+                                </div>
+                                ${slide.visual ? `<div class="text-center text-sm text-gray-600 bg-gray-50 p-2 rounded-md">${slide.visual}</div>` : ''}
+                                <div class="flex justify-center mt-2">
+                                    <img src="" alt="représentation d un tableau kanban physique avec trois colonnes et post-it" class="hidden"> 
+                                    <!-- pas d'image chargée: description pour moteur recherche -->
+                                    <div class="text-xs text-gray-400 italic">💡 Dessinez votre propre tableau Kanban sur une feuille ou tableau blanc, c'est très efficace !</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                case "recap":
+                    return `
+                        <div class="card bg-gradient-to-tr from-green-50 to-emerald-50 p-6 md:p-9 rounded-3xl shadow-md">
+                            <h2 class="text-2xl md:text-3xl font-bold text-emerald-800 flex items-center gap-2">📌 ${slide.title}</h2>
+                            <ul class="mt-5 space-y-3">
+                                ${slide.summary.map(point => `<li class="flex gap-2 text-gray-800 text-base md:text-lg"><span class="text-green-600">✨</span> ${point}</li>`).join('')}
+                            </ul>
+                            <div class="mt-6 p-4 bg-white/70 rounded-xl border border-emerald-200">
+                                <p class="font-medium text-emerald-900">🚀 ${slide.cta}</p>
+                            </div>
+                            <div class="mt-5 text-center text-sm text-slate-500">🎓 Le génie logiciel agile, c'est une mentalité d'amélioration continue !</div>
+                        </div>
+                    `;
+                default:
+                    return `<div class="card bg-white p-6">Contenu</div>`;
+            }
+        }
+
+        // Mettre à jour l'affichage : reconstruire la slide active uniquement (mais on peut tout regénérer avec display flex)
+        // Pour garder le défilement intuitif, nous affichons une slide à la fois.
+        function updateSlideDisplay() {
+            const slide = slidesData[currentIndex];
+            const slideHtml = renderSlide(slide, currentIndex);
+            $('#slidesContainer').html(slideHtml);
+            $('#currentSlideIdx').text(currentIndex + 1);
+            $('#totalSlides').text(totalSlides);
+            
+            // gestion des boutons prev/next disabled
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+            
+            // Mettre à jour les dots
+            updateDots();
+            
+            // Scroll en haut de la slide (pour mobile)
+            $('html, body').animate({ scrollTop: $('#slidesWrapper').offset().top - 20 }, 100);
+        }
+        
+        function updateDots() {
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                const activeClass = (i === currentIndex) ? 'bg-blue-600 w-8' : 'bg-gray-300 w-3';
+                dotsHtml += `<button class="dot-btn h-2 rounded-full mx-1 transition-all duration-200 ${activeClass}" data-index="${i}"></button>`;
+            }
+            $('#dotsContainer').html(dotsHtml);
+            // événement click sur les points
+            $('.dot-btn').on('click', function() {
+                const idx = $(this).data('index');
+                if (idx !== undefined && idx !== currentIndex) {
+                    currentIndex = idx;
+                    updateSlideDisplay();
+                }
+            });
+        }
+        
+        // navigation clavier (gauche/droite)
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlideDisplay();
+                }
+            } else if (e.key === 'ArrowRight') {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlideDisplay();
+                }
+            }
+        });
+        
+        // gestionnaire clicks
+        $('#prevSlide').on('click', function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlideDisplay();
+            }
+        });
+        
+        $('#nextSlide').on('click', function() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlideDisplay();
+            }
+        });
+        
+        // Initialisation: générer l'affichage de la première slide
+        $(document).ready(function() {
+            totalSlides = slidesData.length;
+            updateSlideDisplay();
+            
+            // ajout d'un petit effet de swipe (optionnel pour mobile basique)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('#slidesWrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesWrapper').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                const delta = touchEndX - touchStartX;
+                if (Math.abs(delta) > 70) {
+                    if (delta > 0 && currentIndex > 0) {
+                        currentIndex--;
+                        updateSlideDisplay();
+                    } else if (delta < 0 && currentIndex < totalSlides - 1) {
+                        currentIndex++;
+                        updateSlideDisplay();
+                    }
+                }
+            });
+        });
+    </script>
+    <!-- petite optimisation pour garantir que les formules mathématiques n'apparaissent pas, mais MathJax est prêt si besoin -->
+</body>
+</html>

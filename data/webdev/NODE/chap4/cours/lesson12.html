@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 12 : Routes paramétrées, Query String et Router() | Node.js Express</title>
+    <!-- Tailwind CSS via CDN + base styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, discret) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police & ajustements -->
+    <style>
+        /* Animation douce slides */
+        .slide {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Scroll personnalisé discret */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        .card-slide {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(0px);
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+        /* meilleur touch */
+        button, .nav-btn {
+            cursor: pointer;
+            user-select: none;
+        }
+        @media (max-width: 640px) {
+            .card-slide {
+                border-radius: 1.5rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .progress-bar {
+            transition: width 0.2s ease;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased p-4 md:p-6 min-h-screen flex flex-col justify-center items-center">
+
+    <div class="max-w-4xl w-full mx-auto">
+        <!-- Header indicateur slide / progression -->
+        <div class="flex justify-between items-center mb-4 text-sm text-gray-600 bg-white/60 rounded-full px-4 py-2 backdrop-blur-sm">
+            <div class="font-medium">📘 Backend Node.js - Express</div>
+            <div class="flex gap-3">
+                <span id="slideCounter" class="bg-indigo-100 px-3 py-1 rounded-full">Slide 1 / <span id="totalSlides">0</span></span>
+            </div>
+        </div>
+
+        <!-- Conteneur principal des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery pour gérer les IDs -->
+        </div>
+
+        <!-- Navigation buttons + progress -->
+        <div class="mt-8 flex justify-between items-center gap-3">
+            <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2.5 px-5 rounded-2xl shadow-sm transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                ← Précédent
+            </button>
+            <div class="flex-1 max-w-md mx-2 bg-gray-200 rounded-full h-2.5">
+                <div id="progressFill" class="progress-bar bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-2xl shadow-md transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                Suivant →
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Données de la leçon 12: "Créer des routes paramétrées, récupérer les query strings, utiliser express.Router()"
+        // Construction du contenu pédagogique en slides
+        const slidesData = [
+            {
+                type: "title",
+                title: "📌 Leçon 12 : Routes avancées avec Express",
+                subtitle: "Paramètres dynamiques, query strings et organisation avec Router()",
+                emoji: "🎯"
+            },
+            {
+                type: "objectifs",
+                title: "🎓 Objectifs de la leçon",
+                points: [
+                    "Créer des routes paramétrées avec `req.params` pour capturer des valeurs dynamiques (ex: /utilisateurs/:id)",
+                    "Récupérer et exploiter les paramètres de requête (query string) avec `req.query` (ex: ?page=2&filtre=nom)",
+                    "Organiser et modulariser les routes Express grâce à `express.Router()` pour une architecture propre"
+                ]
+            },
+            {
+                type: "content",
+                title: "1️⃣ Routes paramétrées (req.params)",
+                explanation: "Les routes paramétrées permettent de capturer des segments dynamiques dans l'URL. Exemple: `/produits/:id` → la valeur de `:id` sera accessible via `req.params.id`.",
+                code: `// Exemple basique
+app.get('/utilisateur/:userId', (req, res) => {
+  const userId = req.params.userId;
+  res.send(\`Profil de l'utilisateur n° \${userId}\`);
+});
+
+// Plusieurs paramètres : /categorie/:catId/produit/:prodId
+app.get('/categorie/:catId/produit/:prodId', (req, res) => {
+  const { catId, prodId } = req.params;
+  res.json({ categorie: catId, produit: prodId });
+});`,
+                note: "Les noms des paramètres doivent être significatifs. Les valeurs sont toujours des chaînes (string)."
+            },
+            {
+                type: "content",
+                title: "2️⃣ Query strings (req.query)",
+                explanation: "Les paramètres après `?` dans l'URL sont appelés query strings. Express les parse automatiquement dans `req.query`. Exemple: `/recherche?q=node&page=2`",
+                code: `// Récupération des query params
+app.get('/recherche', (req, res) => {
+  const { q, page, limit } = req.query;
+  // q = "node", page = "2", limit = undefined si absent
+  res.send(\`Recherche : \${q}, page \${page || 1}\`);
+});
+
+// Exemple concret avec filtres
+app.get('/articles', (req, res) => {
+  const { auteur, dateDebut, tri } = req.query;
+  // Construction de la logique de filtre
+  res.json({ filtre: { auteur, dateDebut, tri } });
+});`,
+                note: "Toutes les valeurs des query strings sont des chaînes. Pensez à convertir les nombres avec `parseInt()` ou `Number()` si besoin."
+            },
+            {
+                type: "content",
+                title: "3️⃣ express.Router() : modulariser les routes",
+                explanation: "`express.Router()` crée un mini-routeur isolé. Idéal pour organiser les endpoints par ressource (utilisateurs, produits, commandes) et améliorer la maintenabilité.",
+                code: `// users.js (fichier routeur)
+const express = require('express');
+const router = express.Router();
+
+// Route paramétrée
+router.get('/:id', (req, res) => {
+  res.send(\"Utilisateur ID : \${req.params.id}\");
+});
+
+router.get('/', (req, res) => {
+  res.send(\"Liste des utilisateurs\");
+});
+
+module.exports = router;
+
+// app.js principal
+const userRoutes = require('./routes/users');
+app.use('/api/users', userRoutes);
+// Les routes deviennent : GET /api/users/5 , GET /api/users`,
+                note: "Avec Router(), vous pouvez appliquer des middleware spécifiques à un groupe de routes. Code plus propre et réutilisable !"
+            },
+            {
+                type: "content",
+                title: "4️⃣ Exemple combiné : Router + params + query",
+                explanation: "Imaginons une API de produits avec pagination et filtres, organisée avec un routeur dédié. Fusion des concepts.",
+                code: `// routes/produits.js
+const router = require('express').Router();
+
+// GET /api/produits?categorie=telephone&prixMax=500
+router.get('/', (req, res) => {
+  const { categorie, prixMax, page = 1 } = req.query;
+  res.json({ 
+    message: "Liste produits",
+    filtres: { categorie, prixMax, page: Number(page) }
+  });
+});
+
+// Route avec paramètre : /api/produits/:ref
+router.get('/:reference', (req, res) => {
+  const { reference } = req.params;
+  res.send(\`Détail produit : \${reference}\`);
+});
+
+module.exports = router;
+
+// Dans app.js
+app.use('/api/produits', require('./routes/produits'));`,
+                note: "Grâce à cette organisation, votre fichier principal reste léger et chaque ressource a sa logique."
+            },
+            {
+                type: "recap",
+                title: "📝 Récapitulatif & Bonnes pratiques",
+                points: [
+                    "✅ `req.params` : extrait les segments dynamiques d'URL (ex: /user/:id).",
+                    "✅ `req.query` : extrait les paramètres après '?' (filtres, pagination).",
+                    "✅ `express.Router()` : découpe l'application en modules indépendants.",
+                    "💡 Toujours valider les paramètres et query strings avant utilisation (ex: présence, type).",
+                    "💡 Pour des API REST, utilisez les paramètres pour identifier une ressource, et les query strings pour la filtration/ pagination."
+                ]
+            },
+            {
+                type: "exercice",
+                title: "🧪 Petit exercice pratique",
+                instructions: "À vous de jouer ! Écrivez un routeur 'commandes' avec les fonctionnalités suivantes :",
+                tasks: [
+                    "1. Route GET `/commandes` qui accepte un query `statut` (ex: 'livrée', 'en_cours') et retourne un message filtré.",
+                    "2. Route GET `/commandes/:commandeId` qui affiche les détails de la commande via le paramètre d'URL.",
+                    "3. Utiliser express.Router() et monter le routeur sur `/api/commandes`.",
+                    "4. (Bonus) Gérer aussi le query `page` pour simuler une pagination."
+                ],
+                correctionHint: "💡 Astuce: dans votre routeur, accédez à `req.params.commandeId` et `req.query.statut`. N'oubliez pas d'exporter le router. Bon courage !"
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            switch(slide.type) {
+                case "title":
+                    return `
+                        <div class="card-slide bg-white rounded-3xl p-6 md:p-10 text-center border border-indigo-100 slide" data-index="${idx}">
+                            <div class="text-6xl mb-4">${slide.emoji}</div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">${slide.title}</h1>
+                            <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                            <div class="mt-8 flex justify-center">
+                                <div class="inline-flex items-center gap-2 bg-indigo-50 px-5 py-2 rounded-full text-indigo-800 text-sm font-medium">
+                                    <span>Node.js • Express</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                case "objectifs":
+                    return `
+                        <div class="card-slide bg-white rounded-3xl p-6 md:p-8 slide" data-index="${idx}">
+                            <div class="flex items-center gap-3 border-b border-indigo-200 pb-3 mb-5">
+                                <span class="text-3xl">🎯</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-indigo-800">${slide.title}</h2>
+                            </div>
+                            <ul class="space-y-4 mt-4">
+                                ${slide.points.map(p => `<li class="flex items-start gap-3 text-gray-700 text-base md:text-lg"><span class="text-indigo-500 text-xl">✓</span> ${p}</li>`).join('')}
+                            </ul>
+                            <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-700 text-sm italic">
+                                💡 À la fin de cette leçon, vous saurez construire des routes dynamiques et organiser votre projet professionnellement.
+                            </div>
+                        </div>
+                    `;
+                case "content":
+                    return `
+                        <div class="card-slide bg-white rounded-3xl p-6 md:p-8 slide" data-index="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+                            <p class="text-gray-700 mb-5 leading-relaxed">${slide.explanation}</p>
+                            <div class="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto font-mono text-sm md:text-base">
+                                <pre class="whitespace-pre-wrap break-words">${escapeHtml(slide.code)}</pre>
+                            </div>
+                            ${slide.note ? `<div class="mt-5 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-yellow-800 text-sm">📌 Note : ${slide.note}</div>` : ''}
+                        </div>
+                    `;
+                case "recap":
+                    return `
+                        <div class="card-slide bg-white rounded-3xl p-6 md:p-8 slide" data-index="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-emerald-700 border-b border-emerald-200 pb-2 mb-5 flex items-center gap-2">📌 ${slide.title}</h2>
+                            <ul class="space-y-3">
+                                ${slide.points.map(p => `<li class="flex gap-2 text-gray-700"><span class="text-emerald-600">✔️</span> ${p}</li>`).join('')}
+                            </ul>
+                            <div class="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl text-center text-indigo-800 text-sm">
+                                🔁 Ces concepts sont essentiels pour toute API REST moderne.
+                            </div>
+                        </div>
+                    `;
+                case "exercice":
+                    return `
+                        <div class="card-slide bg-white rounded-3xl p-6 md:p-8 slide" data-index="${idx}">
+                            <h2 class="text-2xl md:text-3xl font-bold text-amber-700 flex items-center gap-2 mb-4">🧩 ${slide.title}</h2>
+                            <p class="text-gray-700 mb-4">${slide.instructions}</p>
+                            <ul class="list-decimal list-inside space-y-2 text-gray-700 bg-gray-50 p-4 rounded-xl">
+                                ${slide.tasks.map(t => `<li class="marker:text-indigo-500">${t}</li>`).join('')}
+                            </ul>
+                            <div class="mt-5 p-3 bg-indigo-100/50 border border-indigo-200 rounded-lg text-indigo-800 text-sm">
+                                💬 ${slide.correctionHint}
+                            </div>
+                            <div class="mt-6 text-center text-gray-500 text-xs">N'hésitez pas à tester vos routes avec Postman ou directement avec le navigateur !</div>
+                        </div>
+                    `;
+                default:
+                    return `<div>Erreur contenu</div>`;
+            }
+        }
+
+        // Helper pour échapper HTML dans les blocs de code
+        function escapeHtml(str) {
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Remplir le container des slides
+        function buildSlides() {
+            const container = $('#slidesContainer');
+            container.empty();
+            slidesData.forEach((slide, i) => {
+                const html = renderSlide(slide, i);
+                const $slide = $(html);
+                $slide.addClass('slide-hidden');
+                if(i === 0) $slide.removeClass('slide-hidden').addClass('slide-visible');
+                container.append($slide);
+            });
+            $('#totalSlides').text(totalSlides);
+            updateNavAndProgress();
+        }
+
+        // Afficher le slide courant
+        function showSlide(index) {
+            const slides = $('.slide');
+            if(index < 0) index = 0;
+            if(index >= totalSlides) index = totalSlides - 1;
+            slides.each(function(i) {
+                const $this = $(this);
+                if(i === index) {
+                    $this.removeClass('slide-hidden').addClass('slide-visible');
+                } else {
+                    $this.removeClass('slide-visible').addClass('slide-hidden');
+                }
+            });
+            currentIndex = index;
+            updateNavAndProgress();
+            // Scroll en haut de la slide (optionnel pour mobile)
+            $('html, body').animate({ scrollTop: $('#slidesContainer').offset().top - 20 }, 100);
+        }
+
+        function updateNavAndProgress() {
+            $('#slideCounter').html(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === totalSlides-1);
+        }
+
+        // Événements de navigation
+        $(document).ready(function() {
+            buildSlides();
+
+            $('#prevSlide').on('click', function() {
+                if(currentIndex > 0) {
+                    showSlide(currentIndex - 1);
+                }
+            });
+            $('#nextSlide').on('click', function() {
+                if(currentIndex < totalSlides - 1) {
+                    showSlide(currentIndex + 1);
+                }
+            });
+
+            // Navigation au clavier (flèches gauche/droite)
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowLeft') {
+                    $('#prevSlide').click();
+                } else if(e.key === 'ArrowRight') {
+                    $('#nextSlide').click();
+                }
+            });
+
+            // Swipe simplifié pour mobile (touch)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('body').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('body').on('touchend', function(e) {
+                touchEndX = e.changedTouches[0].clientX;
+                const diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 60) {
+                    if (diff > 0 && currentIndex > 0) {
+                        showSlide(currentIndex - 1);
+                    } else if (diff < 0 && currentIndex < totalSlides - 1) {
+                        showSlide(currentIndex + 1);
+                    }
+                }
+            });
+        });
+    </script>
+    <!-- Petite amélioration: adaptation responsive supplémentaire -->
+    <div class="text-center text-xs text-gray-400 mt-8 max-w-4xl mx-auto">
+        © Cours Node.js – Enseignant Cameroun | Leçon 12 : Routes paramétrées, Query & Router
+    </div>
+</body>
+</html>

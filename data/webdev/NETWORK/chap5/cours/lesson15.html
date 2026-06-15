@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 15 : DNS - Le système de noms de domaine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt pour formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f0f4f8;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide-content {
+            flex: 1;
+            padding: 2rem 1.8rem;
+        }
+        .nav-btn {
+            cursor: pointer;
+            background: #0f172a;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            transform: scale(0.97);
+        }
+        .dot-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .dot-indicator.active {
+            background-color: #0f172a;
+            width: 24px;
+            border-radius: 12px;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 8px;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem 1rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        .list-check {
+            list-style: none;
+            padding-left: 0;
+        }
+        .list-check li::before {
+            content: "🌐 ";
+            margin-right: 0.5rem;
+        }
+        .dns-tree {
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            border-radius: 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <div id="slidesWrapper" class="relative"></div>
+
+    <!-- Navigation et indicateurs -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevSlide" class="nav-btn px-5 py-2 text-sm md:text-base">← Précédent</button>
+        <div id="dotsContainer" class="flex gap-2 justify-center flex-wrap my-2"></div>
+        <button id="nextSlide" class="nav-btn px-5 py-2 text-sm md:text-base">Suivant →</button>
+    </div>
+</div>
+
+<script>
+    // Slides pour la leçon 15 : DNS
+    const slidesData = [
+        {
+            type: "title",
+            title: "🌐 DNS : Le système de noms de domaine",
+            subtitle: "Résolution nom → IP · Structure hiérarchique · Enregistrements",
+            emoji: "🗺️🔍"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Comprendre le rôle du DNS (résolution nom ↔ IP)",
+                "Connaître la structure hiérarchique : TLD, domaine, sous-domaine",
+                "Découvrir les types d'enregistrements (A, AAAA, CNAME, MX, TXT, NS)"
+            ]
+        },
+        {
+            type: "content",
+            title: "🧠 Pourquoi avons-nous besoin du DNS ?",
+            content: `<p>Les humains retiennent facilement des noms comme <strong>google.com</strong> ou <strong>cameroon-tribune.cm</strong>. Mais les ordinateurs communiquent avec des adresses IP (ex: 172.217.169.46).</p>
+            <div class="bg-indigo-50 p-4 rounded-xl mt-3">
+                <p class="font-bold">📌 DNS = Domain Name System</p>
+                <p>Il agit comme un <strong>annuaire téléphonique</strong> d'Internet : il traduit les noms de domaine en adresses IP et vice-versa.</p>
+            </div>
+            <p class="mt-3">Sans DNS, nous devrions mémoriser des séries de chiffres pour chaque site web ! Le DNS fonctionne avec des serveurs répartis dans le monde entier.</p>`
+        },
+        {
+            type: "content",
+            title: "🏛️ La structure hiérarchique du DNS",
+            content: `<p>Le nom de domaine est hiérarchique, de la droite vers la gauche :</p>
+            <div class="dns-tree font-mono text-sm md:text-base">
+                <div>🌍 <strong>Racine (.)</strong> (non affichée souvent)</div>
+                <div class="ml-4">📁 <strong>TLD</strong> (Top Level Domain) : .com, .org, .cm, .fr, .net</div>
+                <div class="ml-8">🏢 <strong>Domaine de second niveau</strong> : exemple → google.com, univ-yaounde.cm</div>
+                <div class="ml-12">📄 <strong>Sous-domaine</strong> : mail.google.com, www.univ-yaounde.cm</div>
+            </div>
+            <p class="mt-3">Exemple complet : <code>www.cameroon-tribune.cm</code> → .cm (TLD national), cameroon-tribune (nom de domaine), www (sous-domaine).</p>`
+        },
+        {
+            type: "content",
+            title: "🔎 Types d'enregistrements DNS (Records)",
+            content: `<ul class="list-check space-y-2">
+                <li><strong>A (Address)</strong> : Associe un nom de domaine à une <span class="highlight">IPv4</span> (ex: google.com → 142.250.185.46)</li>
+                <li><strong>AAAA</strong> : Associe un nom à une <span class="highlight">IPv6</span> (adresse 128 bits)</li>
+                <li><strong>CNAME (Canonical Name)</strong> : Alias d'un autre nom (ex: www.example.com → example.com)</li>
+                <li><strong>MX (Mail Exchange)</strong> : Indique le serveur de messagerie pour le domaine (ex: mail.google.com)</li>
+                <li><strong>TXT</strong> : Texte libre (vérifications de propriété, SPF anti-spam)</li>
+                <li><strong>NS (Name Server)</strong> : Délègue un sous-domaine à un serveur DNS spécifique</li>
+            </ul>`
+        },
+        {
+            type: "content",
+            title: "⚙️ Comment fonctionne la résolution DNS ?",
+            content: `<p>Étapes typiques quand vous tapez <code>www.cm</code> :</p>
+            <ol class="list-decimal pl-5 space-y-1 mt-2">
+                <li>Le navigateur vérifie son <strong>cache DNS</strong> local.</li>
+                <li>Il interroge le <strong>résolveur DNS</strong> du FAI (ou routeur).</li>
+                <li>Le résolveur contacte un <strong>serveur racine</strong> pour connaître le serveur TLD (.cm).</li>
+                <li>Le serveur TLD indique le serveur DNS <strong>autorisé</strong> pour le domaine cm.</li>
+                <li>Le serveur autorisé renvoie l’adresse IP (enregistrement A).</li>
+                <li>Le résolveur met en cache et transmet l’IP au navigateur.</li>
+            </ol>
+            <div class="bg-green-50 p-3 rounded-lg mt-3">💡 Ce processus s’appelle <strong>résolution récursive</strong>. Le cache accélère les requêtes ultérieures.</div>`
+        },
+        {
+            type: "content",
+            title: "📡 Serveurs DNS racine et TLD",
+            content: `<p>Il existe <strong>13 ensembles de serveurs racine</strong> (lettres A à M) répartis dans le monde. Ils ne stockent pas tous les noms, mais ils orientent vers les serveurs TLD.</p>
+            <p>Les TLD sont gérés par l'<strong>IANA</strong> (ICANN). Exemples :</p>
+            <ul class="list-disc pl-5 mt-2">
+                <li>TLD génériques : .com, .org, .net, .edu, .gov</li>
+                <li>TLD nationaux (ccTLD) : .cm (Cameroun), .fr (France), .ng (Nigéria), .sn (Sénégal)</li>
+                <li>Nouveaux TLD : .tech, .africa, .club</li>
+            </ul>
+            <p class="mt-2">Le Cameroun possède son propre registre ANTIC pour les noms en .cm.</p>`
+        },
+        {
+            type: "content",
+            title: "🧪 Exemples d'enregistrements (zone file)",
+            content: `<pre><code>; Enregistrements pour example.com
+example.com.    IN  A      93.184.216.34
+www.example.com. IN CNAME  example.com.
+example.com.    IN  MX 10  mail.example.com.
+mail.example.com. IN A     93.184.216.35
+example.com.    IN  TXT    "v=spf1 include:_spf.google.com ~all"
+example.com.    IN  NS     ns1.registrar.com.</code></pre>
+            <p><strong>Explication</strong> : A pour IPv4, CNAME alias, MX pour le serveur mail, TXT pour SPF, NS pour serveur autorisé.</p>`
+        },
+        {
+            type: "content",
+            title: "🔨 Commandes pratiques (nslookup, dig)",
+            content: `<p>Pour interroger le DNS depuis votre terminal :</p>
+            <pre><code>nslookup google.cm
+dig google.com A
+dig -x 8.8.8.8   # résolution inverse IP → nom</code></pre>
+            <p><span class="highlight">nslookup</span> (Windows/Linux) donne rapidement l'adresse IP. <span class="highlight">dig</span> (Linux/Mac) affiche plus de détails (TTL, serveurs autoritaires).</p>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-2">💡 TTL (Time To Live) : durée de mise en cache d'un enregistrement DNS en secondes.</div>`
+        },
+        {
+            type: "content",
+            title: "✅ Bonnes pratiques et sécurité DNS",
+            content: `<ul class="list-disc pl-5 space-y-1">
+                <li>Utiliser des TTL raisonnables (300-3600s pour les modifications fréquentes).</li>
+                <li>Protéger les serveurs DNS contre les attaques DDoS (cache poisoning, amplification).</li>
+                <li><strong>DNSSEC</strong> : extension pour authentifier les réponses DNS (signature cryptographique).</li>
+                <li>Ne pas exposer des enregistrements internes (split-horizon DNS).</li>
+                <li>Vérifier les enregistrements MX et TXT (SPF, DKIM, DMARC) pour les emails.</li>
+            </ul>
+            <p class="mt-3">Pour tester la propagation DNS après un changement, utilisez <code>whatsmydns.net</code> ou <code>dnschecker.org</code>.</p>`
+        },
+        {
+            type: "end",
+            title: "🏁 Félicitations !",
+            message: "Vous maîtrisez maintenant le DNS : un pilier essentiel d'Internet.",
+            nextAction: "Pratiquez avec nslookup et dig, explorez les enregistrements de votre domaine préféré."
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(index) {
+        const data = slidesData[index];
+        let html = '';
+        if (data.type === 'title') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[55vh]">
+                        <div class="text-7xl mb-4">${data.emoji}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-800 to-indigo-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${data.subtitle}</p>
+                        <div class="mt-6 text-sm text-gray-400">DNS · noms de domaine · enregistrements</div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (data.type === 'objectifs') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-4 border-indigo-400 pb-2 inline-block">${data.title}</h2>
+                        <ul class="mt-6 space-y-3">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 text-lg"><span class="text-indigo-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 p-4 bg-indigo-50 rounded-2xl">
+                            <p class="text-indigo-800">À la fin, vous saurez comment Internet traduit les noms en adresses IP.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'content') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'end') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[50vh]">
+                        <div class="text-5xl mb-4">🏆</div>
+                        <h2 class="text-3xl font-bold text-slate-800">${data.title}</h2>
+                        <p class="text-xl text-gray-600 mt-3">${data.message}</p>
+                        <p class="mt-6 italic text-gray-500">✨ ${data.nextAction}</p>
+                        <div class="mt-6 text-sm bg-slate-100 px-4 py-2 rounded-full">DNS maîtrisé ✅</div>
+                    </div>
+                </div>
+            `;
+        }
+        $('#slidesWrapper').html(html);
+        updateDots(index);
+        if (window.MathJax) MathJax.typesetPromise();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateDots(activeIndex) {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const activeClass = i === activeIndex ? 'active' : '';
+            dotsHtml += `<div class="dot-indicator ${activeClass}" data-index="${i}"></div>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('.dot-indicator').on('click', function() {
+            const idx = parseInt($(this).data('index'));
+            if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                currentSlide = idx;
+                renderSlide(currentSlide);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            if(currentSlide === totalSlides-1){
+                $('#nextSlide').text('✔ Terminé');
+                setTimeout(()=>$('#nextSlide').text('Suivant →'), 1000);
+            }
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+            $('#nextSlide').text('Suivant →');
+        }
+    }
+
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        $(document).on('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        let touchStartX = 0, touchEndX = 0;
+        const wrapper = document.getElementById('slidesWrapper');
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextSlide();
+            if (touchEndX > touchStartX + 50) prevSlide();
+        });
+    });
+</script>
+<footer class="text-center text-xs text-gray-400 border-t border-gray-200 mt-8 py-5">
+    <p>📡 Cours Réseaux — Leçon 15 : DNS (Domain Name System) | Enseignant Cameroun 🇨🇲 | Annuaire d'Internet</p>
+</footer>
+</body>
+</html>

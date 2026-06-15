@@ -1,0 +1,70 @@
+[
+  {
+    "intitule": "Analyser la stratégie de tests end-to-end avec Detox",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une équipe de développement mobile, on souhaite automatiser les tests de l'application e-commerce avant chaque mise en production. Le workflow actuel : les développeurs testent manuellement sur leurs propres appareils. On introduit Detox pour les tests end-to-end (E2E). L'application utilise React Navigation, des appels API REST, et AsyncStorage pour le panier hors ligne.</p>",
+      "images": [
+        "Schéma d'intégration continue avec un pipeline affichant les étapes : build, lancement simulateur, execution tests Detox, rapport"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer en quoi Detox diffère d'une librairie comme React Native Testing Library (tests unitaires/composants).",
+        "niveau": "medium",
+        "reponse": "React Native Testing Library teste des composants isolés en simulant le rendu React, sans véritable appareil ni interaction native. Detox exécute les tests sur un vrai simulateur/émulateur (ou appareil physique) et interagit avec l'application comme un utilisateur réel (tap, swipe, saisie). Detox teste le flux complet (navigation, API, stockage) là où RNTL teste des unités logiques.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire les trois phases principales d'un test Detox typique pour le scénario 'Connexion → ajout produit au panier'.",
+        "niveau": "medium",
+        "reponse": "1. Lancement de l'application (await device.launchApp({ permissions: { notifications: 'YES' } })). 2. Interaction : taper sur le champ email, saisir, taper sur le champ mot de passe, cliquer sur 'Se connecter'. 3. Assertion : vérifier que l'écran d'accueil apparaît (expect(element(by.id('home-screen'))).toBeVisible()), puis naviguer vers un produit, cliquer sur 'Ajouter au panier', et vérifier que le badge du panier affiche '1'.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une solution pour tester un scénario de panier hors ligne avec Detox (désactivation réseau en cours de test).",
+        "niveau": "hard",
+        "reponse": "Detox ne permet pas de couper le réseau directement, mais on peut : 1) Utiliser des outils comme `detox` + `react-native-netinfo` mock, ou 2) Lancer le simulateur avec une configuration spécifique (iOS : `device.setURLBlacklist([\".*\"])` pour bloquer les requêtes, ou utiliser un proxy). 3) Désactiver les données réseau via des commandes shell avant le test : `adb shell svc data disable` pour Android ou `networksetup` sur iOS simulator. On peut aussi mocker les réponses API via un serveur local arrêté.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter un test end-to-end du processus d'achat avec Detox",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez écrire un test Detox complet pour valider le flux d'achat :<br>1. Connexion avec email et mot de passe.<br>2. Recherche d'un produit 'Chaise ergonomique'.<br>3. Ajout au panier.<br>4. Validation du panier et déconnexion.<br>L'application utilise des identifiants de test (test@example.com / password123).</p>",
+      "images": [
+        "Capture d'écran d'une suite de tests Detox dans une console avec résultats verts/rouges"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir l'initialisation du fichier de configuration Detox (`.detoxrc.js`) pour exécuter les tests sur iOS (simulateur iPhone 14) et Android (emulator Pixel 4).",
+        "niveau": "medium",
+        "reponse": "module.exports = {\n  testRunner: 'jest',\n  runnerConfig: 'e2e/config.json',\n  apps: {\n    'ios.debug': { type: 'ios.app', binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/YourApp.app', build: 'xcodebuild ...' },\n    'android.debug': { type: 'android.apk', binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk', build: 'cd android && ./gradlew assembleDebug assembleAndroidTest' }\n  },\n  devices: {\n    simulator: { type: 'ios.simulator', device: { type: 'iPhone 14' } },\n    emulator: { type: 'android.emulator', device: { avdName: 'Pixel_4_API_30' } }\n  },\n  configurations: {\n    'ios.sim': { device: 'simulator', app: 'ios.debug' },\n    'android.emu': { device: 'emulator', app: 'android.debug' }\n  }\n};",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire le test Detox (JavaScript avec Jest) pour le scénario complet : connexion, recherche, ajout panier, validation, déconnexion. Inclure des assertions sur les éléments clés.",
+        "niveau": "very hard",
+        "reponse": "describe('Achat complet', () => {\n  beforeEach(async () => { await device.reloadReactNative(); });\n  it('doit connecter, ajouter un produit et valider la commande', async () => {\n    await expect(element(by.id('email-input'))).toBeVisible();\n    await element(by.id('email-input')).typeText('test@example.com');\n    await element(by.id('password-input')).typeText('password123');\n    await element(by.id('login-btn')).tap();\n    await expect(element(by.id('home-screen'))).toBeVisible();\n    await element(by.id('search-input')).typeText('Chaise ergonomique');\n    await element(by.id('search-btn')).tap();\n    await expect(element(by.text('Chaise ergonomique'))).toBeVisible();\n    await element(by.id('add-to-cart-btn')).tap();\n    await expect(element(by.id('cart-badge')).withDescendant(by.text('1'))).toBeVisible();\n    await element(by.id('cart-tab')).tap();\n    await expect(element(by.id('checkout-btn'))).toBeVisible();\n    await element(by.id('checkout-btn')).tap();\n    await expect(element(by.id('order-confirmation'))).toBeVisible();\n    await element(by.id('logout-btn')).tap();\n    await expect(element(by.id('login-screen'))).toBeVisible();\n  });\n});",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier l'utilisation des attributs `testID` (React Native) ou `accessibilityLabel` pour identifier les éléments dans les tests Detox plutôt que des sélecteurs textuels.",
+        "niveau": "easy",
+        "reponse": "Les attributs `testID` sont stables et ne changent pas avec les traductions ou les variations d'affichage. Les sélecteurs textuels peuvent échouer si le texte est modifié (ex: 'Se connecter' devient 'Connexion'). De plus, `testID` évite les ambiguïtés lorsque plusieurs éléments partagent le même texte. Detox recommande d'utiliser `by.id()` avec des identifiants uniques.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

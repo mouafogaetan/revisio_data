@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Cours Node.js - Leçon 3 : Système de Modules (CommonJS vs ES Modules)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour d'éventuelles formules, bien que peu nécessaires ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation légère pour améliorer la lisibilité sur petits écrans -->
+    <style>
+        /* transition fluide entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* Pour que les slides aient un minimum de hauteur et soient bien centrés */
+        .slide-container {
+            min-height: 70vh;
+        }
+        /* Override tailwind pour les listes */
+        .prose-custom ul, .prose-custom ol {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .prose-custom li {
+            margin-bottom: 0.25rem;
+        }
+        /* personnalisation des boutons */
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* adaptateur pour très petits écrans */
+        @media (max-width: 480px) {
+            .slide-container {
+                min-height: 65vh;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-4 md:py-8">
+        <!-- Carte principale qui contient les slides -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            
+            <!-- Header avec info leçon + progression -->
+            <div class="bg-indigo-700 px-5 py-3 md:py-4 flex justify-between items-center flex-wrap gap-2">
+                <div class="flex items-center space-x-3">
+                    <span class="text-white text-sm font-mono bg-indigo-900 px-2 py-1 rounded-md">Leçon 3 / 38</span>
+                    <span class="text-white font-semibold text-sm md:text-base">📦 Module Node.js: CommonJS & ES Modules</span>
+                </div>
+                <div class="text-white text-sm bg-indigo-800 px-3 py-1 rounded-full">
+                    <span id="slideCounter">1 / 8</span>
+                </div>
+            </div>
+            
+            <!-- Zone dynamique des slides -->
+            <div id="slidesWrapper" class="relative overflow-hidden p-5 md:p-8 slide-container">
+                <!-- Les slides seront injectées ici par jQuery -->
+            </div>
+            
+            <!-- Navigation buttons + indicateurs -->
+            <div class="border-t border-gray-200 px-5 py-4 flex justify-between items-center bg-gray-50 flex-wrap gap-3">
+                <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm border border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="flex space-x-2" id="dotsIndicator">
+                    <!-- dots générés dynamiquement -->
+                </div>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+        
+        <!-- Petit message pédagogique -->
+        <p class="text-center text-xs text-gray-500 mt-6">
+            💡 Glissez ou utilisez les boutons pour naviguer. Chaque diapositive explique une notion clé.
+        </p>
+    </div>
+    
+    <script>
+        $(document).ready(function() {
+            // ---------- Données de la leçon 3 : import/export modules ----------
+            // Structure: chaque slide contient titre, contenu HTML (peut contenir listes, exemples, etc.)
+            // Slide 0: titre principal, Slide 1: objectifs, Slides 2..7 contenu détaillé
+            
+            const slidesData = [
+                { // Slide 0 : Titre de la leçon
+                    type: "title",
+                    title: "📘 Comprendre les modules en Node.js",
+                    subtitle: "CommonJS (require) vs ES Modules (import/export)",
+                    emoji: "📦",
+                    bgClass: "bg-gradient-to-r from-indigo-50 to-purple-50"
+                },
+                { // Slide 1 : objectifs pédagogiques
+                    type: "objectives",
+                    title: "🎯 Objectifs de la leçon",
+                    objectives: [
+                        "Utiliser require() et module.exports (système CommonJS)",
+                        "Maîtriser import/export avec ES Modules (type: module)",
+                        "Comprendre la différence et savoir choisir la bonne approche selon le projet"
+                    ]
+                },
+                { // Slide 2 : Qu'est-ce qu'un module ?
+                    type: "content",
+                    title: "🧩 1. Qu'est-ce qu'un module en Node.js ?",
+                    contentHtml: `
+                        <p class="mb-3">Un module est un fichier JavaScript réutilisable qui encapsule du code (variables, fonctions, objets). Node.js utilise par défaut le système <strong class="text-indigo-700">CommonJS</strong>.</p>
+                        <div class="bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            <pre>// user.js (module)  
+const nom = "Alice";  
+function saluer() { return "Bonjour " + nom; }  
+module.exports = { saluer };</pre>
+                        </div>
+                        <p>Les modules évitent la pollution de l’espace global et facilitent la maintenance.</p>
+                        <div class="mt-3 flex items-center gap-2 text-sm text-gray-600 bg-gray-100 p-2 rounded-lg">
+                            <span class="text-xl">💡</span> Node.js considère chaque fichier .js comme un module séparé.
+                        </div>
+                    `
+                },
+                { // Slide 3 : CommonJS - require et module.exports
+                    type: "content",
+                    title: "🔧 2. CommonJS : require() & module.exports",
+                    contentHtml: `
+                        <p class="mb-2">C’est le système <strong>natif</strong> de Node.js. Pas besoin de configuration.</p>
+                        <ul class="list-disc pl-5 mb-3 space-y-1">
+                            <li><code class="bg-gray-200 px-1 rounded">module.exports</code> : ce qu’on rend visible depuis le module</li>
+                            <li><code class="bg-gray-200 px-1 rounded">require()</code> : pour importer un module (fichier local ou paquet npm)</li>
+                        </ul>
+                        <div class="bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-sm my-2 overflow-x-auto">
+                            <pre>// math.js  
+const addition = (a,b) => a+b;  
+module.exports = addition;  
+
+// app.js  
+const add = require('./math');  
+console.log(add(5,3)); // 8</pre>
+                        </div>
+                        <p class="mt-2 text-amber-700 bg-amber-50 p-2 rounded border-l-4 border-amber-400">📌 <strong>Caractéristique</strong> : chargement synchrone, idéal pour le serveur.</p>
+                    `
+                },
+                { // Slide 4 : ES Modules (import/export)
+                    type: "content",
+                    title: "✨ 3. ES Modules (ECMAScript) : import / export",
+                    contentHtml: `
+                        <p>Standard moderne JavaScript (natif dans les navigateurs). Pour l'activer dans Node.js :</p>
+                        <ul class="list-disc pl-5 my-2">
+                            <li>Utiliser l’extension <code class="bg-gray-200 px-1 rounded">.mjs</code> ou</li>
+                            <li>Ajouter <code class="bg-gray-200 px-1 rounded">"type": "module"</code> dans le <span class="font-mono">package.json</span></li>
+                        </ul>
+                        <div class="bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-sm my-3 overflow-x-auto">
+                            <pre>// utils.mjs  
+export const formatDate = (date) => date.toLocaleDateString();  
+export const PI = 3.14159;  
+
+// main.mjs  
+import { formatDate, PI } from './utils.mjs';  
+console.log(formatDate(new Date()));</pre>
+                        </div>
+                        <p>✅ Avantage : supporte l'importation dynamique et l’arborescence statique pour le tree-shaking.</p>
+                    `
+                },
+                { // Slide 5 : Différences clés CommonJS vs ES Modules
+                    type: "content",
+                    title: "⚖️ 4. Comparaison : CommonJS vs ES Modules",
+                    contentHtml: `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-300 rounded-lg text-sm">
+                                <thead class="bg-indigo-100">
+                                    <tr><th class="border p-2">Critère</th><th class="border p-2">CommonJS</th><th class="border p-2">ES Modules</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="border p-2">Syntaxe</td><td class="border p-2 font-mono">require() / module.exports</td><td class="border p-2 font-mono">import / export</td></tr>
+                                    <tr><td class="border p-2">Chargement</td><td class="border p-2">Synchrone</td><td class="border p-2">Asynchrone (compatible navigateur)</td></tr>
+                                    <tr><td class="border p-2">Extension par défaut</td><td class="border p-2">.js (sans config)</td><td class="border p-2">.mjs ou "type":"module"</td></tr>
+                                    <tr><td class="border p-2">Import dynamique</td><td class="border p-2">Oui (require dynamique)</td><td class="border p-2">Oui avec import()</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-3 text-sm italic">💡 <strong>Quand utiliser quoi ?</strong> CommonJS reste très présent dans l'écosystème Node.js (express, mongoose). ES Modules est l'avenir et recommandé pour les nouveaux projets front/back unifiés.</p>
+                    `
+                },
+                { // Slide 6 : Bonnes pratiques et choix
+                    type: "content",
+                    title: "🧠 5. Comment bien choisir ?",
+                    contentHtml: `
+                        <ul class="list-disc pl-5 mb-3 space-y-2">
+                            <li><span class="font-bold">Projet existant avec CommonJS</span> → restez cohérent, évitez de mélanger sans configuration appropriée.</li>
+                            <li><span class="font-bold">Nouveau projet moderne</span> → privilégiez <strong>ES Modules</strong> (future-proof).</li>
+                            <li><span class="font-bold">Librairie pour navigateur & Node</span> → ES Modules indispensable.</li>
+                            <li><span class="font-bold">Si vous utilisez des outils comme TypeScript</span> → les deux fonctionnent avec des adaptateurs.</li>
+                        </ul>
+                        <div class="bg-indigo-50 p-3 rounded-lg mt-2 border-l-4 border-indigo-400">
+                            <p class="text-indigo-900 font-medium">🎓 Petit conseil : maîtriser les deux systèmes est essentiel pour tout développeur Node.js. Vous rencontrerez probablement les deux en entreprise !</p>
+                        </div>
+                    `
+                },
+                { // Slide 7 : Exemple pratique et récapitulatif
+                    type: "content",
+                    title: "🚀 6. Exemple hybride & Récapitulatif final",
+                    contentHtml: `
+                        <p class="mb-2">Imaginons un module de gestion utilisateur :</p>
+                        <div class="bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-xs md:text-sm overflow-x-auto">
+                            <pre>// ----- version CommonJS (user.cjs) -----  
+const users = [];  
+function addUser(name) { users.push(name); }  
+module.exports = { addUser, users };  
+
+// ----- version ES Modules (user.mjs) -----  
+export const users = [];  
+export function addUser(name) { users.push(name); }</pre>
+                        </div>
+                        <p class="mt-3">✅ <strong>À retenir :</strong></p>
+                        <ul class="list-disc pl-5 mt-1">
+                            <li>CommonJS : <code>require</code> synchrones, utilisé par défaut dans Node.</li>
+                            <li>ES Modules : syntaxe <code>import/export</code>, asynchrone, standard JS.</li>
+                            <li>Node supporte ES Modules avec l'option <code>"type": "module"</code>.</li>
+                        </ul>
+                        <p class="mt-3 text-center text-indigo-700 bg-indigo-100 p-2 rounded-lg">📢 Fin du cours théorique. Entraînez-vous à convertir un petit module d'un système à l'autre !</p>
+                    `
+                }
+            ];
+            
+            let currentIndex = 0;
+            const totalSlides = slidesData.length;
+            
+            // Fonction pour générer un slide HTML en fonction de son type
+            function renderSlide(slide, idx) {
+                if (slide.type === "title") {
+                    return `
+                        <div class="slide text-center py-6 md:py-10 ${slide.bgClass || 'bg-white'} rounded-xl">
+                            <div class="text-7xl mb-4">${slide.emoji || "📦"}</div>
+                            <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+                            <p class="text-xl md:text-2xl text-gray-600 max-w-xl mx-auto">${slide.subtitle}</p>
+                            <div class="mt-8 text-indigo-500 text-sm font-mono">Node.js · Modules avancés</div>
+                        </div>
+                    `;
+                } 
+                else if (slide.type === "objectives") {
+                    return `
+                        <div class="slide bg-white rounded-xl">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+                            <ul class="space-y-3 text-gray-700 text-base md:text-lg list-disc pl-6">
+                                ${slide.objectives.map(obj => `<li class="mb-2">✨ ${obj}</li>`).join('')}
+                            </ul>
+                            <div class="mt-6 p-3 bg-indigo-50 rounded-lg text-center text-indigo-700 text-sm">
+                                ⏱️ Durée estimée : 20 min de théorie + exercices pratiques
+                            </div>
+                        </div>
+                    `;
+                }
+                else { // type content
+                    return `
+                        <div class="slide bg-white rounded-xl">
+                            <h2 class="text-xl md:text-2xl font-bold text-indigo-800 border-b-2 border-indigo-200 pb-2 mb-4">${slide.title}</h2>
+                            <div class="prose-custom text-gray-700 text-base md:text-lg leading-relaxed">
+                                ${slide.contentHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Mise à jour de l'affichage : slide + compteur + dots actifs
+            function updateDisplay() {
+                const currentSlideData = slidesData[currentIndex];
+                const slideHtml = renderSlide(currentSlideData, currentIndex);
+                $("#slidesWrapper").fadeOut(100, function() {
+                    $(this).html(slideHtml).fadeIn(200);
+                });
+                // Mettre à jour compteur
+                $("#slideCounter").text(`${currentIndex+1} / ${totalSlides}`);
+                // Gérer état boutons prev/next
+                $("#prevSlide").prop("disabled", currentIndex === 0);
+                $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+                // Mettre à jour les dots
+                $(".dot").each(function(i) {
+                    if(i === currentIndex) {
+                        $(this).removeClass("bg-gray-300").addClass("bg-indigo-600 w-6");
+                    } else {
+                        $(this).removeClass("bg-indigo-600 w-6").addClass("bg-gray-300 w-2");
+                    }
+                });
+            }
+            
+            // Générer les indicateurs (dots)
+            function generateDots() {
+                let dotsHtml = "";
+                for(let i=0; i<totalSlides; i++) {
+                    dotsHtml += `<button class="dot h-2 rounded-full transition-all duration-200 mx-1 ${i===0 ? 'bg-indigo-600 w-6' : 'bg-gray-300 w-2'}" data-index="${i}"></button>`;
+                }
+                $("#dotsIndicator").html(dotsHtml);
+                // Ajouter événement clic sur dots
+                $(".dot").on("click", function() {
+                    let idx = parseInt($(this).data("index"));
+                    if(!isNaN(idx) && idx >=0 && idx < totalSlides) {
+                        currentIndex = idx;
+                        updateDisplay();
+                    }
+                });
+            }
+            
+            // Navigation
+            function nextSlide() {
+                if(currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateDisplay();
+                }
+            }
+            function prevSlide() {
+                if(currentIndex > 0) {
+                    currentIndex--;
+                    updateDisplay();
+                }
+            }
+            
+            // Écouteurs boutons
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+            
+            // Gestion du swipe tactile (pour mobile)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const slidesWrapper = document.getElementById("slidesWrapper");
+            slidesWrapper.addEventListener("touchstart", (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, false);
+            slidesWrapper.addEventListener("touchend", (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                if (touchEndX < touchStartX - 40) {
+                    // swipe gauche -> suivant
+                    nextSlide();
+                } else if (touchEndX > touchStartX + 40) {
+                    // swipe droite -> précédent
+                    prevSlide();
+                }
+            }, false);
+            
+            // Support clavier (flèches)
+            $(document).on("keydown", function(e) {
+                if(e.key === "ArrowRight") {
+                    nextSlide();
+                    e.preventDefault();
+                } else if(e.key === "ArrowLeft") {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            
+            // Initialisation
+            generateDots();
+            updateDisplay();
+            
+            // Petit style additionnel pour les blocs de code (responsive)
+            $('head').append(`
+                <style>
+                    pre {
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                        overflow-x: auto;
+                    }
+                    code {
+                        font-size: 0.9rem;
+                        background-color: #f3f4f6;
+                        padding: 0.2rem 0.3rem;
+                        border-radius: 0.25rem;
+                        font-family: monospace;
+                    }
+                    .slide ul, .slide ol {
+                        margin-bottom: 0.75rem;
+                    }
+                    table {
+                        display: block;
+                        overflow-x: auto;
+                    }
+                </style>
+            `);
+        });
+    </script>
+</body>
+</html>

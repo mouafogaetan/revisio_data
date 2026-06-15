@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 11 : La couche Transport - Réseaux informatiques</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les maths -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e293b;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #cbd5e1;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #0284c7;
+            transition: width 0.3s;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+        .badge {
+            display: inline-block;
+            background: #0284c7;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .port-table td, .port-table th {
+            padding: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <div id="slides-wrapper" class="relative">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide p-6 md:p-10 mb-6" data-slide="0">
+            <div class="flex flex-col items-center text-center">
+                <div class="badge">Couche Transport - Modèle OSI</div>
+                <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-700 to-blue-700 mt-2">La couche Transport</h1>
+                <p class="text-gray-700 mt-4 text-lg">Segmentation, contrôle de flux et numéros de port</p>
+                <div class="mt-10 flex justify-center">
+                    <i class="fas fa-truck-fast text-5xl text-cyan-600 animate-bounce"></i>
+                </div>
+                <div class="mt-8 text-sm text-gray-500">Cours Réseaux | Classe: Développement Web</div>
+                <div class="text-sm text-gray-500">Cameroun 🇨🇲 | Enseignant: M. Ndeh</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="1">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-4 text-gray-700 text-lg">
+                <li class="flex items-start gap-3"><i class="fas fa-layer-group text-cyan-600 mt-1"></i> <span>Comprendre le rôle de la couche Transport (segmentation, contrôle de flux)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-plug text-cyan-600 mt-1"></i> <span>Distinguer les numéros de port (well-known, registered, dynamic)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-list-ul text-cyan-600 mt-1"></i> <span>Connaître les ports courants (HTTP 80, HTTPS 443, SSH 22, DNS 53)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-exchange-alt text-cyan-600 mt-1"></i> <span>Expliquer le multiplexage/démultiplexage via les ports</span></li>
+            </ul>
+            <div class="mt-6 p-4 bg-cyan-50 rounded-xl">
+                <p class="italic text-cyan-800">✨ À la fin, vous saurez comment les données sont découpées, transportées et acheminées vers la bonne application sur un ordinateur !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : Rôle de la couche Transport -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="2">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">📦 Rôle de la couche Transport</h2>
+            <p class="mb-3">La couche Transport (couche 4 du modèle OSI) assure le transport fiable ou rapide des données entre processus applicatifs sur différentes machines.</p>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+                <div class="bg-gray-50 p-4 rounded-xl shadow-sm">
+                    <i class="fas fa-cut text-cyan-600 text-xl"></i>
+                    <h3 class="font-bold mt-1">Segmentation</h3>
+                    <p class="text-sm">Découpe les données en segments (TCP) ou datagrammes (UDP) pour les envoyer sur le réseau.</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl shadow-sm">
+                    <i class="fas fa-tachometer-alt text-cyan-600 text-xl"></i>
+                    <h3 class="font-bold mt-1">Contrôle de flux</h3>
+                    <p class="text-sm">Évite que l'émetteur aille plus vite que le récepteur (fenêtre glissante TCP).</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl shadow-sm">
+                    <i class="fas fa-check-double text-cyan-600 text-xl"></i>
+                    <h3 class="font-bold mt-1">Contrôle d'erreurs</h3>
+                    <p class="text-sm">Détection et retransmission des segments perdus ou corrompus (TCP).</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl shadow-sm">
+                    <i class="fas fa-door-open text-cyan-600 text-xl"></i>
+                    <h3 class="font-bold mt-1">Numéros de port</h3>
+                    <p class="text-sm">Identifient les applications (services) sur une machine.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : Numéros de port -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="3">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">🔌 Les numéros de port</h2>
+            <p>Un port est un numéro (0 à 65535) associé à une application. Il permet au système d'orienter les paquets reçus vers le bon programme.</p>
+            <div class="mt-4 overflow-x-auto">
+                <table class="port-table w-full text-left">
+                    <thead class="bg-gray-100">
+                        <tr><th class="p-2">Plage</th><th class="p-2">Nom</th><th class="p-2">Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="p-2">0 – 1023</td><td class="p-2 font-semibold">Well-known ports</td><td class="p-2">Services système (HTTP, SSH, DNS)</td></tr>
+                        <tr><td class="p-2">1024 – 49151</td><td class="p-2 font-semibold">Registered ports</td><td class="p-2">Applications enregistrées (MySQL, MongoDB)</td></tr>
+                        <tr><td class="p-2">49152 – 65535</td><td class="p-2 font-semibold">Dynamic/Private ports</td><td class="p-2">Utilisés temporairement par les clients</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                <i class="fas fa-info-circle text-blue-600"></i> Exemple : Un navigateur web utilise un port dynamique (ex: 54321) pour communiquer avec un serveur web sur le port 80 (HTTP) ou 443 (HTTPS).
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : Ports courants à connaître -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="4">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">📋 Ports courants</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fab fa-html5 text-orange-500"></i> HTTP</span><span class="font-mono font-bold">80</span><span>TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-lock text-green-600"></i> HTTPS</span><span class="font-mono font-bold">443</span><span>TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-terminal"></i> SSH</span><span class="font-mono font-bold">22</span><span>TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-database"></i> DNS</span><span class="font-mono font-bold">53</span><span>UDP/TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-envelope"></i> SMTP</span><span class="font-mono font-bold">25</span><span>TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-folder-open"></i> FTP (contrôle)</span><span class="font-mono font-bold">21</span><span>TCP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-tasks"></i> DHCP</span><span class="font-mono font-bold">67/68</span><span>UDP</span></div>
+                <div class="bg-gray-50 p-3 rounded-lg flex justify-between"><span><i class="fas fa-clock"></i> NTP</span><span class="font-mono font-bold">123</span><span>UDP</span></div>
+            </div>
+            <div class="mt-5 text-sm text-gray-600 italic">💡 À mémoriser absolument pour tout administrateur réseau ou développeur web.</div>
+        </div>
+
+        <!-- SLIDE 6 : Multiplexage / Démultiplexage -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="5">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">🔄 Multiplexage & Démultiplexage</h2>
+            <p>La couche Transport combine (multiplexage) les données de plusieurs applications pour les envoyer sur le réseau. À la réception, elle utilise les ports pour les répartir (démultiplexage) vers la bonne application.</p>
+            <div class="bg-gray-100 p-4 rounded-xl text-center mt-4">
+                <i class="fas fa-arrow-right text-2xl text-gray-500"></i> 
+                <span class="font-mono">App1 (port 8080) → segment → réseau</span>
+                <i class="fas fa-arrow-right text-2xl text-gray-500"></i>
+                <span class="font-mono">App2 (port 80) → segment → réseau</span>
+                <div class="h-8"></div>
+                <div class="bg-cyan-100 p-2 rounded">La couche Transport assemble et répartit</div>
+            </div>
+            <div class="mt-4 text-center">À la réception : le paquet avec port 80 ira au serveur web, le port 22 au serveur SSH.</div>
+        </div>
+
+        <!-- SLIDE 7 : Segmentation et réassemblage -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="6">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">✂️ Segmentation et réassemblage</h2>
+            <p>Les données des couches supérieures (souvent volumineuses) sont découpées en segments (TCP) ou datagrammes (UDP). Chaque segment reçoit un numéro de séquence.</p>
+            <div class="code-block mt-3">
+<pre>
+Données de l'application (ex: 10 Ko)
+        ↓ Segmentation
+[Segment 1 | Seq=1]   [Segment 2 | Seq=2]   [Segment 3 | Seq=3]
+        ↓               ↓                ↓
+    Transmission sur le réseau
+        ↓
+Réassemblage dans l'ordre à destination
+</pre>
+            </div>
+            <p class="mt-3 text-sm text-gray-600">TCP garantit le réassemblage dans l'ordre et la retransmission des segments perdus.</p>
+        </div>
+
+        <!-- SLIDE 8 : Encapsulation (schéma simplifié) -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="7">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">📨 Encapsulation des données</h2>
+            <div class="bg-gray-800 text-white p-4 rounded-xl font-mono text-sm">
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <span class="bg-blue-600 px-2 py-1 rounded">En-tête Transport</span>
+                    <span class="bg-green-600 px-2 py-1 rounded">Données (segment)</span>
+                </div>
+                <div class="text-xs text-center mt-2">Le segment est ensuite encapsulé dans un paquet IP (couche Réseau) puis dans une trame (couche Liaison).</div>
+            </div>
+            <div class="mt-5 p-3 bg-yellow-50 rounded-lg">
+                <i class="fas fa-graduation-cap"></i> <strong>À retenir :</strong> La PDU (Protocole Data Unit) de la couche Transport s'appelle <strong>segment</strong> pour TCP et <strong>datagramme</strong> pour UDP.
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : Exercice rapide -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="8">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">✏️ Mini-exercice</h2>
+            <div class="bg-gray-50 p-5 rounded-xl">
+                <p class="font-semibold">Question 1 : Quel port utilisez-vous pour vous connecter en SSH sur un serveur distant ?</p>
+                <p class="text-green-700 mt-2"><i class="fas fa-check-circle"></i> Réponse : Le port TCP 22.</p>
+                <hr class="my-3">
+                <p class="font-semibold">Question 2 : Votre navigateur envoie une requête à https://www.camertel.cm. Quels sont les ports source et destination ?</p>
+                <p class="text-green-700 mt-2"><i class="fas fa-check-circle"></i> Réponse : Port destination 443 (HTTPS). Port source dynamique (ex: 51234).</p>
+                <hr class="my-3">
+                <p class="font-semibold">Question 3 : Pourquoi la couche Transport est-elle essentielle ?</p>
+                <p class="text-green-700 mt-2"><i class="fas fa-check-circle"></i> Réponse : Elle assure la fiabilité (TCP), le multiplexage et l'acheminement vers les bonnes applications.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 : Résumé -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="9">
+            <h2 class="text-2xl md:text-3xl font-bold text-cyan-800 border-l-8 border-cyan-500 pl-4 mb-4">📌 Récapitulatif</h2>
+            <div class="grid md:grid-cols-2 gap-3">
+                <div class="bg-cyan-50 p-3 rounded-lg"><i class="fas fa-microchip"></i> <strong>Rôle principal :</strong> transport des données entre applications</div>
+                <div class="bg-cyan-50 p-3 rounded-lg"><i class="fas fa-hashtag"></i> <strong>Numéros de port :</strong> 0-65535, 3 catégories</div>
+                <div class="bg-cyan-50 p-3 rounded-lg"><i class="fas fa-shield-alt"></i> <strong>Ports incontournables :</strong> 80, 443, 22, 53, 25, 21</div>
+                <div class="bg-cyan-50 p-3 rounded-lg"><i class="fas fa-random"></i> <strong>Multiplexage :</strong> plusieurs applications sur un seul réseau</div>
+            </div>
+            <div class="mt-6 text-center text-white bg-gradient-to-r from-cyan-600 to-blue-600 p-4 rounded-2xl">
+                🚀 Prochaine leçon : UDP et TCP – les deux protocoles phares de la couche Transport !
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center mt-4">
+            <button id="prevSlide" class="nav-btn bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-full shadow disabled:opacity-50" disabled><i class="fas fa-chevron-left"></i> Précédent</button>
+            <div class="progress-bar w-1/3 mx-4">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded-full shadow">Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="text-center text-xs text-gray-600 mt-3">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let currentSlide = 0;
+    const slides = $('.slide');
+    const totalSlides = slides.length;
+    $('#totalSlides').text(totalSlides);
+    
+    function updateSlides() {
+        slides.each(function(index) {
+            if (index === currentSlide) {
+                $(this).removeClass('hidden').fadeIn(200);
+            } else {
+                $(this).addClass('hidden');
+            }
+        });
+        $('#currentSlideIdx').text(currentSlide + 1);
+        const progressPercent = (currentSlide / (totalSlides - 1)) * 100;
+        $('#progressFill').css('width', progressPercent + '%');
+        
+        $('#prevSlide').prop('disabled', currentSlide === 0);
+        $('#nextSlide').prop('disabled', currentSlide === totalSlides - 1);
+        if(currentSlide === totalSlides-1) {
+            $('#nextSlide').html('Terminé <i class="fas fa-check"></i>');
+        } else {
+            $('#nextSlide').html('Suivant <i class="fas fa-chevron-right"></i>');
+        }
+    }
+    
+    $('#nextSlide').on('click', function() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            updateSlides();
+        } else {
+            alert("🎉 Félicitations ! Vous avez terminé la leçon sur la couche Transport.");
+        }
+    });
+    
+    $('#prevSlide').on('click', function() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+        }
+    });
+    
+    updateSlides();
+});
+</script>
+</body>
+</html>

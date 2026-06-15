@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours OS - Leçon 18 : Allocation des blocs & Gestion des libres</title>
+    <!-- Tailwind CSS + Google Fonts pour lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (utilisation légère) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition slides douce */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        body {
+            background: #f0f4f8;
+        }
+        .card-shadow {
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        /* Personnalisation pour mobile: texte confortable */
+        @media (max-width: 640px) {
+            .prose-sm-mobile {
+                font-size: 0.95rem;
+                line-height: 1.4;
+            }
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* rendre les blocs d'illustration lisibles */
+        .diagram-box {
+            background: #fef9e3;
+            border-left: 6px solid #f59e0b;
+        }
+        .code-bg {
+            background: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        <!-- Conteneur principal slide -->
+        <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+            <!-- En-tête avec progression -->
+            <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-5 py-4 md:px-7 md:py-5 text-white">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider opacity-80">Initiation aux Systèmes d'exploitation</p>
+                        <h1 class="text-xl md:text-2xl font-bold">Chapitre 5 : Organisation des données sur disque</h1>
+                    </div>
+                    <div class="bg-white/20 rounded-full px-3 py-1 text-sm font-mono">
+                        <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone des slides dynamiques -->
+            <div id="slidesContainer" class="relative min-h-[480px] md:min-h-[520px] bg-white">
+                <!-- Le contenu sera injecté par jQuery -->
+            </div>
+
+            <!-- Navigation + indicateurs -->
+            <div class="bg-gray-50 px-5 py-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="flex gap-3">
+                    <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm transition">◀ Précédent</button>
+                    <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm transition">Suivant ▶</button>
+                </div>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsIndicator"></div>
+            </div>
+        </div>
+        
+        <!-- petite note pédagogique -->
+        <p class="text-center text-gray-500 text-xs mt-5">Leçon 18 – Allocation par blocs contigus, chaînés, indexés & gestion des libres (bitmap, liste chaînée)</p>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 18 (titre, objectifs, contenu)
+        // basé sur les objectifs de la lesson18 : allocation contiguë, chaînée, indexée, gestion blocs libres (bitmap, liste chaînée), fragmentation & défragmentation.
+        const slidesData = [
+            {
+                type: "title",
+                titre: "Leçon 18 : Allocation des fichiers & Gestion des blocs libres",
+                sousTitre: "Comprendre comment le système d'exploitation range les données sur le disque"
+            },
+            {
+                type: "objectifs",
+                title: "Objectifs d'apprentissage",
+                objectifs: [
+                    "Comprendre l'allocation par blocs contigus, chaînés ou indexés.",
+                    "Maîtriser la gestion des blocs libres (bitmap, liste chaînée).",
+                    "Comprendre la fragmentation (externe/interne) et la défragmentation."
+                ]
+            },
+            {
+                type: "content",
+                title: "📀 1. Allocation par blocs contigus",
+                content: `<p class="mb-3">La méthode la plus simple : chaque fichier occupe un ensemble de blocs <strong>consécutifs</strong> sur le disque. Le répertoire contient l’adresse du premier bloc et la longueur totale.</p>
+                <div class="diagram-box p-4 rounded-lg my-3 border-l-4 border-blue-500 bg-blue-50">
+                    <p class="font-semibold">Exemple :</p>
+                    <p class="font-mono text-sm">Fichier "data.txt" → blocs [45,46,47,48] (4 blocs consécutifs)</p>
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        <span class="bg-indigo-100 px-2 py-1 rounded">Bloc 45</span> ➜ <span class="bg-indigo-100 px-2 py-1 rounded">Bloc 46</span> ➜ <span class="bg-indigo-100 px-2 py-1 rounded">Bloc 47</span> ➜ <span class="bg-indigo-100 px-2 py-1 rounded">Bloc 48</span>
+                    </div>
+                </div>
+                <ul class="list-disc pl-6 space-y-1 mt-2">
+                    <li><span class="text-green-600 font-medium">Avantages :</span> accès rapide (peu de seeks), simple à implémenter.</li>
+                    <li><span class="text-red-500 font-medium">Inconvénients :</span> <strong>fragmentation externe</strong> (trous difficiles à réutiliser), difficile de faire croître un fichier.</li>
+                </ul>`
+            },
+            {
+                type: "content",
+                title: "🔗 2. Allocation par blocs chaînés (liés)",
+                content: `<p>Chaque bloc de données contient un pointeur vers le prochain bloc. Le répertoire pointe seulement vers le premier bloc. Pas besoin de contiguïté !</p>
+                <div class="bg-gray-800 text-gray-100 p-3 rounded-lg my-3 font-mono text-sm overflow-x-auto">
+                    [Bloc 102] → [Bloc 77] → [Bloc 204] → [Bloc 9] → NULL
+                </div>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li>✅ <span class="font-medium">Avantage :</span> Plus de fragmentation externe, croissance facile.</li>
+                    <li>❌ <span class="font-medium">Inconvénient :</span> Accès aléatoire lent (parcours séquentiel), beaucoup de seeks, risque de perte de pointeur.</li>
+                    <li>💡 Variante : <strong>FAT (File Allocation Table)</strong> utilisée dans les anciens Windows : table globale des liens.</li>
+                </ul>
+                <div class="mt-3 text-sm italic">📌 Illustration simplifiée : chaque bloc stocke des données + un pointeur vers le bloc suivant.</div>`
+            },
+            {
+                type: "content",
+                title: "📑 3. Allocation indexée",
+                content: `<p>Un <strong>bloc d'index</strong> (inode sous Unix) contient la liste de tous les blocs du fichier. Idéal pour l'accès direct rapide.</p>
+                <div class="grid md:grid-cols-2 gap-3 my-3">
+                    <div class="border rounded p-3 bg-amber-50">
+                        <p class="font-bold text-center">Bloc d'index (inode)</p>
+                        <div class="text-xs font-mono break-all">[bloc 12, bloc 45, bloc 67, bloc 89, bloc 121, ...]</div>
+                    </div>
+                    <div class="border rounded p-3 bg-green-50">
+                        <p class="font-semibold">Données réparties</p>
+                        <div class="flex flex-wrap gap-1 text-xs">Bloc12 | Bloc45 | Bloc67 | Bloc89 | Bloc121</div>
+                    </div>
+                </div>
+                <ul class="list-disc pl-6">
+                    <li>✅ Avantages : accès direct très efficace, supporte les gros fichiers avec double/triple indirection.</li>
+                    <li>⚠️ Nécessite un peu d’espace pour les blocs d’index (ex: ext4 utilise inodes).</li>
+                </ul>
+                <p class="mt-2">Exemple concret : <strong>système de fichiers UNIX (ext2/ext3/ext4)</strong> utilise l'allocation indexée.</p>`
+            },
+            {
+                type: "content",
+                title: "🗺️ 4. Gestion des blocs libres : Bitmap",
+                content: `<p>Le système doit savoir quels blocs sont libres pour allouer de l’espace. Deux méthodes principales :</p>
+                <div class="bg-indigo-50 p-4 rounded-xl my-3">
+                    <p class="font-bold text-indigo-800">Méthode 1 : Bitmap (table de bits)</p>
+                    <p>Une séquence de bits où chaque bit représente un bloc disque : <span class="font-mono bg-white px-1">1 = occupé, 0 = libre</span>.</p>
+                    <div class="font-mono text-sm bg-gray-800 text-lime-300 p-2 rounded overflow-x-auto my-2">
+                        1 1 0 0 1 1 1 0 0 0 1 0 1 1 ...
+                    </div>
+                    <p>➜ Taille réduite, recherche rapide des blocs libres (balayage). Facile à implémenter.</p>
+                </div>
+                <p class="text-gray-700">Avantages : compact, localisé en mémoire. Utilisé dans de nombreux FS modernes (ext4, NTFS).</p>`
+            },
+            {
+                type: "content",
+                title: "⛓️ 5. Gestion des blocs libres : Liste chaînée",
+                content: `<div class="bg-indigo-50 p-4 rounded-xl my-3">
+                    <p class="font-bold text-indigo-800">Méthode 2 : Liste chaînée des blocs libres</p>
+                    <p>Chaque bloc libre contient un pointeur vers le prochain bloc libre. Une tête de liste stocke l’adresse du premier bloc libre.</p>
+                    <div class="bg-white p-2 rounded border font-mono text-sm my-2">
+                        [Bloc libre 78] → [Bloc libre 201] → [Bloc libre 506] → NULL
+                    </div>
+                    <p>Allocation : on prend le premier bloc de la liste. Libération : on ajoute le bloc en tête.</p>
+                    <ul class="list-disc pl-5 mt-2 text-sm">
+                        <li>✔️ Simple, pas d'espace supplémentaire dédié.</li>
+                        <li>❌ Fragmentation de la liste, accès parfois lent pour trouver un bloc contigu.</li>
+                    </ul>
+                </div>
+                <p>Variante améliorée : <strong>groupement de blocs libres</strong> (plusieurs blocs libres dans un même bloc).</p>`
+            },
+            {
+                type: "content",
+                title: "🧩 6. Fragmentation et Défragmentation",
+                content: `<div class="grid gap-4 md:grid-cols-2">
+                    <div class="bg-red-50 p-3 rounded-lg">
+                        <p class="font-bold text-red-700">Fragmentation externe</p>
+                        <p>Petits espaces libres non contigus entre les fichiers. Impossible d'allouer un gros fichier même si l'espace total libre est suffisant.</p>
+                        <div class="h-6 bg-white border flex my-2 text-[10px]">[Occupé][Libre][Occupé][Libre petit][Occupé][Libre]</div>
+                    </div>
+                    <div class="bg-orange-50 p-3 rounded-lg">
+                        <p class="font-bold text-orange-700">Fragmentation interne</p>
+                        <p>Espace perdu à l'intérieur du dernier bloc d'un fichier (taille du bloc non entièrement utilisée).</p>
+                        <p class="italic">Ex: bloc de 4 Ko, fichier 4.5 Ko → utilise 2 blocs, mais 3.5 Ko effectifs? 0.5Ko perdu.</p>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-gray-100 rounded">
+                    <p class="font-semibold">🧹 Défragmentation :</p>
+                    <p>Réorganiser les données pour regrouper les blocs d’un fichier et créer de larges plages libres. Utile sur disques mécaniques (HDD), moins sur SSD.</p>
+                    <div class="flex flex-wrap gap-2 mt-2 text-sm"><span class="bg-white rounded-full px-2">Windows : Défragmenteur</span><span class="bg-white rounded-full px-2">Linux : e2fsprogs (e4defrag)</span></div>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📊 Résumé visuel : Comparaison des allocations",
+                content: `<div class="overflow-x-auto">
+                    <table class="min-w-full text-sm border border-gray-300">
+                        <thead class="bg-gray-100"><tr><th class="border p-2">Méthode</th><th class="border p-2">Avantages</th><th class="border p-2">Inconvénients</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="border p-2 font-semibold">Contiguë</td><td class="border p-2">Accès rapide, simple</td><td class="border p-2">Fragmentation externe</td></tr>
+                            <tr class="border-b bg-gray-50"><td class="border p-2 font-semibold">Chaînée</td><td class="border p-2">Pas de fragmentation externe</td><td class="border p-2">Accès séquentiel lent</td></tr>
+                            <tr><td class="border p-2 font-semibold">Indexée</td><td class="border p-2">Accès direct très performant</td><td class="border p-2">Surcharge mémoire (inodes)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-4 text-center text-indigo-700">⭐ La plupart des systèmes modernes (NTFS, ext4) utilisent une forme d’allocation indexée + gestion des libres par bitmap.</p>`
+            },
+            {
+                type: "conclusion",
+                title: "✨ Récapitulatif & Application",
+                content: `<ul class="list-disc pl-6 space-y-2">
+                    <li><strong>Allocation contiguë</strong> : simple mais fragmentation externe problématique.</li>
+                    <li><strong>Allocation chaînée</strong> : flexible mais accès aléatoire difficile.</li>
+                    <li><strong>Allocation indexée</strong> : meilleur compromis, permet l’accès direct (inodes).</li>
+                    <li><strong>Gestion des blocs libres</strong> : Bitmap (rapide, compact) ou Liste chaînée (simple, mais peut être lente).</li>
+                    <li><strong>Fragmentation</strong> : externe (trous entre fichiers) et interne (gaspillage dans dernier bloc). Défragmentation améliore les performances HDD.</li>
+                </ul>
+                <div class="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-sky-50 rounded-lg italic text-sm">
+                    📌 À retenir : Un système de fichiers efficace doit minimiser la fragmentation et optimiser la recherche de blocs libres.
+                </div>`
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[460px]">
+                        <div class="max-w-lg">
+                            <div class="w-20 h-20 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-5">
+                                <svg class="w-10 h-10 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                            </div>
+                            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">${escapeHtml(slide.titre)}</h2>
+                            <p class="text-lg text-gray-600">${escapeHtml(slide.sousTitre)}</p>
+                            <div class="mt-8 text-sm text-indigo-500 font-medium">Leçon 18 / Cours OS</div>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectifs") {
+                return `
+                    <div class="slide p-6 md:p-8 min-h-[460px]">
+                        <h3 class="text-2xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-5">🎯 ${escapeHtml(slide.title)}</h3>
+                        <ul class="space-y-3">
+                            ${slide.objectifs.map(obj => `<li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span class="text-gray-700">${escapeHtml(obj)}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-blue-50 p-3 rounded-lg text-center text-blue-800 text-sm">
+                            💡 Ces objectifs vous permettront de comprendre comment les OS gèrent l'espace disque.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                return `
+                    <div class="slide p-6 md:p-8 min-h-[460px] overflow-y-auto max-h-[520px]">
+                        <h3 class="text-xl md:text-2xl font-bold text-gray-800 border-b-2 border-indigo-300 pb-2 mb-4">${escapeHtml(slide.title)}</h3>
+                        <div class="prose prose-sm md:prose-base prose-slate max-w-none">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "conclusion") {
+                return `
+                    <div class="slide p-6 md:p-8 min-h-[460px] flex flex-col justify-center">
+                        <h3 class="text-2xl font-bold text-green-700 mb-4">📌 ${escapeHtml(slide.title)}</h3>
+                        <div class="prose">${slide.content}</div>
+                        <div class="mt-6 text-center text-sm text-gray-500 border-t pt-4">
+                            ➡️ Utilisez les flèches pour revoir les concepts
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="p-6">Contenu non disponible</div>`;
+        }
+
+        // simple helper pour échapper le HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Mise à jour complète de l'affichage
+        function updateSlide() {
+            const slide = slidesData[currentSlide];
+            const htmlContent = renderSlide(slide, currentSlide);
+            $("#slidesContainer").html(htmlContent);
+            $("#slideCounter").text(currentSlide + 1);
+            // mise à jour des points indicateurs
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                dotsHtml += `<button class="dot w-3 h-3 rounded-full transition-all mx-1 ${i === currentSlide ? 'bg-indigo-600 w-6' : 'bg-gray-300 hover:bg-gray-400'}" data-index="${i}"></button>`;
+            }
+            $("#dotsIndicator").html(dotsHtml);
+            // scroll en haut du container pour mobile
+            $("#slidesContainer").scrollTop(0);
+            // réappliquer MathJax si nécessaire (contenu dynamique)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Navigation
+        function next() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
+            } else {
+                // effet clignotement pour indiquer fin
+                $("#nextSlide").addClass('scale-95');
+                setTimeout(() => $("#nextSlide").removeClass('scale-95'), 150);
+            }
+        }
+
+        function prev() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            } else {
+                $("#prevSlide").addClass('scale-95');
+                setTimeout(() => $("#prevSlide").removeClass('scale-95'), 150);
+            }
+        }
+
+        // Event listeners
+        $(document).ready(function() {
+            $("#totalSlides").text(totalSlides);
+            updateSlide();
+
+            $("#nextSlide").on("click", next);
+            $("#prevSlide").on("click", prev);
+            $(document).on("click", ".dot", function() {
+                const idx = $(this).data("index");
+                if (idx !== undefined && idx !== currentSlide) {
+                    currentSlide = idx;
+                    updateSlide();
+                }
+            });
+            // navigation clavier flèches gauche/droite
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") {
+                    next();
+                    e.preventDefault();
+                } else if (e.key === "ArrowLeft") {
+                    prev();
+                    e.preventDefault();
+                }
+            });
+            // swipe minimal pour mobile (optionnel)
+            let touchStartX = 0;
+            $("#slidesContainer").on("touchstart", function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $("#slidesContainer").on("touchend", function(e) {
+                if (!touchStartX) return;
+                let endX = e.changedTouches[0].clientX;
+                let diff = endX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) prev();
+                    else next();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+</body>
+</html>

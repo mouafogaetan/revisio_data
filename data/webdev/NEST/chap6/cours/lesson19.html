@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours : Gestion des exceptions - NestJS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            background: rgba(255,255,255,0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+        .slide {
+            display: none;
+            padding: 2rem 2rem;
+            animation: fadeSlide 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(10px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .nav-btn {
+            background: #1e293b;
+            color: white;
+            padding: 0.6rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 600;
+            transition: 0.2s;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover {
+            background: #0f172a;
+            transform: scale(0.97);
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+        .code-block code {
+            font-family: 'Fira Code', monospace;
+        }
+        .dot-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0 5px;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            background-color: #cbd5e1;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .dot.active-dot {
+            background-color: #dc2626;
+            transform: scale(1.2);
+        }
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 1rem;
+            color: #475569;
+        }
+        .exception-card {
+            transition: transform 0.2s;
+        }
+        .exception-card:hover {
+            transform: translateY(-2px);
+        }
+        @media (max-width: 640px) {
+            .slide { padding: 1.2rem; }
+            .nav-btn { padding: 0.4rem 1.2rem; }
+            .code-block { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body class="p-3">
+
+<div class="slide-container">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide active" id="slide1">
+        <div class="text-center">
+            <span class="text-xs font-semibold text-red-700 bg-red-100 px-3 py-1 rounded-full">🚨 NestJS - Exception Handling</span>
+            <h1 class="text-3xl md:text-4xl font-extrabold mt-5 text-gray-800">Gestion des exceptions</h1>
+            <p class="text-gray-600 text-lg mt-3">Exceptions standards · Filtres personnalisés · Bonnes pratiques</p>
+            <div class="mt-6 flex justify-center gap-4 flex-wrap">
+                <div class="bg-gray-100 rounded-2xl p-4 inline-block shadow-md">
+                    <span class="text-4xl">⚠️</span>
+                    <p class="text-sm mt-2">NotFoundException</p>
+                </div>
+                <div class="bg-gray-100 rounded-2xl p-4 inline-block shadow-md">
+                    <span class="text-4xl">🔧</span>
+                    <p class="text-sm mt-2">Filtres personnalisés</p>
+                </div>
+                <div class="bg-gray-100 rounded-2xl p-4 inline-block shadow-md">
+                    <span class="text-4xl">🛡️</span>
+                    <p class="text-sm mt-2">Hiérarchie globale</p>
+                </div>
+            </div>
+            <div class="mt-8 bg-red-50 rounded-2xl p-4 max-w-md mx-auto">
+                <p class="font-medium">🎯 <strong>Lesson 19</strong> – Cross-cutting concerns (chap6)</p>
+                <p class="text-sm">NestJS - Framework Node.js progressif</p>
+            </div>
+        </div>
+        <div class="flex justify-center mt-8">
+            <button class="nav-btn next-btn">Commencer ➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide" id="slide2">
+        <h2 class="text-2xl font-bold border-l-8 border-red-500 pl-4 mb-5">📌 Objectifs de la leçon</h2>
+        <div class="grid md:grid-cols-3 gap-4">
+            <div class="bg-white shadow rounded-xl p-4 border exception-card">
+                <div class="text-2xl mb-2">📚</div>
+                <h3 class="font-bold text-red-700">Hiérarchie des exceptions</h3>
+                <p class="text-sm">Comprendre l'arborescence des exceptions NestJS (HttpException, BadRequestException, etc.)</p>
+            </div>
+            <div class="bg-white shadow rounded-xl p-4 border exception-card">
+                <div class="text-2xl mb-2">🎯</div>
+                <h3 class="font-bold text-red-700">Lancer des exceptions</h3>
+                <p class="text-sm">Utiliser les exceptions intégrées avec des messages personnalisés.</p>
+            </div>
+            <div class="bg-white shadow rounded-xl p-4 border exception-card">
+                <div class="text-2xl mb-2">🔧</div>
+                <h3 class="font-bold text-red-700">Filtres personnalisés</h3>
+                <p class="text-sm">Créer un filtre global pour uniformiser les réponses d'erreur.</p>
+            </div>
+        </div>
+        <div class="flex justify-between mt-6">
+            <button class="nav-btn prev-btn">⬅️ Retour</button>
+            <button class="nav-btn next-btn">Suivant ➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : Hiérarchie des exceptions NestJS -->
+    <div class="slide" id="slide3">
+        <h2 class="text-2xl font-bold">🏛️ Hiérarchie des exceptions NestJS</h2>
+        <p class="mt-2">Toutes les exceptions héritent de la classe de base <code class="bg-gray-200 px-1">HttpException</code>.</p>
+        <div class="bg-gray-100 p-4 rounded-lg mt-4 font-mono text-sm">
+            <pre class="whitespace-pre-wrap">
+Error (JS natif)
+  └── HttpException (NestJS)
+       ├── BadRequestException      (400)
+       ├── UnauthorizedException    (401)
+       ├── ForbiddenException       (403)
+       ├── NotFoundException        (404)
+       ├── ConflictException        (409)
+       ├── UnprocessableEntityException (422)
+       ├── InternalServerErrorException (500)
+       └── ... (plus de 20 exceptions)
+            </pre>
+        </div>
+        <div class="bg-blue-50 p-3 rounded mt-3 text-sm">
+            💡 <strong>Astuce :</strong> Utilisez toujours les exceptions spécifiques plutôt que <code>HttpException</code> brut pour un code plus lisible et un statut HTTP explicite.
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 4 : Lancer des exceptions standards -->
+    <div class="slide" id="slide4">
+        <h2 class="text-2xl font-bold">🎯 Lancer des exceptions standards</h2>
+        <p>Dans un service ou un contrôleur, on lance une exception pour interrompre le flux normal.</p>
+        <div class="code-block mt-3">
+            <pre><code>
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+
+@Injectable()
+export class UserService {
+  async findOne(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    
+    if (!user) {
+      // Lève une exception 404 avec un message personnalisé
+      throw new NotFoundException(`Utilisateur avec l'id ${id} non trouvé`);
+    }
+    
+    return user;
+  }
+  
+  async create(createUserDto: CreateUserDto) {
+    const existing = await this.userRepository.findOne({ 
+      where: { email: createUserDto.email } 
+    });
+    
+    if (existing) {
+      // Lève une exception 409 (Conflit)
+      throw new ConflictException('Cet email est déjà utilisé');
+    }
+    
+    return this.userRepository.save(createUserDto);
+  }
+}
+            </code></pre>
+        </div>
+        <div class="bg-yellow-50 p-3 rounded mt-3 text-sm">
+            ⚠️ <strong>Important :</strong> Quand vous lancez une exception, le code après le `throw` ne s'exécute pas. NestJS intercepte automatiquement l'exception et envoie la réponse HTTP appropriée.
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : Personnalisation des exceptions -->
+    <div class="slide" id="slide5">
+        <h2 class="text-2xl font-bold">⚙️ Personnaliser les exceptions</h2>
+        <p>On peut passer un objet personnalisé comme second paramètre pour ajouter une cause ou une description.</p>
+        <div class="code-block mt-3">
+            <pre><code>
+// Exemple basique avec message personnalisé
+throw new BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+
+// Exemple avec cause et description
+throw new BadRequestException({
+  message: 'Validation échouée',
+  errors: [
+    { field: 'email', message: 'Format email invalide' },
+    { field: 'password', message: 'Mot de passe trop court' }
+  ]
+});
+
+// Avec cause d'erreur (stack trace)
+throw new InternalServerErrorException('Erreur base de données', { 
+  cause: new Error('Connection timeout') 
+});
+
+// Définir une réponse personnalisée complète
+throw new HttpException({
+  status: 429,
+  error: 'Trop de requêtes',
+  retryAfter: 60
+}, 429);
+            </code></pre>
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : Créer un filtre d'exception global -->
+    <div class="slide" id="slide6">
+        <h2 class="text-2xl font-bold">🔧 Filtre d'exception global personnalisé</h2>
+        <p>Un filtre permet de capturer toutes les exceptions et de formater la réponse comme on le souhaite.</p>
+        <div class="code-block mt-3">
+            <pre><code>
+// http-exception.filter.ts
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse&lt;Response&gt;();
+    const request = ctx.getRequest&lt;Request&gt;();
+    const status = exception.getStatus();
+    const exceptionResponse = exception.getResponse();
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      method: request.method,
+      message: typeof exceptionResponse === 'string' 
+        ? exceptionResponse 
+        : (exceptionResponse as any).message,
+      error: (exceptionResponse as any).error || 'Error',
+    });
+  }
+}
+            </code></pre>
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : Enregistrement du filtre global -->
+    <div class="slide" id="slide7">
+        <h2 class="text-2xl font-bold">📋 Enregistrer le filtre globalement</h2>
+        <p>Plusieurs façons d'enregistrer un filtre d'exception.</p>
+        <div class="space-y-4 mt-3">
+            <div class="bg-gray-100 p-3 rounded-lg">
+                <p class="font-bold">1️⃣ Au niveau de l'application (main.ts)</p>
+                <div class="code-block text-sm mt-2">
+                    <pre><code>app.useGlobalFilters(new HttpExceptionFilter());</code></pre>
+                </div>
+            </div>
+            <div class="bg-gray-100 p-3 rounded-lg">
+                <p class="font-bold">2️⃣ Avec injection de dépendances (main.ts)</p>
+                <div class="code-block text-sm mt-2">
+                    <pre><code>app.useGlobalFilters(app.get(HttpExceptionFilter));</code></pre>
+                </div>
+                <p class="text-xs mt-1 text-gray-500">Nécessite que le filtre soit un provider (avec @Injectable())</p>
+            </div>
+            <div class="bg-gray-100 p-3 rounded-lg">
+                <p class="font-bold">3️⃣ Par module (filtre au niveau contrôleur)</p>
+                <div class="code-block text-sm mt-2">
+                    <pre><code>@Controller('users')
+@UseFilters(new HttpExceptionFilter())
+export class UsersController {}</code></pre>
+                </div>
+            </div>
+            <div class="bg-gray-100 p-3 rounded-lg">
+                <p class="font-bold">4️⃣ Global via module</p>
+                <div class="code-block text-sm mt-2">
+                    <pre><code>@Module({
+  providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }]
+})</code></pre>
+                </div>
+                <p class="text-xs mt-1 text-gray-500">Cette méthode permet l'injection de dépendances dans le filtre</p>
+            </div>
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 8 : Filtre pour toutes les exceptions (même non-Http) -->
+    <div class="slide" id="slide8">
+        <h2 class="text-2xl font-bold">🛡️ Capturer TOUTES les exceptions</h2>
+        <p>Pour capturer aussi les erreurs JavaScript natives (ex: TypeError), on omet le décorateur `@Catch()` ou on utilise `@Catch()` vide.</p>
+        <div class="code-block mt-3">
+            <pre><code>
+// catch-all-exception.filter.ts
+import { ExceptionFilter, Catch, ArgumentsHost } from '@nestjs/common';
+
+@Catch()  // Pas de paramètre = capture TOUTES les exceptions
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const request = ctx.getRequest();
+
+    let status = 500;
+    let message = 'Erreur interne du serveur';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      message = exception.message;
+    } else if (exception instanceof Error) {
+      message = exception.message;
+      // En prod, on peut logger mais ne pas exposer les détails
+      console.error('Erreur non gérée:', exception.stack);
+    }
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      message,
+    });
+  }
+}
+            </code></pre>
+        </div>
+        <div class="bg-red-50 p-3 rounded mt-3 text-sm border-l-4 border-red-500">
+            ⚠️ <strong>Attention :</strong> Ne révélez jamais les stacks d'erreur en production. Utilisez `process.env.NODE_ENV !== 'production'` pour les inclure conditionnellement.
+        </div>
+        <div class="flex justify-between mt-4">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 9 : Tableau récapitulatif des exceptions -->
+    <div class="slide" id="slide9">
+        <h2 class="text-2xl font-bold">📊 Tableau des exceptions courantes</h2>
+        <div class="overflow-x-auto mt-4">
+            <table class="w-full text-sm border-collapse">
+                <thead class="bg-gray-100">
+                    <tr><th class="p-3 text-left">Exception</th><th class="p-3 text-left">Code HTTP</th><th class="p-3 text-left">Utilisation typique</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr><td class="p-3"><code>BadRequestException</code></td><td class="p-3">400</td><td class="p-3">Validation des entrées échouée</td></tr>
+                    <tr><td class="p-3"><code>UnauthorizedException</code></td><td class="p-3">401</td><td class="p-3">Token invalide ou absent</td></tr>
+                    <tr><td class="p-3"><code>ForbiddenException</code></td><td class="p-3">403</td><td class="p-3">Accès refusé (rôle insuffisant)</td></tr>
+                    <tr><td class="p-3"><code>NotFoundException</code></td><td class="p-3">404</td><td class="p-3">Ressource introuvable</td></tr>
+                    <tr><td class="p-3"><code>ConflictException</code></td><td class="p-3">409</td><td class="p-3">Conflit (email déjà utilisé)</td></tr>
+                    <tr><td class="p-3"><code>UnprocessableEntityException</code></td><td class="p-3">422</td><td class="p-3">Données valides mais incohérentes</td></tr>
+                    <tr><td class="p-3"><code>InternalServerErrorException</code></td><td class="p-3">500</td><td class="p-3">Erreur inattendue</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="flex justify-between mt-6">
+            <button class="nav-btn prev-btn">⬅️</button>
+            <button class="nav-btn next-btn">➡️</button>
+        </div>
+    </div>
+
+    <!-- SLIDE 10 : Exercices pratiques -->
+    <div class="slide" id="slide10">
+        <h2 class="text-2xl font-bold">📝 Exercices pratiques</h2>
+        <div class="space-y-5">
+            <div class="bg-green-50 p-4 rounded-xl">
+                <p class="font-bold text-green-800">🎯 Exercice 1 - Lancer une exception (niveau easy)</p>
+                <p>Dans un service de gestion de produits, écrivez la méthode <code>delete(id: number)</code> qui lance une <code>NotFoundException</code> si le produit n'existe pas.</p>
+                <details class="mt-3 cursor-pointer text-green-700">
+                    <summary class="font-semibold">Voir la solution</summary>
+                    <div class="code-block bg-gray-900 text-white text-xs p-3 mt-2">
+<pre><code>import { Injectable, NotFoundException } from '@nestjs/common';
+
+@Injectable()
+export class ProductService {
+  async delete(id: number) {
+    const product = await this.productRepository.findOne({ where: { id } });
+    
+    if (!product) {
+      throw new NotFoundException(`Produit avec l'ID ${id} non trouvé`);
+    }
+    
+    return this.productRepository.delete(id);
+  }
+}</code></pre>
+                    </div>
+                </details>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-xl">
+                <p class="font-bold text-blue-800">🎯 Exercice 2 - Filtre personnalisé (niveau medium)</p>
+                <p>Créez un filtre d'exception <code>ValidationExceptionFilter</code> qui transforme les erreurs de validation en format : <code>{ field, message }[]</code>.</p>
+                <details class="mt-2 cursor-pointer text-blue-700">
+                    <summary>Voir la solution</summary>
+                    <div class="code-block bg-gray-900 text-white text-xs p-3 mt-2">
+<pre><code>@Catch(BadRequestException)
+export class ValidationExceptionFilter implements ExceptionFilter {
+  catch(exception: BadRequestException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const status = exception.getStatus();
+    const exceptionResponse = exception.getResponse() as any;
+
+    const errors = exceptionResponse.message || [];
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      errors: Array.isArray(errors) 
+        ? errors.map(msg => ({ message: msg }))
+        : [{ message: errors }]
+    });
+  }
+}</code></pre>
+                    </div>
+                </details>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-xl">
+                <p class="font-bold text-purple-800">🎯 Exercice 3 - Cas concret (niveau hard)</p>
+                <p>Implémentez un filtre global qui formate TOUTES les erreurs selon le format suivant :</p>
+                <pre class="bg-gray-800 text-white p-2 rounded text-xs mt-2">{
+  "success": false,
+  "error": "NOT_FOUND",
+  "message": "Ressource non trouvée",
+  "timestamp": 1678901234567
+}</pre>
+                <details class="mt-2 cursor-pointer text-purple-700">
+                    <summary>Voir la solution</summary>
+                    <div class="code-block bg-gray-900 text-white text-xs p-3 mt-2">
+<pre><code>@Catch()
+export class GlobalResponseFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    
+    let status = 500;
+    let errorCode = 'INTERNAL_ERROR';
+    let message = 'Erreur interne du serveur';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      message = exception.message;
+      errorCode = this.getErrorCode(status);
+    } else if (exception instanceof Error) {
+      message = exception.message;
+    }
+
+    response.status(status).json({
+      success: false,
+      error: errorCode,
+      message: message,
+      timestamp: Date.now()
+    });
+  }
+
+  private getErrorCode(status: number): string {
+    const codes = {
+      400: 'BAD_REQUEST',
+      401: 'UNAUTHORIZED',
+      403: 'FORBIDDEN',
+      404: 'NOT_FOUND',
+      409: 'CONFLICT',
+      500: 'INTERNAL_ERROR'
+    };
+    return codes[status] || 'UNKNOWN_ERROR';
+  }
+}</code></pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+        <div class="flex justify-between mt-6">
+            <button class="nav-btn prev-btn">⬅️ Précédent</button>
+            <button class="nav-btn" id="restartBtn">🏁 Revoir depuis début</button>
+        </div>
+    </div>
+
+    <!-- Dots + Footer -->
+    <div class="dot-indicator" id="dotsContainer"></div>
+    <footer>🚨 Cours NestJS – Enseignant Cameroun | Gestion des exceptions (Lesson 19)</footer>
+</div>
+
+<script>
+    let currentSlide = 1;
+    const totalSlides = 10;
+
+    function showSlide(slideNumber) {
+        $('.slide').removeClass('active');
+        $(`#slide${slideNumber}`).addClass('active');
+        $('.dot').removeClass('active-dot');
+        $(`.dot[data-slide="${slideNumber}"]`).addClass('active-dot');
+        currentSlide = slideNumber;
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function updateDots() {
+        let html = '';
+        for (let i = 1; i <= totalSlides; i++) {
+            html += `<div class="dot ${i === currentSlide ? 'active-dot' : ''}" data-slide="${i}"></div>`;
+        }
+        $('#dotsContainer').html(html);
+        $('.dot').on('click', function() {
+            const slide = parseInt($(this).data('slide'));
+            showSlide(slide);
+        });
+    }
+
+    $(document).ready(function() {
+        updateDots();
+        $('.next-btn').on('click', function() {
+            if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+        });
+        $('.prev-btn').on('click', function() {
+            if (currentSlide > 1) showSlide(currentSlide - 1);
+        });
+        $('#restartBtn').on('click', function() { showSlide(1); });
+    });
+</script>
+</body>
+</html>

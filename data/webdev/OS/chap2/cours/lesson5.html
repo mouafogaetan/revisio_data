@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours OS : Threads vs Processus | Lesson6</title>
+    <!-- Tailwind CSS CDN + Google Fonts pour une meilleure lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (peu utilisées ici, mais disponible) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation Tailwind pour des couleurs douces et lisibles -->
+    <style>
+        /* ajustements personnalisés pour slides et responsive */
+        body {
+            background: #f4f7fc; /* fond doux */
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.2s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.03);
+            background-color: #1e3a8a;
+        }
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #2563eb;
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 0 0.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+            .objectif-item {
+                font-size: 0.95rem;
+            }
+        }
+        /* style pour les listes et mise en avant */
+        .highlight {
+            background: #eef2ff;
+            border-left: 4px solid #3b82f6;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+        }
+        .badge-thread {
+            background: #10b981;
+            color: white;
+            font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+        .badge-process {
+            background: #f59e0b;
+            color: white;
+            font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+        .comparison-table td, .comparison-table th {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="slide-container px-4 py-6 md:py-10">
+    <!-- Carte principale slide -->
+    <div class="slide-card p-6 md:p-8">
+        <!-- Indicateur de progression + navigation -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <div class="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                Lesson 6 · Initiation aux Systèmes d'exploitation
+            </div>
+            <div class="flex gap-3">
+                <button id="prevSlide" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow">◀ Précédent</button>
+                <button id="nextSlide" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow">Suivant ▶</button>
+            </div>
+        </div>
+        <!-- Barre de progression -->
+        <div class="progress-bar mb-6">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- Conteneur des slides dynamique -->
+        <div id="slidesContent">
+            <!-- Les slides seront injectées ici via JS -->
+        </div>
+
+        <!-- petit footer info -->
+        <div class="text-center text-xs text-gray-400 mt-8 border-t pt-4">
+            Cours Conçu pour la classe Développement Web - Cameroun | Comprendre les threads et processus
+        </div>
+    </div>
+</div>
+
+<script>
+    // ----- Définition des slides pour la Lesson 6 : "Threads vs Processus" -----
+    // correspond aux objectifs de la lesson6: 
+    // 0: Distinguer processus léger (thread) et processus lourd
+    // 1: Comprendre les modèles (1:1, N:1, M:N) de mapping threads-noyau
+    // 2: Identifier avantages (partage mémoire, création rapide) et problèmes (synchronisation)
+    const slides = [
+        { // Slide 0 : TITRE + introduction
+            type: "title",
+            title: "⚙️ Processus légers (Threads) vs Processus lourds",
+            subtitle: "Comprendre les unités d'exécution au cœur des systèmes d'exploitation",
+            icon: "🧵",
+            bgClass: "bg-gradient-to-br from-blue-50 to-indigo-50"
+        },
+        { // Slide 1 : Objectifs pédagogiques (conformément au programme)
+            type: "objectives",
+            title: "🎯 Objectifs d'apprentissage",
+            objectives: [
+                "Distinguer un processus léger (thread) d’un processus lourd (processus classique).",
+                "Comprendre les modèles de mapping threads-noyau : 1:1, N:1, M:N.",
+                "Identifier les avantages des threads : partage mémoire, création rapide, communication efficace.",
+                "Reconnaître les problèmes majeurs : synchronisation, accès concurrents et deadlocks."
+            ]
+        },
+        { // Slide 2 : Définition et différence fondamentale
+            type: "content",
+            title: "🧠 Processus lourd vs Thread : Quelles différences ?",
+            contentHtml: `
+                <div class="grid md:grid-cols-2 gap-6 mt-2">
+                    <div class="bg-orange-50 p-4 rounded-2xl shadow-sm">
+                        <div class="flex items-center gap-2 mb-2"><span class="badge-process">Processus Lourd</span><span class="text-sm">(traditionnel)</span></div>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>Possède son propre espace mémoire (code, données, pile).</li>
+                            <li>Création lourde (fork, allocation mémoire).</li>
+                            <li>Communication inter-processus (IPC) complexe : tubes, files, mémoire partagée.</li>
+                            <li>Isolation forte : un plantage n'affecte pas les autres processus.</li>
+                            <li>Changement de contexte coûteux (sauvegarde complet état CPU, MMU).</li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-2xl shadow-sm">
+                        <div class="flex items-center gap-2 mb-2"><span class="badge-thread">Thread (léger)</span><span class="text-sm">unité d'exécution</span></div>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>Partage l'espace mémoire du processus parent (code, données, ressources).</li>
+                            <li>Création rapide (moins de métadonnées).</li>
+                            <li>Communication directe via mémoire partagée (rapide mais risquée).</li>
+                            <li>Moins d'isolation : un thread peut corrompre les données des autres.</li>
+                            <li>Changement de contexte léger (pile et registres seulement).</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight mt-4 text-sm italic">🔍 Résumé : Un processus contient au moins un thread (thread principal). Plusieurs threads au sein d’un même processus s’exécutent en parallèle et partagent les ressources.</div>
+            `
+        },
+        { // Slide 3 : Modèles de mapping threads-noyau (User vs Kernel)
+            type: "content",
+            title: "🖧 Modèles de mapping : comment le noyau gère les threads ?",
+            contentHtml: `
+                <p class="mb-3 text-gray-600">Trois architectures principales relient les threads au niveau utilisateur et ceux du noyau :</p>
+                <div class="space-y-4">
+                    <div class="bg-white border border-gray-200 rounded-xl p-3">
+                        <span class="font-bold text-blue-700">Modèle 1:1 (One-to-One)</span>
+                        <p>Chaque thread utilisateur correspond à un thread noyau. Linux, Windows, macOS utilisent ce modèle. <span class="text-green-600">✅ Véritable parallélisme</span> mais consommation de ressources noyau.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-3">
+                        <span class="font-bold text-blue-700">Modèle N:1 (Many-to-One)</span>
+                        <p>Plusieurs threads utilisateurs mappés sur un unique thread noyau. Gérés par une bibliothèque (ex: fibres). ⚠️ Pas de vrai parallélisme (un seul thread s'exécute à la fois). Blocage d'un thread → tout le processus bloqué.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-3">
+                        <span class="font-bold text-blue-700">Modèle M:N (Many-to-Many)</span>
+                        <p>M threads utilisateurs sur N threads noyau (N <= M). Compromis entre flexibilité et performance. Implémenté par certains OS (ex: anciens systèmes). Permet d'éviter saturation noyau.</p>
+                    </div>
+                </div>
+                <div class="mt-4 text-center text-sm text-gray-500">📌 Aujourd'hui, <strong>1:1</strong> domine (pthreads, threads Java, C#).</div>
+            `
+        },
+        { // Slide 4 : Avantages des threads (illustration partage mémoire)
+            type: "content",
+            title: "✅ Avantages des threads : pourquoi sont-ils si utilisés ?",
+            contentHtml: `
+                <div class="flex flex-wrap gap-4 justify-between">
+                    <div class="flex-1 min-w-[200px] bg-indigo-50 p-4 rounded-xl">
+                        <div class="text-3xl mb-2">🚀</div>
+                        <h3 class="font-bold">Création rapide</h3>
+                        <p class="text-sm">Créer un thread est 10 à 100 fois plus rapide qu’un processus (pas de duplication de la table mémoire).</p>
+                    </div>
+                    <div class="flex-1 min-w-[200px] bg-indigo-50 p-4 rounded-xl">
+                        <div class="text-3xl mb-2">📦</div>
+                        <h3 class="font-bold">Partage efficace</h3>
+                        <p class="text-sm">Les threads partagent naturellement les données globales → communication quasi instantanée sans IPC complexe.</p>
+                    </div>
+                    <div class="flex-1 min-w-[200px] bg-indigo-50 p-4 rounded-xl">
+                        <div class="text-3xl mb-2">⚡</div>
+                        <h3 class="font-bold">Faible surcharge</h3>
+                        <p class="text-sm">Changement de contexte léger : seulement quelques registres et la pile, pas de changement de table des pages.</p>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 bg-gray-100 rounded-lg text-sm">
+                    💡 Exemple concret : Un navigateur web (Chrome/Firefox) utilise des threads pour charger plusieurs onglets en parallèle tout en partageant le cache et les préférences.
+                </div>
+            `
+        },
+        { // Slide 5 : Problèmes de synchronisation & risques
+            type: "content",
+            title: "⚠️ Problèmes majeurs : synchronisation et accès concurrents",
+            contentHtml: `
+                <p class="mb-3">Le partage mémoire est une épée à double tranchant → <strong>conditions de course (race conditions)</strong> et <strong>deadlocks</strong>.</p>
+                <div class="bg-red-50 p-4 rounded-xl border-l-8 border-red-400">
+                    <p class="font-semibold">🔐 Exemple classique : incrémentation d'un compteur partagé</p>
+                    <pre class="bg-gray-800 text-white p-2 rounded text-sm overflow-x-auto">int compteur = 0;
+void thread() { for(int i=0;i<100000;i++) compteur++; }</pre>
+                    <p class="text-sm mt-1">Sans synchronisation, le résultat final est <strong>imprévisible</strong> (perte de mises à jour).</p>
+                </div>
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><span class="font-bold">🧷 Mutex / Sémaphores</span><br>Mécanismes pour protéger les sections critiques.</div>
+                    <div><span class="font-bold">🔄 Interblocage (deadlock)</span><br>Deux threads s’attendent mutuellement → blocage infini.</div>
+                    <div><span class="font-bold">🧪 Variables conditionnelles</span><br>Permettent d'attendre une condition sans consommer CPU.</div>
+                    <div><span class="font-bold">📌 Outils de vérification</span><br>Valgrind (helgrind), ThreadSanitizer détectent les accès concurrents.</div>
+                </div>
+            `
+        },
+        { // Slide 6 : Tableau comparatif visuel : Thread vs Process
+            type: "content",
+            title: "📊 Comparaison rapide: Threads vs Processus",
+            contentHtml: `
+                <div class="overflow-x-auto">
+                    <table class="comparison-table w-full text-sm md:text-base border-collapse">
+                        <thead class="bg-gray-200">
+                            <tr><th class="text-left p-2">Critère</th><th class="text-left p-2">Thread</th><th class="text-left p-2">Processus</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td class="font-medium">Espace mémoire</td><td>Partagé (même zone mémoire)</td><td>Chaque processus possède son espace isolé</td></tr>
+                            <tr><td class="font-medium">Création / destruction</td><td>Très rapide (quelques microsecondes)</td><td>Plus lent (fork, allouer tables mémoire)</td></tr>
+                            <tr><td class="font-medium">Communication</td><td>Directe via variables globales</td><td>IPC (tube, socket, fichier, mémoire partagée)</td></tr>
+                            <tr><td class="font-medium">Sécurité / Robustesse</td><td>Un thread peut planter tout le processus</td><td>Isolation: un processus qui plante n'affecte pas les autres</td></tr>
+                            <tr><td class="font-medium">Changement de contexte</td><td>Léger (sauvegarde registres + pile)</td><td>Lourd (changement d'espace d'adressage, cache)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-center text-xs text-gray-500">🎓 En pratique : les serveurs web, applications graphiques et moteurs de jeux exploitent massivement les threads pour la réactivité.</div>
+            `
+        },
+        { // Slide 7 : Applications réelles et exemples concrets (dessin ASCII simple, pas d'image externe)
+            type: "content",
+            title: "🌍 Exemples dans la vraie vie",
+            contentHtml: `
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="border rounded-xl p-3">
+                        <div class="font-bold text-blue-600">Serveur web (Apache/Nginx)</div>
+                        <p class="text-sm">Thread pool pour répondre à plusieurs requêtes HTTP simultanément, partageant le cache et la configuration.</p>
+                        <pre class="bg-gray-100 text-xs p-2 mt-2 rounded">[Thread1] -> traite requête utilisateur A<br>[Thread2] -> traite requête utilisateur B<br>(même espace mémoire → accès rapide aux fichiers)</pre>
+                    </div>
+                    <div class="border rounded-xl p-3">
+                        <div class="font-bold text-blue-600">Interface graphique (Java Swing, Qt)</div>
+                        <p class="text-sm">Thread principal (Event Dispatch) gère l’interface, d’autres threads effectuent des calculs lourds pour ne pas figer l’UI.</p>
+                    </div>
+                    <div class="border rounded-xl p-3 col-span-1 md:col-span-2">
+                        <div class="font-bold text-blue-600">🎮 Moteur de jeu (Unity, Unreal)</div>
+                        <p class="text-sm">Thread audio, thread physique, thread rendu — tous partagent les données du monde du jeu, synchronisés via des verrous.</p>
+                    </div>
+                </div>
+                <!-- Petit dessin schématique simple thread vs process -->
+                <div class="mt-6 bg-slate-100 p-3 rounded-xl text-center font-mono text-xs overflow-x-auto">
+                    <p class="font-bold mb-1">📟 Schéma mémoire (Processus = conteneur, Threads = exécutants)</p>
+                    <pre class="whitespace-pre-wrap">
+┌────────────────────────────────────┐
+│  PROCESSUS (ex: navigateur)        │
+│  ┌──────────┐  ┌──────────────┐    │
+│  │ Thread UI │  │ Thread réseau│    │
+│  └──────────┘  └──────────────┘    │
+│   ┌─────────────────────────┐       │
+│   │   Mémoire partagée      │       │
+│   │  (variables, cache)     │       │
+│   └─────────────────────────┘       │
+└────────────────────────────────────┘
+                    </pre>
+                </div>
+            `
+        },
+        { // Slide 8 : Résumé et notion clés (pour bien retenir)
+            type: "content",
+            title: "📌 À retenir absolument",
+            contentHtml: `
+                <ul class="space-y-3 list-inside">
+                    <li class="flex items-start gap-2"><span class="text-green-600 text-xl">✔️</span> <strong>Threads =</strong> unités d'exécution légères partageant le même espace mémoire qu’un processus.</li>
+                    <li class="flex items-start gap-2"><span class="text-green-600 text-xl">✔️</span> <strong>Processus =</strong> entité lourde avec environnement isolé.</li>
+                    <li class="flex items-start gap-2"><span class="text-blue-600 text-xl">📐</span> <strong>Modèles de mapping :</strong> 1:1 (dominant), N:1, M:N.</li>
+                    <li class="flex items-start gap-2"><span class="text-amber-600 text-xl">⚠️</span> <strong>Synchronisation obligatoire</strong> pour éviter les corruptions (mutex, sémaphores).</li>
+                    <li class="flex items-start gap-2"><span class="text-purple-600 text-xl">⚡</span> <strong>Avantages majeurs :</strong> réactivité, économie mémoire, communication rapide.</li>
+                </ul>
+                <div class="highlight mt-5 text-center">
+                    ✨ Pour bien maîtriser les threads, pratiquez avec des petits programmes en C (pthread) ou en Java !
+                </div>
+            `
+        },
+        { // Slide 9 : Questionnaire d'auto-évaluation (interactif)
+            type: "quiz",
+            title: "🧪 Testez vos connaissances",
+            questions: [
+                {
+                    q: "Quel est le principal avantage des threads par rapport aux processus ?",
+                    options: ["Isolation mémoire totale", "Création rapide et partage de données", "Sécurité renforcée", "Absence de bugs de concurrence"],
+                    correct: 1
+                },
+                {
+                    q: "Dans le modèle de mapping 1:1 (one-to-one), chaque thread utilisateur correspond à :",
+                    options: ["Un seul thread noyau", "Plusieurs threads noyau", "Un seul processus", "Une seule zone mémoire virtuelle"],
+                    correct: 0
+                },
+                {
+                    q: "Lequel de ces problèmes est spécifique aux environnements multi-threadés ?",
+                    options: ["Fragmentation mémoire", "Deadlock / interblocage", "Dépassement de pile", "Swap excessif"],
+                    correct: 1
+                }
+            ]
+        }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+    // Helper: render slide based on type
+    function renderSlide(index) {
+        const slide = slides[index];
+        if (!slide) return;
+        let html = '';
+        const baseCardClass = "transition-all duration-200";
+        
+        if (slide.type === 'title') {
+            html = `
+                <div class="text-center py-6 md:py-10 ${slide.bgClass || 'bg-white'} rounded-2xl">
+                    <div class="text-6xl mb-4">${slide.icon || '📘'}</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800">${slide.title}</h1>
+                    <p class="text-gray-600 mt-4 text-lg max-w-2xl mx-auto">${slide.subtitle || ''}</p>
+                    <div class="mt-8 text-blue-600 text-sm">Classe Développement Web – Cameroun</div>
+                </div>
+            `;
+        } 
+        else if (slide.type === 'objectives') {
+            html = `<div><h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-6">${slide.title}</h2><ul class="space-y-3">`;
+            slide.objectives.forEach(obj => {
+                html += `<li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl"><span class="text-blue-500 text-xl">✓</span><span class="text-gray-700 objectif-item">${obj}</span></li>`;
+            });
+            html += `</ul><div class="mt-6 text-sm text-gray-500 italic">📖 Chaque objectif sera atteint à travers les slides suivantes.</div></div>`;
+        }
+        else if (slide.type === 'content') {
+            html = `<div><h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>${slide.contentHtml}</div>`;
+        }
+        else if (slide.type === 'quiz') {
+            html = `<div><h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+                    <div id="quizArea" class="space-y-6"></div>
+                    <button id="submitQuiz" class="mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-full shadow">Vérifier mes réponses</button>
+                    <div id="quizFeedback" class="mt-4 text-sm font-medium"></div></div>`;
+        }
+        
+        $('#slidesContent').html(html);
+        
+        // si c'est un quiz, générer dynamiquement les questions avec jQuery
+        if (slide.type === 'quiz') {
+            let quizHtml = '';
+            slide.questions.forEach((q, idx) => {
+                quizHtml += `<div class="bg-white border rounded-xl p-4 shadow-sm"><p class="font-semibold mb-2">${idx+1}. ${q.q}</p><div class="space-y-2">`;
+                q.options.forEach((opt, optIdx) => {
+                    quizHtml += `<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="q${idx}" value="${optIdx}" class="radio-option"> <span>${opt}</span></label>`;
+                });
+                quizHtml += `</div><div class="question-feedback text-sm mt-1 text-gray-500"></div></div>`;
+            });
+            $('#quizArea').html(quizHtml);
+            
+            $('#submitQuiz').off('click').on('click', function() {
+                let score = 0;
+                slide.questions.forEach((q, idx) => {
+                    const selected = $(`input[name="q${idx}"]:checked`).val();
+                    const feedbackDiv = $(`.question-feedback`).eq(idx);
+                    if (selected !== undefined && parseInt(selected) === q.correct) {
+                        feedbackDiv.html('✅ Bonne réponse !').removeClass('text-red-500').addClass('text-green-600');
+                        score++;
+                    } else {
+                        const correctAns = q.options[q.correct];
+                        feedbackDiv.html(`❌ Mauvaise. La bonne réponse : "${correctAns}".`).removeClass('text-green-600').addClass('text-red-500');
+                    }
+                });
+                $('#quizFeedback').html(`<div class="bg-blue-100 p-3 rounded-xl">✨ Score : ${score}/${slide.questions.length} ✨</div>`);
+            });
+        }
+        
+        // Mise à jour barre progression
+        const progressPercent = ((currentIndex+1) / totalSlides) * 100;
+        $('.progress-fill').css('width', `${progressPercent}%`);
+        
+        // gestion désactivation boutons
+        $('#prevSlide').prop('disabled', currentIndex === 0);
+        $('#nextSlide').prop('disabled', currentIndex === totalSlides-1);
+    }
+    
+    // navigation
+    function nextSlide() {
+        if (currentIndex < totalSlides-1) {
+            currentIndex++;
+            renderSlide(currentIndex);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+    function prevSlide() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderSlide(currentIndex);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+    
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        // keyboard navigation
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+    });
+</script>
+</body>
+</html>

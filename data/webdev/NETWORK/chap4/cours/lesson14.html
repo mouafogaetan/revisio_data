@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 14 : TCP - Contrôle de flux et congestion</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e293b;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #cbd5e1;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #d97706;
+            transition: width 0.3s;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+        .badge {
+            background: #d97706;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+        .flag {
+            font-family: monospace;
+            background: #fef3c7;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+        }
+        .window-demo {
+            background: #1e293b;
+            border-radius: 1rem;
+            padding: 1rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <div id="slides-wrapper" class="relative">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide p-6 md:p-10 mb-6" data-slide="0">
+            <div class="flex flex-col items-center text-center">
+                <div class="badge">TCP - Transmission Control Protocol</div>
+                <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-yellow-700 mt-2">TCP : Contrôle de flux & Congestion</h1>
+                <p class="text-gray-700 mt-4 text-lg">Fenêtre glissante, slow start et congestion avoidance</p>
+                <div class="mt-10 flex justify-center">
+                    <i class="fas fa-tachometer-alt text-5xl text-amber-600 animate-pulse"></i>
+                </div>
+                <div class="mt-8 text-sm text-gray-500">Cours Réseaux | Classe: Développement Web</div>
+                <div class="text-sm text-gray-500">Cameroun 🇨🇲 | Enseignant: M. Ndeh</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="1">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-4 text-gray-700 text-lg">
+                <li class="flex items-start gap-3"><i class="fas fa-arrows-alt-h text-amber-600 mt-1"></i> <span>Comprendre le contrôle de flux avec la <strong>fenêtre glissante</strong> (window size)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-chart-line text-amber-600 mt-1"></i> <span>Expliquer le contrôle de congestion (<strong>slow start, congestion avoidance</strong>)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-flag-checkered text-amber-600 mt-1"></i> <span>Connaître les flags TCP (SYN, ACK, FIN, RST, PSH, URG)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-microchip text-amber-600 mt-1"></i> <span>Analyser les champs d'en-tête TCP (seq, ack, window)</span></li>
+            </ul>
+            <div class="mt-6 p-4 bg-amber-50 rounded-xl">
+                <p class="italic text-amber-800">✨ À la fin, vous saurez comment TCP assure un transfert fiable et évite la saturation du réseau !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : Rappel en-tête TCP -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="2">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">📋 En-tête TCP - Champs clés</h2>
+            <div class="overflow-x-auto">
+                <div class="bg-gray-800 text-white p-3 rounded-xl font-mono text-xs md:text-sm">
+                    <div class="grid grid-cols-4 gap-1 text-center mb-2">
+                        <div class="bg-blue-700 p-1">Port source (16 bits)</div>
+                        <div class="bg-blue-700 p-1">Port dest (16 bits)</div>
+                        <div colspan="2" class="bg-blue-700 p-1"></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 text-center mb-2">
+                        <div class="bg-green-700 p-1">Numéro de séquence (32 bits)</div>
+                        <div class="bg-green-700 p-1"></div><div></div><div></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 text-center mb-2">
+                        <div class="bg-green-700 p-1">Numéro d'acquittement (32 bits)</div>
+                    </div>
+                    <div class="grid grid-cols-8 gap-1 text-center mb-2">
+                        <div class="bg-yellow-700 p-1">Offset</div><div class="bg-yellow-700 p-1">Res</div>
+                        <div class="bg-red-500 p-1">Flags (6 bits)</div><div class="bg-yellow-700 p-1 col-span-2">Window size</div>
+                        <div class="bg-yellow-700 p-1 col-span-2">Checksum</div><div class="bg-yellow-700 p-1">Urgent ptr</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <div><span class="flag">SEQ</span> : Numéro de séquence</div>
+                <div><span class="flag">ACK</span> : Acquittement</div>
+                <div><span class="flag">Window</span> : Taille de la fenêtre</div>
+                <div><span class="flag">Flags</span> : SYN, ACK, FIN, RST, PSH, URG</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : Flags TCP (les 6 drapeaux) -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="3">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">🚩 Les flags TCP</h2>
+            <div class="grid md:grid-cols-2 gap-3">
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-red-600">SYN</span> – Synchronisation (début de connexion)</div>
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-green-600">ACK</span> – Acquittement (accusé réception)</div>
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-blue-600">FIN</span> – Fin de connexion (fermeture polie)</div>
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-purple-600">RST</span> – Reset (réinitialisation brutale)</div>
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-orange-600">PSH</span> – Push (envoi immédiat sans tampon)</div>
+                <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold text-pink-600">URG</span> – Urgent (données prioritaires)</div>
+            </div>
+            <div class="mt-4 p-3 bg-amber-100 rounded-lg text-center text-sm">
+                💡 <strong>À retenir</strong> : SYN, ACK et FIN sont essentiels pour l'établissement et la fermeture de la connexion.
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : Contrôle de flux - Fenêtre glissante -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="4">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">📏 Contrôle de flux : Fenêtre glissante</h2>
+            <p>TCP évite que l'émetteur aille plus vite que le récepteur. Le récepteur annonce sa <strong>window size</strong> (taille de la fenêtre) dans chaque acquittement.</p>
+            <div class="window-demo mt-4">
+                <div class="text-center mb-2">Emetteur peut envoyer <span id="demoWindow" class="font-bold text-amber-300">4</span> segments sans acquittement</div>
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <div class="bg-blue-600 px-3 py-1 rounded">Seg 1</div>
+                    <div class="bg-blue-600 px-3 py-1 rounded">Seg 2</div>
+                    <div class="bg-blue-600 px-3 py-1 rounded">Seg 3</div>
+                    <div class="bg-blue-600 px-3 py-1 rounded">Seg 4</div>
+                    <div class="bg-gray-600 px-3 py-1 rounded opacity-50">Seg 5</div>
+                </div>
+                <div class="text-center text-xs mt-2">Fenêtre = 4 segments (récepteur peut en recevoir 4)</div>
+            </div>
+            <div class="mt-3 text-sm">Après réception d'un ACK, la fenêtre glisse vers la droite et autorise l'envoi de nouveaux segments.</div>
+        </div>
+
+        <!-- SLIDE 6 : Contrôle de congestion (théorie) -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="5">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">🚦 Contrôle de congestion</h2>
+            <p>Évite la saturation du réseau (routeurs, liens). TCP ajuste dynamiquement son débit.</p>
+            <div class="bg-gray-100 p-4 rounded-xl mt-3">
+                <div class="flex justify-between items-center">
+                    <span class="font-bold">Phase 1 : Slow Start</span>
+                    <span class="text-sm">Augmentation exponentielle (double la fenêtre à chaque RTT)</span>
+                </div>
+                <div class="w-full bg-gray-300 h-2 rounded mt-1"><div class="bg-green-600 h-2 rounded" style="width: 30%"></div></div>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="font-bold">Phase 2 : Congestion Avoidance</span>
+                    <span class="text-sm">Augmentation linéaire (+1 MSS par RTT)</span>
+                </div>
+                <div class="w-full bg-gray-300 h-2 rounded mt-1"><div class="bg-blue-600 h-2 rounded" style="width: 60%"></div></div>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="font-bold">Phase 3 : Détection de perte</span>
+                    <span class="text-sm">Réduction drastique (seuil divisé par 2)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : Algorithme de congestion (schéma textuel) -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="6">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">📈 Évolution de la fenêtre de congestion</h2>
+            <div class="code-block text-xs">
+<pre>
+cwnd (congestion window)
+   ^
+   |   /--------\
+   |  /          \___  seuil atteint
+   | /                \___  congestion avoidance
+   |/                     \___
+   +-------------------------------> temps
+    slow start  →  seuil  →  linéaire
+</pre>
+            </div>
+            <div class="mt-4 text-sm">🔹 <strong>Slow start</strong> : cwnd double tous les RTT jusqu'au seuil (ssthresh).<br>
+            🔹 <strong>Congestion avoidance</strong> : cwnd augmente de 1 MSS par RTT.<br>
+            🔹 Perte de paquet : ssthresh = cwnd/2, cwnd = 1 (redémarrage).</div>
+        </div>
+
+        <!-- SLIDE 8 : Exemple concret de window size -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="7">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">💡 Exemple : Window size en pratique</h2>
+            <div class="bg-gray-100 p-4 rounded-lg">
+                <p>Supposons que le récepteur annonce <strong>window = 8192 octets</strong> et que chaque segment fasse 1024 octets (MSS).</p>
+                <p class="mt-2">Cela signifie que l'émetteur peut envoyer jusqu'à <strong class="text-amber-700">8 segments</strong> avant d'attendre un acquittement.</p>
+                <div class="bg-white p-2 rounded font-mono text-sm mt-2">
+                    Émetteur → [1][2][3][4][5][6][7][8] → Récepteur<br>
+                    Récepteur → ACK (numéro=9, window=4096) → nouvelle fenêtre
+                </div>
+            </div>
+            <div class="mt-4 p-2 bg-yellow-50 rounded border-l-4 border-yellow-500">
+                📌 La fenêtre peut changer dynamiquement pour s'adapter à la capacité du récepteur et de la congestion.
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : Petit exercice mental -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="8">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">✏️ Vérifions nos connaissances</h2>
+            <div class="space-y-4">
+                <div class="bg-white shadow rounded p-3">
+                    <p class="font-semibold">1. Quel flag TCP est utilisé pour initialiser une connexion ?</p>
+                    <p class="text-green-700 mt-1">✓ SYN (Synchronize)</p>
+                </div>
+                <div class="bg-white shadow rounded p-3">
+                    <p class="font-semibold">2. Que signifie "window size" dans l'en-tête TCP ?</p>
+                    <p class="text-green-700 mt-1">✓ La quantité de données (en octets) que le récepteur est prêt à accepter.</p>
+                </div>
+                <div class="bg-white shadow rounded p-3">
+                    <p class="font-semibold">3. Que se passe-t-il en cas de perte de paquet pendant slow start ?</p>
+                    <p class="text-green-700 mt-1">✓ TCP divise le seuil de congestion par 2, réduit cwnd à 1 et redémarre.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 : Résumé -->
+        <div class="slide p-6 md:p-10 mb-6 hidden" data-slide="9">
+            <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-4">📌 Récapitulatif</h2>
+            <div class="grid md:grid-cols-2 gap-3">
+                <div class="bg-amber-50 p-3 rounded-lg"><i class="fas fa-window-maximize"></i> <strong>Fenêtre glissante</strong> : contrôle de flux (récepteur)</div>
+                <div class="bg-amber-50 p-3 rounded-lg"><i class="fas fa-chart-line"></i> <strong>Slow start / CA</strong> : contrôle de congestion (réseau)</div>
+                <div class="bg-amber-50 p-3 rounded-lg"><i class="fas fa-flag"></i> <strong>Flags</strong> : SYN, ACK, FIN, RST, PSH, URG</div>
+                <div class="bg-amber-50 p-3 rounded-lg"><i class="fas fa-calculator"></i> <strong>cwnd</strong> : fenêtre de congestion (max segments en transit)</div>
+            </div>
+            <div class="mt-6 text-center text-white bg-gradient-to-r from-amber-600 to-yellow-600 p-4 rounded-2xl">
+                🚀 Prochaine leçon : Les protocoles applicatifs (DNS, HTTP, SMTP) !
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center mt-4">
+            <button id="prevSlide" class="nav-btn bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-full shadow disabled:opacity-50" disabled><i class="fas fa-chevron-left"></i> Précédent</button>
+            <div class="progress-bar w-1/3 mx-4">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-full shadow">Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="text-center text-xs text-gray-500 mt-3">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let currentSlide = 0;
+    const slides = $('.slide');
+    const totalSlides = slides.length;
+    $('#totalSlides').text(totalSlides);
+    
+    function updateSlides() {
+        slides.each(function(index) {
+            if (index === currentSlide) {
+                $(this).removeClass('hidden').fadeIn(200);
+            } else {
+                $(this).addClass('hidden');
+            }
+        });
+        $('#currentSlideIdx').text(currentSlide + 1);
+        const progressPercent = (currentSlide / (totalSlides - 1)) * 100;
+        $('#progressFill').css('width', progressPercent + '%');
+        
+        $('#prevSlide').prop('disabled', currentSlide === 0);
+        $('#nextSlide').prop('disabled', currentSlide === totalSlides - 1);
+        if(currentSlide === totalSlides-1) {
+            $('#nextSlide').html('Terminé <i class="fas fa-check"></i>');
+        } else {
+            $('#nextSlide').html('Suivant <i class="fas fa-chevron-right"></i>');
+        }
+    }
+    
+    $('#nextSlide').on('click', function() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            updateSlides();
+        } else {
+            alert("🎉 Félicitations ! Vous avez terminé la leçon sur le contrôle TCP.");
+        }
+    });
+    
+    $('#prevSlide').on('click', function() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+        }
+    });
+    
+    updateSlides();
+});
+</script>
+</body>
+</html>

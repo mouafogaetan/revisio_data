@@ -1,0 +1,127 @@
+[
+  {
+    "intitule": "Configuration des tests e2e avec supertest",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS, vous souhaitez écrire des tests d'intégration (end-to-end) pour votre API e-commerce en utilisant <code>supertest</code>. Vous devez configurer un environnement de test isolé avec une base de données PostgreSQL dédiée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez la configuration d'un fichier de test e2e (ex: `app.e2e-spec.ts`) qui initialise l'application NestJS et un agent supertest. Utilisez un module de test avec une base de données temporaire.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Test, TestingModule } from '@nestjs/testing';\nimport { INestApplication } from '@nestjs/common';\nimport * as request from 'supertest';\nimport { AppModule } from './../src/app.module';\n\ndescribe('AppController (e2e)', () => {\n  let app: INestApplication;\n\n  beforeAll(async () => {\n    const moduleFixture: TestingModule = await Test.createTestingModule({\n      imports: [AppModule],\n    }).compile();\n\n    app = moduleFixture.createNestApplication();\n    await app.init();\n  });\n\n  afterAll(async () => {\n    await app.close();\n  });\n\n  it('/ (GET)', () => {\n    return request(app.getHttpServer())\n      .get('/')\n      .expect(200)\n      .expect('Hello World!');\n  });\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment configurer une base de données de test distincte (ex: `ecommerce_test`) pour ne pas impacter les données de développement.",
+        "niveau": "medium",
+        "reponse": "On peut utiliser les variables d'environnement : définir `NODE_ENV=test` et dans la configuration TypeORM, charger un fichier `.env.test` avec une URL de base de données différente (ex: `postgres://user:pass@localhost/ecommerce_test`). On peut aussi utiliser `TypeOrmModule.forRootAsync` et injecter `ConfigService` pour choisir la DB selon l'environnement.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Test d'un endpoint POST /products avec validation",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez tester l'endpoint POST `/products` qui attend un `CreateProductDto` (name, price, stock). Les règles de validation : name non vide (min 3 caractères), price positif, stock >= 0.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédigez un test e2e qui envoie un produit valide et vérifie le code 201 et les champs retournés.",
+        "niveau": "medium",
+        "reponse": "```typescript\nit('POST /products should create a product', async () => {\n  const productData = { name: 'iPhone 15', price: 999.99, stock: 10 };\n  const response = await request(app.getHttpServer())\n    .post('/products')\n    .send(productData)\n    .expect(201);\n  expect(response.body).toMatchObject(productData);\n  expect(response.body.id).toBeDefined();\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez un test qui envoie un produit avec un `name` trop court (\"ab\") et vérifie que l'API retourne une erreur 400 (Bad Request) avec un message de validation.",
+        "niveau": "medium",
+        "reponse": "```typescript\nit('POST /products should fail with invalid name', async () => {\n  const invalidProduct = { name: 'ab', price: 100, stock: 5 };\n  const response = await request(app.getHttpServer())\n    .post('/products')\n    .send(invalidProduct)\n    .expect(400);\n  expect(response.body.message).toContain('name');\n});\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Test du flux complet : inscription -> ajout panier -> commande -> paiement",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous devez tester le flux complet d'achat d'un client : création de compte, authentification, ajout d'un produit au panier, transformation en commande, et simulation de paiement (webhook Stripe simulé).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez les étapes nécessaires pour tester ce flux dans un seul test e2e, en utilisant des mocks pour Stripe.",
+        "niveau": "very hard",
+        "reponse": "1. Créer un utilisateur via POST /auth/register. 2. Se connecter pour récupérer un token JWT. 3. Ajouter un produit au panier (POST /cart/items) avec le token. 4. Valider le panier et créer une commande (POST /orders). 5. Simuler la création d'un PaymentIntent Stripe (mock du service Stripe). 6. Appeler le webhook Stripe simulé (POST /webhooks/stripe) avec un événement `payment_intent.succeeded`. 7. Vérifier que la commande passe en statut 'paid'. 8. Nettoyer les données.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Quel est l'intérêt d'utiliser une base de données transactionnelle (rollback après chaque test) plutôt qu'une base de données persistante ?",
+        "niveau": "medium",
+        "reponse": "Cela garantit l'isolation des tests : chaque test part d'un état propre, et les modifications sont annulées à la fin. On évite les interférences entre tests (ex: un test qui crée un produit et un autre qui le recherche). On utilise `afterEach` avec une transaction rollback ou `TypeOrmModule.forRoot` avec `synchronize: true` et une base temporaire.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mock des dépendances externes (Stripe, PayPal)",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre API e-commerce appelle Stripe pour créer un PaymentIntent. Vous ne voulez pas appeler la vraie API Stripe pendant les tests e2e.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez comment remplacer le service Stripe par un mock dans le module de test e2e.",
+        "niveau": "hard",
+        "reponse": "On utilise `.overrideProvider()` dans `Test.createTestingModule`. Exemple : `Test.createTestingModule({ imports: [AppModule] }).overrideProvider(StripeService).useValue({ paymentIntents: { create: jest.fn().mockResolvedValue({ id: 'pi_mock', client_secret: 'secret_mock' }) } }).compile()`. Ainsi, les appels réels à Stripe sont évités.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comment vérifier que le service a bien été appelé avec les bons paramètres (montant, devise, métadonnées) ?",
+        "niveau": "hard",
+        "reponse": "Après avoir déclenché l'action qui appelle Stripe, on utilise `expect(mockStripeService.paymentIntents.create).toHaveBeenCalledWith({ amount: 1299, currency: 'eur', metadata: { orderId: 123 } })`. On peut aussi capturer l'appel et inspecter les arguments.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Nettoyage des données entre les tests",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans vos tests e2e, chaque test laisse des traces en base (utilisateurs, produits, commandes). Vous souhaitez nettoyer les tables entre chaque test pour éviter les conflits.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez trois stratégies différentes pour nettoyer la base de données entre les tests e2e.",
+        "niveau": "hard",
+        "reponse": "1. Utiliser des transactions : chaque test s'exécute dans une transaction qui est rollbackée à la fin (via `@Transactional` ou un gestionnaire de transactions manuel). 2. Tronquer les tables après chaque test (`await dataSource.query('TRUNCATE TABLE users, products, orders CASCADE')`). 3. Utiliser une base de données temporaire qui est recréée avant chaque test (plus lent mais très propre).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Quel est l'inconvénient de tronquer toutes les tables après chaque test ? Comment l'atténuer ?",
+        "niveau": "hard",
+        "reponse": "L'inconvénient est la lenteur si de nombreuses tables et contraintes sont présentes (CASCADE). On peut optimiser en tronquant uniquement les tables modifiées par le test, ou en utilisant des transactions qui sont beaucoup plus rapides. On peut aussi désactiver les contraintes de clés étrangères temporairement.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Évaluation Séquentielle · NestJS | Lesson 5 : Injection de dépendances & Providers</title>
+    <!-- Tailwind + jQuery + Mermaid + Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- MathJax (prêt) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f4f7fb; font-family: 'Inter', system-ui, sans-serif; }
+        .quiz-card { transition: all 0.2s ease; }
+        .quiz-card:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -12px rgba(0,0,0,0.1); }
+        .feedback-correct { background-color: #dcfce7; border-left: 4px solid #22c55e; }
+        .feedback-wrong { background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        .progress-bar { transition: width 0.3s ease; }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+        .di-container {
+            background: #ffffff;
+            border-radius: 1rem;
+            padding: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête -->
+        <div class="bg-white rounded-2xl shadow-md p-5 mb-8 border-l-8 border-red-600">
+            <div class="flex flex-col md:flex-row justify-between gap-3">
+                <div>
+                    <span class="text-xs font-bold bg-red-100 text-red-800 px-3 py-1 rounded-full">NestJS · Séquentiel 5</span>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">🧩 Injection de dépendances & Providers</h1>
+                    <p class="text-gray-600">IoC Container, @Injectable, providers personnalisés, injection dans constructeurs</p>
+                </div>
+                <div class="bg-red-50 rounded-xl px-5 py-2 text-center">
+                    <p class="text-xs text-gray-500">Note /20</p>
+                    <p class="text-2xl font-bold text-red-700">__ / 20</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barre de progression -->
+        <div class="mb-6 flex justify-between items-center text-sm">
+            <span id="progressText" class="font-medium">Question 1 / 10</span>
+            <div class="w-2/3 bg-gray-200 rounded-full h-2.5">
+                <div id="quizProgressFill" class="bg-red-600 h-2.5 rounded-full progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Conteneur quiz dynamique -->
+        <div id="quizContainer" class="bg-white rounded-2xl shadow-lg p-5 md:p-7 transition-all"></div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between mt-6 gap-3">
+            <button id="prevBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-50">◀ Précédent</button>
+            <button id="nextBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-full transition">Suivant ▶</button>
+        </div>
+        <div id="globalFeedback" class="mt-5 text-center text-sm text-gray-500"></div>
+
+        <!-- Diagramme Mermaid : Cycle de vie des providers NestJS -->
+        <div class="mt-12 bg-white rounded-2xl shadow-md p-5 border border-gray-200">
+            <h2 class="text-xl font-bold text-red-800 flex items-center gap-2">🔄 <span>Conteneur d'injection de dépendances (IoC)</span></h2>
+            <div class="mermaid mt-3 text-sm">
+                graph TD
+                A[Module] -->|providers: [UserService]| B(Conteneur IoC)
+                B --> C{Injecter dans}
+                C --> D[Controller]
+                C --> E[Autre Service]
+                C --> F[Guard / Interceptor]
+                style A fill:#fef3c7,stroke:#d97706
+                style B fill:#dcfce7,stroke:#16a34a
+                style D fill:#e0f2fe,stroke:#0369a1
+            </div>
+            <p class="text-xs text-gray-500 mt-3">💡 NestJS construit un graphe de dépendances et injecte automatiquement les instances via les constructeurs.</p>
+        </div>
+
+        <!-- Exercice pratique : correction d'une injection manquante -->
+        <div class="mt-6 bg-gray-900 rounded-xl p-4 text-white shadow-lg">
+            <p class="font-mono text-sm flex items-center gap-2"><span class="text-green-400">🔧 Exercice de debug</span> <span class="text-gray-400">|</span> <span class="text-yellow-300">Pourquoi ce service n'est-il pas injecté ?</span></p>
+            <div class="code-block mt-2 text-xs">
+// fichier user.service.ts
+export class UserService {
+  getUsers() { return ['Alice', 'Bob']; }
+}
+
+// fichier user.controller.ts
+@Controller('users')
+export class UserController {
+  constructor(private userService: UserService) {} // ❌ Erreur
+  @Get()
+  findAll() { return this.userService.getUsers(); }
+}
+            </div>
+            <p class="text-sm mt-2">Quelle modification faut-il apporter dans <code>UserService</code> pour que l'injection fonctionne ?</p>
+            <textarea id="injectionFix" rows="2" class="w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg p-2 text-white text-sm font-mono" placeholder="Écrivez la correction (décorateur manquant)..."></textarea>
+            <button id="checkFixBtn" class="mt-2 bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-full text-sm transition">🔍 Vérifier</button>
+            <div id="fixFeedback" class="text-sm mt-2 text-gray-300"></div>
+        </div>
+    </div>
+
+    <script>
+        // ----- 10 questions sur l'injection de dépendances, providers, @Injectable, portée -----
+        const questions = [
+            { // 0
+                text: "Quel décorateur NestJS rend une classe éligible à l'injection de dépendances ?",
+                options: ["@Module()", "@Controller()", "@Injectable()", "@Provider()"],
+                correct: 2,
+                difficulty: "easy",
+                explanation: "Le décorateur <code>@Injectable()</code> marque une classe comme pouvant être gérée par le conteneur IoC et injectée dans d'autres composants (constructeurs)."
+            },
+            { // 1
+                text: "Où déclare-t-on les providers (services, repositories) dans un module NestJS ?",
+                options: [
+                    "Dans le tableau 'imports'",
+                    "Dans le tableau 'controllers'",
+                    "Dans le tableau 'providers'",
+                    "Dans le tableau 'exports'"
+                ],
+                correct: 2,
+                difficulty: "easy",
+                explanation: "Le tableau <code>providers</code> du décorateur <code>@Module()</code> liste les classes injectables (services, factories, etc.) que NestJS instanciera."
+            },
+            { // 2
+                text: "Quelle est la portée par défaut d'un provider dans NestJS ?",
+                options: [
+                    "Request-scoped (une instance par requête)",
+                    "Transient (une nouvelle instance à chaque injection)",
+                    "Singleton (une instance unique par application)",
+                    "Module-scoped (une instance par module)"
+                ],
+                correct: 2,
+                difficulty: "medium",
+                explanation: "Par défaut, NestJS utilise la portée <strong>Singleton</strong> : une seule instance du provider est partagée dans toute l'application. On peut modifier avec <code>@Injectable({ scope: Scope.REQUEST })</code>."
+            },
+            { // 3
+                text: "Comment injecte-t-on un service dans le constructeur d'un contrôleur ?",
+                options: [
+                    "constructor(private userService: UserService) {}",
+                    "constructor(@Inject(UserService) userService) {}",
+                    "constructor(userService: UserService) {} (sans private)",
+                    "inject(UserService) dans la classe"
+                ],
+                correct: 0,
+                difficulty: "easy",
+                explanation: "La syntaxe TypeScript <code>constructor(private userService: UserService)</code> permet à NestJS de résoudre automatiquement la dépendance grâce au typage."
+            },
+            { // 4
+                text: "Quel est le rôle du conteneur d'inversion de contrôle (IoC) dans NestJS ?",
+                options: [
+                    "Générer la documentation Swagger",
+                    "Créer et gérer le cycle de vie des dépendances",
+                    "Compiler le code TypeScript",
+                    "Gérer les requêtes HTTP entrantes"
+                ],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "Le conteneur IoC est responsable de l'instanciation des providers et de l'injection des dépendances dans les constructeurs, facilitant le découplage."
+            },
+            { // 5
+                text: "Quel décorateur permet d'exporter un provider d'un module pour qu'il soit accessible depuis d'autres modules ?",
+                options: ["@Global()", "@Export()", "exports: [] dans @Module", "@Shared()"],
+                correct: 2,
+                difficulty: "medium",
+                explanation: "Dans le décorateur <code>@Module({ exports: [UserService] })</code>, le tableau <code>exports</code> rend le provider disponible aux modules qui importent ce module."
+            },
+            { // 6
+                text: "Quelle option de provider permet d'utiliser une valeur constante (ex: configuration) ?",
+                options: [
+                    "useClass",
+                    "useValue",
+                    "useFactory",
+                    "useExisting"
+                ],
+                correct: 1,
+                difficulty: "hard",
+                explanation: "<code>useValue</code> permet de fournir une valeur concrète (objet, chaîne, nombre) comme provider. Exemple : <code>{ provide: 'API_KEY', useValue: '123456' }</code>."
+            },
+            { // 7
+                text: "Si deux providers différents implémentent la même interface, comment spécifier lequel injecter ?",
+                options: [
+                    "En utilisant @Optional()",
+                    "En utilisant un token personnalisé avec @Inject()",
+                    "En changeant l'ordre dans le tableau providers",
+                    "C'est impossible, NestJS ne supporte pas les interfaces"
+                ],
+                correct: 1,
+                difficulty: "hard",
+                explanation: "Les interfaces TypeScript disparaissent à la compilation. On utilise donc un token personnalisé (chaîne ou symbole) avec <code>@Inject('TOKEN')</code> pour lever l'ambiguïté."
+            },
+            { // 8
+                text: "Quelle est la différence entre un provider 'useClass' et 'useFactory' ?",
+                options: [
+                    "'useFactory' permet une création asynchrone ou conditionnelle, 'useClass' instancie directement la classe",
+                    "Il n'y a pas de différence",
+                    "'useClass' est réservé aux modules globaux",
+                    "'useFactory' ne supporte pas l'injection de dépendances"
+                ],
+                correct: 0,
+                difficulty: "hard",
+                explanation: "<code>useFactory</code> permet de créer dynamiquement le provider, éventuellement avec des dépendances (via <code>inject: []</code>), tandis que <code>useClass</code> instancie directement une classe."
+            },
+            { // 9
+                text: "Quel module doit être importé pour bénéficier de l'injection de dépendances dans des providers personnalisés ?",
+                options: [
+                    "Aucun, c'est automatique dans tout module NestJS",
+                    "SharedModule",
+                    "CoreModule",
+                    "IoCModule"
+                ],
+                correct: 0,
+                difficulty: "easy",
+                explanation: "L'injection de dépendances est une fonctionnalité centrale de NestJS, active par défaut dans tous les modules. Aucun import spécifique n'est requis."
+            }
+        ];
+
+        let currentIndex = 0;
+        let userAnswers = new Array(questions.length).fill(null);
+        let submitted = new Array(questions.length).fill(false);
+
+        function isAnswerCorrect(qIdx, selectedIdx) {
+            return selectedIdx === questions[qIdx].correct;
+        }
+
+        function updateProgressCount() {
+            let validated = 0;
+            for (let i = 0; i < questions.length; i++) {
+                if (submitted[i] && userAnswers[i] !== null) validated++;
+            }
+            let percent = (validated / questions.length) * 100;
+            $('#quizProgressFill').css('width', percent + '%');
+            $('#progressText').text(`${validated}/${questions.length} questions validées`);
+            if (validated === questions.length) {
+                let totalCorrect = 0;
+                for (let i = 0; i < questions.length; i++) {
+                    if (submitted[i] && isAnswerCorrect(i, userAnswers[i])) totalCorrect++;
+                }
+                $('#globalFeedback').html(`<div class="bg-green-100 p-3 rounded-xl text-green-800 font-medium">🏆 Évaluation terminée ! Score : ${totalCorrect}/${questions.length}. Maîtrisez les providers pour des applications modulables.</div>`);
+            } else {
+                $('#globalFeedback').html('<span class="text-gray-500">✨ Validez chaque réponse pour voir l’explication et suivre votre progression.</span>');
+            }
+        }
+
+        function renderCurrentQuestion() {
+            const q = questions[currentIndex];
+            const selected = userAnswers[currentIndex];
+            const isSubmitted = submitted[currentIndex];
+            const isCurrCorrect = (selected !== null && isAnswerCorrect(currentIndex, selected));
+
+            let feedbackHtml = '';
+            if (isSubmitted && selected !== null) {
+                if (isCurrCorrect) {
+                    feedbackHtml = `<div class="feedback-correct p-3 rounded-lg mt-4 text-green-800">✅ <strong>Bonne réponse !</strong> ${q.explanation}</div>`;
+                } else {
+                    feedbackHtml = `<div class="feedback-wrong p-3 rounded-lg mt-4 text-red-800">❌ <strong>Mauvaise réponse.</strong> ${q.explanation}</div>`;
+                }
+            } else if (selected !== null && !isSubmitted) {
+                feedbackHtml = `<div class="bg-gray-100 p-3 rounded-lg mt-4 text-gray-600">📌 Réponse enregistrée. Cliquez sur "Valider" pour voir l'explication.</div>`;
+            }
+
+            let optionsHtml = '';
+            q.options.forEach((opt, idx) => {
+                const checked = (selected === idx) ? 'checked' : '';
+                optionsHtml += `
+                    <label class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mb-2 transition">
+                        <input type="radio" name="questionRadio" value="${idx}" ${checked} class="mt-1 radio-opt">
+                        <span class="text-gray-800">${opt}</span>
+                    </label>
+                `;
+            });
+
+            const diffBadge = {
+                easy: 'bg-green-100 text-green-700',
+                medium: 'bg-yellow-100 text-yellow-800',
+                hard: 'bg-red-100 text-red-700'
+            }[q.difficulty] || 'bg-gray-100';
+
+            const html = `
+                <div class="flex justify-between items-start mb-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${diffBadge}">Niveau ${q.difficulty}</span>
+                    <span class="text-xs text-gray-400">Q${currentIndex+1}/${questions.length}</span>
+                </div>
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-5">${q.text}</h2>
+                <div class="space-y-1 mb-4">
+                    ${optionsHtml}
+                </div>
+                <div class="flex justify-between items-center mt-3">
+                    <button id="validateCurrentBtn" class="bg-red-100 hover:bg-red-200 text-red-800 px-5 py-2 rounded-full font-medium transition">💡 Valider & voir correction</button>
+                    ${isSubmitted ? '<span class="text-red-600 text-sm">✓ Évaluée</span>' : ''}
+                </div>
+                ${feedbackHtml}
+            `;
+            $('#quizContainer').html(html);
+
+            $(document).off('change', '.radio-opt');
+            $(document).on('change', '.radio-opt', function() {
+                let val = parseInt($(this).val());
+                userAnswers[currentIndex] = val;
+                submitted[currentIndex] = false;
+                renderCurrentQuestion();
+                updateProgressCount();
+            });
+
+            $('#validateCurrentBtn').off('click').on('click', function() {
+                if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
+                    alert("Veuillez sélectionner une réponse avant de valider.");
+                    return;
+                }
+                submitted[currentIndex] = true;
+                renderCurrentQuestion();
+                updateProgressCount();
+            });
+        }
+
+        function goToQuestion(index) {
+            if (index >= 0 && index < questions.length) {
+                currentIndex = index;
+                renderCurrentQuestion();
+                $('#prevBtn').prop('disabled', currentIndex === 0);
+                if (currentIndex === questions.length - 1) {
+                    $('#nextBtn').text('Terminer');
+                } else {
+                    $('#nextBtn').text('Suivant ▶');
+                }
+                window.scrollTo({ top: $('#quizContainer').offset().top - 30, behavior: 'smooth' });
+            }
+        }
+
+        $('#prevBtn').on('click', function() { if (currentIndex > 0) goToQuestion(currentIndex - 1); });
+        $('#nextBtn').on('click', function() {
+            if (currentIndex < questions.length - 1) {
+                goToQuestion(currentIndex + 1);
+            } else if (currentIndex === questions.length - 1) {
+                let totalCorrect = 0;
+                for (let i=0; i<questions.length; i++) {
+                    if (submitted[i] && userAnswers[i] !== null && isAnswerCorrect(i, userAnswers[i])) totalCorrect++;
+                }
+                alert(`✅ Évaluation terminée ! Score final : ${totalCorrect} / ${questions.length}\nN'oubliez pas l'exercice sur le décorateur @Injectable().`);
+                $('#globalFeedback').html(`<div class="bg-red-50 p-3 rounded-xl text-center font-semibold">📊 Résultat final : ${totalCorrect}/${questions.length}. Bravo ! Revoyez les providers et le conteneur IoC.</div>`);
+            }
+        });
+
+        // Exercice : correction du service manquant
+        $('#checkFixBtn').on('click', function() {
+            let answer = $('#injectionFix').val().trim().toLowerCase();
+            if (answer.includes('@injectable') || answer.includes('@Injectable')) {
+                $('#fixFeedback').html('<div class="bg-green-800 text-green-100 p-2 rounded-lg">✅ Exact ! Il manquait le décorateur <code>@Injectable()</code> sur la classe <code>UserService</code> pour que NestJS puisse l\'instancier et l\'injecter.</div>');
+            } else {
+                $('#fixFeedback').html('<div class="bg-red-800 text-red-100 p-2 rounded-lg">❌ Pas tout à fait. Ajoutez <code>@Injectable()</code> au-dessus de la classe <code>UserService</code> et importez-le depuis <code>@nestjs/common</code>.</div>');
+            }
+        });
+
+        // Initialisation Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { primaryColor: '#dc2626' } });
+        mermaid.contentLoaded();
+
+        goToQuestion(0);
+        updateProgressCount();
+    </script>
+
+    <!-- Graphique Chart.js : adoption des providers personnalisés -->
+    <div class="max-w-5xl mx-auto px-4 pb-8">
+        <div class="bg-white rounded-xl shadow-sm p-4 mt-5 border border-gray-100">
+            <h3 class="font-semibold text-gray-700 mb-2">📊 Utilisation des types de providers (enquête NestJS 2025)</h3>
+            <canvas id="providerChart" width="400" height="200" style="max-height: 240px;"></canvas>
+            <p class="text-xs text-gray-400 mt-2">Source : Écosystème NestJS — useClass domine, mais useFactory progresse.</p>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('providerChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['useClass', 'useValue', 'useFactory', 'useExisting', 'asynchrone factory'],
+                datasets: [{
+                    label: 'Adoption (%)',
+                    data: [92, 68, 55, 32, 27],
+                    backgroundColor: '#ef4444',
+                    borderRadius: 8
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    </script>
+
+    <footer class="text-center text-xs text-gray-400 py-6 border-t mt-6">
+        <p>Évaluation conçue pour la classe Développement Web (Cameroun) · Module NestJS · Lesson 5 : Injection de dépendances, providers et IoC.</p>
+        <p>Standards NestJS — Correction interactive incluse.</p>
+    </footer>
+</body>
+</html>

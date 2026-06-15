@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Réseaux - Wireshark : analyse de paquets</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            min-height: 85vh;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .card-slide {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.2);
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+            background-color: #0284c7;
+            color: white;
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #7dd3fc;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .progress-dot.active-dot {
+            background-color: #0369a1;
+            width: 24px;
+            border-radius: 12px;
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+        }
+        .wireshark-demo {
+            font-family: monospace;
+            background: #f1f5f9;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.7rem;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        @media (max-width: 640px) {
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            .wireshark-demo { font-size: 0.55rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="card-slide p-6 md:p-10 text-center">
+                    <div class="mb-6">
+                        <span class="text-sm font-semibold text-sky-800 bg-sky-100 px-4 py-1 rounded-full">Réseaux informatiques • Lesson 32</span>
+                    </div>
+                    <div class="text-7xl mb-6">🦈📡</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-sky-700 to-blue-700 bg-clip-text text-transparent">Wireshark : Analyse de paquets</h1>
+                    <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-xl mx-auto">Capturer, filtrer et analyser le trafic réseau</p>
+                    <div class="mt-10 text-gray-500 text-sm">👨‍🏫 Classe Développement Web • Cameroun</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-sky-500 pl-4 mb-6">🎯 Objectifs du cours</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-sky-600 text-xl">✓</span> <span>Installer Wireshark et capturer des paquets</span></li>
+                        <li class="flex items-start gap-3"><span class="text-sky-600 text-xl">✓</span> <span>Filtrer les paquets (ip.addr, tcp.port, http)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-sky-600 text-xl">✓</span> <span>Analyser une conversation TCP et un flux HTTP</span></li>
+                    </ul>
+                    <div class="mt-8 p-4 bg-sky-50 rounded-xl text-sky-800 text-sm italic">
+                        💡 À la fin, vous saurez utiliser Wireshark pour diagnostiquer des problèmes réseau.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QUE WIRESHARK ? -->
+            <div class="slide" id="slide3">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🦈 Qu'est-ce que Wireshark ?</h2>
+                    <p>Wireshark est un <strong>analyseur de protocoles réseau</strong> (sniffer) qui capture et affiche le trafic circulant sur une interface réseau (Ethernet, WiFi, loopback...).</p>
+                    <ul class="list-disc pl-6 mt-3 text-gray-700">
+                        <li>Open-source et gratuit.</li>
+                        <li>Disponible sur Windows, macOS, Linux.</li>
+                        <li>Permet d'inspecter chaque paquet (trames, IP, TCP, UDP, HTTP, DNS...).</li>
+                        <li>Outils de filtrage puissants.</li>
+                    </ul>
+                    <div class="bg-yellow-50 p-2 rounded mt-3 text-sm text-yellow-800">⚠️ La capture nécessite des droits administrateur (root). Utilisez toujours légalement, sur vos propres réseaux.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INSTALLATION -->
+            <div class="slide" id="slide4">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">⚙️ Installation de Wireshark</h2>
+                    <div class="space-y-2 text-gray-700">
+                        <p><strong>Windows / macOS :</strong> Télécharger depuis <code>wireshark.org</code> et exécuter l'installateur. Sous Windows, installez aussi <strong>Npcap</strong> (pour capturer).</p>
+                        <p><strong>Linux (Debian/Ubuntu) :</strong></p>
+                        <pre><code>sudo apt update
+sudo apt install wireshark -y</code></pre>
+                        <p><strong>Autorisation (Linux) :</strong> Ajouter votre utilisateur au groupe wireshark :</p>
+                        <pre><code>sudo usermod -aG wireshark $USER</code></pre>
+                        <p class="text-sm">Redémarrez la session pour que les droits soient effectifs.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : INTERFACE WIRESHARK -->
+            <div class="slide" id="slide5">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🖥️ Interface principale</h2>
+                    <p>3 panneaux essentiels :</p>
+                    <ul class="list-decimal pl-6 space-y-1 text-gray-700 text-sm">
+                        <li><strong>Liste des paquets</strong> : chaque ligne = un paquet (n° temps source destination protocole info).</li>
+                        <li><strong>Détail du paquet</strong> : arborescence des couches (Ethernet, IP, TCP, HTTP...).</li>
+                        <li><strong>Données brutes (hexadécimal + ASCII)</strong> : le contenu du paquet en binaire.</li>
+                    </ul>
+                    <div class="wireshark-demo my-3">
+No. Time     Source          Destination     Protocol  Info
+  1 0.000    192.168.1.10    8.8.8.8         DNS       Standard query A google.com
+  2 0.045    8.8.8.8         192.168.1.10    DNS       Standard query response A 142.250.185.46
+  3 0.051    192.168.1.10    142.250.185.46  TCP       52000 → 80 [SYN]
+  4 0.067    142.250.185.46  192.168.1.10    TCP       80 → 52000 [SYN, ACK]
+  5 0.068    192.168.1.10    142.250.185.46  TCP       52000 → 80 [ACK]
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : CAPTURER DU TRAFIC -->
+            <div class="slide" id="slide6">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🎬 Démarrer une capture</h2>
+                    <ol class="list-decimal pl-6 space-y-2 text-gray-700">
+                        <li>Choisir l'interface réseau (Wi-Fi, Ethernet, Loopback).</li>
+                        <li>Cliquer sur le bouton <strong>« Démarrer la capture »</strong> (icône requin 🦈).</li>
+                        <li>Générer du trafic (naviguer, pinger...).</li>
+                        <li>Cliquer sur <strong>« Arrêter »</strong> (carré rouge).</li>
+                    </ol>
+                    <div class="bg-blue-50 p-3 rounded-lg mt-3 text-sm">
+                        💡 <strong>Astuce :</strong> Utilisez un filtre de capture avant de commencer pour limiter la taille du fichier. Exemple : <code>host 8.8.8.8</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : FILTRES D'AFFICHAGE -->
+            <div class="slide" id="slide7">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔍 Les filtres d'affichage</h2>
+                    <p>Pour ne voir que les paquets intéressants.</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-gray-50 border text-sm">
+                            <thead class="bg-sky-100"><tr><th class="p-2">Filtre</th><th class="p-2">Signification</th></tr></thead>
+                            <tbody>
+                                <tr class="border-b"><td class="p-2"><code>ip.addr == 192.168.1.10</code></td><td class="p-2">Tous paquets avec cette IP (source ou dest)</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>tcp.port == 80</code></td><td class="p-2">Trafic HTTP (port 80)</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>udp.port == 53</code></td><td class="p-2">Trafic DNS</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>http</code></td><td class="p-2">Tous les paquets contenant HTTP</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>tcp.flags.syn == 1</code></td><td class="p-2">Paquets SYN (début connexion)</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>icmp</code></td><td class="p-2">Ping (ICMP Echo request/reply)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : FILTRES COMBINÉS -->
+            <div class="slide" id="slide8">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔗 Combinaison de filtres</h2>
+                    <p>Utilisez <strong>and</strong>, <strong>or</strong> et parenthèses.</p>
+                    <div class="space-y-2">
+                        <div><code>ip.src == 192.168.1.10 and tcp.port == 443</code> → trafic HTTPS sortant</div>
+                        <div><code>http or dns</code> → paquets HTTP ou DNS</div>
+                        <div><code>tcp.port == 80 and ip.dst == 1.1.1.1</code> → HTTP vers 1.1.1.1</div>
+                        <div><code>!(arp or icmp)</code> → tout sauf ARP et ICMP</div>
+                    </div>
+                    <div class="bg-green-50 p-2 rounded mt-3 text-sm">🎯 Exemple concret : <code>ip.addr == 8.8.8.8 and tcp</code> → tous les échanges TCP avec Google DNS.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : SUIVRE UN FLUX TCP -->
+            <div class="slide" id="slide9">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📜 Suivre un flux TCP</h2>
+                    <p>Pour reconstruire une conversation complète (requête + réponse).</p>
+                    <ol class="list-decimal pl-6 space-y-1 text-gray-700 text-sm">
+                        <li>Sélectionner un paquet d'une connexion TCP (ex: HTTP).</li>
+                        <li>Clic droit → <strong>Follow → TCP Stream</strong>.</li>
+                        <li>Une nouvelle fenêtre affiche la conversation brute.</li>
+                    </ol>
+                    <div class="wireshark-demo my-2">
+GET / HTTP/1.1
+Host: example.com
+User-Agent: Mozilla/5.0
+
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 1256
+
+&lt;html&gt;&lt;body&gt;Example Domain&lt;/body&gt;&lt;/html&gt;
+                    </div>
+                    <p class="text-xs text-gray-500">Utile pour déboguer une API, voir les en-têtes HTTP, ou extraire des fichiers.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : ANALYSER UN HANDSHAKE TCP -->
+            <div class="slide" id="slide10">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🤝 Observer le 3-way handshake</h2>
+                    <p>Filtre : <code>tcp.flags.syn == 1 or tcp.flags.ack == 1</code> puis chercher une connexion.</p>
+                    <div class="wireshark-demo">
+1. 192.168.1.10 → 93.184.216.34  TCP  [SYN] Seq=0
+2. 93.184.216.34 → 192.168.1.10  TCP  [SYN, ACK] Seq=0 Ack=1
+3. 192.168.1.10 → 93.184.216.34  TCP  [ACK] Seq=1 Ack=1
+                    </div>
+                    <ul class="list-disc pl-6 text-sm mt-2">
+                        <li><strong>SYN</strong> : le client demande une connexion.</li>
+                        <li><strong>SYN+ACK</strong> : le serveur accepte.</li>
+                        <li><strong>ACK</strong> : le client confirme.</li>
+                    </ul>
+                    <p class="mt-2">On peut aussi voir la <strong>fenêtre TCP (window size)</strong> et les <strong>options</strong> comme MSS.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 11 : ANALYSER HTTP -->
+            <div class="slide" id="slide11">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🌐 Analyser du trafic HTTP</h2>
+                    <p>Filtre : <code>http</code> ou <code>tcp.port == 80</code>.</p>
+                    <div class="wireshark-demo">
+GET /index.html HTTP/1.1
+Host: www.example.com
+
+HTTP/1.1 200 OK
+Cache-Control: max-age=604800
+Content-Type: text/html; charset=UTF-8
+Content-Length: 1270
+                    </div>
+                    <p class="text-sm mt-2">Wireshark décode : méthode GET, code 200, taille du contenu. Vous pouvez aussi voir les <strong>cookies</strong> ou <strong>User-Agent</strong>.</p>
+                    <div class="bg-yellow-50 p-2 rounded mt-2 text-xs">⚠️ HTTP n'est pas chiffré – sur WiFi public, quelqu'un peut lire vos requêtes. Préférez HTTPS !</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 12 : STATISTIQUES ET GRAPHES -->
+            <div class="slide" id="slide12">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Outils statistiques</h2>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-700">
+                        <li><strong>Statistics → Protocol Hierarchy</strong> : répartition du trafic par protocole.</li>
+                        <li><strong>Statistics → Conversations</strong> : endpoints qui échangent le plus.</li>
+                        <li><strong>Statistics → IO Graph</strong> : visualisation du débit dans le temps.</li>
+                        <li><strong>Statistics → Flow Graph</strong> : diagramme de séquence (TCP).</li>
+                    </ul>
+                    <div class="bg-gray-100 p-2 rounded mt-2 text-sm text-center">
+                        Exemple : identifier quel hôte génère le plus de trafic ou détecter un pic anormal.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 13 : COLORATION DES PAQUETS -->
+            <div class="slide" id="slide13">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 Coloration conditionnelle</h2>
+                    <p>Wireshark colore automatiquement les paquets par défaut (TCP SYN en bleu, retransmissions en noir...).</p>
+                    <p>Vous pouvez créer vos propres règles :</p>
+                    <pre><code>View → Coloring Rules → New</code></pre>
+                    <div class="bg-gray-100 p-2 rounded mt-2 text-sm font-mono">
+Exemple : colorer en rouge les paquets vers un IP suspect<br>
+<code>ip.dst == 185.130.5.253</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 14 : EXPORTER DES DONNÉES -->
+            <div class="slide" id="slide14">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">💾 Exporter et sauvegarder</h2>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-700">
+                        <li><strong>File → Save As</strong> : sauvegarde la capture en .pcapng (format standard).</li>
+                        <li><strong>Export Packet Dissections</strong> → en texte, JSON, CSV.</li>
+                        <li><strong>Export Objects → HTTP</strong> : extrait tous les fichiers téléchargés (images, HTML).</li>
+                    </ul>
+                    <div class="bg-red-50 p-2 rounded mt-3 text-sm">🔐 Attention : les captures peuvent contenir des données sensibles (mots de passe en clair si HTTP). Manipulez-les avec précaution.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 15 : EXEMPLE DE DIAGNOSTIC -->
+            <div class="slide" id="slide15">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🩺 Exemple : ralentissement réseau</h2>
+                    <p>Scénario : un utilisateur se plaint que le site web met du temps à charger.</p>
+                    <ol class="list-decimal pl-6 space-y-1 text-sm">
+                        <li>Capturer le trafic (<code>host site.com</code>).</li>
+                        <li>Filtrer <code>tcp.analysis.retransmission</code> → voir s'il y a des pertes.</li>
+                        <li>Observer le <code>Time to first byte</code> (TTFB) : délai entre requête et premier octet de réponse.</li>
+                        <li>Si beaucoup de retransmissions → problème de perte de paquets.</li>
+                        <li>Si TTFB long → serveur ou latence réseau élevée.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- SLIDE 16 : CONCLUSION -->
+            <div class="slide" id="slide16">
+                <div class="card-slide p-6 md:p-8 text-center">
+                    <h2 class="text-3xl font-bold mb-4">📌 Ce qu'il faut retenir</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mt-6">
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Wireshark capture et analyse les paquets</div>
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Filtres d'affichage : <code>ip.addr</code>, <code>tcp.port</code></div>
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Suivre un flux TCP → reconstruire la conversation</div>
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Analyser handshake TCP, HTTP, DNS</div>
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Statistiques pour visualiser le trafic</div>
+                        <div class="bg-sky-50 p-4 rounded-xl"><span class="font-bold">✓</span> Toujours respecter la vie privée et la légalité</div>
+                    </div>
+                    <div class="mt-6 p-3 bg-sky-100 rounded-lg inline-block">
+                        🌟 La maîtrise de Wireshark est essentielle pour tout administrateur réseau.
+                    </div>
+                    <p class="mt-8 text-gray-500">Fin du module Réseaux informatiques ! 🚀</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation flottante -->
+        <div class="fixed bottom-4 left-0 right-0 flex justify-center items-center gap-3 z-20">
+            <button id="prevBtn" class="nav-btn bg-white text-gray-700 px-5 py-2 rounded-full shadow-lg border border-gray-300 font-semibold text-sm md:text-base">◀ Précédent</button>
+            <div id="progressDots" class="flex gap-2 mx-2 items-center"></div>
+            <button id="nextBtn" class="nav-btn bg-sky-600 text-white px-5 py-2 rounded-full shadow-lg font-semibold text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const slides = $('.slide');
+            let currentIndex = 0;
+            const totalSlides = slides.length;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                updateDots();
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            }
+
+            function updateDots() {
+                const container = $('#progressDots');
+                container.empty();
+                for (let i = 0; i < totalSlides; i++) {
+                    const dot = $('<div>').addClass('progress-dot');
+                    if (i === currentIndex) dot.addClass('active-dot');
+                    dot.on('click', function() {
+                        currentIndex = i;
+                        updateSlides();
+                    });
+                    container.append(dot);
+                }
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                } else {
+                    alert("🎉 Félicitations ! Vous avez terminé le cours Wireshark.");
+                }
+            });
+
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') $('#nextBtn').click();
+                else if (e.key === 'ArrowLeft') $('#prevBtn').click();
+            });
+
+            updateDots();
+        });
+    </script>
+</body>
+</html>

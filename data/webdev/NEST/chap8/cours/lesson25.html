@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>NestJS · Leçon 25 : Tests E2E avec Supertest</title>
+  <!-- Tailwind CSS + Font Awesome (pour quelques icônes utiles) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (formules si besoin, présent mais peu utilisé ici) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions douces et personnalisation */
+    body {
+      background: linear-gradient(135deg, #f1f5f9 0%, #e6edf4 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+    .slide-card {
+      transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      backdrop-filter: blur(2px);
+    }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1.25rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .code-block pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    @media (max-width: 640px) {
+      .code-block {
+        font-size: 0.7rem;
+        padding: 0.75rem;
+        border-radius: 1rem;
+      }
+      h2 {
+        font-size: 1.6rem;
+      }
+    }
+    .badge-lesson {
+      background: #2c7da0;
+      color: white;
+      border-radius: 40px;
+      padding: 0.2rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .nav-btn {
+      transition: transform 0.2s, background 0.2s;
+    }
+    .nav-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative">
+      
+      <!-- SLIDE 1 : TITRE -->
+      <div class="slide-card bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/50 transition-all" data-slide="0">
+        <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+          <span class="badge-lesson mb-4">NestJS · Tests avancés</span>
+          <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-[#0f2b3d] to-[#2c7da0] bg-clip-text text-transparent mb-5">Leçon 25</h1>
+          <p class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Tests E2E avec Supertest</p>
+          <div class="h-1 w-24 bg-[#2c7da0] rounded-full mx-auto my-4"></div>
+          <p class="text-gray-600 max-w-xl text-lg mt-3">Valider toute l'application : endpoints HTTP, base de données et scénarios complets</p>
+          <div class="mt-12 flex flex-wrap justify-center gap-3">
+            <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">🧪 supertest</span>
+            <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">⚙️ Test.createTestingModule</span>
+            <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">🗄️ base de test</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2 : OBJECTIFS -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/50" data-slide="1">
+        <div class="flex flex-col min-h-[70vh] justify-center">
+          <h2 class="text-3xl md:text-4xl font-bold text-gray-800 border-l-8 border-[#2c7da0] pl-5 mb-7">🎯 Objectifs de la leçon</h2>
+          <ul class="space-y-4 text-gray-700 text-lg">
+            <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <span><strong>Configurer</strong> les tests end-to-end (e2e) avec <code class="bg-gray-200 px-1 rounded">supertest</code> dans NestJS.</span></li>
+            <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <span><strong>Tester</strong> des endpoints HTTP complets : requêtes, réponses, codes HTTP.</span></li>
+            <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <span><strong>Utiliser</strong> une base de données dédiée aux tests (isolation, nettoyage).</span></li>
+            <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <span><strong>Simuler</strong> des flux utilisateur (création → récupération → modification).</span></li>
+            <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <span><strong>Appliquer</strong> les bonnes pratiques pour des tests e2e robustes et rapides.</span></li>
+          </ul>
+          <div class="mt-8 bg-sky-50 p-4 rounded-2xl border border-sky-200 text-sky-800">
+            💡 <span class="font-semibold">Pourquoi e2e ?</span> Ils valident que tous les composants (contrôleurs, services, DB, pipes, guards) fonctionnent ensemble comme attendu.
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 3 : Introduction supertest + configuration -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="2">
+        <div class="flex flex-col min-h-[70vh]">
+          <div class="flex items-center gap-2 flex-wrap mb-4">
+            <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-bold">🧪 1. Supertest & setup</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">Configurer l'environnement de tests e2e</h2>
+          <p class="text-gray-700 mb-4">Supertest permet de simuler des requêtes HTTP sur votre application NestJS sans réellement écouter un port. On utilise <code>Test.createTestingModule</code> pour créer un module d'intégration.</p>
+          <div class="code-block mb-5">
+            <pre>// test/app.e2e-spec.ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});</pre>
+          </div>
+          <div class="bg-amber-50 p-4 rounded-xl border-l-4 border-amber-400 text-sm">
+            📌 <span class="font-semibold">Bon à savoir :</span> on utilise <code>beforeAll</code> pour initialiser l'application une fois avant tous les tests, et <code>afterAll</code> pour fermer proprement.
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4 : Tester les endpoints CRUD complets -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="3">
+        <div class="flex flex-col min-h-[70vh]">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">📬 Tester des endpoints REST</h2>
+          <p class="mb-3 text-gray-700">On peut enchaîner les requêtes : créer une ressource, la lire, la mettre à jour et la supprimer.</p>
+          <div class="code-block text-sm mb-4">
+            <pre>it('should create a user and then fetch it', async () => {
+  const createDto = { name: 'Alice', email: 'alice@example.com' };
+  
+  const createResponse = await request(app.getHttpServer())
+    .post('/users')
+    .send(createDto)
+    .expect(201);
+  
+  const userId = createResponse.body.id;
+  
+  const getResponse = await request(app.getHttpServer())
+    .get(`/users/${userId}`)
+    .expect(200);
+  
+  expect(getResponse.body.name).toEqual('Alice');
+});
+
+it('should return 404 for non-existent user', () => {
+  return request(app.getHttpServer())
+    .get('/users/99999')
+    .expect(404);
+});</pre>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+            <div class="bg-gray-100 p-3 rounded-xl text-center">✅ <code>.expect(201)</code> → création réussie</div>
+            <div class="bg-gray-100 p-3 rounded-xl text-center">✅ <code>.send()</code> → corps de la requête</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5 : Base de données de test (isolation) -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="4">
+        <div class="flex flex-col min-h-[70vh]">
+          <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full w-fit text-sm mb-3">🗄️ 2. Base de données dédiée</span>
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Isoler les tests avec une DB temporaire</h2>
+          <p class="text-gray-700 mb-3">Pour éviter les interférences, on peut utiliser une base de test (ex: SQLite en mémoire ou PostgreSQL dédié). Avec TypeORM, il suffit de modifier la configuration.</p>
+          <div class="code-block mb-4">
+            <pre>// avant les tests, utiliser un fichier .env.test ou override
+const moduleFixture = await Test.createTestingModule({
+  imports: [AppModule],
+})
+.overrideProvider(TypeOrmModule)
+.useValue(TypeOrmModule.forRoot({
+  type: 'sqlite',
+  database: ':memory:',
+  synchronize: true,
+  entities: [User, Product],
+}))
+.compile();</pre>
+          </div>
+          <div class="bg-teal-50 p-4 rounded-xl border-l-4 border-teal-500 text-teal-800">
+            💡 Pratique : Nettoyer la base avant chaque test avec <code>beforeEach</code> (vider les tables ou utiliser des transactions rollback).
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6 : Exemple concret avec authentification JWT -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="5">
+        <div class="flex flex-col min-h-[70vh]">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">🔐 Tester des routes protégées (JWT)</h2>
+          <p class="mb-3">On simule une connexion, on récupère un token, puis on l'utilise dans le header <code>Authorization</code>.</p>
+          <div class="code-block text-sm mb-4">
+            <pre>it('should access protected profile', async () => {
+  // 1) Login
+  const loginRes = await request(app.getHttpServer())
+    .post('/auth/login')
+    .send({ email: 'test@mail.com', password: 'pass123' })
+    .expect(200);
+  
+  const token = loginRes.body.access_token;
+  
+  // 2) Appel à une route sécurisée
+  return request(app.getHttpServer())
+    .get('/users/profile')
+    .set('Authorization', `Bearer ${token}`)
+    .expect(200)
+    .expect(res => {
+      expect(res.body.email).toBe('test@mail.com');
+    });
+});</pre>
+          </div>
+          <div class="bg-indigo-50 p-3 rounded-lg text-indigo-800 text-sm">
+            ⚡ <strong>astuce:</strong> vous pouvez créer un utilisateur de test directement via le repository pendant <code>beforeAll</code> pour disposer d'un compte prêt à l'emploi.
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 7 : Bonnes pratiques & nettoyage -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="6">
+        <div class="flex flex-col min-h-[70vh]">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-5">🧹 Organisation & nettoyage des données</h2>
+          <ul class="space-y-3 text-gray-700 list-disc pl-5 mb-5">
+            <li>Utiliser <code>beforeEach</code> pour réinitialiser l'état (vider tables clés).</li>
+            <li>Créer des fixtures (données de test) reproductibles.</li>
+            <li>Grouper les tests par contexte avec <code>describe()</code>.</li>
+            <li>Lancer les tests e2e avec un script dédié : <code>"test:e2e": "jest --config ./test/jest-e2e.json"</code>.</li>
+          </ul>
+          <div class="code-block text-sm">
+            <pre>// Exemple de remise à zéro avec TypeORM
+beforeEach(async () => {
+  const repo = app.get(getRepositoryToken(User));
+  await repo.query('DELETE FROM user;'); // SQL direct
+  // ou utiliser repo.clear()
+});</pre>
+          </div>
+          <div class="mt-5 p-3 bg-green-50 rounded-xl border border-green-200 text-green-800">
+            ✅ <span class="font-semibold">Objectif :</span> chaque test doit être indépendant et reproductible.
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 8 : Récapitulatif & exercice synthèse -->
+      <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="7">
+        <div class="flex flex-col min-h-[70vh] justify-center">
+          <h2 class="text-3xl font-bold text-gray-800 mb-6">📌 Résumé – Tests e2e avec Supertest</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div class="bg-gray-100 p-4 rounded-xl">1️⃣ <strong>Créer un module de test</strong> <br> <code>Test.createTestingModule</code> → appliquer les vrais modules.</div>
+            <div class="bg-gray-100 p-4 rounded-xl">2️⃣ <strong>Lancer l'application</strong> <br> <code>app.init()</code> et récupérer <code>getHttpServer()</code></div>
+            <div class="bg-gray-100 p-4 rounded-xl">3️⃣ <strong>Écrire des requêtes</strong> <br> <code>request(app).get('/path')</code> + assertions.</div>
+            <div class="bg-gray-100 p-4 rounded-xl">4️⃣ <strong>Gérer la DB de test</strong> <br> SQLite :memory: ou transactions.</div>
+          </div>
+          <div class="bg-amber-50 p-4 rounded-xl text-center border border-amber-300">
+            🧠 <strong>Défi personnel :</strong> écrivez un test e2e pour un endpoint POST /articles qui vérifie la validation des champs et la persistance en base.
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation slides -->
+      <div class="flex justify-between items-center mt-8 gap-4 flex-wrap">
+        <button id="prevSlide" class="nav-btn bg-white/80 hover:bg-white text-gray-800 font-semibold py-2 px-6 rounded-full shadow-md border border-gray-300 backdrop-blur-sm transition flex items-center gap-2">◀ Précédent</button>
+        <div class="flex gap-2 flex-wrap justify-center" id="dotsIndicator"></div>
+        <button id="nextSlide" class="nav-btn bg-[#2c7da0] hover:bg-[#1f5e7a] text-white font-semibold py-2 px-6 rounded-full shadow-md transition flex items-center gap-2">Suivant ▶</button>
+      </div>
+    </div>
+    <div class="text-center text-gray-500 text-xs mt-8 border-t border-gray-300 pt-5">
+      📘 Cours NestJS – Tests e2e avec Supertest | Conçu pour les étudiants camerounais | Mobile friendly & interactif
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      let currentSlide = 0;
+      const slides = $('.slide-card');
+      const total = slides.length;
+      
+      function showSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= total) index = total - 1;
+        currentSlide = index;
+        slides.each(function(i) {
+          if (i === currentSlide) {
+            $(this).removeClass('hidden').fadeIn(220);
+          } else {
+            $(this).addClass('hidden');
+          }
+        });
+        updateDots();
+        // smooth scroll to top for mobile
+        $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 15 }, 180);
+      }
+      
+      function generateDots() {
+        const container = $('#dotsIndicator');
+        container.empty();
+        for (let i = 0; i < total; i++) {
+          const dot = $('<button>')
+            .addClass('w-3 h-3 rounded-full transition-all duration-200 mx-1 focus:outline-none')
+            .attr('data-index', i)
+            .css('background-color', i === currentSlide ? '#2c7da0' : '#cbd5e1');
+          dot.on('click', function() {
+            const idx = parseInt($(this).attr('data-index'));
+            showSlide(idx);
+          });
+          container.append(dot);
+        }
+      }
+      
+      function updateDots() {
+        $('#dotsIndicator button').each(function(i) {
+          if (i === currentSlide) {
+            $(this).css('background-color', '#2c7da0').css('width', '1.25rem').css('border-radius', '0.75rem');
+          } else {
+            $(this).css('background-color', '#cbd5e1').css('width', '0.75rem').css('border-radius', '9999px');
+          }
+        });
+      }
+      
+      $('#nextSlide').on('click', () => {
+        if (currentSlide < total - 1) showSlide(currentSlide + 1);
+        else {
+          $('#nextSlide').css('transform', 'scale(0.98)');
+          setTimeout(() => $('#nextSlide').css('transform', ''), 150);
+        }
+      });
+      $('#prevSlide').on('click', () => {
+        if (currentSlide > 0) showSlide(currentSlide - 1);
+        else {
+          $('#prevSlide').css('transform', 'scale(0.98)');
+          setTimeout(() => $('#prevSlide').css('transform', ''), 150);
+        }
+      });
+      
+      // Keyboard navigation
+      $(document).on('keydown', (e) => {
+        if (e.key === 'ArrowRight') $('#nextSlide').click();
+        else if (e.key === 'ArrowLeft') $('#prevSlide').click();
+      });
+      
+      generateDots();
+      showSlide(0);
+    });
+  </script>
+</body>
+</html>

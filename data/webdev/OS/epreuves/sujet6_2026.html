@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Évaluation OS - Séquence 6 | Fichiers & Interblocages</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e6f7ff 0%, #bae6fd 100%);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .quiz-card {
+            transition: all 0.2s ease;
+        }
+        .feedback-correct {
+            background-color: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+        .feedback-incorrect {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .os-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        }
+        .deadlock-badge {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'os-dark': '#0f172a',
+                        'deadlock': '#dc2626'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="antialiased">
+
+<div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+    <!-- EN-TÊTE DE L'ÉPREUVE -->
+    <div class="bg-white rounded-2xl shadow-xl os-gradient text-white p-5 md:p-8 mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="text-xs font-bold uppercase tracking-wider text-sky-300">Évaluation séquentielle — S6</div>
+                <h1 class="text-2xl md:text-3xl font-extrabold mt-1">Initiation aux Systèmes d'exploitation</h1>
+                <p class="text-sky-200 mt-2">Chapitres 5 et 6 : Gestion des fichiers · Interblocages (deadlocks)</p>
+                <div class="flex flex-wrap gap-3 mt-3 text-sm text-sky-200">
+                    <span>💾 Classe : Développement Web</span>
+                    <span>📁 Matière : OS</span>
+                    <span>⏱️ Durée : 1h30</span>
+                    <span>🎯 Coefficient : 2</span>
+                </div>
+            </div>
+            <div class="bg-white/10 backdrop-blur rounded-xl px-5 py-3 text-center border border-white/20">
+                <p class="text-xs opacity-80">Compétences évaluées</p>
+                <p class="font-bold text-lg">Fichiers · Deadlocks</p>
+                <p class="text-[11px]">Inodes · Permissions · Allocation · Verrous</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consignes -->
+    <div class="bg-blue-50/90 rounded-xl p-4 mb-8 border-l-4 border-blue-600 text-blue-800 text-sm shadow-sm">
+        <p class="font-semibold flex items-center gap-2">📌 Consignes générales :</p>
+        <ul class="list-disc list-inside mt-1 space-y-0.5 ml-2">
+            <li>Cette évaluation couvre les systèmes de fichiers (organisation, allocation, permissions) et les interblocages (conditions, prévention, détection).</li>
+            <li>Lisez attentivement chaque énoncé. Des diagrammes Mermaid et des graphiques Chart.js illustrent certains concepts.</li>
+            <li>Pour les QCM, une seule réponse est correcte sauf indication contraire.</li>
+            <li>Les questions sur l'algorithme du banquier nécessitent des calculs.</li>
+        </ul>
+    </div>
+
+    <!-- ========== PARTIE 1 : SYSTÈMES DE FICHIERS ========= -->
+    <div class="space-y-8">
+        <div class="bg-white rounded-xl shadow-md p-5 md:p-6 quiz-card">
+            <div class="flex items-center gap-3 border-b pb-3 mb-5">
+                <span class="bg-indigo-100 text-indigo-700 text-sm font-bold px-3 py-1 rounded-full">Partie 1</span>
+                <h2 class="text-xl font-bold text-gray-800">📁 Gestion des fichiers et systèmes de fichiers</h2>
+            </div>
+
+            <!-- Schéma Mermaid : Structure inode -->
+            <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm font-semibold text-gray-600 mb-2">🗂️ Structure d'un inode sous Linux (ext4)</p>
+                <div class="mermaid">
+                    graph TD
+                        A[Inode] --> B[Métadonnées]
+                        A --> C[Pointeurs blocs]
+                        B --> D1[Taille]
+                        B --> D2[Permissions]
+                        B --> D3[UID/GID]
+                        B --> D4[Timestamps]
+                        C --> E1[12 pointeurs directs]
+                        C --> E2[1 indirect simple]
+                        C --> E3[1 indirect double]
+                        C --> E4[1 indirect triple]
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Q1 : Rôle inode -->
+                <div class="question-item" data-correct="b">
+                    <p class="font-medium text-gray-800">1. Dans un système de fichiers Unix/Linux, que contient un <strong>inode</strong> ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label class="flex items-start gap-3 p-2 rounded-lg cursor-pointer"><input type="radio" name="q1" value="a"> <span>Le nom du fichier et son chemin complet</span></label>
+                        <label class="flex items-start gap-3 p-2 rounded-lg cursor-pointer"><input type="radio" name="q1" value="b"> <span>Les métadonnées du fichier (taille, permissions, dates, pointeurs vers les blocs)</span></label>
+                        <label class="flex items-start gap-3 p-2 rounded-lg cursor-pointer"><input type="radio" name="q1" value="c"> <span>Le contenu brut du fichier</span></label>
+                        <label class="flex items-start gap-3 p-2 rounded-lg cursor-pointer"><input type="radio" name="q1" value="d"> <span>La table des partitions du disque</span></label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q2 : Permissions UNIX -->
+                <div class="question-item" data-correct="c">
+                    <p class="font-medium text-gray-800">2. La commande <code>chmod 754 fichier.txt</code> applique quelles permissions ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q2" value="a"> Propriétaire : rwx, Groupe : r-x, Autres : r--</label>
+                        <label><input type="radio" name="q2" value="b"> Propriétaire : rwx, Groupe : rwx, Autres : r--</label>
+                        <label><input type="radio" name="q2" value="c"> Propriétaire : rwx, Groupe : r-x, Autres : r--</label>
+                        <label><input type="radio" name="q2" value="d"> Propriétaire : rw-, Groupe : r-x, Autres : --x</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q3 : Allocation indexée -->
+                <div class="question-item" data-correct="d">
+                    <p class="font-medium text-gray-800">3. Quel est l'avantage principal de l'allocation indexée (inodes) par rapport à l'allocation contiguë ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q3" value="a"> Meilleure performance en lecture séquentielle</label>
+                        <label><input type="radio" name="q3" value="b"> Pas de fragmentation interne</label>
+                        <label><input type="radio" name="q3" value="c"> Accès direct plus rapide</label>
+                        <label><input type="radio" name="q3" value="d"> Évite la fragmentation externe et permet une croissance dynamique du fichier</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q4 : Journalisation -->
+                <div class="question-item" data-correct="a">
+                    <p class="font-medium text-gray-800">4. À quoi sert la journalisation (journaling) dans un système de fichiers comme ext4 ou NTFS ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q4" value="a"> À enregistrer les modifications avant de les appliquer, pour permettre une récupération après une panne</label>
+                        <label><input type="radio" name="q4" value="b"> À compresser les fichiers automatiquement</label>
+                        <label><input type="radio" name="q4" value="c"> À chiffrer les données à la volée</label>
+                        <label><input type="radio" name="q4" value="d"> À augmenter la vitesse d'accès aux fichiers</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q5 : Types fichiers -->
+                <div class="question-item" data-correct="b">
+                    <p class="font-medium text-gray-800">5. Sous Linux, quel type de fichier est représenté par un 'd' au début des permissions (ex: drwxr-xr-x) ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q5" value="a"> Fichier régulier</label>
+                        <label><input type="radio" name="q5" value="b"> Répertoire</label>
+                        <label><input type="radio" name="q5" value="c"> Lien symbolique</label>
+                        <label><input type="radio" name="q5" value="d"> Périphérique bloc</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARTIE 2 : INTERBLOCAGES (DEADLOCKS) -->
+        <div class="bg-white rounded-xl shadow-md p-5 md:p-6 quiz-card">
+            <div class="flex items-center gap-3 border-b pb-3 mb-5">
+                <span class="deadlock-badge text-white text-sm font-bold px-3 py-1 rounded-full">Partie 2</span>
+                <h2 class="text-xl font-bold text-gray-800">⛔ Interblocages (Deadlocks)</h2>
+            </div>
+
+            <!-- Graphe d'allocation Mermaid -->
+            <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm font-semibold text-gray-600 mb-2">🔐 Exemple de graphe d'allocation avec interblocage</p>
+                <div class="mermaid">
+                    graph LR
+                        P1[Processus P1] -- "attend R1" --> R1((Ressource R1))
+                        R1 -- "allouée à" --> P2[Processus P2]
+                        P2 -- "attend R2" --> R2((Ressource R2))
+                        R2 -- "allouée à" --> P1
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Cycle P1 → R1 → P2 → R2 → P1 : interblocage</p>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Q6 : Conditions de Coffman -->
+                <div class="question-item" data-correct="c">
+                    <p class="font-medium">6. Quelles sont les 4 conditions nécessaires (Coffman) pour qu'un interblocage se produise ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q6" value="a"> Exclusion mutuelle, préemption, attente circulaire, partage</label>
+                        <label><input type="radio" name="q6" value="b"> Exclusion mutuelle, partage, préemption, attente non bloquante</label>
+                        <label><input type="radio" name="q6" value="c"> Exclusion mutuelle, détention et attente, non-préemption, attente circulaire</label>
+                        <label><input type="radio" name="q6" value="d"> Exclusion mutuelle, préemption des ressources, partage, ordonnancement circulaire</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q7 : Prévention -->
+                <div class="question-item" data-correct="a">
+                    <p class="font-medium">7. Comment peut-on <strong>prévenir</strong> l'interblocage en invalidant la condition "détention et attente" ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q7" value="a"> Forcer un processus à demander <strong>toutes</strong> les ressources nécessaires en une seule fois</label>
+                        <label><input type="radio" name="q7" value="b"> Ordonner les ressources et forcer un ordre d'acquisition</label>
+                        <label><input type="radio" name="q7" value="c"> Permettre la préemption des ressources</label>
+                        <label><input type="radio" name="q7" value="d"> Utiliser des sémaphores</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q8 : Algorithme du banquier -->
+                <div class="bg-amber-50 p-4 rounded-lg">
+                    <p class="font-medium text-gray-800">8. Considérez l'état suivant du système (4 processus, 3 ressources) :</p>
+                    <pre class="text-xs mt-2 font-mono">Allocation    Max        Disponible
+   A B C      A B C        A B C
+P0 0 1 0     7 5 3        3 3 2
+P1 2 0 0     3 2 2
+P2 3 0 2     9 0 2
+P3 2 1 1     2 2 2</pre>
+                    <p class="mt-2 text-sm">L'état est-il sûr ? (Algorithme du banquier)</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q8" value="a"> Oui, séquence P1 → P3 → P4 → P0 → P2</label>
+                        <label><input type="radio" name="q8" value="b"> Non, aucun ordre d'exécution ne satisfait tous les processus</label>
+                        <label><input type="radio" name="q8" value="c"> Oui, séquence P1 → P3 → P0 → P2</label>
+                        <label><input type="radio" name="q8" value="d"> Oui, séquence P0 → P2 → P1 → P3</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q9 : Détection deadlock -->
+                <div class="question-item" data-correct="d">
+                    <p class="font-medium">9. Si un système ne prévient ni n'évite les interblocages, que doit-il faire ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q9" value="a"> Redémarrer automatiquement</label>
+                        <label><input type="radio" name="q9" value="b"> Ignorer le problème</label>
+                        <label><input type="radio" name="q9" value="c"> Utiliser un ordonnancement prioritaire</label>
+                        <label><input type="radio" name="q9" value="d"> Détecter périodiquement les deadlocks et récupérer (terminer des processus ou préempter)</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Q10 : Récupération -->
+                <div class="question-item" data-correct="b">
+                    <p class="font-medium">10. Qu'est-ce que l'algorithme de détection par réduction de graphe (wait-for graph) ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q10" value="a"> Un algorithme d'ordonnancement CPU</label>
+                        <label><input type="radio" name="q10" value="b"> Une méthode pour détecter un cycle dans le graphe d'attente entre processus</label>
+                        <label><input type="radio" name="q10" value="c"> Un algorithme d'allocation mémoire</label>
+                        <label><input type="radio" name="q10" value="d"> Un mécanisme de synchronisation</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARTIE 3 : CAS PRATIQUE - ALLOCATION DISQUE -->
+        <div class="bg-white rounded-xl shadow-md p-5 md:p-6">
+            <div class="border-b pb-3 mb-4 flex items-center gap-2">
+                <span class="bg-emerald-100 text-emerald-700 text-sm font-bold px-3 py-1 rounded-full">Cas Pratique</span>
+                <h3 class="text-lg font-bold">💿 Allocation de fichiers sur disque</h3>
+            </div>
+            <p class="text-gray-700 mb-4">Un système de fichiers utilise l'allocation par blocs contigus. La mémoire disponible est représentée par des blocs libres [10-15] et [25-30]. Un fichier de 5 blocs doit être créé.</p>
+
+            <div class="space-y-4">
+                <div class="question-item" data-correct="b">
+                    <p class="font-medium">11. Quel algorithme d'allocation choisira le premier trou suffisant (first-fit) ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q11" value="a"> Blocs 25 à 29</label>
+                        <label><input type="radio" name="q11" value="b"> Blocs 10 à 14</label>
+                        <label><input type="radio" name="q11" value="c"> Blocs 11 à 15</label>
+                        <label><input type="radio" name="q11" value="d"> Refus d'allocation</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+
+                <div class="question-item" data-correct="c">
+                    <p class="font-medium">12. Quel inconvénient majeur présente l'allocation contiguë ?</p>
+                    <div class="mt-2 space-y-2">
+                        <label><input type="radio" name="q12" value="a"> Accès aléatoire lent</label>
+                        <label><input type="radio" name="q12" value="b"> Nécessite une table des inodes complexe</label>
+                        <label><input type="radio" name="q12" value="c"> Fragmentation externe et difficulté à faire croître les fichiers</label>
+                        <label><input type="radio" name="q12" value="d"> Impossibilité de lire séquentiellement</label>
+                    </div>
+                    <div class="feedback-message text-sm mt-2 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARTIE 4 : GRAPHIQUES - ALLOCATION DISQUE & DEADLOCKS -->
+        <div class="bg-white rounded-xl shadow-md p-5 md:p-6">
+            <div class="flex items-center gap-3 border-b pb-3 mb-4">
+                <span class="bg-orange-100 text-orange-700 text-sm font-bold px-3 py-1 rounded-full">Analyse</span>
+                <h3 class="text-lg font-bold">📊 Fragmentation et performances des systèmes de fichiers</h3>
+            </div>
+            <canvas id="fragChart" width="400" height="250" style="max-height: 260px; width: 100%;"></canvas>
+            <p class="text-xs text-center text-gray-500 mt-3">Comparaison de la fragmentation externe selon l'algorithme d'allocation (simulation)</p>
+
+            <div class="question-item mt-4" data-correct="a">
+                <p class="font-medium">13. Quel algorithme d'allocation mémoire/stockage minimise généralement la fragmentation externe ?</p>
+                <div class="mt-2 space-y-2">
+                    <label><input type="radio" name="q13" value="a"> Best-fit (meilleur ajustement)</label>
+                    <label><input type="radio" name="q13" value="b"> First-fit</label>
+                    <label><input type="radio" name="q13" value="c"> Worst-fit</label>
+                    <label><input type="radio" name="q13" value="d"> Next-fit</label>
+                </div>
+                <div class="feedback-message text-sm mt-2 hidden"></div>
+            </div>
+
+            <div class="mt-6">
+                <canvas id="deadlockChart" width="400" height="250" style="max-height: 200px; width: 100%;"></canvas>
+                <p class="text-xs text-center text-gray-500 mt-3">Stratégies de gestion des deadlocks (% d'utilisation dans les OS modernes)</p>
+            </div>
+
+            <div class="question-item mt-4" data-correct="c">
+                <p class="font-medium">14. Quelle stratégie de gestion des deadlocks est utilisée par la plupart des OS généralistes (Windows, Linux) ?</p>
+                <div class="mt-2 space-y-2">
+                    <label><input type="radio" name="q14" value="a"> Prévention stricte</label>
+                    <label><input type="radio" name="q14" value="b"> Évitement (algorithme du banquier)</label>
+                    <label><input type="radio" name="q14" value="c"> Autruche (ignorer, redémarrer en cas de blocage)</label>
+                    <label><input type="radio" name="q14" value="d"> Détection et récupération automatique</label>
+                </div>
+                <div class="feedback-message text-sm mt-2 hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Boutons -->
+    <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-between no-print">
+        <button id="globalCorrection" class="bg-os-dark hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-semibold shadow-md transition flex items-center gap-2">📝 Corriger toutes les réponses</button>
+        <button id="resetAll" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-xl font-medium transition">⟳ Réinitialiser l'épreuve</button>
+    </div>
+
+    <!-- Corrigé détaillé -->
+    <div id="detailedCorrection" class="mt-8 bg-white rounded-xl border border-os-dark/30 p-5 hidden transition-all shadow-lg"></div>
+
+    <div class="text-center text-gray-400 text-xs mt-10 pt-6 border-t">Évaluation séquentielle - Initiation aux Systèmes d'exploitation | Enseignant : Développement Web (Cameroun) | Séquence 6</div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Initialisation Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { background: '#ffffff', primaryColor: '#0f172a' } });
+
+        // Graphique fragmentation
+        const fragCtx = document.getElementById('fragChart').getContext('2d');
+        new Chart(fragCtx, {
+            type: 'bar',
+            data: {
+                labels: ['First-fit', 'Best-fit', 'Worst-fit', 'Next-fit'],
+                datasets: [{
+                    label: 'Fragmentation externe (blocs perdus %)',
+                    data: [18, 8, 25, 20],
+                    backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'top' } },
+                scales: { y: { beginAtZero: true, max: 30, title: { display: true, text: 'Taux de fragmentation (%)' } } }
+            }
+        });
+
+        // Graphique stratégies deadlock
+        const deadlockCtx = document.getElementById('deadlockChart').getContext('2d');
+        new Chart(deadlockCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Autruche (ignorer)', 'Prévention', 'Détection+récupération', 'Évitement'],
+                datasets: [{
+                    data: [75, 15, 8, 2],
+                    backgroundColor: ['#0f172a', '#3b82f6', '#10b981', '#f59e0b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // CORRECTIONS
+        const answers = {
+            q1: 'b', q2: 'c', q3: 'd', q4: 'a', q5: 'b', q6: 'c', q7: 'a', q8: 'a',
+            q9: 'd', q10: 'b', q11: 'b', q12: 'c', q13: 'a', q14: 'c'
+        };
+
+        const explanations = {
+            q1: "L'inode contient les métadonnées (taille, permissions, dates, UID, GID) et des pointeurs vers les blocs de données. Le nom du fichier est stocké dans le répertoire.",
+            q2: "754 en octal = rwxr-xr-- (propriétaire: rwx, groupe: r-x, autres: r--).",
+            q3: "L'allocation indexée évite la fragmentation externe car les blocs peuvent être dispersés, et le fichier peut grandir facilement en ajoutant des pointeurs.",
+            q4: "La journalisation enregistre les modifications dans un journal avant de les appliquer, permettant une récupération cohérente après une panne.",
+            q5: "Le 'd' (directory) indique un répertoire. '-' = fichier normal, 'l' = lien symbolique.",
+            q6: "Les 4 conditions de Coffman : exclusion mutuelle, détention et attente, non-préemption, attente circulaire.",
+            q7: "Pour invalider 'détention et attente', on demande au processus d'allouer toutes ses ressources en une seule fois (pas d'attente après allocation partielle).",
+            q8: "Séquence P1 (Besoin=(1,2,2) ≤ (3,3,2)) → libère (2,0,0) → Dispo=(5,3,2). P3 (0,1,1) ≤ (5,3,2) → libère (2,1,1) → Dispo=(7,4,3). P4(0,0,0) etc. État sûr.",
+            q9: "Si prévention/évitement non implémentés, le système doit détecter les deadlocks périodiquement et récupérer (terminer des processus ou préempter).",
+            q10: "Le graphe d'attente (wait-for graph) est construit à partir des processus et ressources. Un cycle indique un deadlock.",
+            q11: "First-fit prend le premier trou capable d'accueillir 5 blocs : le trou [10-14] (5 blocs: 10,11,12,13,14).",
+            q12: "L'allocation contiguë souffre de fragmentation externe et rend difficile l'extension d'un fichier (besoin de déplacer ou de réallouer).",
+            q13: "Best-fit choisit le trou qui laisse le moins de place libre, minimisant la fragmentation externe théorique.",
+            q14: "La plupart des OS généralistes adoptent la stratégie de l'autruche (ignorer, car les deadlocks sont rares et les redémarrages acceptables)."
+        };
+
+        // Correction globale
+        $('#globalCorrection').on('click', function() {
+            let score = 0;
+            let total = Object.keys(answers).length;
+
+            $('.question-item').each(function() {
+                const qItem = $(this);
+                const radioName = qItem.find('input[type="radio"]').first().attr('name');
+                if (!radioName) return;
+                const correctVal = answers[radioName];
+                const selected = qItem.find(`input[name="${radioName}"]:checked`);
+                const feedbackDiv = qItem.find('.feedback-message');
+
+                if (selected.length === 0) {
+                    feedbackDiv.html('<span class="text-amber-600">⚠️ Aucune réponse sélectionnée.</span>').removeClass('hidden');
+                    return;
+                }
+
+                const userVal = selected.val();
+                const isCorrect = (userVal === correctVal);
+                if (isCorrect) score++;
+
+                let msg = isCorrect ? `✔️ Correct ! ${explanations[radioName] || ''}` : `❌ Incorrect. Bonne réponse : ${correctVal}. ${explanations[radioName] || ''}`;
+                feedbackDiv.html(msg).removeClass('hidden').addClass(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
+            });
+
+            $('#detailedCorrection').removeClass('hidden').html(`
+                <div class="flex justify-between items-center flex-wrap gap-2 border-b pb-3 mb-3">
+                    <span class="font-bold text-os-dark text-lg">📋 Résultat de l'évaluation</span>
+                    <span class="bg-os-dark/10 px-4 py-2 rounded-full font-mono font-bold">${score} / ${total}</span>
+                </div>
+                <div class="text-sm text-gray-700 space-y-3">
+                    <p>🎓 <strong>Appréciation :</strong> ${score >= 11 ? 'Excellent ! Maîtrise solide des systèmes de fichiers et des interblocages.' : score >= 8 ? 'Bien, mais quelques révisions sont nécessaires.' : 'Des révisions approfondies sont recommandées.'}</p>
+                    <p>💡 <strong>Conseils :</strong> Révisez les structures d'inodes, les permissions UNIX (chmod), les 4 conditions de Coffman, et l'algorithme du banquier.</p>
+                </div>
+            `);
+        });
+
+        // Réinitialisation
+        $('#resetAll').on('click', function() {
+            $('input[type="radio"]').prop('checked', false);
+            $('.feedback-message').addClass('hidden').empty().removeClass('feedback-correct feedback-incorrect');
+            $('#detailedCorrection').addClass('hidden');
+        });
+    });
+</script>
+</body>
+</html>

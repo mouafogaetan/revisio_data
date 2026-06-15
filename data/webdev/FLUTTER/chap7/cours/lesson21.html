@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 21 : Communiquer avec une API (HTTP) | Flutter</title>
+    <!-- Tailwind CSS + Font Awesome pour icones -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où, pour formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles personnalisés pour slides et transitions douces */
+        body {
+            background: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e40af;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+        }
+        .card-code {
+            background: #ffffffdd;
+            backdrop-filter: blur(2px);
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        @media (max-width: 640px) {
+            .slide-container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+        .badge {
+            background: #dbeafe;
+            color: #1e3a8a;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="min-h-screen py-6 md:py-10 px-3">
+        <div class="slide-container bg-white/70 rounded-3xl shadow-xl p-4 md:p-8 backdrop-blur-sm">
+            
+            <!-- Barre de progression + compteur -->
+            <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
+                <div class="font-medium flex items-center gap-2"><span class="badge">📱 Flutter – Initiation</span></div>
+                <div><span id="slideCounter">1</span> / <span id="totalSlides"></span></div>
+            </div>
+            <div class="progress-bar mb-6">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <!-- Slides dynamiques injectés via jQuery -->
+            <div id="slidesWrapper"></div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center mt-10 gap-4">
+                <button id="prevBtn" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed">⬅️ Précédent</button>
+                <div class="text-sm text-gray-500 hidden md:block">Utilise les flèches ou les boutons</div>
+                <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow-md">Suivant ➡️</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Données de la leçon 21 : Requêtes HTTP avec package http
+        // (objectifs & contenu détaillé inspiré du programme: GET, POST, PUT, DELETE, gestion erreurs)
+        const lessonData = {
+            title: "🌐 Leçon 21 : Communiquer avec une API (HTTP)",
+            objectives: [
+                "Installer et importer le package http dans Flutter",
+                "Effectuer des requêtes GET, POST, PUT, DELETE vers une API REST",
+                "Gérer les réponses (status code, corps de réponse) et capturer les erreurs réseau",
+                "Afficher des données distantes (JSON) dans une application Flutter"
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "📡 Qu'est-ce qu'une API ?",
+                    body: `
+                        <p class="text-gray-700 leading-relaxed"><strong class="text-blue-800">API</strong> (Application Programming Interface) : un pont entre votre app et un serveur. 
+                        Les applications mobiles communiquent souvent avec des serveurs web pour envoyer/recevoir des données (météo, articles, utilisateurs...).</p>
+                        <div class="my-5 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                            <p class="font-semibold">🔁 HTTP = Langage du web</p>
+                            <p class="text-sm">Méthodes principales : <code>GET</code> (lire), <code>POST</code> (créer), <code>PUT</code> (modifier), <code>DELETE</code> (supprimer).</p>
+                        </div>
+                        <p class="mt-2">Flutter utilise le package <code class="bg-gray-800 text-white">http</code> pour envoyer des requêtes et récupérer des données JSON.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "📦 Installation du package http",
+                    body: `
+                        <p>Avant toute chose, ajoutez la dépendance dans <code class="bg-gray-800">pubspec.yaml</code> :</p>
+                        <pre class="mt-2"><code>dependencies:
+  http: ^1.1.0</code></pre>
+                        <p class="mt-3">Puis exécutez <code>flutter pub get</code>. Importez dans votre fichier Dart :</p>
+                        <pre><code>import 'package:http/http.dart' as http;
+import 'dart:convert';  // pour JSON</code></pre>
+                        <div class="bg-green-50 p-3 rounded-xl mt-3 text-green-800 text-sm">✅ Conseil : Toujours gérer les exceptions réseau (timeout, pas de connexion).</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔍 Requête GET - Récupérer des données",
+                    body: `
+                        <p><span class="font-bold">GET</span> permet de lire des informations depuis un serveur. Exemple avec JSONPlaceholder (API gratuite) :</p>
+                        <pre><code>Future<void> fetchPosts() async {
+  final url = Uri.parse('https://jsonplaceholder.typicode.com/posts');
+  try {
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      // Succès
+      List data = jsonDecode(response.body);
+      print(data);
+    } else {
+      print('Erreur HTTP ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Erreur réseau : \$e');
+  }
+}</code></pre>
+                        <p class="text-sm mt-2">✔️ <code>statusCode 200</code> = succès. <code>jsonDecode</code> convertit le JSON en objet Dart (Map/List).</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "✍️ Requête POST - Créer une ressource",
+                    body: `
+                        <p><strong>POST</strong> envoie des données au serveur pour créer un nouvel élément (ex: ajouter un article).</p>
+                        <pre><code>Future<void> createPost() async {
+  final url = Uri.parse('https://jsonplaceholder.typicode.com/posts');
+  final body = jsonEncode({
+    'title': 'Mon article',
+    'body': 'Contenu incroyable',
+    'userId': 1,
+  });
+  final response = await http.post(url, 
+    headers: {'Content-Type': 'application/json'},
+    body: body
+  );
+  if (response.statusCode == 201) {
+    print('Créé avec succès : \${response.body}');
+  }
+}</code></pre>
+                        <div class="mt-3 p-2 bg-amber-50 rounded">🔔 Note: Le code 201 = Created. Les headers sont cruciaux pour signaler le JSON.</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔄 PUT & DELETE - Mettre à jour / Supprimer",
+                    body: `
+                        <p><strong>PUT</strong> (mise à jour complète) / <strong>PATCH</strong> (partielle) :</p>
+                        <pre><code>// PUT - modifier l'article avec id 1
+final responsePut = await http.put(
+  Uri.parse('https://jsonplaceholder.typicode.com/posts/1'),
+  headers: {'Content-Type': 'application/json'},
+  body: jsonEncode({'id':1, 'title': 'Titre modifié', 'body': 'Nouveau contenu'})
+);
+// DELETE - suppression
+final responseDelete = await http.delete(
+  Uri.parse('https://jsonplaceholder.typicode.com/posts/1')
+);
+if(responseDelete.statusCode == 200) print("Supprimé !");</code></pre>
+                        <p>✔️ Pour DELETE, le statut 200 ou 204 indique une suppression réussie.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚠️ Gestion des erreurs et timeouts",
+                    body: `
+                        <p>Dans la vraie vie, le réseau peut être lent ou indisponible. Toujours capturer les exceptions :</p>
+                        <pre><code>try {
+  final response = await http.get(url).timeout(Duration(seconds: 10));
+  // ...
+} on SocketException {
+  print('Pas de connexion internet');
+} on TimeoutException {
+  print('Délai dépassé');
+} catch (e) {
+  print('Erreur inconnue: \$e');
+}</code></pre>
+                        <div class="flex flex-wrap gap-3 mt-4">
+                            <div class="bg-red-50 p-3 rounded-lg"><span class="font-bold">📛 Code 4xx</span> : Erreur client (404, 400).</div>
+                            <div class="bg-orange-50 p-3 rounded-lg"><span class="font-bold">⚠️ Code 5xx</span> : Erreur serveur.</div>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧩 Mise en pratique: liste d'articles",
+                    body: `
+                        <p>Exemple concret pour afficher des posts dans un <code>ListView.builder</code> :</p>
+                        <pre><code>class PostsScreen extends StatefulWidget { ... }
+class _PostsScreenState extends State<PostsScreen> {
+  List posts = [];
+  bool loading = true;
+  @override
+  void initState() {
+    super.initState();
+    fetchPosts();
+  }
+  Future<void> fetchPosts() async {
+    try {
+      final res = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/posts'));
+      if (res.statusCode == 200) {
+        setState(() {
+          posts = jsonDecode(res.body);
+          loading = false;
+        });
+      }
+    } catch(e) { loading = false; }
+  }
+  // ... builder
+}</code></pre>
+                        <p class="mt-2">✨ Astuce : Utilisez <code>FutureBuilder</code> pour gérer plus élégamment l'état de chargement.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧪 Exercice pratique (à faire chez vous)",
+                    body: `
+                        <div class="bg-indigo-50 rounded-xl p-5 border border-indigo-200">
+                            <p class="font-bold text-indigo-800">🚀 Mini-projet : Application météo simple</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+                                <li>Utiliser l'API gratuite <code>https://api.open-meteo.com</code> ou <code>goweather.herokuapp.com</code></li>
+                                <li>Faire une requête GET pour obtenir la température d'une ville</li>
+                                <li>Afficher la température et une icône en fonction des conditions</li>
+                                <li>Gérer l'absence de réseau avec un message adapté</li>
+                            </ul>
+                            <p class="mt-3 text-sm">💡 Important: Pensez à importer <code>http</code>, décoder le JSON et utiliser <code>setState</code>.</p>
+                        </div>
+                    `
+                }
+            ]
+        };
+
+        let currentIndex = 0;
+        let slidesArray = [];
+
+        // Construction des slides : slide 0 = Titre, slide 1 = Objectifs, puis les contenus
+        function buildSlides() {
+            const slides = [];
+            // Slide titre
+            slides.push({
+                type: "title",
+                title: lessonData.title,
+                content: `<div class="text-center py-8 md:py-12">
+                            <div class="text-6xl mb-4">📱🌍</div>
+                            <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">${lessonData.title}</h1>
+                            <p class="text-gray-500 mt-4">Initiation aux requêtes HTTP avec Flutter et Dart</p>
+                            <div class="mt-8 flex justify-center gap-3 flex-wrap">
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">package:http</span>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">REST API</span>
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">JSON</span>
+                            </div>
+                          </div>`
+            });
+            // Slide objectifs
+            let objList = "";
+            lessonData.objectives.forEach((obj, idx) => {
+                objList += `<li class="mb-3 flex items-start gap-3"><span class="text-blue-500 text-xl">✓</span> <span>${obj}</span></li>`;
+            });
+            slides.push({
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                content: `<div class="bg-white rounded-2xl shadow-sm p-5 md:p-7"><ul class="space-y-2 text-gray-800 text-lg">${objList}</ul></div>`
+            });
+            // Ajouter les slides de contenu depuis lessonData.slides
+            lessonData.slides.forEach(slide => {
+                slides.push({
+                    type: slide.type,
+                    title: slide.title,
+                    content: `<div class="prose prose-lg max-w-none">${slide.body}</div>`
+                });
+            });
+            return slides;
+        }
+
+        // Rendu du slide actif
+        function renderSlide(index) {
+            const slide = slidesArray[index];
+            if (!slide) return;
+            let html = `<div class="slide active" id="currentSlide">`;
+            // En-tête selon type
+            if (slide.type === "title") {
+                html += slide.content;
+            } else {
+                html += `<h2 class="text-2xl md:text-3xl font-bold border-l-8 border-blue-500 pl-4 mb-6 text-gray-800">${slide.title}</h2>`;
+                html += `<div class="mt-4">${slide.content}</div>`;
+            }
+            html += `</div>`;
+            $("#slidesWrapper").html(html);
+            $("#slideCounter").text(index+1);
+            const total = slidesArray.length;
+            $("#totalSlides").text(total);
+            const percent = ((index) / (total-1)) * 100;
+            $("#progressFill").css("width", `${percent}%`);
+            
+            // Gérer état des boutons
+            $("#prevBtn").prop("disabled", index === 0);
+            if(index === slidesArray.length-1) {
+                $("#nextBtn").text("🏁 Terminé").addClass("bg-green-600 hover:bg-green-700");
+            } else {
+                $("#nextBtn").text("Suivant ➡️").removeClass("bg-green-600").addClass("bg-blue-600 hover:bg-blue-700");
+            }
+            // Scroll en haut (optionnel)
+            $('html, body').animate({ scrollTop: 0 }, 200);
+            // déclencher MathJax au cas où des formules apparaissent (mais pas nécessaire)
+            if(window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function nextSlide() {
+            if (currentIndex < slidesArray.length - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            } else {
+                // Message de fin de leçon
+                alert("🎉 Félicitations ! Vous avez terminé la Leçon 21. N'oubliez pas de pratiquer les requêtes HTTP dans vos projets Flutter.");
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+
+        $(document).ready(function() {
+            slidesArray = buildSlides();
+            currentIndex = 0;
+            renderSlide(currentIndex);
+            
+            // Event handlers
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            
+            // Navigation au clavier
+            $(document).keydown(function(e) {
+                if(e.key === "ArrowRight") {
+                    nextSlide();
+                    e.preventDefault();
+                } else if(e.key === "ArrowLeft") {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            
+            // Ajuster le responsive pour les pré/code overflow déjà géré par Tailwind
+        });
+    </script>
+    <!-- Petit footer pédagogique -->
+    <div class="text-center text-xs text-gray-400 py-6">
+        Enseignant: Cours Flutter - Cameroun 🇨🇲 | Utilisation du package HTTP pour les API REST
+    </div>
+</body>
+</html>

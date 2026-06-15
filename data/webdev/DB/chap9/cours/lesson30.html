@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 30 : Redis - Bases de données clef-valeur en mémoire | Cours BD</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police personnalisée pour meilleure lisibilité -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f4f7fc; /* couleur douce */
+        }
+        /* Style personnalisé pour les slides container */
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, opacity 0.3s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            transform: scale(1.03);
+            background-color: #1e3a8a;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* adaptation ultra mobile */
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 {
+                font-size: 1.7rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+        /* mise en avant des termes Redis */
+        .redis-badge {
+            background: #dc2626;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-6 min-h-screen flex flex-col items-center justify-center">
+
+    <div class="max-w-4xl w-full mx-auto relative">
+        <!-- Slide principal -->
+        <div id="slides-wrapper" class="slide-container relative">
+            <!-- les slides seront injectées ici dynamiquement avec jQuery -->
+        </div>
+
+        <!-- Navigation + indicateur de progression -->
+        <div class="flex flex-wrap justify-between items-center mt-6 gap-3">
+            <button id="prevSlide" class="nav-btn bg-white text-blue-800 font-semibold py-2 px-5 rounded-full shadow-md border border-blue-200 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">◀ Précédent</button>
+            <div class="flex flex-col items-center">
+                <span id="slideCounter" class="text-sm bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full text-gray-700 font-medium">Slide 1 / X</span>
+                <div class="w-48 h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                    <div id="progressFill" class="progress-bar h-full bg-red-500 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md hover:bg-blue-800 transition">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Structure des slides pour la leçon 30 (Redis)
+        // Titre, objectifs, contenu structuré en slides pédagogiques
+        const slidesData = [
+            {
+                type: "title",
+                title: "Redis : Base de Données Clé-Valeur Haute Performance",
+                subtitle: "Cours d'initiation aux bases de données — Leçon 30",
+                icon: "⚡"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Installer Redis et comprendre son architecture en mémoire",
+                    "Utiliser les structures de données (strings, hashes, lists, sets, sorted sets)",
+                    "Comprendre les cas d'usage typiques : cache, session, file d'attente"
+                ]
+            },
+            {
+                type: "content",
+                title: "🧠 Redis : C'est quoi ?",
+                content: "<p><span class='redis-badge'>⚡ In-Memory</span> <strong>Redis</strong> (REmote DIctionary Server) est un SGBD NoSQL de type <strong>clé-valeur</strong> ultra-rapide. Contrairement aux bases SQL qui stockent sur disque, Redis garde les données en mémoire RAM, offrant des latences de l'ordre de la microseconde.</p><p class='mt-3'>🔹 Architecture : <strong>Client-Serveur</strong> avec protocole RESP.<br>🔹 Persistance optionnelle : snapshots (RDB) ou journaux (AOF).<br>🔹 Utilisé par des géants comme Twitter, GitHub, Stack Overflow.</p><div class='bg-yellow-50 p-3 rounded-xl mt-3 border-l-4 border-yellow-400'>💡 <strong>À retenir :</strong> Redis est parfait pour les données qui changent vite et nécessitent un accès instantané.</div>"
+            },
+            {
+                type: "content",
+                title: "📦 Installation & premiers pas",
+                content: "<p><strong>Sous Windows (WSL) / Linux / Mac :</strong></p><div class='code-block'># Ubuntu/Debian\nsudo apt update\nsudo apt install redis-server\n# Démarrer Redis\nsudo systemctl start redis\n# Vérifier\nredis-cli ping   # → PONG</div><p class='mt-2'><strong>Docker :</strong><br><code class='bg-gray-100 p-1 rounded'>docker run -d --name redis-stack -p 6379:6379 redis/redis-stack:latest</code></p><p>Pour tester : <code class='bg-gray-100 p-1 rounded'>redis-cli</code> puis <code class='bg-gray-100 p-1 rounded'>SET nom \"Cameroun\"</code> puis <code class='bg-gray-100 p-1 rounded'>GET nom</code>.</p>"
+            },
+            {
+                type: "content",
+                title: "🔑 Types de données (1/2) : String & Hash",
+                content: "<div class='grid md:grid-cols-2 gap-4'><div><h3 class='font-bold text-red-700'>📝 Strings</h3><p>La structure la plus simple (texte, nombre, JSON).</p><div class='code-block text-sm'># Assigner une chaîne\nSET user:1:name \"Alice\"\nGET user:1:name\n# Incrémentation\nSET compteur 10\nINCR compteur   # → 11</div></div><div><h3 class='font-bold text-red-700'>🏷️ Hashes</h3><p>Objet avec champs-valeurs (parfait pour profils).</p><div class='code-block text-sm'>HSET user:2 nom \"Bob\" age 30 ville \"Douala\"\nHGETALL user:2\nHGET user:2 nom</div></div></div>"
+            },
+            {
+                type: "content",
+                title: "📚 Types de données (2/2) : List, Set, Sorted Set",
+                content: "<div class='space-y-4'><div><span class='font-semibold text-red-700'>📋 Lists</span> (ordre d'insertion, files/piles)<br><div class='code-block inline-block w-full mt-1'>LPUSH messages \"Hello\" \"Bonjour\"   # côté gauche\nRPUSH files \"doc.pdf\"\nLRANGE messages 0 -1</div></div><div><span class='font-semibold text-red-700'>🔘 Sets</span> (valeurs uniques, non ordonnées)<br><div class='code-block mt-1'>SADD technologies \"Redis\" \"SQL\" \"MongoDB\"\nSMEMBERS technologies\nSISMEMBER technologies \"Redis\"</div></div><div><span class='font-semibold text-red-700'>🏆 Sorted Sets</span> (avec score, classements)<br><div class='code-block mt-1'>ZADD classement 100 \"Cameroun\" 200 \"Sénégal\"\nZRANGE classement 0 -1 WITHSCORES</div></div></div>"
+            },
+            {
+                type: "content",
+                title: "💼 Cas d'usage : Cache système",
+                content: "<p>✅ <strong>Mise en cache des résultats de requêtes SQL</strong> : Réduit la charge base de données.<br>Exemple typique : après une requête lourde, on stocke le résultat dans Redis avec TTL (temps de vie).</p><div class='code-block'># Mise en cache d'une page produit\nSET product:123 \"{nom: 'Livre BD', prix: 4500}\" EX 3600\n# La prochaine requête lit depuis Redis\nGET product:123</div><div class='mt-3 bg-green-50 p-3 rounded-lg'>🚀 <strong>Avantage</strong> : Réponse en moins d'1ms au lieu de 50ms + calcul SQL.</div>"
+            },
+            {
+                type: "content",
+                title: "👥 Gestion de sessions utilisateur",
+                content: "<p>Redis est le leader pour stocker les sessions web (PHP, Node.js, Java). Une session = identifiant unique + données utilisateur.</p><div class='code-block'># Stocker une session (hash)\nHSET session:abc123 user_id 42 login \"alain@example.com\" ip \"127.0.0.1\"\nEXPIRE session:abc123 7200   # expire après 2h\n# Vérifier la session\nHGETALL session:abc123</div><p>💡 Avantage : Accès ultra-rapide, expiration automatique, scaling horizontal.</p>"
+            },
+            {
+                type: "content",
+                title: "⏳ Files d'attente (Queue) avec Redis List",
+                content: "<p>Utilisation de <strong>LPUSH / RPOP</strong> pour implémenter des files FIFO (traitement asynchrone). Idéal pour l'envoi d'emails, traitement d'images, jobs en arrière-plan.</p><div class='code-block'># Producteur (ajoute la tâche)\nLPUSH job_queue \"email:welcome:user5\"\nLPUSH job_queue \"resize:image123\"\n# Consommateur (récupère la tâche)\nRPOP job_queue   # retourne 'resize:image123'</div><div class='bg-gray-100 p-2 rounded mt-2'>🔁 Avec <strong>BRPOP</strong> on peut bloquer jusqu'à réception d'un élément (pattern worker).</div>"
+            },
+            {
+                type: "content",
+                title: "🧪 Exercice pratique rapide",
+                content: "<p><strong>Scénario :</strong> Vous développez un blog et souhaitez stocker les articles les plus lus avec un classement (top 5).</p><div class='code-block'># Ajouter des vues à un article\nZINCRBY top_articles 1 \"article:sql-avance\"\nZINCRBY top_articles 1 \"article:redis-perf\"\nZINCRBY top_articles 5 \"article:mongodb\"\n# Obtenir le top 3\nZREVRANGE top_articles 0 2 WITHSCORES</div><p>✅ <strong>Réponse attendue :</strong> Redis trie les scores automatiquement.</p><p class='mt-2'>🎯 Exercice maison : Simuler un panier d'achat avec <strong>Hashes</strong> (HSET cart:user1 article1 2 article3 1).</p>"
+            },
+            {
+                type: "content",
+                title: "🧰 Bonnes pratiques & performances",
+                content: "<ul class='list-disc pl-5 space-y-2'><li><strong>Utilisez des clés préfixées</strong> : <code>cache::user:42</code> pour éviter collisions.</li><li><strong>Évitez KEYS *</strong> (bloquant) → préférez SCAN.</li><li><strong>Configurez maxmemory + politique d'éviction</strong> (allkeys-lru).</li><li>Redis peut gérer <strong>100k+ opérations/seconde</strong> sur un seul nœud.</li><li>Utiliser <strong>pipelining</strong> pour batch de commandes.</li></ul><div class='code-block mt-2'># Exemple scan\nSCAN 0 MATCH cache::* COUNT 100</div>"
+            },
+            {
+                type: "content",
+                title: "🌐 Redis en environnement réel",
+                content: "<div class='flex flex-wrap gap-3 justify-between'><div class='bg-indigo-50 p-3 rounded-xl flex-1'><span class='font-bold'>🏢 Entreprises :</span> Twitter (timelines), GitHub (metadonnées), Snapchat, Discord.</div><div class='bg-purple-50 p-3 rounded-xl flex-1'><span class='font-bold'>📦 Extensions :</span> RedisJSON, RedisSearch, RedisGraph, RedisTimeSeries.</div></div><p class='mt-3'>Redis Cloud / Self-managed : Solutions de clustering pour répartition et haute disponibilité (Redis Sentinel, Cluster).</p><p><strong>Au Cameroun</strong> : De plus en plus de startups et entreprises tech utilisent Redis pour leurs APIs mobiles et applications de e-commerce.</p>"
+            },
+            {
+                type: "recap",
+                title: "✨ Résumé de la leçon",
+                points: [
+                    "Redis = Base de données clé-valeur en mémoire, extrêmement rapide.",
+                    "Types riches : Strings, Hashes, Lists, Sets, Sorted Sets, Bitmaps, HyperLogLog...",
+                    "Cas d'usage majeurs : cache applicatif, sessions web, files d’attente, classements.",
+                    "Installation simple, persistance optionnelle, écosystème mature.",
+                    "Commande essentielle : redis-cli pour interagir."
+                ]
+            },
+            {
+                type: "conclusion",
+                title: "🏁 Prochaines étapes",
+                content: "✅ Vous maîtrisez désormais les bases de Redis.<br>🎯 Pour approfondir : Réplication Redis, transactions (MULTI/EXEC), Lua scripting.<br>📚 Rendez-vous à la leçon 31 (Gestion utilisateurs et sauvegardes) pour découvrir la sécurité des bases de données.<br><br><i class='text-gray-500'>“La performance est une fonctionnalité, Redis l’incarne.”</i>"
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `<div class="slide p-6 md:p-10 text-center">
+                            <div class="text-6xl mb-4">${slide.icon || "🚀"}</div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-700 to-red-600 bg-clip-text text-transparent">${slide.title}</h1>
+                            <p class="text-gray-600 text-lg mt-4">${slide.subtitle}</p>
+                            <div class="mt-8 flex justify-center">
+                                <div class="bg-red-100 rounded-full px-4 py-2 text-sm text-red-700">Leçon 30 · Module NoSQL</div>
+                            </div>
+                            <div class="mt-10 text-gray-400 text-sm">⬅️ Utilisez les boutons pour naviguer</div>
+                        </div>`;
+            }
+            else if (slide.type === "objectifs") {
+                return `<div class="slide p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-l-8 border-red-500 pl-4 mb-6">${slide.title}</h2>
+                            <ul class="space-y-4">
+                                ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><span class="text-red-500 text-xl">✓</span> ${obj}</li>`).join('')}
+                            </ul>
+                            <div class="mt-8 bg-blue-50 rounded-xl p-4 text-blue-800 text-center text-sm">📌 À la fin de cette leçon, vous serez capable d'utiliser Redis dans vos projets web.</div>
+                        </div>`;
+            }
+            else if (slide.type === "content") {
+                return `<div class="slide p-6 md:p-8">
+                            <h2 class="text-2xl font-semibold text-gray-800 border-b-2 border-red-300 pb-2 mb-5">${slide.title}</h2>
+                            <div class="prose max-w-none text-gray-700 leading-relaxed">${slide.content}</div>
+                        </div>`;
+            }
+            else if (slide.type === "recap") {
+                return `<div class="slide p-6 md:p-8">
+                            <h2 class="text-2xl font-bold text-green-800 mb-5">📌 ${slide.title}</h2>
+                            <ul class="space-y-3">
+                                ${slide.points.map(p => `<li class="flex items-start gap-2"><span class="text-green-600 font-bold">•</span> <span class="text-gray-800">${p}</span></li>`).join('')}
+                            </ul>
+                        </div>`;
+            }
+            else if (slide.type === "conclusion") {
+                return `<div class="slide p-6 md:p-8 text-center">
+                            <h2 class="text-2xl font-bold text-purple-800">🎉 ${slide.title}</h2>
+                            <div class="mt-5 text-gray-700 text-lg leading-relaxed">${slide.content}</div>
+                            <div class="mt-8 flex justify-center gap-2 text-sm text-gray-500">
+                                <span>✅ Redis opérationnel</span> • <span>🔐 Apprenez la sécurité avec le chapitre 10</span>
+                            </div>
+                        </div>`;
+            }
+            return `<div class="slide p-6">Contenu par défaut</div>`;
+        }
+
+        // Mettre à jour l'affichage du slide courant
+        function updateSlide() {
+            const slideHtml = renderSlide(slidesData[currentIndex], currentIndex);
+            $("#slides-wrapper").html(slideHtml);
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const progress = ((currentIndex) / (totalSlides-1)) * 100;
+            $("#progressFill").css("width", `${progress}%`);
+            // Gérer désactivation des boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides-1);
+            // Scroll automatique en haut pour mobile
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Réactiver MathJax si des formules étaient présentes (optionnel mais safe)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides-1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+
+        // Gestion des touches (flèches)
+        $(document).keydown(function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+
+        // Initialisation au chargement
+        $(document).ready(function() {
+            updateSlide();
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+        });
+    </script>
+    <footer class="text-center text-xs text-gray-400 mt-8 max-w-4xl mx-auto">
+        © Enseignant Développement Web - Cameroun | Cours d'initiation aux Bases de données - Redis (Leçon 30) | Support pédagogique libre
+    </footer>
+</body>
+</html>

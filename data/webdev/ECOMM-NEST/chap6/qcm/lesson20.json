@@ -1,0 +1,98 @@
+[
+  {
+    "questionText": "Lors de la transformation d'un panier en commande dans une API e-commerce, quelle est l'opération critique qui doit être effectuée dans une transaction ACID ?",
+    "options": [
+      "L'envoi de l'email de confirmation",
+      "La création de la commande ET la décrémentation définitive des stocks",
+      "La génération de la facture PDF",
+      "La mise à jour du profil utilisateur"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La création de la commande et la décrémentation définitive des stocks doivent être atomiques : si l'une échoue, l'autre doit être annulée. Une transaction ACID garantit qu'on ne crée pas une commande sans diminuer le stock (survente) ou qu'on ne diminue pas le stock sans créer la commande (perte de produit)."
+  },
+  {
+    "questionText": "Pourquoi est-il important de faire un 'snapshot' (copie) des informations du produit dans l'entité OrderItem plutôt que de simplement référencer le produit avec une clé étrangère ?",
+    "options": [
+      "Pour économiser de l'espace disque",
+      "Pour conserver le prix, la description et le nom du produit au moment de l'achat, même si le produit est modifié ou supprimé par la suite",
+      "Pour accélérer les requêtes SQL",
+      "Pour éviter d'avoir à gérer les relations ManyToOne"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Le snapshot est essentiel car le prix ou la description d'un produit peuvent changer après l'achat. Le client a droit à ce qu'il a payé au moment de sa commande. Stocker une copie (priceAtPurchase, productNameAtPurchase) dans OrderItem garantit l'intégrité de l'historique des commandes."
+  },
+  {
+    "questionText": "Observez ce code de création de commande :\n```typescript\nasync checkout(cartId: number, userId: number) {\n  const cart = await this.cartRepository.findOne({\n    where: { id: cartId, user: { id: userId } },\n    relations: ['items', 'items.product']\n  });\n  \n  // Vérification des stocks\n  for (const item of cart.items) {\n    if (item.product.stock < item.quantity) {\n      throw new Error(`Stock insuffisant pour ${item.product.name}`);\n    }\n  }\n  \n  // Création de la commande\n  const order = this.orderRepository.create({\n    user: { id: userId },\n    total: cart.total,\n    items: cart.items.map(item => ({\n      productName: item.product.name,\n      price: item.product.price,\n      quantity: item.quantity\n    }))\n  });\n  \n  await this.orderRepository.save(order);\n  await this.cartRepository.remove(cart);\n}\n```\nQuel problème majeur ce code présente-t-il ?",
+    "options": [
+      "Il manque la décrémentation des stocks réels",
+      "Il manque la validation de l'adresse de livraison",
+      "Il manque l'envoi d'email de confirmation",
+      "Le code est correct et ne présente aucun problème"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Le code vérifie le stock mais ne le décrémente JAMAIS. Après validation de la commande, `product.stock` reste identique. La prochaine commande pourra utiliser le même stock, entraînant une survente. Il faut impérativement décrémenter `product.stock` (ou `product.stock -= item.quantity`) dans la transaction."
+  },
+  {
+    "questionText": "Dans le contexte d'une API e-commerce avec NestJS, quel module est couramment utilisé pour envoyer des emails de confirmation de commande de manière asynchrone ?",
+    "options": [
+      "@nestjs/axios",
+      "@nestjs/bull" (avec Redis) combiné à Nodemailer",
+      "@nestjs/websockets",
+      "@nestjs/graphql"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "@nestjs/bull permet de mettre en file d'attente les tâches longues comme l'envoi d'emails. Le worker traite la file asynchronement, libérant la réponse HTTP. Nodemailer est la librairie d'envoi d'emails. Cette approche évite de ralentir le checkout et gère les échecs de livraison par réessai."
+  },
+  {
+    "questionText": "Quel est l'intérêt d'utiliser `QueryRunner` de TypeORM lors du processus de checkout ?",
+    "options": [
+      "Pour améliorer les performances des requêtes SELECT",
+      "Pour gérer manuellement les transactions (commit/rollback) sur plusieurs opérations",
+      "Pour générer automatiquement des migrations",
+      "Pour connecter plusieurs bases de données simultanément"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "`QueryRunner` permet de créer une transaction explicite. Ainsi, si une erreur survient (stock insuffisant, échec d'enregistrement de la commande...), on peut appeler `queryRunner.rollbackTransaction()` pour annuler TOUTES les modifications (création commande ET décrémentation stock). `queryRunner.commitTransaction()` valide l'ensemble."
+  },
+  {
+    "questionText": "Quelle est la différence entre 'décrémenter le stock réservé' et 'décrémenter le stock réel' lors du passage de commande ?",
+    "options": [
+      "Aucune différence, ce sont des synonymes",
+      "Le stock réservé correspond aux produits dans les paniers ; le stock réel est le stock physique. En validation de commande, on transforme la réservation en vente réelle.",
+      "Le stock réel est mis à jour à l'ajout au panier, le stock réservé à la validation",
+      "Le stock réservé n'existe que pour les administrateurs"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "Avec un système de réservation, `stock` est le stock physique, `reservedStock` est la quantité temporairement bloquée par les paniers. Lors du checkout, on diminue `reservedStock` (libère la réservation) ET on diminue `stock` (vente définitive). Sinon, si on n'avait que `stock`, il aurait déjà été diminué à l'ajout au panier."
+  },
+  {
+    "questionText": "Que doit faire l'API si l'envoi de l'email de confirmation échoue après que la commande a été créée et le stock décrémenté ?",
+    "options": [
+      "Annuler la commande et ré-augmenter le stock",
+      "Logger l'erreur et réessayer l'envoi plus tard (file d'attente ou tâche planifiée), la commande reste valide",
+      "Supprimer la commande sans rien dire à l'utilisateur",
+      "Envoyer un email manuellement par l'administrateur"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "L'email est une notification secondaire. L'échec d'envoi ne doit pas invalider la commande. La bonne pratique est de logger l'erreur et de réessayer (ex: via Bull). L'utilisateur peut consulter sa commande dans son espace client. Un email sera réessayé ultérieurement."
+  },
+  {
+    "questionText": "Dans un système où le stock est décrémenté APRÈS la création de la commande (et non pendant la transaction), quel risque encourt-on ?",
+    "options": [
+      "Aucun risque, c'est la meilleure pratique",
+      "Risque de survente si deux commandes sont validées simultanément sur le dernier produit",
+      "Risque de perte de données utilisateur",
+      "Risque de duplication des emails"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "very hard",
+    "explanation": "Si deux commandes sont créées quasiment en même temps pour le dernier produit, la première peut valider la commande (vérification OK car stock > 0). Avant que la première n'ait eu le temps de décrémenter le stock, la deuxième commande peut aussi voir le stock > 0 et valider. Résultat : deux commandes pour un seul produit. C'est un problème de concurrence résolu par la transaction et/ou les locks."
+  }
+]

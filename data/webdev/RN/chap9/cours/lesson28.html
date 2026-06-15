@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 28 : Animations fluides avec Animated (React Native)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour d'éventuelles formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f0f4f8;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide-content {
+            flex: 1;
+            padding: 2rem 1.8rem;
+        }
+        .nav-btn {
+            cursor: pointer;
+            background: #0f172a;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            transform: scale(0.97);
+        }
+        .dot-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .dot-indicator.active {
+            background-color: #0f172a;
+            width: 24px;
+            border-radius: 12px;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 8px;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem 1rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        .list-check {
+            list-style: none;
+            padding-left: 0;
+        }
+        .list-check li::before {
+            content: "✨ ";
+            color: #3b82f6;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <div id="slidesWrapper" class="relative"></div>
+
+    <!-- navigation et indicateurs -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevSlide" class="nav-btn px-5 py-2 text-sm md:text-base">← Précédent</button>
+        <div id="dotsContainer" class="flex gap-2 justify-center flex-wrap my-2"></div>
+        <button id="nextSlide" class="nav-btn px-5 py-2 text-sm md:text-base">Suivant →</button>
+    </div>
+</div>
+
+<script>
+    // Slides de la leçon 28 : animations avec Animated API
+    const slidesData = [
+        {
+            type: "title",
+            title: "🎬 Créer des animations fluides avec Animated",
+            subtitle: "Animated.Value · timing · spring · decay",
+            emoji: "✨🌀"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Comprendre Animated.Value et Animated.View pour animer des composants",
+                "Utiliser les fonctions timing, spring, decay pour différents types d'animations",
+                "Animer des propriétés comme l'opacité, la translation et l'échelle"
+            ]
+        },
+        {
+            type: "content",
+            title: "🧩 Qu'est-ce que l'API Animated ?",
+            content: `<p><strong>Animated</strong> est une bibliothèque intégrée à React Native pour créer des animations performantes et fluides. Contrairement aux CSS transitions, elle est optimisée pour s'exécuter sur le thread UI natif, garantissant 60 images par seconde.</p>
+            <div class="bg-indigo-50 p-4 rounded-xl mt-3">
+                <p class="font-bold">🔑 Concepts clés :</p>
+                <ul class="list-disc pl-5 mt-1">
+                    <li><code>Animated.Value</code> : valeur mutable qui déclenche les rendus.</li>
+                    <li><code>Animated.View</code>, <code>Animated.Text</code> : versions spéciales des composants capables d'animer.</li>
+                    <li>Méthodes d'animation : <code>timing</code>, <code>spring</code>, <code>decay</code>.</li>
+                </ul>
+            </div>`
+        },
+        {
+            type: "content",
+            title: "⚙️ 1. Animated.Value et Animated.View",
+            content: `<p>On commence par créer une valeur animée avec <code>useRef</code> ou <code>new Animated.Value()</code>. Ensuite on lie cette valeur à un style.</p>
+            <pre><code>import React, { useRef } from 'react';
+import { Animated, View } from 'react-native';
+
+const FadeExample = () => {
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  return (
+    &lt;Animated.View style={{ opacity: opacityAnim }}&gt;
+      &lt;View style={{ width: 100, height: 100, backgroundColor: 'tomato' }} /&gt;
+    &lt;/Animated.View&gt;
+  );
+};</code></pre>
+            <p><span class="highlight">Animated.View</span> agit comme une View normale mais écoute les changements de valeurs animées.</p>`
+        },
+        {
+            type: "content",
+            title: "🕹️ 2. Animated.timing : animations basées sur le temps",
+            content: `<p><code>timing</code> fait évoluer une valeur d’un état initial à un état final sur une durée spécifique.</p>
+            <pre><code>const fadeIn = () => {
+  Animated.timing(opacityAnim, {
+    toValue: 1,
+    duration: 800,
+    useNativeDriver: true,  // important pour les performances
+  }).start();
+};</code></pre>
+            <p>Paramètres courants : <code>duration</code> (ms), <code>easing</code> (fonction d’accélération), <code>delay</code>.</p>
+            <p class="mt-2">💡 <strong>useNativeDriver: true</strong> permet à l’animation de s’exécuter directement sur le thread natif, plus fluide.</p>`
+        },
+        {
+            type: "content",
+            title: "🌿 3. Animated.spring : effet ressort naturel",
+            content: `<p><code>spring</code> simule une animation physique avec rebond. Idéal pour des transitions organiques.</p>
+            <pre><code>const bounce = () => {
+  Animated.spring(scaleAnim, {
+    toValue: 1.2,
+    friction: 3,
+    tension: 40,
+    useNativeDriver: true,
+  }).start();
+};</code></pre>
+            <p>Principales options : <code>friction</code> (résistance), <code>tension</code> (force du ressort), <code>velocity</code> (vitesse initiale). On peut aussi simplement définir <code>speed</code> et <code>bounciness</code>.</p>
+            <div class="bg-green-50 p-3 rounded-lg mt-2">🎯 Exemple typique : animation d’un bouton au clic, effet d'échelle rebondissant.</div>`
+        },
+        {
+            type: "content",
+            title: "📉 4. Animated.decay : ralentissement progressif",
+            content: `<p><code>decay</code> fait décroître une valeur à partir d’une vitesse initiale jusqu’à l’arrêt. Idéal pour les gestes de défilement ou les effets d'inertie.</p>
+            <pre><code>const startDecay = () => {
+  Animated.decay(positionAnim, {
+    velocity: 0.8,
+    deceleration: 0.997,
+    useNativeDriver: true,
+  }).start();
+};</code></pre>
+            <p>Paramètres : <code>velocity</code> (vitesse initiale), <code>deceleration</code> (taux de décélération).</p>
+            <p class="text-sm text-gray-600 mt-1">⚠️ <code>decay</code> nécessite souvent un gestionnaire d'arrêt pour éviter les dépassements.</p>`
+        },
+        {
+            type: "content",
+            title: "🎨 Animer les propriétés : opacity, transform",
+            content: `<p>Grâce à Animated, on peut animer <strong>opacity</strong>, <strong>scale</strong>, <strong>translate</strong>, <strong>rotate</strong>.</p>
+            <pre><code>const translateX = useRef(new Animated.Value(0)).current;
+
+// Translation horizontale
+Animated.timing(translateX, {
+  toValue: 100,
+  duration: 500,
+  useNativeDriver: true,
+}).start();
+
+// Dans le style :
+&lt;Animated.View style={{ transform: [{ translateX: translateX }] }} /&gt;</code></pre>
+            <p>Autres transformations : <code>scale</code>, <code>rotate</code>, <code>skewX</code>. Attention : sur Android, certaines transformations nécessitent <code>perspective</code>.</p>`
+        },
+        {
+            type: "content",
+            title: "🔄 Enchaîner et répéter des animations",
+            content: `<p>On peut lancer des animations séquentiellement ou en parallèle avec <code>Animated.sequence</code> et <code>Animated.parallel</code>. Ou encore répéter à l'infini avec <code>Animated.loop</code>.</p>
+            <pre><code>const fadeInOut = () => {
+  Animated.loop(
+    Animated.sequence([
+      Animated.timing(opacityAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 500, useNativeDriver: true })
+    ])
+  ).start();
+};</code></pre>
+            <p><code>parallel</code> pour lancer plusieurs animations en même temps, <code>stagger</code> pour un décalage.</p>
+            <div class="bg-yellow-50 p-3 rounded-md mt-2">💡 Utile pour créer des loader, des effets d’attention ou des transitions complexes.</div>`
+        },
+        {
+            type: "content",
+            title: "🧪 Exemple complet : animation d’un bouton",
+            content: `<pre><code>import React, { useRef } from 'react';
+import { Animated, TouchableOpacity, Text } from 'react-native';
+
+const AnimatedButton = () => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    &lt;TouchableOpacity onPressIn={handlePressIn} onPressOut={handlePressOut}&gt;
+      &lt;Animated.View style={{ transform: [{ scale: scaleAnim }], backgroundColor: '#3b82f6', padding: 12, borderRadius: 20 }}&gt;
+        &lt;Text style={{ color: 'white' }}>Appuie sur moi&lt;/Text&gt;
+      &lt;/Animated.View&gt;
+    &lt;/TouchableOpacity&gt;
+  );
+};</code></pre>
+            <p>Résultat : le bouton se rétrécit légèrement au toucher puis reprend sa taille, retour haptique visuel.</p>`
+        },
+        {
+            type: "content",
+            title: "✅ Bonnes pratiques et astuces",
+            content: `<ul class="list-check space-y-2">
+                <li><strong>Toujours utiliser <code>useNativeDriver: true</code></strong> quand c’est possible (opacity, transform).</li>
+                <li>Ne pas animer les propriétés de layout (width, height, margin) car elles ne supportent pas le native driver (sauf avec <code>layoutAnimation</code>).</li>
+                <li>Utiliser <code>useRef</code> pour stocker les valeurs animées, éviter les re-rendus inutiles.</li>
+                <li><code>Animated.event</code> pour lier des gestes (ScrollView, PanResponder) à des valeurs animées.</li>
+                <li>Pour des animations complexes ou gestuelles, envisager Reanimated 2. Mais Animated est parfait pour 80% des cas.</li>
+                <li>Testez vos animations sur de vrais appareils pour vérifier la fluidité.</li>
+            </ul>`
+        },
+        {
+            type: "end",
+            title: "🏁 Félicitations !",
+            message: "Vous maîtrisez les bases des animations avec Animated API. Ajoutez du mouvement à vos apps React Native de manière fluide et naturelle.",
+            nextAction: "Entraînez-vous en créant un écran d'accueil animé avec un logo qui rebondit et des boutons qui s'estompent."
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(index) {
+        const data = slidesData[index];
+        let html = '';
+        if (data.type === 'title') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[55vh]">
+                        <div class="text-7xl mb-4">${data.emoji}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-800 to-indigo-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${data.subtitle}</p>
+                        <div class="mt-6 text-sm text-gray-400">React Native · Animated API · UI fluide</div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (data.type === 'objectifs') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-4 border-indigo-400 pb-2 inline-block">${data.title}</h2>
+                        <ul class="mt-6 space-y-3">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 text-lg"><span class="text-indigo-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 p-4 bg-indigo-50 rounded-2xl">
+                            <p class="text-indigo-800">À la fin de cette leçon, vous pourrez embellir vos applications avec des animations simples et efficaces.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'content') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'end') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[50vh]">
+                        <div class="text-5xl mb-4">🏆</div>
+                        <h2 class="text-3xl font-bold text-slate-800">${data.title}</h2>
+                        <p class="text-xl text-gray-600 mt-3">${data.message}</p>
+                        <p class="mt-6 italic text-gray-500">✨ ${data.nextAction}</p>
+                        <div class="mt-6 text-sm bg-slate-100 px-4 py-2 rounded-full">Animation réussie ✅</div>
+                    </div>
+                </div>
+            `;
+        }
+        $('#slidesWrapper').html(html);
+        updateDots(index);
+        if (window.MathJax) MathJax.typesetPromise();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateDots(activeIndex) {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const activeClass = i === activeIndex ? 'active' : '';
+            dotsHtml += `<div class="dot-indicator ${activeClass}" data-index="${i}"></div>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('.dot-indicator').on('click', function() {
+            const idx = parseInt($(this).data('index'));
+            if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                currentSlide = idx;
+                renderSlide(currentSlide);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            if(currentSlide === totalSlides-1){
+                $('#nextSlide').text('✔ Terminé');
+                setTimeout(()=>$('#nextSlide').text('Suivant →'), 1000);
+            }
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+            $('#nextSlide').text('Suivant →');
+        }
+    }
+
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        $(document).on('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        let touchStartX = 0, touchEndX = 0;
+        const wrapper = document.getElementById('slidesWrapper');
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextSlide();
+            if (touchEndX > touchStartX + 50) prevSlide();
+        });
+    });
+</script>
+<footer class="text-center text-xs text-gray-400 border-t border-gray-200 mt-8 py-5">
+    <p>📱 Cours React Native — Leçon 28 : Animations avec Animated API | Enseignant Cameroun 🇨🇲 | Codez avec fluidité</p>
+</footer>
+</body>
+</html>

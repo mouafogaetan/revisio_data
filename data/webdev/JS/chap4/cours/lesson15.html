@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 15 : Les closures en JavaScript - Initiation au Dev Web</title>
+    <!-- Tailwind CSS via CDN (version light, couleurs douces) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin, mais peu utilisé ici, on l'inclut quand même) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Custom transitions pour les slides et styles doux supplémentaires */
+        .slide {
+            transition: all 0.3s ease-in-out;
+        }
+        /* Pour un meilleur focus sur mobile */
+        button:focus, a:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+        .card-slide {
+            backdrop-filter: blur(2px);
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+        /* Style doux pour les extraits de code */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .example-box {
+            background: #fef9e3;
+            border-left: 6px solid #f59e0b;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Conteneur principal avec padding responsive -->
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Slider container -->
+        <div class="relative bg-white/70 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-indigo-100">
+            <!-- Slides wrapper -->
+            <div id="slidesContainer" class="relative w-full min-h-[550px] md:min-h-[600px] transition-all duration-300">
+                
+                <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12" data-slide="0">
+                    <div class="flex flex-col justify-center min-h-[500px] text-center">
+                        <span class="text-sm uppercase tracking-wider text-indigo-500 font-semibold bg-indigo-100 inline-block mx-auto px-3 py-1 rounded-full">Leçon 15 · Clôture du chapitre 4</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold mt-6 bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">Les closures (fermetures)</h1>
+                        <p class="text-xl md:text-2xl text-gray-600 mt-4 max-w-2xl mx-auto">Fonctions qui gardent un souvenir de leur environnement</p>
+                        <div class="mt-12 flex justify-center space-x-2 text-gray-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <span>Glisser ou cliquer sur les boutons →</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2 : OBJECTIFS D'APPRENTISSAGE (basés sur les objectifs de lesson15) -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="1">
+                    <div class="flex flex-col justify-center min-h-[500px]">
+                        <div class="bg-indigo-50 rounded-2xl p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-3"><span class="text-3xl">🎯</span> Objectifs de la leçon</h2>
+                            <ul class="mt-6 space-y-4 text-gray-700 text-lg">
+                                <li class="flex items-start gap-3"><span class="text-indigo-500 font-bold">1.</span> <span>Comprendre la <strong>portée lexicale (lexical scoping)</strong> : comment JavaScript recherche les variables.</span></li>
+                                <li class="flex items-start gap-3"><span class="text-indigo-500 font-bold">2.</span> <span>Définir une <strong>closure</strong> : une fonction qui accède à des variables d'une fonction parente même après que celle-ci ait fini son exécution.</span></li>
+                                <li class="flex items-start gap-3"><span class="text-indigo-500 font-bold">3.</span> <span>Utiliser les closures pour <strong>créer des variables privées</strong> et encapsuler des données.</span></li>
+                            </ul>
+                            <div class="mt-8 p-4 bg-white rounded-xl border border-indigo-200">
+                                <p class="italic text-gray-600">💡 Une closure, c'est comme une "boîte à souvenirs" : la fonction enfant se souvient des variables de sa mère.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 3 : Portée lexicale (explication simple) -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="2">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-5">🧠 1. La portée lexicale (Lexical Scoping)</h2>
+                        <p class="text-gray-700 text-lg leading-relaxed">En JavaScript, la <strong>portée d'une variable</strong> est déterminée par <span class="font-semibold">l'endroit où elle est déclarée</span> dans le code, pas au moment de l'exécution. Les fonctions imbriquées ont accès aux variables de leur fonction parent.</p>
+                        <div class="mt-6 bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+                            <pre class="text-sm md:text-base"><code>function externe() {
+  let message = "Je suis parent !";
+  
+  function interne() {
+    console.log(message); // ✅ Accès autorisé
+  }
+  
+  interne();
+}
+externe(); // Affiche "Je suis parent !"</code></pre>
+                        </div>
+                        <p class="text-gray-600 mt-4 bg-blue-50 p-3 rounded-lg">✅ <strong>Règle simple</strong> : une fonction voit toutes les variables déclarées dans les fonctions qui la contiennent (et globales).</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 4 : Définition de closure + première illustration -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="3">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-5">🔒 2. Qu'est-ce qu'une closure ?</h2>
+                        <p class="text-gray-700 text-lg">Une <strong>closure</strong> se produit quand une fonction <strong>interne</strong> est retournée ou utilisée en dehors de sa fonction parente, mais qu'elle <strong>garde l'accès</strong> aux variables de cette fonction parente, même après que celle-ci ait terminé son exécution.</p>
+                        <div class="mt-5 example-box p-4 rounded-xl">
+                            <p class="font-bold text-amber-800">🎬 Exemple classique :</p>
+                            <pre class="mt-2 text-sm"><code>function creerCompteur() {
+  let count = 0;   // variable "privée"
+  return function() {
+    count++;
+    return count;
+  };
+}
+const monCompteur = creerCompteur();
+console.log(monCompteur()); // 1
+console.log(monCompteur()); // 2
+// count n'est pas accessible directement, mais la closure s'en souvient !</code></pre>
+                        </div>
+                        <p class="mt-4 text-indigo-700"><span class="font-bold">✨ Explication :</span> La fonction retournée « ferme » la variable <code>count</code> dans son environnement → closure.</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 5 : Variables privées avec closure (thème important) -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="4">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-5">🛡️ 3. Variables privées grâce aux closures</h2>
+                        <p class="text-gray-700 text-lg mb-3">Avant les classes modernes (ES6), on utilisait les closures pour <strong>encapsuler</strong> des données et imiter la <strong>vie privée</strong> (comme dans d'autres langages).</p>
+                        <div class="bg-white p-4 rounded-xl border shadow-sm">
+                            <pre class="text-sm"><code>function Personne(nom) {
+  let _age = 0;   // variable privée
+  
+  return {
+    prendreAge: function() { return _age; },
+    feterAnniversaire: function() { _age++; }
+  };
+}
+let alice = Personne("Alice");
+alice.feterAnniversaire();
+alice.feterAnniversaire();
+console.log(alice.prendreAge()); // 2
+// alice._age n'existe pas -> on ne peut pas y toucher directement !</code></pre>
+                        </div>
+                        <div class="mt-5 bg-green-50 p-4 rounded-lg">
+                            <p class="flex gap-2 items-start"><span class="text-green-600 text-xl">✔️</span> <span><strong>Avantage</strong> : Protège l'intégrité des données. Seules les fonctions exposées (méthodes) peuvent modifier <code>_age</code>.</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 6 : Exemple concret avec un jeu de compteur + boutons interactifs (jQuery) pour démontrer une closure en action -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="5">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-4">💻 4. Exercice interactif : compteur privé</h2>
+                        <p class="text-gray-700">Observez une closure en live : cette fonction crée un compteur indépendant pour chaque bouton. Chaque compteur garde sa propre variable <code>compteur</code> privée.</p>
+                        
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div id="counterBox1" class="bg-white rounded-2xl shadow-md p-5 text-center border">
+                                <h3 class="font-bold text-xl text-indigo-600">📦 Compteur A</h3>
+                                <p class="text-4xl font-mono my-3" id="displayA">0</p>
+                                <button id="btnA" class="bg-indigo-500 hover:bg-indigo-700 text-white px-5 py-2 rounded-full transition">Incrémenter</button>
+                                <p class="text-xs text-gray-500 mt-3">closure créée par makeCounter()</p>
+                            </div>
+                            <div id="counterBox2" class="bg-white rounded-2xl shadow-md p-5 text-center border">
+                                <h3 class="font-bold text-xl text-indigo-600">📦 Compteur B</h3>
+                                <p class="text-4xl font-mono my-3" id="displayB">0</p>
+                                <button id="btnB" class="bg-purple-500 hover:bg-purple-700 text-white px-5 py-2 rounded-full transition">Incrémenter</button>
+                                <p class="text-xs text-gray-500 mt-3">autre closure avec son propre état</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-gray-100 p-3 rounded-xl">
+                            <p class="text-sm font-mono text-gray-700">// Code de la closure : <br> function makeCounter() { let count = 0; return function() { count++; return count; } }</p>
+                        </div>
+                        <p class="mt-4 text-amber-700 text-sm">✨ Remarque : Les deux compteurs sont indépendants car chaque appel à <code>makeCounter()</code> crée une nouvelle closure avec son propre <code>count</code>.</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 7 : Pièges courants et closure dans les boucles (pour éviter erreurs) -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="6">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-4">⚠️ 5. Attention aux closures dans les boucles</h2>
+                        <p class="text-gray-700">Un problème classique : quand on crée des fonctions dans une boucle, elles partagent la même variable si on utilise <code>var</code>. Avec <code>let</code> ou une closure immédiate, on peut résoudre.</p>
+                        <div class="bg-red-50 p-4 rounded-xl mt-3">
+                            <pre class="text-xs md:text-sm"><code>// Problème (si var i)
+for (var i = 1; i <= 3; i++) {
+  setTimeout(function() { console.log(i); }, 100);
+} // Affiche 4,4,4 ❌
+
+// Solution avec let (ES6) ou closure IIFE
+for (let i = 1; i <= 3; i++) {
+  setTimeout(() => console.log(i), 100);
+} // Affiche 1,2,3 ✅</code></pre>
+                        </div>
+                        <p class="mt-4 text-gray-600">💡 Chaque itération avec <code>let</code> crée une nouvelle liaison, donc chaque closure capture la bonne valeur.</p>
+                        <div class="mt-4 flex items-center gap-2 bg-indigo-100 p-3 rounded-lg">
+                            <span class="text-2xl">🧩</span> <span><strong>Résumé closure :</strong> C'est une fonction + l'environnement lexical dans lequel elle a été créée.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 8 : Mini quiz / récapitulatif ludique (fermeture) -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="7">
+                    <div class="flex flex-col min-h-[500px]">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-400 pl-4 mb-5">📝 Vérifions ta compréhension</h2>
+                        <div class="space-y-4">
+                            <div class="bg-white p-5 rounded-xl shadow">
+                                <p class="font-semibold">1️⃣ Qu'est-ce qu'une closure ?</p>
+                                <div class="mt-2 space-y-2">
+                                    <label class="flex items-center gap-2"><input type="radio" name="q1" value="a"> <span>Une fonction qui a accès aux variables globales uniquement.</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="q1" value="b"> <span>Une fonction qui garde en mémoire les variables de sa fonction parente même après l'exécution de celle-ci.</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="q1" value="c"> <span>Une méthode pour déclarer des variables avec var.</span></label>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow">
+                                <p class="font-semibold">2️⃣ À quoi servent les closures dans la pratique ?</p>
+                                <div class="mt-2 space-y-2">
+                                    <label class="flex items-center gap-2"><input type="radio" name="q2" value="a"> <span>Créer des variables privées et encapsuler des données.</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="q2" value="b"> <span>Remplacer toutes les boucles.</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="q2" value="c"> <span>Optimiser la vitesse d'exécution.</span></label>
+                                </div>
+                            </div>
+                            <button id="quizSubmitBtn" class="bg-indigo-600 text-white px-6 py-2 rounded-full hover:bg-indigo-800 transition">Vérifier mes réponses</button>
+                            <div id="quizFeedback" class="text-sm font-medium hidden p-3 rounded-lg"></div>
+                        </div>
+                        <p class="mt-6 text-gray-500 text-center text-sm">👨‍🏫 Les closures sont un concept fondamental pour maîtriser JavaScript avancé !</p>
+                    </div>
+                </div>
+
+                <!-- SLIDE 9 : Résumé & mot de la fin -->
+                <div class="slide w-full px-5 py-8 md:px-10 md:py-12 hidden" data-slide="8">
+                    <div class="flex flex-col justify-center min-h-[500px] text-center">
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-3xl p-6">
+                            <h2 class="text-3xl font-bold text-gray-800">✨ En résumé ✨</h2>
+                            <ul class="text-left mt-6 space-y-3 text-gray-700 max-w-lg mx-auto">
+                                <li>✔️ Une closure = fonction + accès aux variables de sa portée extérieure.</li>
+                                <li>✔️ Utile pour l'encapsulation (créer des propriétés privées).</li>
+                                <li>✔️ Les closures sont partout en JavaScript (callbacks, événements, modules).</li>
+                                <li>✔️ Pratiquez avec des compteurs, gestionnaires d'état.</li>
+                            </ul>
+                            <div class="mt-8 text-indigo-800 font-medium">🎉 Félicitations, vous maîtrisez la leçon 15 ! 🎉</div>
+                            <div class="mt-6 w-24 h-1 bg-indigo-300 mx-auto rounded-full"></div>
+                            <p class="text-sm text-gray-500 mt-4">Prochaine étape : projet pratique avec des closures</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation buttons (slides) -->
+            <div class="flex justify-between items-center px-4 py-4 bg-white/80 border-t border-indigo-100">
+                <button id="prevSlideBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+                <div class="flex space-x-2" id="dotsContainer"></div>
+                <button id="nextSlideBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full transition">Suivant ▶</button>
+            </div>
+        </div>
+        <p class="text-center text-xs text-gray-500 mt-6">© Cours d'initiation JavaScript - Enseignant Cameroun | Closures (fermetures)</p>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+            
+            // Mise à jour de l'affichage des slides
+            function updateSlides() {
+                slides.each(function(idx) {
+                    if (idx === currentIndex) {
+                        $(this).removeClass('hidden').fadeIn(200);
+                    } else {
+                        $(this).addClass('hidden').hide();
+                    }
+                });
+                updateDots();
+                // Gérer l'état des boutons
+                $('#prevSlideBtn').prop('disabled', currentIndex === 0);
+                $('#nextSlideBtn').text(currentIndex === totalSlides - 1 ? 'Terminé ✔' : 'Suivant ▶');
+            }
+            
+            // Générer les points indicateurs
+            function updateDots() {
+                let dotsHtml = '';
+                for (let i = 0; i < totalSlides; i++) {
+                    let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-6' : 'bg-gray-300 w-2';
+                    dotsHtml += `<button class="dot h-2 rounded-full transition-all ${activeClass} mx-1" data-index="${i}"></button>`;
+                }
+                $('#dotsContainer').html(dotsHtml);
+                // Click sur dot
+                $('.dot').on('click', function() {
+                    let idx = parseInt($(this).data('index'));
+                    if (!isNaN(idx) && idx >=0 && idx < totalSlides) {
+                        currentIndex = idx;
+                        updateSlides();
+                    }
+                });
+            }
+            
+            // navigation
+            $('#nextSlideBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                } else {
+                    // si dernier slide, on peut rester ou afficher un petit message
+                    if (currentIndex === totalSlides -1) {
+                        alert("🎉 Bravo ! Vous avez terminé la leçon sur les closures. N'oubliez pas de pratiquer !");
+                    }
+                }
+            });
+            
+            $('#prevSlideBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+            
+            // Gestion du compteur interactif (slide 5 - closures en action)
+            // On construit une fonction génératrice de compteur basée sur closure
+            function makeCounter() {
+                let count = 0;
+                return function() {
+                    count++;
+                    return count;
+                };
+            }
+            
+            let counterA = makeCounter();
+            let counterB = makeCounter();
+            
+            // Mettre à jour affichages
+            function refreshDisplay() {
+                // On ne réinitialise pas, juste récupère depuis les closures après incrément
+                // Mais pour l'affichage initial, on se base sur les valeurs actuelles, toutefois on doit stocker les counts? 
+                // On peut simplement récupérer les compteurs via les closures? Pas possible directement. 
+                // On va stocker dans des variables locales persistantes pour l'affichage. Idée: on utilise les closures mais on garde les valeurs affichées.
+                // Simplifions: on appelle une fonction qui va incrémenter et renvoyer la nouvelle valeur.
+                // Pour afficher sans incrémenter, on aurait besoin d'une fonction getCount, mais pour l'exemple, on lie l'incrémentation.
+                // Comme nous avons des compteurs, on utilisera: chaque clic incrémente puis met à jour l'écran.
+            }
+            
+            // Nouvelle approche : on fait des closures qui exposent get et increment
+            function makeAdvancedCounter() {
+                let val = 0;
+                return {
+                    increment: function() { val++; return val; },
+                    getValue: function() { return val; }
+                };
+            }
+            
+            let counterAdvA = makeAdvancedCounter();
+            let counterAdvB = makeAdvancedCounter();
+            
+            $('#btnA').on('click', function() {
+                let newVal = counterAdvA.increment();
+                $('#displayA').text(newVal);
+            });
+            $('#btnB').on('click', function() {
+                let newVal = counterAdvB.increment();
+                $('#displayB').text(newVal);
+            });
+            
+            // Initialiser les affichages à 0
+            $('#displayA').text(counterAdvA.getValue());
+            $('#displayB').text(counterAdvB.getValue());
+            
+            // Quiz simple
+            $('#quizSubmitBtn').on('click', function() {
+                let q1 = $('input[name="q1"]:checked').val();
+                let q2 = $('input[name="q2"]:checked').val();
+                let feedback = $('#quizFeedback');
+                let correctCount = 0;
+                if (q1 === 'b') correctCount++;
+                if (q2 === 'a') correctCount++;
+                if (correctCount === 2) {
+                    feedback.removeClass('hidden bg-red-100 text-red-800').addClass('bg-green-100 text-green-800').html('✅ Parfait ! Vous avez bien compris les closures et leur utilité pour les variables privées.');
+                } else if (correctCount === 1) {
+                    feedback.removeClass('hidden').addClass('bg-yellow-100 text-yellow-800').html('⚠️ Presque ! Relisez la partie sur la définition et l’encapsulation. Une closure permet d’accéder aux variables parentes après la fin de la fonction, et sert souvent à créer des variables privées.');
+                } else {
+                    feedback.removeClass('hidden').addClass('bg-red-100 text-red-800').html('❌ Revoir la leçon : Une closure est une fonction interne qui garde l’accès aux variables de sa fonction externe (portée lexicale). Les variables privées sont un cas d’usage important.');
+                }
+                $('html, body').animate({scrollTop: $('#quizFeedback').offset().top - 80}, 300);
+            });
+            
+            // Initialisation de l'affichage des slides
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

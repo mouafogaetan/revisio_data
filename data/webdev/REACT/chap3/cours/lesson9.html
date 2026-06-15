@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>React - Manipulation des tableaux et objets (Immutabilité)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .code-block {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            margin: 1rem 0;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .demo-box {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 4px solid #f59e0b;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fed7aa;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 10px;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+        .badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
+    <!-- Barre de progression -->
+    <div class="mb-5 bg-amber-200/50 rounded-full h-2 overflow-hidden">
+        <div id="progressBar" class="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- Indicateur de slide -->
+    <div class="text-center mb-3 text-sm text-gray-700 font-medium">
+        <i class="fas fa-layer-group"></i> Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+    </div>
+
+    <div id="slidesContainer">
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-amber-100 rounded-full mb-6">
+                    <i class="fas fa-code-branch text-6xl text-amber-600"></i>
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-700 to-orange-600 mb-4">
+                    Manipulation des tableaux et objets
+                </h1>
+                <p class="text-xl text-gray-700 mb-3">L'immutabilité dans React avec useState</p>
+                <div class="border-t border-amber-300 w-24 mx-auto my-6"></div>
+                <p class="text-gray-600"><i class="fas fa-cubes"></i> Ajouter • Modifier • Supprimer • Spread operator • Immer</p>
+                <div class="mt-8 flex justify-center gap-4 text-sm text-gray-500">
+                    <span><i class="fas fa-graduation-cap text-amber-600"></i> Niveau: Intermédiaire</span>
+                    <span><i class="fas fa-clock"></i> Durée: 50 min</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 border-l-8 border-amber-500 pl-4 mb-6">
+                🎯 Objectifs de la leçon
+            </h2>
+            <ul class="space-y-4 text-gray-700">
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Ajouter, modifier et supprimer des éléments dans un tableau en respectant l'<strong>immutabilité</strong>.</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Mettre à jour des objets avec l'<strong>opérateur spread</strong> (<code>...</code>).</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre pourquoi l'immutabilité est cruciale dans React.</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser <strong>Immer</strong> pour simplifier les mises à jour complexes.</span></li>
+            </ul>
+            <div class="mt-8 bg-amber-50 p-4 rounded-xl text-amber-800 text-sm border border-amber-200">
+                <i class="fas fa-lightbulb"></i> À la fin, vous saurez gérer des listes dynamiques (todo list, panier d'achat) sans erreurs !
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : POURQUOI L'IMMUTABILITÉ ? -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🧠 Pourquoi l'immutabilité ?</h2>
+            <p class="text-gray-700 mb-3">En React, on ne modifie JAMAIS directement l'état (<code>state</code>). On crée une <strong>nouvelle copie</strong> avec les modifications.</p>
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                <p class="text-red-700 font-semibold"><i class="fas fa-ban"></i> Mauvais exemple (mutation directe) :</p>
+                <pre class="bg-gray-800 text-white p-3 rounded mt-2"><code>// ❌ Ne faites JAMAIS ça !
+const [users, setUsers] = useState(['Alice', 'Bob']);
+users.push('Charlie');  // Mutation directe
+setUsers(users);        // React ne détecte pas le changement</code></pre>
+            </div>
+            <div class="bg-green-50 border-l-4 border-green-500 p-4">
+                <p class="text-green-700 font-semibold"><i class="fas fa-check"></i> Bon exemple (immuable) :</p>
+                <pre class="bg-gray-800 text-white p-3 rounded mt-2"><code>// ✅ Création d'un nouveau tableau
+const [users, setUsers] = useState(['Alice', 'Bob']);
+setUsers([...users, 'Charlie']); // Nouveau tableau</code></pre>
+            </div>
+            <p class="text-gray-600 text-sm mt-3"><i class="fas fa-info-circle"></i> React compare les références des objets. Si la référence n'a pas changé, le composant ne se re-rend pas !</p>
+        </div>
+
+        <!-- SLIDE 4 : AJOUTER DANS UN TABLEAU -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">➕ Ajouter un élément dans un tableau</h2>
+            <p class="text-gray-700 mb-2">Utiliser l'opérateur <strong>spread</strong> <code>...</code> pour créer un nouveau tableau.</p>
+            <div class="code-block">
+                <pre><code>const [todos, setTodos] = useState(['Apprendre React', 'Faire les exercises']);
+
+// Ajouter un élément à la fin
+const addTodo = (nouveauTodo) => {
+  setTodos([...todos, nouveauTodo]);
+};
+
+// Ajouter un élément au début
+const addTodoAtStart = (nouveauTodo) => {
+  setTodos([nouveauTodo, ...todos]);
+};</code></pre>
+            </div>
+            <div class="demo-box">
+                <p class="font-semibold text-amber-800"><i class="fas fa-play-circle"></i> Exemple concret :</p>
+                <p class="text-gray-700">Tableau initial : <code>['A', 'B']</code><br>
+                Après <code>setTodos([...todos, 'C'])</code> → <code>['A', 'B', 'C']</code><br>
+                Après <code>setTodos(['Z', ...todos])</code> → <code>['Z', 'A', 'B']</code></p>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : SUPPRIMER DANS UN TABLEAU -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">❌ Supprimer un élément d'un tableau</h2>
+            <p class="text-gray-700 mb-2">Utiliser <code>filter()</code> qui retourne un nouveau tableau.</p>
+            <div class="code-block">
+                <pre><code>const [todos, setTodos] = useState(['A', 'B', 'C']);
+
+// Supprimer l'élément avec l'index 1 ('B')
+const deleteTodo = (indexASupprimer) => {
+  setTodos(todos.filter((_, index) => index !== indexASupprimer));
+};
+
+// Supprimer par valeur
+const deleteByValue = (valeur) => {
+  setTodos(todos.filter(item => item !== valeur));
+};</code></pre>
+            </div>
+            <div class="demo-box">
+                <p class="font-semibold text-amber-800"><i class="fas fa-play-circle"></i> Exemple :</p>
+                <p class="text-gray-700"><code>['A', 'B', 'C']</code> → suppression de l'index 1 → <code>['A', 'C']</code></p>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 : MODIFIER UN ÉLÉMENT -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">✏️ Modifier un élément spécifique</h2>
+            <p class="text-gray-700 mb-2">Utiliser <code>map()</code> pour transformer le tableau.</p>
+            <div class="code-block">
+                <pre><code>const [todos, setTodos] = useState(['A', 'B', 'C']);
+
+// Remplacer l'élément à l'index 1 par 'X'
+const updateTodo = (index, nouvelleValeur) => {
+  setTodos(todos.map((item, i) => 
+    i === index ? nouvelleValeur : item
+  ));
+};</code></pre>
+            </div>
+            <div class="demo-box">
+                <p class="font-semibold text-amber-800"><i class="fas fa-play-circle"></i> Résultat :</p>
+                <p class="text-gray-700"><code>['A', 'B', 'C']</code> → modification index 1 en 'X' → <code>['A', 'X', 'C']</code></p>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : MISE À JOUR D'OBJETS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Mettre à jour un objet</h2>
+            <p class="text-gray-700 mb-2">Utiliser le spread operator pour conserver les propriétés existantes.</p>
+            <div class="code-block">
+                <pre><code>const [user, setUser] = useState({ name: 'Alice', age: 25, city: 'Douala' });
+
+// Modifier uniquement l'âge
+const updateAge = () => {
+  setUser({ ...user, age: 26 });
+};
+
+// Modifier plusieurs propriétés
+const updateProfile = () => {
+  setUser({ ...user, age: 27, city: 'Yaoundé' });
+};</code></pre>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-lg text-amber-800 text-sm mt-2">
+                <i class="fas fa-info-circle"></i> <strong>Attention</strong> : Les objets imbriqués nécessitent un spread à chaque niveau !
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : OBJETS IMBRIQUÉS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🪆 Objets imbriqués (nested objects)</h2>
+            <div class="code-block">
+                <pre><code>const [state, setState] = useState({
+  user: { name: 'John', address: { city: 'Douala', street: 'Avenue Kennedy' } }
+});
+
+// Modifier une propriété imbriquée
+const updateCity = () => {
+  setState({
+    ...state,
+    user: {
+      ...state.user,
+      address: {
+        ...state.user.address,
+        city: 'Kribi'
+      }
+    }
+  });
+};</code></pre>
+            </div>
+            <p class="text-gray-600 text-sm mt-2"><i class="fas fa-exclamation-triangle text-amber-600"></i> Plus l'objet est profond, plus le code devient lourd → solution : <strong>Immer</strong> !</p>
+        </div>
+
+        <!-- SLIDE 9 : INTRODUCTION À IMMER -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🪄 Immer : la simplicité retrouvée</h2>
+            <p class="text-gray-700 mb-3">Immer permet d'écrire des mutations <strong>comme si</strong> on modifiait directement l'état, mais crée automatiquement une copie immuable.</p>
+            <div class="code-block">
+                <pre><code>import { produce } from 'immer';
+
+const [state, setState] = useState({
+  user: { name: 'John', address: { city: 'Douala' } },
+  todos: ['A', 'B']
+});
+
+// Avec Immer : on "modifie" directement !
+const updateImmer = () => {
+  setState(produce(draft => {
+    draft.user.address.city = 'Yaoundé';
+    draft.todos.push('C');
+  }));
+};</code></pre>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg text-green-800 text-sm mt-2">
+                <i class="fas fa-check-circle"></i> Installation : <code>npm install immer</code>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 : TABLEAU D'OBJETS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Tableau d'objets (exemple Todo)</h2>
+            <div class="code-block">
+                <pre><code>const [todos, setTodos] = useState([
+  { id: 1, text: 'Apprendre React', done: false },
+  { id: 2, text: 'Maîtriser Immer', done: false }
+]);
+
+// Ajouter
+setTodos([...todos, { id: Date.now(), text: newTodo, done: false }]);
+
+// Basculer done (toggle)
+const toggleTodo = (id) => {
+  setTodos(todos.map(todo =>
+    todo.id === id ? { ...todo, done: !todo.done } : todo
+  ));
+};
+
+// Supprimer
+const deleteTodo = (id) => {
+  setTodos(todos.filter(todo => todo.id !== id));
+};</code></pre>
+            </div>
+        </div>
+
+        <!-- SLIDE 11 : COMPARAISON AVEC/SANS IMMER -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">⚖️ Avec Immer vs Sans Immer</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-100 p-3 rounded-lg">
+                    <p class="font-bold text-red-600">Sans Immer (spread)</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 rounded mt-2"><code>setState({
+  ...state,
+  user: {
+    ...state.user,
+    address: {
+      ...state.user.address,
+      city: 'Kribi'
+    }
+  }
+});</code></pre>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-lg">
+                    <p class="font-bold text-green-600">Avec Immer</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 rounded mt-2"><code>setState(produce(draft => {
+  draft.user.address.city = 'Kribi';
+}));</code></pre>
+                </div>
+            </div>
+            <p class="text-gray-700 mt-4"><i class="fas fa-chart-line"></i> Pour les structures profondes, Immer réduit le code de <strong>70%</strong> et élimine les erreurs de spread oublié !</p>
+        </div>
+
+        <!-- SLIDE 12 : BONNES PRATIQUES ET RÉSUMÉ -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Récapitulatif & Bonnes pratiques</h2>
+            <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                <li><span class="font-semibold">Ne jamais muter directement</span> un état (<code>state.push()</code>, <code>state.age = 30</code>)</li>
+                <li><span class="font-semibold">Tableaux</span> : <code>[...ancien, nouveau]</code>, <code>filter()</code>, <code>map()</code></li>
+                <li><span class="font-semibold">Objets</span> : <code>{ ...ancien, propriete: nouvelleValeur }</code></li>
+                <li><span class="font-semibold">Objets imbriqués</span> : spread à chaque niveau ou <strong>Immer</strong></li>
+                <li><span class="font-semibold">Pour les projets complexes</span> : adopter <strong>Immer</strong> pour la lisibilité</li>
+            </ul>
+            <div class="mt-6 bg-amber-100 p-4 rounded-xl text-center">
+                <i class="fas fa-gem text-amber-600 text-2xl"></i>
+                <p class="font-medium">Règle d'or : Toujours créer une NOUVELLE référence pour informer React du changement !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 13 : EXERCICE PRATIQUE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-amber-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Exercice : Liste de courses</h2>
+            <p class="text-gray-700 mb-3">Créez une application de liste de courses avec les fonctionnalités :</p>
+            <ol class="list-decimal pl-5 space-y-2 text-gray-700">
+                <li>Ajouter un article (nom, quantité)</li>
+                <li>Modifier la quantité d'un article</li>
+                <li>Supprimer un article</li>
+                <li>Cocher un article comme "acheté"</li>
+            </ol>
+            <div class="mt-4 bg-gray-800 text-white p-3 rounded-lg">
+                <p class="font-mono text-sm">💡 Indice : Structure de l'état</p>
+                <pre><code>const [items, setItems] = useState([
+  { id: 1, name: 'Pain', quantity: 2, purchased: false }
+]);</code></pre>
+            </div>
+            <button id="showHint" class="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded transition">
+                <i class="fas fa-lightbulb"></i> Voir solution
+            </button>
+            <div id="hintText" class="hidden mt-4 p-3 bg-green-100 rounded-lg text-green-800">
+                <p><strong>Solution partielle :</strong></p>
+                <pre class="bg-gray-800 text-white p-2 rounded text-sm">// Ajouter
+setItems([...items, { id: Date.now(), name, quantity, purchased: false }]);
+
+// Modifier quantité
+setItems(items.map(item => 
+  item.id === id ? { ...item, quantity: newQty } : item
+));
+
+// Supprimer
+setItems(items.filter(item => item.id !== id));</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="flex justify-between items-center mt-5 gap-4">
+        <button id="prevBtn" class="nav-btn bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50">
+            <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div class="flex gap-2" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">
+            Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        updateDots();
+
+        function updateProgress() {
+            let percent = ((current + 1) / total) * 100;
+            $('#progressBar').css('width', percent + '%');
+            $('#currentSlideIdx').text(current + 1);
+        }
+
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            current = index;
+            updateProgress();
+            updateDots();
+            $('#prevBtn').prop('disabled', current === 0);
+            if (current === total-1) {
+                $('#nextBtn').html('Terminer <i class="fas fa-check-circle"></i>');
+            } else {
+                $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+            }
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function updateDots() {
+            $('#dotsContainer').empty();
+            for(let i = 0; i < total; i++) {
+                let dot = $('<div>').addClass('w-3 h-3 rounded-full transition-all duration-200 cursor-pointer mx-1')
+                    .css('background-color', i === current ? '#f59e0b' : '#d97706');
+                dot.on('click', (function(idx) { return function() { showSlide(idx); }; })(i));
+                $('#dotsContainer').append(dot);
+            }
+        }
+
+        $('#nextBtn').click(function() {
+            if(current < total-1) showSlide(current+1);
+            else alert('🎉 Félicitations ! Vous maîtrisez maintenant la manipulation immuable des tableaux et objets !');
+        });
+        $('#prevBtn').click(function() {
+            if(current > 0) showSlide(current-1);
+        });
+
+        $('#showHint').click(function() {
+            $('#hintText').toggleClass('hidden');
+        });
+
+        showSlide(0);
+    });
+</script>
+
+<footer class="text-center text-gray-600 text-sm py-5 border-t border-amber-300 mt-6">
+    <p><i class="fas fa-chalkboard-teacher"></i> Cours React - Manipulation des tableaux et objets | Programme Développement Web (Cameroun)</p>
+    <p class="text-xs">Immutabilité, Spread operator, Immer : les clés pour des applications React performantes</p>
+</footer>
+</body>
+</html>

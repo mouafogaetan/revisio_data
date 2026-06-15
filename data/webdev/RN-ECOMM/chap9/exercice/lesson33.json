@@ -1,0 +1,77 @@
+[
+  {
+    "intitule": "Analyser le système d'avis et de notation d'un produit",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce, un utilisateur peut noter un produit de 1 à 5 étoiles et laisser un commentaire. Il peut également joindre jusqu'à 3 photos. Les avis sont affichés triés par date (du plus récent au plus ancien). Un développeur observe que certains avis avec photos mettent beaucoup de temps à s'afficher, et que la moyenne des étoiles est recalculée à chaque nouvel avis.</p>",
+      "images": [
+        "Capture d'écran d'une section d'avis produit avec étoiles, commentaires et photos"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi l'affichage des photos dans les avis peut être lent, et proposer deux solutions techniques pour améliorer les performances.",
+        "niveau": "medium",
+        "reponse": "Les photos peuvent être volumineuses et le téléchargement depuis le serveur prend du temps. Solutions : 1) Utiliser un composant de caching d'images (expo-image, FastImage) avec des thumbnails de taille réduite. 2) Implémenter un chargement paresseux (lazy loading) qui ne charge les photos que lorsqu'elles entrent dans la zone visible du scroll.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la structure de données (JavaScript) permettant de stocker un avis avec ses photos et sa notation, et justifier le choix du format pour les photos (URL ou base64).",
+        "niveau": "medium",
+        "reponse": "Structure : { id: 'uuid', productId: '123', userId: '456', rating: 4, comment: 'Très bon produit', photos: ['https://.../photo1.jpg', 'https://.../photo2.jpg'], createdAt: '2025-01-15T10:00:00Z' }. Les photos doivent être stockées sous forme d'URLs (références vers des fichiers sur CDN/serveur) plutôt qu'en base64 pour éviter d'alourdir la base de données et les réponses API. Les URLs permettent aussi la mise en cache.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une stratégie pour recalculer efficacement la moyenne des étoiles d'un produit sans parcourir tous les avis à chaque nouvel ajout.",
+        "niveau": "hard",
+        "reponse": "On peut stocker dans le document produit deux champs : totalStars (somme de toutes les notes) et reviewCount (nombre d'avis). Lorsqu'un nouvel avis est ajouté, on met à jour : totalStars += nouvelleNote, reviewCount += 1. La nouvelle moyenne est totalStars / reviewCount. Cette approche évite un parcours O(n) à chaque ajout et est facilement maintenable en base de données (atomique).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter la modification et la suppression d'un avis utilisateur",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez développer la fonctionnalité permettant à un utilisateur connecté de modifier ou supprimer ses propres avis. Les règles métier sont :<br>- Un utilisateur ne peut modifier/supprimer que ses propres avis.<br>- La suppression est définitive et entraîne la mise à jour de la moyenne du produit.<br>- La modification du nombre d'étoiles doit également recalculer la moyenne.<br>- Les photos jointes peuvent être ajoutées ou supprimées lors de la modification.</p>",
+      "images": [
+        "Maquette d'avis utilisateur avec boutons Modifier et Supprimer"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir la logique de vérification d'autorisation avant modification/suppression d'un avis. Écrire le pseudo-code de la vérification côté client et côté API.",
+        "niveau": "medium",
+        "reponse": "Côté client : const canEdit = review.userId === currentUser.id; (affichage conditionnel des boutons). Côté API : avant toute modification/suppression, vérifier que l'utilisateur authentifié (via JWT) est bien le propriétaire de l'avis ; sinon retourner 403 Forbidden. Exemple : if (review.userId !== req.user.id) { return res.status(403).json({ error: 'Non autorisé' }); }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire les étapes nécessaires pour mettre à jour la moyenne du produit suite à la modification d'une note (ex: l'utilisateur passe de 3 à 5 étoiles).",
+        "niveau": "medium",
+        "reponse": "1. Récupérer l'ancienne note (3) et la nouvelle note (5) depuis l'avis modifié. 2. Récupérer le produit associé. 3. Mettre à jour totalStars = totalStars - ancienneNote + nouvelleNote. 4. reviewCount reste inchangé. 5. Recalculer la nouvelle moyenne = totalStars / reviewCount. 6. Sauvegarder le produit mis à jour. Cette opération doit être faite dans une transaction pour garantir la cohérence.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédiger la fonction (JavaScript/React Native) qui permet de supprimer un avis et les photos associées du stockage. Gérer les erreurs (réseau, permission, avis inexistant).",
+        "niveau": "very hard",
+        "reponse": "const deleteReview = async (reviewId, productId, photoUrls) => { try { setLoading(true); // Suppression des photos du stockage (ex: Firebase Storage) for (const url of photoUrls) { await deleteFileFromStorage(url); } // Appel API pour supprimer l'avis et mettre à jour la moyenne const response = await api.delete(`/reviews/${reviewId}`); if (response.status === 200) { // Mettre à jour l'état local (zustand/react-query) await queryClient.invalidateQueries(['product', productId]); showToast('Avis supprimé avec succès'); } } catch (error) { if (error.response?.status === 403) showToast('Vous n'êtes pas autorisé'); else if (error.response?.status === 404) showToast('Avis introuvable'); else showToast('Erreur réseau, réessayez'); } finally { setLoading(false); } };",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Justifier l'importance d'utiliser une transaction (ou un mécanisme atomique) lors de la suppression d'un avis et de la mise à jour de la moyenne du produit.",
+        "niveau": "hard",
+        "reponse": "Une transaction garantit que les deux opérations (suppression de l'avis + mise à jour du produit) sont effectuées ensemble de manière atomique. Si l'une échoue, les modifications sont annulées. Sans transaction, on pourrait avoir un avis supprimé sans que la moyenne du produit ne soit mise à jour (incohérence), ou pire, une moyenne mise à jour alors que l'avis existe encore. C'est essentiel pour l'intégrité des données.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

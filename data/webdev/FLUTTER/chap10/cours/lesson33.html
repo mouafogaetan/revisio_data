@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 33 : Notifications Push avec Flutter | Cours Flutter</title>
+  <!-- Tailwind CSS + Font Awesome (pour icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules si besoin, mais optionnel ici) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Styles personnalisés pour l'affichage diapo et confort visuel */
+    body {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+      font-family: 'Segoe UI', Roboto, system-ui, 'Helvetica Neue', sans-serif;
+    }
+    .slide-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      transition: all 0.3s ease;
+    }
+    .slide-card {
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(0px);
+      border-radius: 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s;
+    }
+    .nav-btn {
+      transition: all 0.2s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.05);
+      background-color: #1e40af;
+      color: white;
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    code, pre {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+    }
+    pre {
+      padding: 1rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .badge {
+      background-color: #2563eb20;
+      backdrop-filter: blur(4px);
+    }
+    /* petits écrans : ajustements */
+    @media (max-width: 640px) {
+      .slide-card {
+        border-radius: 1.5rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      .text-responsive {
+        font-size: 0.9rem;
+      }
+      pre {
+        font-size: 0.7rem;
+        padding: 0.75rem;
+      }
+    }
+    /* Widgets simulés dessinés en CSS simple pour illustration */
+    .mock-notif {
+      background: #1e293b;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+      max-width: 320px;
+      margin: 0 auto;
+    }
+    .mock-icon {
+      background: #3b82f6;
+      width: 42px;
+      height: 42px;
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .dot-flutter {
+      width: 12px;
+      height: 12px;
+      background: #42c5f0;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 2px white;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="slide-container px-4 py-6 md:py-10">
+    <!-- Affichage slide courant -->
+    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+      <div class="flex items-center gap-2 text-gray-700 bg-white/60 rounded-full px-4 py-1 backdrop-blur-sm">
+        <span class="font-semibold">📱 Flutter & Notifications</span>
+        <span class="dot-flutter"></span>
+        <span class="text-sm">Leçon 33</span>
+      </div>
+      <div class="text-sm bg-white/50 rounded-full px-3 py-1">
+        Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+      </div>
+    </div>
+
+    <!-- Carte principale qui contiendra le contenu dynamique -->
+    <div class="slide-card p-6 md:p-8 transition-all duration-300" id="slideContent">
+      <!-- Contenu injecté par jQuery -->
+      <div class="min-h-[480px] flex flex-col justify-between">
+        <div id="dynamicSlideInner"></div>
+        <!-- indicateur de progression style -->
+        <div class="mt-8 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+          <div id="slideProgressBar" class="progress-bar h-full bg-blue-600 rounded-full" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevBtn" class="nav-btn bg-white/80 hover:bg-blue-600 hover:text-white border border-gray-300 px-5 py-2 rounded-full font-medium shadow-sm transition flex items-center gap-1 disabled:opacity-40">
+        ⬅️ Précédent
+      </button>
+      <div class="text-center text-gray-500 text-sm hidden md:block">
+        Utilisez les boutons pour naviguer dans la leçon
+      </div>
+      <button id="nextBtn" class="nav-btn bg-blue-600 text-white hover:bg-blue-800 px-5 py-2 rounded-full font-medium shadow flex items-center gap-1">
+        Suivant ➡️
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ====================== STRUCTURE DES SLIDES ========================
+    // Nous allons construire le cours de la lesson33 (notifications push)
+    // 1er slide : Titre de la leçon
+    // 2ème slide : Objectifs d'apprentissage
+    // Slides suivants : Contenu détaillé de la leçon 33 (flutter_local_notifications, FCM, permissions, etc.)
+    
+    const slidesData = [
+      { // Slide 0 : Titre
+        type: "title",
+        title: "📲 Notifications Push avec Flutter",
+        subtitle: "Apprenez à envoyer et recevoir des notifications locales et push (Firebase Cloud Messaging)",
+        badge: "Lesson 33 • Initiation aux notifications mobiles"
+      },
+      { // Slide 1 : Objectifs pédagogiques
+        type: "objectives",
+        objectives: [
+          "Installer et configurer le package flutter_local_notifications",
+          "Comprendre les permissions nécessaires (Android & iOS)",
+          "Mettre en place Firebase Cloud Messaging (FCM)",
+          "Recevoir et afficher des notifications push en foreground/background",
+          "Gérer l'ouverture de l'application via notification"
+        ]
+      },
+      { // Slide 2 : Introduction & importance des notifications
+        type: "content",
+        title: "📢 Pourquoi les notifications push ?",
+        paragraphs: [
+          "Les notifications push permettent d'engager les utilisateurs même quand l'application est fermée. Elles informent sur des nouveautés, rappels, messages ou alertes.",
+          "Flutter offre deux approches complémentaires : les notifications locales (planifiées depuis le device) et les notifications distantes via FCM (Firebase).",
+          "Dans cette leçon, nous allons apprendre à implémenter un système complet : afficher une notification simple, recevoir des notifications push depuis un serveur Firebase."
+        ],
+        codeBlock: null,
+        illustration: "draw-notif" // on va dessiner schématiquement
+      },
+      { // Slide 3 : Installation des packages
+        type: "content",
+        title: "📦 Installation des dépendances",
+        paragraphs: [
+          "Ajoutez les packages essentiels dans votre fichier `pubspec.yaml` :",
+        ],
+        codeBlock: `dependencies:
+  flutter_local_notifications: ^15.1.0
+  firebase_messaging: ^14.6.0
+  firebase_core: ^2.24.0`,
+        note: "N'oubliez pas de lancer 'flutter pub get' après avoir ajouté ces lignes."
+      },
+      { // Slide 4 : Configuration Android & iOS (permissions)
+        type: "content",
+        title: "🔧 Configuration des permissions",
+        paragraphs: [
+          "Pour Android (AndroidManifest.xml) : ajoutez les permissions pour les notifications et les canaux.",
+          "Pour iOS (Info.plist) : demandez l'autorisation explicite à l'utilisateur via le code Dart."
+        ],
+        codeBlock: `<!-- AndroidManifest.xml (dans <manifest>) -->
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<uses-permission android:name="android.permission.VIBRATE" />
+<!-- Ajouter dans <application> -->
+<meta-data android:name="com.google.firebase.messaging.default_notification_icon"
+    android:resource="@drawable/ic_stat_notification" />
+<meta-data android:name="com.google.firebase.messaging.default_notification_color"
+    android:resource="@color/colorAccent" />`,
+        note: "Pour iOS, on demandera la permission au runtime via `FirebaseMessaging.instance.requestPermission()`."
+      },
+      { // Slide 5 : Initialiser flutter_local_notifications + canaux
+        type: "content",
+        title: "⚙️ Initialisation des notifications locales",
+        paragraphs: [
+          "Créez une instance de `FlutterLocalNotificationsPlugin`. Sur Android, créez des canaux (importance élevée, son, etc).",
+          "Exemple de configuration standard avant d'afficher la moindre notification."
+        ],
+        codeBlock: `final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
+    FlutterLocalNotificationsPlugin();
+
+// Dans initState ou main
+const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+const DarwinInitializationSettings iosSettings =
+    DarwinInitializationSettings();
+final InitializationSettings initSettings = InitializationSettings(
+    android: androidSettings, iOS: iosSettings);
+await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+// Créer un canal Android (nécessaire API 26+)
+const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'high_importance_channel', 'Notifications importantes',
+    description: 'Ce canal affiche les alertes prioritaires',
+    importance: Importance.high);
+await flutterLocalNotificationsPlugin
+    .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+    ?.createNotificationChannel(channel);`,
+      },
+      { // Slide 6 : Afficher une notification locale simple
+        type: "content",
+        title: "🔔 Afficher une notification locale",
+        paragraphs: [
+          "Une fois le plugin initialisé, voici comment déclencher une notification locale avec titre, corps et icône personnalisée.",
+          "Vous pouvez la tester au clic d'un bouton."
+        ],
+        codeBlock: `Future<void> showSimpleNotification() async {
+  const AndroidNotificationDetails androidDetails =
+      AndroidNotificationDetails('high_importance_channel', 'Notifications importantes',
+          priority: Priority.high,
+          importance: Importance.high);
+  const NotificationDetails platformDetails =
+      NotificationDetails(android: androidDetails, iOS: DarwinNotificationDetails());
+  await flutterLocalNotificationsPlugin.show(
+      0, '👋 Bonjour!', 'Bienvenue dans votre application Flutter', platformDetails);
+}`,
+        illustration: "mock-notif-card"
+      },
+      { // Slide 7 : Firebase Cloud Messaging (FCM) - Setup
+        type: "content",
+        title: "☁️ Mise en place de Firebase Cloud Messaging",
+        paragraphs: [
+          "Pour les notifications distantes, connectez votre projet Flutter à Firebase. Suivez 'flutterfire configure' ou manuellement via console Firebase.",
+          "Ensuite, initialisez Firebase et récupérez le token FCM (nécessaire pour envoyer des messages depuis un serveur)."
+        ],
+        codeBlock: `// Initialiser Firebase dans main()
+await Firebase.initializeApp();
+// Récupérer le token du device
+String? token = await FirebaseMessaging.instance.getToken();
+print("Device FCM Token : \$token");
+
+// Écouter les messages en foreground
+FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  print("Notification reçue en premier plan: \${message.notification?.title}");
+  // Afficher localement via flutter_local_notifications
+  showSimpleNotificationFromFCM(message);
+});`,
+      },
+      { // Slide 8 : Gérer les différents états (foreground, background, terminated)
+        type: "content",
+        title: "🎯 États de l'application & callbacks",
+        paragraphs: [
+          "Une notification push peut être reçue dans trois contextes : application ouverte (foreground), en arrière-plan (background), ou totalement fermée (terminated).",
+          "Il faut gérer `onMessage`, `onBackgroundMessage` et `getInitialMessage`."
+        ],
+        codeBlock: `// Pour background (isolat)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // Afficher notification même en background via plugin
+}
+
+void main() {
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  runApp(MyApp());
+}
+
+// Dans l'initialisation :
+FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+  if (message != null) {
+    // L'utilisateur a ouvert l'app depuis une notification alors qu'elle était tuée
+  }
+});`,
+        note: "Attention: le handler background doit être une fonction top-level ou static."
+      },
+      { // Slide 9 : Demander les permissions et afficher l'icône personnalisée
+        type: "content",
+        title: "🔐 Permissions et bonnes pratiques",
+        paragraphs: [
+          "Sur iOS et Android 13+, vous devez demander explicitement l'autorisation d'afficher les notifications. Flutter simplifie cela."
+        ],
+        codeBlock: `// Demander la permission
+NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
+  alert: true,
+  badge: true,
+  sound: true,
+);
+if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+  print('Utilisateur a accepté les notifications');
+} else {
+  // Gérer le refus éventuel
+}
+
+// Pour gérer les icônes personnalisées, placez votre icône dans res/drawable/ et référez-la`,
+        illustration: "permission-dialog"
+      },
+      { // Slide 10 : Exemple concret envoi depuis serveur (cURL)
+        type: "content",
+        title: "📨 Envoyer une notification push avec cURL",
+        paragraphs: [
+          "Une fois le token FCM récupéré, vous pouvez envoyer un message depuis votre backend via l'API Firebase Cloud Messaging (HTTP v1).",
+          "Exemple simple avec clé serveur legacy (plus récent = OAuth2)."
+        ],
+        codeBlock: `curl -X POST "https://fcm.googleapis.com/fcm/send" \\
+-H "Authorization: key=VOTRE_CLE_SERVEUR" \\
+-H "Content-Type: application/json" \\
+-d '{
+  "to": "TOKEN_UTILISATEUR",
+  "notification": {
+    "title": "Cours Flutter Cameroon",
+    "body": "Nouvelle leçon sur les notifications push disponible !",
+    "click_action": "FLUTTER_NOTIFICATION_CLICK"
+  },
+  "data": {
+    "route": "/details"
+  }
+}'`,
+        note: "Préférez Firebase Console pour tester. Les tokens peuvent changer."
+      },
+      { // Slide 11 : Gestion du clic sur notification
+        type: "content",
+        title: "🖱️ Naviguer au clic sur une notification",
+        paragraphs: [
+          "Lorsqu'un utilisateur appuie sur la notification, vous pouvez rediriger vers un écran spécifique en utilisant `getInitialMessage` et `onMessageOpenedApp`."
+        ],
+        codeBlock: `// Écouter quand l'app est ouverte via notification
+FirebaseMessaging.instance.onMessageOpenedApp.listen((RemoteMessage message) {
+  final route = message.data['route']; // ex: '/chat'
+  if (route != null) {
+    Navigator.pushNamed(context, route);
+  }
+});
+
+// Dans l'initialisation du plugin local, on peut aussi utiliser
+flutterLocalNotificationsPlugin.initialize(initSettings,
+    onDidReceiveNotificationResponse: (payload) async {
+      // navigation selon payload
+    });`,
+        illustration: null
+      },
+      { // Slide 12 : Récapitulatif et bonnes pratiques + Projet pratique
+        type: "content",
+        title: "✅ Synthèse & Projet pratique",
+        paragraphs: [
+          "📱 Résumé :",
+          "• flutter_local_notifications pour les notifications locales (planifiées, immédiates).",
+          "• firebase_messaging pour les notifications push distantes.",
+          "• Toujours demander les permissions et gérer les différents états (foreground/background).",
+          "• Pensez à tester avec des vrais appareils (émulateurs parfois limités).",
+          "🎯 Exercice : Créez une application qui affiche une notification locale au chargement, et une autre qui reçoit une notification FCM depuis la console Firebase. Affichez un message personnalisé."
+        ],
+        codeBlock: null,
+        finalNote: "Félicitations ! Vous maîtrisez désormais les notifications push avec Flutter."
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    // Mise à jour du DOM slide
+    function renderSlide(index) {
+      const slide = slidesData[index];
+      if (!slide) return;
+      let html = '';
+      
+      // En-tête selon type
+      if (slide.type === 'title') {
+        html = `
+          <div class="text-center my-6 md:my-10">
+            <div class="inline-block px-4 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-semibold mb-4">${slide.badge}</div>
+            <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-cyan-700 bg-clip-text text-transparent">${slide.title}</h1>
+            <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+            <div class="mt-12 flex justify-center">
+              <div class="mock-notif p-4 w-full max-w-sm bg-gradient-to-br from-white to-gray-50 border border-blue-200 rounded-2xl shadow-lg">
+                <div class="flex items-center gap-3">
+                  <div class="mock-icon"><span class="text-white text-xl">🔔</span></div>
+                  <div><p class="font-bold text-gray-800">Flutter Notification</p><p class="text-xs text-gray-500">Prêt à apprendre</p></div>
+                </div>
+                <div class="mt-2 text-sm text-gray-700">✨ Cliquez sur suivant pour commencer le cours ✨</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } 
+      else if (slide.type === 'objectives') {
+        let objList = '';
+        slide.objectives.forEach((obj, idx) => {
+          objList += `<li class="flex items-start gap-3 mb-3"><span class="text-blue-600 font-bold text-lg">${idx+1}.</span><span class="text-gray-700">${obj}</span></li>`;
+        });
+        html = `
+          <div class="my-4">
+            <div class="flex items-center gap-3 mb-6"><span class="text-3xl">🎯</span><h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2></div>
+            <ul class="space-y-2 bg-gray-50 rounded-2xl p-6 border border-gray-200">${objList}</ul>
+            <div class="mt-6 text-center text-blue-700 text-sm">À la fin de ce cours, vous saurez intégrer des notifications dans vos apps Flutter</div>
+          </div>
+        `;
+      }
+      else if (slide.type === 'content') {
+        let paras = '';
+        if(slide.paragraphs) {
+          slide.paragraphs.forEach(p => {
+            paras += `<p class="mb-4 text-gray-700 leading-relaxed">${p}</p>`;
+          });
+        }
+        let code = '';
+        if(slide.codeBlock) {
+          code = `<div class="my-5"><pre class="overflow-x-auto"><code>${escapeHtml(slide.codeBlock)}</code></pre></div>`;
+        }
+        let noteHtml = '';
+        if(slide.note) {
+          noteHtml = `<div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-md text-blue-800 text-sm my-3">💡 ${slide.note}</div>`;
+        }
+        let illustrationHtml = '';
+        if(slide.illustration === 'draw-notif') {
+          illustrationHtml = `<div class="my-5 flex justify-center"><div class="bg-white shadow rounded-xl p-4 border w-full max-w-sm"><div class="flex gap-3 items-center"><div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">📨</div><div><div class="font-semibold">Nouvelle notification</div><div class="text-xs">Cours Flutter Cameroun</div></div></div><div class="mt-2 text-sm">❤️ Vous avez reçu une alerte importante !</div></div></div>`;
+        } else if(slide.illustration === 'mock-notif-card') {
+          illustrationHtml = `<div class="my-5 flex justify-center"><div class="mock-notif p-3 bg-white border border-indigo-200 rounded-xl w-full max-w-sm"><div class="flex"><div class="bg-indigo-100 rounded-full w-10 h-10 flex items-center justify-center">📢</div><div class="ml-3"><b>Flutter Local Notif</b><p class="text-gray-600 text-sm">Exemple de notification: Appuyez pour voir</p></div></div></div></div>`;
+        } else if(slide.illustration === 'permission-dialog') {
+          illustrationHtml = `<div class="my-5 flex justify-center"><div class="bg-gray-100 border rounded-xl p-4 max-w-xs shadow"><div class="flex justify-between items-center mb-2"><span class="font-medium">Autorisation de notification</span><span class="text-blue-600">Autoriser</span></div><p class="text-sm">“FlutterApp” souhaite vous envoyer des notifications</p><div class="flex justify-end gap-4 mt-3"><span class="text-blue-600 text-sm font-semibold">Ne pas autoriser</span><span class="text-blue-800 text-sm font-bold">Autoriser</span></div></div></div>`;
+        }
+        
+        let finalNoteHtml = slide.finalNote ? `<div class="mt-6 p-4 bg-green-50 rounded-xl text-green-800 text-center font-semibold">${slide.finalNote}</div>` : '';
+        
+        html = `
+          <div class="my-2">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b pb-2 border-blue-200 inline-block mb-4">${slide.title}</h2>
+            ${paras}
+            ${code}
+            ${noteHtml}
+            ${illustrationHtml}
+            ${finalNoteHtml}
+          </div>
+        `;
+      }
+      
+      // Ajouter un petit pied de slide avec numéro de chapitre
+      html += `<div class="text-xs text-center text-gray-400 mt-8 pt-4 border-t border-gray-100">Flutter · Notifications Push · Leçon 33</div>`;
+      $('#dynamicSlideInner').html(html);
+      
+      // Mise à jour des indexs et progress bar
+      $('#currentSlideIdx').text(index+1);
+      $('#totalSlidesCount').text(totalSlides);
+      const progressPercent = ((index+1) / totalSlides) * 100;
+      $('#slideProgressBar').css('width', `${progressPercent}%`);
+      
+      // Gestion des boutons prev/next disable
+      $('#prevBtn').prop('disabled', index === 0);
+      $('#nextBtn').prop('disabled', index === totalSlides-1);
+      if(index === totalSlides-1) {
+        $('#nextBtn').html('🏁 Terminé');
+      } else {
+        $('#nextBtn').html('Suivant ➡️');
+      }
+    }
+    
+    // helper pour échapper HTML dans les codeblocks
+    function escapeHtml(str) {
+      if(!str) return '';
+      return str.replace(/[&<>]/g, function(m) {
+        if(m === '&') return '&amp;';
+        if(m === '<') return '&lt;';
+        if(m === '>') return '&gt;';
+        return m;
+      }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+      });
+    }
+    
+    // Navigation events
+    $('#prevBtn').on('click', function() {
+      if(currentIndex > 0) {
+        currentIndex--;
+        renderSlide(currentIndex);
+      }
+    });
+    $('#nextBtn').on('click', function() {
+      if(currentIndex < totalSlides-1) {
+        currentIndex++;
+        renderSlide(currentIndex);
+      }
+    });
+    
+    // initialisation premier slide
+    renderSlide(0);
+    
+    // gestion touches clavier (gauche/droite)
+    $(document).on('keydown', function(e) {
+      if(e.key === 'ArrowLeft') {
+        $('#prevBtn').click();
+      } else if(e.key === 'ArrowRight') {
+        $('#nextBtn').click();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 24 : Verrous et Deadlocks - Bases de données</title>
+    <!-- Tailwind CSS + CDN pour accès rapide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin, optionnel mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles additionnels pour la navigation par slides et lisibilité */
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        body {
+            background: #f8fafc;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* Améliorer le contraste et la lisibilité */
+        .prose-custom p, .prose-custom li {
+            line-height: 1.6;
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* Pour les petits écrans */
+        @media (max-width: 640px) {
+            .slide-content {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-gray-100">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slidesContainer" class="relative bg-white rounded-2xl card-shadow border border-gray-200 overflow-hidden">
+            
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide active" data-slide="0">
+                <div class="bg-indigo-700 text-white py-10 px-6 md:py-14 md:px-10">
+                    <span class="text-sm uppercase tracking-wider bg-indigo-500/30 px-3 py-1 rounded-full inline-block mb-4">Initiation aux Bases de données</span>
+                    <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">Verrous et interblocages<br><span class="text-indigo-200">(Deadlocks)</span></h1>
+                    <p class="text-indigo-100 text-lg mt-4 max-w-2xl">Comprendre, détecter et résoudre les blocages en environnement multi-utilisateur</p>
+                </div>
+                <div class="p-6 md:p-8 border-t border-gray-100 flex justify-between items-center text-gray-500 text-sm">
+                    <div>📘 Leçon 24 · Chapitre 7</div>
+                    <div>👨‍🏫 Enseignant: Cameroun Web Dev</div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide" data-slide="1">
+                <div class="bg-white p-6 md:p-8">
+                    <div class="flex items-center gap-3 mb-6 border-b border-indigo-100 pb-3">
+                        <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xl">🎯</div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <div class="space-y-5 mt-2">
+                        <div class="flex gap-4 items-start">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-bold mt-0.5">1</span>
+                            <p class="text-gray-700 text-base md:text-lg">Comprendre les verrous partagés (SHARED) et exclusifs (EXCLUSIVE) et leur rôle dans la gestion de concurrence.</p>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-bold mt-0.5">2</span>
+                            <p class="text-gray-700 text-base md:text-lg">Détecter et résoudre les deadlocks (interblocages) qui bloquent les transactions.</p>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm font-bold mt-0.5">3</span>
+                            <p class="text-gray-700 text-base md:text-lg">Utiliser <code class="bg-gray-100 px-1.5 py-0.5 rounded text-indigo-800 font-mono text-sm">SELECT ... FOR UPDATE</code> pour verrouiller explicitement des lignes.</p>
+                        </div>
+                    </div>
+                    <div class="mt-8 bg-indigo-50 rounded-xl p-4 text-indigo-800 text-sm italic">
+                        💡 Saviez-vous ? Un deadlock peut être comparé à deux personnes dans un couloir trop étroit qui s'attendent mutuellement à passer en premier. Résultat: plus personne n'avance !
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Comprendre les verrous (Shared & Exclusive) -->
+            <div class="slide" data-slide="2">
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 border-l-4 border-indigo-500 pl-4">🔒 Verrous partagés vs exclusifs</h2>
+                    <p class="text-gray-600 mb-6">Les SGBD utilisent des verrous pour maintenir l'intégrité des données lorsque plusieurs utilisateurs accèdent/modifient les mêmes données simultanément.</p>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Shared Lock Card -->
+                        <div class="bg-blue-50 rounded-xl p-5 border border-blue-200">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-2xl">🔓</span>
+                                <h3 class="text-xl font-bold text-blue-800">Verrou partagé (SHARED)</h3>
+                            </div>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Permet la <strong>lecture</strong> uniquement.</li>
+                                <li>Plusieurs transactions peuvent avoir un verrou partagé sur la même ressource.</li>
+                                <li>Empêche toute écriture tant qu'un verrou partagé est actif.</li>
+                                <li>Ex: <code class="bg-white px-1 rounded">SELECT ... LOCK IN SHARE MODE</code> (MySQL).</li>
+                            </ul>
+                        </div>
+                        <!-- Exclusive Lock Card -->
+                        <div class="bg-amber-50 rounded-xl p-5 border border-amber-200">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-2xl">🔒</span>
+                                <h3 class="text-xl font-bold text-amber-800">Verrou exclusif (EXCLUSIVE)</h3>
+                            </div>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Permet la <strong>lecture et l'écriture</strong> (modification).</li>
+                                <li>Une seule transaction peut détenir un verrou exclusif sur une ressource.</li>
+                                <li>Bloque tous les autres verrous (partagés ou exclusifs).</li>
+                                <li>Ex: <code class="bg-white px-1 rounded">UPDATE, DELETE, INSERT</code> + <code>SELECT ... FOR UPDATE</code>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Petit dessin explicatif simple (svg maison) -->
+                    <div class="mt-8 bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="font-medium text-gray-700 mb-2">🎨 Verrous en action (illustration):</p>
+                        <svg width="100%" height="110" viewBox="0 0 500 90" class="mx-auto" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="20" y="20" width="100" height="50" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2" rx="8" />
+                            <text x="70" y="50" text-anchor="middle" fill="#1e3a8a" font-size="12">Transaction A</text>
+                            <text x="160" y="45" font-size="13" fill="#333">👉 Verrou 🔓 PARTAGÉ</text>
+                            <rect x="280" y="20" width="100" height="50" fill="#fed7aa" stroke="#f97316" stroke-width="2" rx="8" />
+                            <text x="330" y="50" text-anchor="middle" fill="#7c2d12" font-size="12">Transaction B</text>
+                            <text x="410" y="45" font-size="13" fill="#333">👉 Verrou 🔒 EXCLUSIF</text>
+                            <line x1="120" y1="45" x2="150" y2="45" stroke="#6b7280" stroke-dasharray="3"/>
+                            <line x1="270" y1="45" x2="250" y2="45" stroke="#6b7280" stroke-dasharray="3"/>
+                        </svg>
+                        <p class="text-xs text-gray-500 mt-2">Un verrou partagé permet la lecture simultanée ; un verrou exclusif est nécessaire pour modifier.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Deadlocks (interblocages) définition et détection -->
+            <div class="slide" data-slide="3">
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 border-l-4 border-red-500 pl-4">⛔ Interblocage (Deadlock)</h2>
+                    <p class="text-gray-700 mb-4">Un deadlock se produit lorsque deux transactions (ou plus) attendent mutuellement qu'une ressource verrouillée par l'autre soit libérée. Aucune ne peut avancer, et le SGBD doit les annuler.</p>
+                    
+                    <div class="bg-red-50 p-5 rounded-xl my-5 border-l-8 border-red-400">
+                        <h3 class="font-bold text-red-800 text-lg flex items-center gap-2">⚠️ Conditions nécessaires au deadlock</h3>
+                        <div class="grid grid-cols-2 gap-3 mt-3 text-sm">
+                            <div class="bg-white p-2 rounded">🔁 Exclusion mutuelle</div>
+                            <div class="bg-white p-2 rounded">⛓️ Détention et attente</div>
+                            <div class="bg-white p-2 rounded">🔃 Non préemption</div>
+                            <div class="bg-white p-2 rounded">🌀 Attente circulaire</div>
+                        </div>
+                    </div>
+
+                    <!-- Illustration SVG d'un interblocage simple -->
+                    <div class="my-6 text-center">
+                        <p class="font-semibold text-gray-800">Exemple classique :</p>
+                        <svg width="100%" viewBox="0 0 500 150" class="mx-auto mt-2">
+                            <rect x="20" y="20" width="110" height="40" fill="#e2e8f0" stroke="#475569" rx="6" />
+                            <text x="75" y="45" text-anchor="middle" fill="#1e293b" font-size="12">Transaction T1</text>
+                            <rect x="350" y="20" width="110" height="40" fill="#e2e8f0" stroke="#475569" rx="6" />
+                            <text x="405" y="45" text-anchor="middle" fill="#1e293b" font-size="12">Transaction T2</text>
+                            <path d="M130 40 L180 40 L180 100 L250 100" stroke="#ef4444" fill="none" stroke-width="2" marker-end="url(#arrowRed)"/>
+                            <path d="M350 100 L280 100 L280 60 L220 60" stroke="#ef4444" fill="none" stroke-width="2" marker-end="url(#arrowRed2)"/>
+                            <defs>
+                                <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                                    <path d="M0,0 L8,4 L0,8 Z" fill="#ef4444" />
+                                </marker>
+                                <marker id="arrowRed2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                                    <path d="M0,0 L8,4 L0,8 Z" fill="#ef4444" />
+                                </marker>
+                            </defs>
+                            <text x="180" y="80" fill="#b91c1c" font-size="11" font-weight="bold">T1 attend ressource de T2</text>
+                            <text x="260" y="125" fill="#b91c1c" font-size="11" font-weight="bold">T2 attend ressource de T1</text>
+                        </svg>
+                        <p class="text-sm text-gray-600 mt-2">🔁 T1 verrouille A et demande B ; T2 verrouille B et demande A → Interblocage !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : Résoudre les deadlocks et stratégies -->
+            <div class="slide" data-slide="4">
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3 border-l-4 border-green-600 pl-4">🛠️ Résoudre et éviter les deadlocks</h2>
+                    <p class="mb-4 text-gray-700">Les SGBD modernes détectent automatiquement les deadlocks et choisissent une transaction "victime" à annuler (rollback). Nous pouvons aussi adopter de bonnes pratiques.</p>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-lg text-gray-800 flex gap-2"><span class="text-green-600">1️⃣</span> Détection automatique</h3>
+                            <p class="text-gray-600">Le SGBD surveille les cycles d'attente. Ex: <code class="bg-gray-200 px-1">SHOW ENGINE INNODB STATUS</code> (MySQL) ou <code class="bg-gray-200 px-1">SELECT * FROM pg_locks</code> (PostgreSQL).</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-lg text-gray-800 flex gap-2"><span class="text-green-600">2️⃣</span> Timeout des transactions</h3>
+                            <p class="text-gray-600">Une transaction qui attend trop longtemps est automatiquement annulée (ex: <code>innodb_lock_wait_timeout</code>).</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-lg text-gray-800 flex gap-2"><span class="text-green-600">3️⃣</span> Bonnes pratiques pour éviter les deadlocks</h3>
+                            <ul class="list-disc ml-6 text-gray-600 mt-1 space-y-1">
+                                <li>Accéder aux ressources dans le même ordre (toujours table A puis table B).</li>
+                                <li>Réduire la durée des transactions (COMMIT rapide).</li>
+                                <li>Utiliser des indexes pour que les verrous soient plus précis (niveau ligne).</li>
+                                <li>Éviter les interactions utilisateur au sein d'une transaction longue.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : SELECT ... FOR UPDATE (verrouillage explicite) -->
+            <div class="slide" data-slide="5">
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 border-l-4 border-purple-500 pl-4">🔐 SELECT ... FOR UPDATE</h2>
+                    <p class="text-gray-700 mb-4">Cette instruction permet de verrouiller explicitement les lignes sélectionnées en mode <strong>exclusif</strong>. Utile pour éviter les modifications concurrentes avant une mise à jour conditionnelle.</p>
+                    
+                    <div class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm overflow-x-auto mb-5">
+                        <pre class="whitespace-pre-wrap">-- Exemple : réservation de billets sans dépassement de stock
+BEGIN;
+SELECT stock FROM produits WHERE id = 101 FOR UPDATE;
+-- Si stock > 0 alors on diminue
+UPDATE produits SET stock = stock - 1 WHERE id = 101;
+COMMIT;</pre>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 justify-between items-center bg-purple-50 p-4 rounded-xl">
+                        <div>
+                            <p class="font-semibold text-purple-900">✅ Avantages:</p>
+                            <ul class="list-disc list-inside text-gray-700 text-sm">
+                                <li>Empêche les lectures sales / mises à jour perdues.</li>
+                                <li>Garantit l'atomicité pour des opérations critiques.</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-amber-800">⚠️ Inconvénients:</p>
+                            <ul class="list-disc list-inside text-gray-700 text-sm">
+                                <li>Risque accru de deadlock si mal utilisé.</li>
+                                <li>Réduit la concurrence.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Cas pratique / petit quiz interactif -->
+            <div class="slide" data-slide="6">
+                <div class="p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 border-l-4 border-teal-500 pl-4">🧪 Vérifions votre compréhension</h2>
+                    <div id="quizArea" class="space-y-5">
+                        <div class="bg-gray-50 rounded-lg p-5">
+                            <p class="font-medium text-gray-800">Question 1 : Que se passe-t-il si deux transactions exécutent SELECT ... FOR UPDATE sur la même ligne simultanément ?</p>
+                            <div class="mt-3 space-y-2">
+                                <label class="flex items-center gap-2"><input type="radio" name="q1" value="a"> <span class="text-gray-700">A) Les deux peuvent lire et modifier directement.</span></label>
+                                <label class="flex items-center gap-2"><input type="radio" name="q1" value="b"> <span class="text-gray-700">B) La première obtient le verrou, l'autre attend qu'elle termine.</span></label>
+                                <label class="flex items-center gap-2"><input type="radio" name="q1" value="c"> <span class="text-gray-700">C) Le SGBD crée un deadlock immédiat.</span></label>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-5">
+                            <p class="font-medium text-gray-800">Question 2 : Parmi ces situations, laquelle peut causer un interblocage ?</p>
+                            <div class="mt-3 space-y-2">
+                                <label class="flex items-center gap-2"><input type="radio" name="q2" value="a"> <span class="text-gray-700">A) Transaction T1 verrouille A puis demande B ; T2 verrouille B puis demande A.</span></label>
+                                <label class="flex items-center gap-2"><input type="radio" name="q2" value="b"> <span class="text-gray-700">B) T1 lit avec partagé, T2 lit avec partagé.</span></label>
+                                <label class="flex items-center gap-2"><input type="radio" name="q2" value="c"> <span class="text-gray-700">C) T1 modifie une ligne et COMMIT rapidement.</span></label>
+                            </div>
+                        </div>
+                        <button id="checkQuizBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg transition shadow-md">Vérifier mes réponses</button>
+                        <div id="quizFeedback" class="text-sm font-medium hidden p-3 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 8 : résumé final et navigation -->
+            <div class="slide" data-slide="7">
+                <div class="p-6 md:p-8 text-center">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">🏁</div>
+                    <h2 class="text-2xl font-bold text-gray-800">Récapitulons</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-left">
+                        <div class="bg-indigo-50 p-3 rounded-lg">📌 Verrou partagé = lecture simultanée</div>
+                        <div class="bg-indigo-50 p-3 rounded-lg">📌 Verrou exclusif = écriture / modification exclusive</div>
+                        <div class="bg-red-50 p-3 rounded-lg">⚠️ Deadlock = deux transactions bloquées mutuellement</div>
+                        <div class="bg-green-50 p-3 rounded-lg">✅ Solution: détection automatique, timeout, ordre d'accès</div>
+                        <div class="bg-purple-50 p-3 rounded-lg col-span-full">🔐 <strong>SELECT ... FOR UPDATE</strong> permet un verrouillage explicite en écriture</div>
+                    </div>
+                    <p class="mt-6 text-gray-500 text-sm">Merci de suivre ce cours ! N'hésitez pas à revenir sur les slides.</p>
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm flex items-center gap-1">◀ Précédent</button>
+                <div class="text-sm text-gray-500">
+                    Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">8</span>
+                </div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm flex items-center gap-1">Suivant ▶</button>
+            </div>
+        </div>
+        <p class="text-center text-gray-400 text-xs mt-6">© Cours Base de Données - Enseignant Cameroun | Leçon 24 : Verrous, Deadlocks & SELECT FOR UPDATE</p>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            let current = 0;
+            
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[current]).addClass('active');
+                $('#currentSlideIdx').text(current+1);
+                $('#totalSlides').text(total);
+                // Optionnel: faire défiler la page en haut lors du changement sur mobile
+                $('html, body').animate({ scrollTop: $('#slidesContainer').offset().top - 20 }, 100);
+            }
+            
+            $('#nextSlide').click(function() {
+                if (current < total - 1) {
+                    current++;
+                    updateSlides();
+                } else {
+                    // au dernier slide, on reste
+                    alert("Vous êtes à la fin du cours. Revenez en arrière pour réviser.");
+                }
+            });
+            
+            $('#prevSlide').click(function() {
+                if (current > 0) {
+                    current--;
+                    updateSlides();
+                } else {
+                    alert("Ceci est la première diapositive.");
+                }
+            });
+            
+            // Gestion du petit quiz
+            $('#checkQuizBtn').click(function() {
+                let q1 = $('input[name="q1"]:checked').val();
+                let q2 = $('input[name="q2"]:checked').val();
+                let feedback = $('#quizFeedback');
+                let correctCount = 0;
+                let explanation = "";
+                
+                if (q1 === 'b') {
+                    correctCount++;
+                    explanation += "✅ Q1: Correct ! Le premier SELECT FOR UPDATE obtient le verrou exclusif, l'autre attend.\n";
+                } else if (q1) {
+                    explanation += "❌ Q1: Faux. La bonne réponse est B (première transaction bloque jusqu'à son COMMIT).\n";
+                } else {
+                    explanation += "⚠️ Q1: Pas de réponse sélectionnée.\n";
+                }
+                
+                if (q2 === 'a') {
+                    correctCount++;
+                    explanation += "✅ Q2: Exact! C'est le scénario classique d'interblocage (attente circulaire).\n";
+                } else if (q2) {
+                    explanation += "❌ Q2: La situation d'interblocage survient quand chaque transaction attend l'autre (réponse A).\n";
+                } else {
+                    explanation += "⚠️ Q2: Veuillez sélectionner une réponse.\n";
+                }
+                
+                if ((q1 && q2) || correctCount > 0) {
+                    feedback.removeClass('hidden').addClass('bg-green-100 text-green-800 p-3');
+                    if (correctCount === 2) feedback.html("🎉 Parfait ! Vous maîtrisez les bases des verrous et deadlocks.<br>" + explanation.replace(/\n/g,'<br>'));
+                    else if (correctCount === 1) feedback.html("👍 Pas mal ! Revoyez un point. <br>" + explanation.replace(/\n/g,'<br>'));
+                    else feedback.html("📘 Relisez les diapos sur les deadlocks et SELECT FOR UPDATE. <br>" + explanation.replace(/\n/g,'<br>'));
+                } else {
+                    feedback.removeClass('hidden').addClass('bg-yellow-100 text-yellow-800 p-3');
+                    feedback.html("Répondez aux deux questions pour tester votre compréhension.");
+                }
+            });
+            
+            // initialisation
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

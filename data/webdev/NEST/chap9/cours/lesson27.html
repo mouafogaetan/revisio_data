@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>NestJS | Lesson 27 : Providers avancés - useValue, useClass, useFactory, tokens personnalisés</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f0f9ff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .slide { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .slide.active { display: block; opacity: 1; }
+        .slide:not(.active) { display: none; }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { transform: scale(1.02); background-color: #1e293b; }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            background: #bfdbfe;
+            color: #1e3a8a;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active" id="slide1">
+            <div class="bg-gradient-to-r from-indigo-800 to-purple-700 text-white px-6 py-12 md:py-16 text-center">
+                <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-4">⚡ NestJS – Providers avancés</span>
+                <h1 class="text-3xl md:text-5xl font-extrabold mb-4">useValue, useClass, useFactory<br>& tokens personnalisés</h1>
+                <p class="text-indigo-100 text-lg md:text-xl max-w-2xl mx-auto">Injection flexible • Providers asynchrones • @Inject</p>
+                <div class="mt-8 flex justify-center gap-3 text-sm font-medium">
+                    <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Lesson 27</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full">⏱️ 45 min</span>
+                </div>
+            </div>
+            <div class="p-6 text-center text-gray-500 text-sm border-t">NestJS – Framework Node.js progressif</div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide" id="slide2">
+            <div class="bg-indigo-50 border-b px-6 py-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-2">📌 Objectifs de la leçon</h2>
+                <p class="text-gray-600 mt-1">À la fin, vous saurez :</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Utiliser <strong>useValue, useClass, useFactory</strong> pour définir des providers.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Créer des <strong>providers asynchrones</strong> avec useFactory et inject.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Injecter des valeurs avec <strong>@Inject()</strong> et des <strong>tokens personnalisés</strong>.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Comprendre quand utiliser chaque type de provider.</div></div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : RAPPEL SUR LES PROVIDERS STANDARDS -->
+        <div class="slide" id="slide3">
+            <div class="bg-slate-800 text-white px-6 py-5">
+                <h2 class="text-2xl font-bold">📦 Provider standard : le plus simple</h2>
+            </div>
+            <div class="p-6">
+                <p class="mb-2">Par défaut, on déclare un service dans <code>providers: [UsersService]</code>. C'est un sucre syntaxique pour :</p>
+                <div class="code-block">
+<code>
+{
+  provide: UsersService,
+  useClass: UsersService
+}
+</code>
+                </div>
+                <p class="mt-4">NestJS crée une instance du service et l'injecte là où il est demandé. Mais parfois on a besoin de plus de flexibilité :</p>
+                <ul class="list-disc pl-6 mt-2 space-y-1">
+                    <li>Utiliser une valeur simple (chaîne, nombre, objet) → <strong>useValue</strong></li>
+                    <li>Remplacer une classe par une autre → <strong>useClass</strong></li>
+                    <li>Créer dynamiquement le provider → <strong>useFactory</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : useValue -->
+        <div class="slide" id="slide4">
+            <div class="bg-green-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-green-800">🔹 useValue : injecter une constante ou une configuration</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// app.module.ts
+import { Module } from '@nestjs/common';
+
+export const APP_CONFIG = 'APP_CONFIG';
+
+@Module({
+  providers: [
+    {
+      provide: APP_CONFIG,
+      useValue: {
+        env: 'development',
+        port: 3000,
+        apiUrl: 'https://api.example.com',
+      },
+    },
+  ],
+})
+export class AppModule {}
+
+// config.service.ts
+import { Injectable, Inject } from '@nestjs/common';
+import { APP_CONFIG } from './app.module';
+
+@Injectable()
+export class ConfigService {
+  constructor(@Inject(APP_CONFIG) private config) {}
+
+  get(key: string) {
+    return this.config[key];
+  }
+}
+</code>
+                </div>
+                <p class="mt-3 text-sm">💡 <strong>Cas d'usage :</strong> injecter une configuration statique, un mock dans les tests, ou une bibliothèque tierce non compatible avec l'injection standard.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : useClass -->
+        <div class="slide" id="slide5">
+            <div class="bg-blue-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-blue-800">🔹 useClass : substitution de classe</h2>
+            </div>
+            <div class="p-6">
+                <p>Permet de dire à NestJS : "quand on demande le token T, donne une instance de cette autre classe".</p>
+                <div class="code-block mt-3">
+<code>
+// mail.service.ts
+export interface MailService {
+  send(to: string, message: string): void;
+}
+
+export class SmtpMailService implements MailService {
+  send(to: string, message: string) { console.log(`SMTP to ${to}: ${message}`); }
+}
+
+export class MockMailService implements MailService {
+  send(to: string, message: string) { console.log(`[MOCK] ${to}`); }
+}
+
+// app.module.ts
+@Module({
+  providers: [
+    {
+      provide: 'MAIL_SERVICE',
+      useClass: process.env.NODE_ENV === 'production' 
+        ? SmtpMailService 
+        : MockMailService,
+    },
+  ],
+})
+</code>
+                </div>
+                <p class="mt-3 text-sm">✨ Utile pour basculer entre implémentations réelles et mocks selon l'environnement.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 : useFactory -->
+        <div class="slide" id="slide6">
+            <div class="bg-amber-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-amber-800">🔹 useFactory : provider dynamique</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// database.provider.ts
+import { createConnection } from 'typeorm';
+
+export const databaseProviders = [
+  {
+    provide: 'DATABASE_CONNECTION',
+    useFactory: async (configService: ConfigService) => {
+      const connection = await createConnection({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+        username: configService.get('DB_USER'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+      });
+      return connection;
+    },
+    inject: [ConfigService],
+  },
+];
+</code>
+                </div>
+                <p class="mt-3 text-sm">⚙️ <strong>useFactory</strong> permet de créer le provider de manière asynchrone. La factory reçoit les dépendances listées dans <code>inject</code>.</p>
+                <div class="bg-yellow-50 p-3 rounded mt-2 text-sm">⚠️ Important : la factory peut être async. NestJS attendra sa résolution avant d'injecter le provider.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : PROVIDERS ASYNCHRONES -->
+        <div class="slide" id="slide7">
+            <div class="bg-purple-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-purple-800">⏳ Providers asynchrones avancés</h2>
+            </div>
+            <div class="p-6">
+                <p>On peut combiner <code>useFactory</code> avec des dépendances asynchrones.</p>
+                <div class="code-block mt-2">
+<code>
+// config.provider.ts
+export const configProvider = {
+  provide: 'CONFIG',
+  useFactory: async () => {
+    const data = await fetch('https://config-server.com/my-app.json');
+    return data.json();
+  },
+};
+
+// utilisation dans un service
+@Injectable()
+export class AppService {
+  constructor(@Inject('CONFIG') private config: any) {}
+}
+</code>
+                </div>
+                <div class="bg-green-50 p-3 rounded mt-4 text-sm">
+                    ✅ <strong>Bonnes pratiques :</strong> Toujours gérer les erreurs dans les factories async (try/catch), et utiliser des tokens explicites.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : TOKENS PERSONNALISÉS ET @Inject -->
+        <div class="slide" id="slide8">
+            <div class="bg-pink-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-pink-800">🏷️ Tokens personnalisés avec @Inject()</h2>
+            </div>
+            <div class="p-6">
+                <p>Quand on utilise <code>provide</code> avec une chaîne ou un symbole, on doit utiliser <code>@Inject()</code> pour injecter.</p>
+                <div class="code-block">
+<code>
+// constants.ts
+export const CONNECTION_TOKEN = 'CONNECTION_TOKEN';
+
+// database.module.ts
+providers: [
+  {
+    provide: CONNECTION_TOKEN,
+    useValue: mongoose.connect('mongodb://localhost:27017/mydb'),
+  },
+]
+
+// user.service.ts
+import { Inject, Injectable } from '@nestjs/common';
+import { CONNECTION_TOKEN } from './constants';
+
+@Injectable()
+export class UserService {
+  constructor(@Inject(CONNECTION_TOKEN) private connection) {}
+}
+</code>
+                </div>
+                <div class="bg-gray-100 p-3 rounded mt-3 text-sm">📌 <strong>Pourquoi ?</strong> Les tokens évitent les collisions de noms et améliorent la clarté du code.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : RÉSUMÉ ET EXERCICE -->
+        <div class="slide" id="slide9">
+            <div class="bg-teal-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-teal-800">📝 Tableau récapitulatif & exercice</h2>
+            </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border text-sm">
+                        <thead class="bg-gray-100"><tr><th class="border p-2">Type</th><th class="border p-2">Syntaxe</th><th class="border p-2">Cas d'usage</th></tr></thead>
+                        <tbody>
+                            <tr><td class="border p-2">useValue</td><td class="border p-2 font-mono">useValue: objet</td><td class="border p-2">Configuration statique, constantes</td></tr>
+                            <tr><td class="border p-2">useClass</td><td class="border p-2 font-mono">useClass: MaClasse</td><td class="border p-2">Changement d'implémentation (prod/dev)</td></tr>
+                            <tr><td class="border p-2">useFactory</td><td class="border p-2 font-mono">useFactory: () => valeur</td><td class="border p-2">Création dynamique, async</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-5 bg-gray-800 text-white rounded p-3 text-sm">
+                    🧪 <strong>Exercice :</strong> Créez un provider asynchrone qui lit un fichier <code>config.json</code> (simulez avec fs.promises) et injectez-le dans un service qui affiche la configuration.
+                </div>
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    ➡️ Glisser pour naviguer entre les slides.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center px-6 py-4 border-t bg-gray-50">
+            <button id="prevBtn" class="nav-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full disabled:opacity-50 transition" disabled>◀ Précédent</button>
+            <div class="text-sm text-gray-500">Slide <span id="currentSlide">1</span> / <span id="totalSlides">9</span></div>
+            <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full transition">Suivant ▶</button>
+        </div>
+    </div>
+    <div class="text-center text-gray-400 text-xs mt-4">© NestJS – Providers avancés | Cours pour développeurs backend</div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            $('#currentSlide').text(index + 1);
+            $('#prevBtn').prop('disabled', index === 0);
+            $('#nextBtn').prop('disabled', index === total - 1);
+        }
+        $('#nextBtn').on('click', function() {
+            if (current < total - 1) { current++; showSlide(current); }
+        });
+        $('#prevBtn').on('click', function() {
+            if (current > 0) { current--; showSlide(current); }
+        });
+        // Swipe mobile
+        let touchStartX = 0, touchEndX = 0;
+        $('.slide').on('touchstart', function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $('.slide').on('touchend', function(e) {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            if (touchStartX - touchEndX > 50 && current < total - 1) { current++; showSlide(current); }
+            else if (touchEndX - touchStartX > 50 && current > 0) { current--; showSlide(current); }
+        });
+        if(window.MathJax) MathJax.typesetPromise();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours NestJS - Tests unitaires avec Jest (Lesson 23)</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        .slide-content {
+            padding: 2rem;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            pre { font-size: 0.7rem; }
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af !important;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #0f172a;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            background-color: #3b82f6;
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.7rem;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+        .objective-card {
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 0.8rem;
+            margin: 0.8rem 0;
+            border-radius: 0.75rem;
+        }
+        .tip-box {
+            background: #fef9e3;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <div id="slides-wrapper" class="relative"></div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-50">← Précédent</button>
+        <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant →</button>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2 mt-4 overflow-hidden">
+        <div id="progressBar" class="progress-bar bg-blue-600 h-2 rounded-full" style="width: 0%;"></div>
+    </div>
+</div>
+
+<script>
+    // Données des slides pour lesson23 - Tests unitaires Jest
+    const slidesData = [
+        {
+            type: "title",
+            title: "🧪 Tester avec Jest",
+            subtitle: "NestJS - Lesson 23 : Tests unitaires des services et contrôleurs",
+            emoji: "✅",
+            bgClass: "bg-gradient-to-br from-blue-50 to-indigo-100"
+        },
+        {
+            type: "objectives",
+            title: "📌 Objectifs de la leçon",
+            objectives: [
+                "Configurer Jest dans un projet NestJS",
+                "Tester un service en mockant son repository (ex: TypeORM)",
+                "Tester un contrôleur en mockant le service",
+                "Comprendre l'isolation des tests unitaires",
+                "Utiliser des mocks et assertions courantes"
+            ]
+        },
+        {
+            type: "content",
+            title: "🔧 Configuration de Jest dans NestJS",
+            content: `
+                <p>NestJS utilise Jest par défaut. Les fichiers de test sont nommés <code>*.spec.ts</code>. La configuration se trouve dans <code>package.json</code> ou <code>jest.config.js</code>.</p>
+                <pre><code>// Exemple de script dans package.json
+"scripts": {
+  "test": "jest",
+  "test:watch": "jest --watch",
+  "test:cov": "jest --coverage"
+}</code></pre>
+                <p>Jest fournit <code>describe()</code> pour regrouper les tests, <code>it()</code> ou <code>test()</code> pour un cas, et des fonctions d'assertion comme <code>expect()</code>.</p>
+                <div class="tip-box">💡 <strong>Bon à savoir</strong> : La couverture de code (<code>--coverage</code>) génère un rapport indiquant quelles parties du code sont testées.</div>
+            `
+        },
+        {
+            type: "content",
+            title: "📦 Tester un service : UserService",
+            content: `
+                <p>Imaginons un <code>UserService</code> qui utilise un repository TypeORM pour trouver un utilisateur par email.</p>
+                <pre><code>// user.service.ts
+@Injectable()
+export class UserService {
+  constructor(@InjectRepository(User) private userRepo: Repository&lt;User&gt;) {}
+
+  async findByEmail(email: string): Promise&lt;User | null&gt; {
+    return this.userRepo.findOne({ where: { email } });
+  }
+}</code></pre>
+                <p><strong>Test unitaire :</strong> On mock le repository pour ne pas toucher la vraie base.</p>
+                <pre><code>// user.service.spec.ts
+const mockUserRepo = {
+  findOne: jest.fn(),
+};
+
+describe('UserService', () => {
+  let service: UserService;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(User), useValue: mockUserRepo },
+      ],
+    }).compile();
+    service = module.get(UserService);
+  });
+
+  it('doit retourner un utilisateur si email existe', async () => {
+    const user = { id: 1, email: 'test@example.com' };
+    mockUserRepo.findOne.mockResolvedValue(user);
+    const result = await service.findByEmail('test@example.com');
+    expect(result).toEqual(user);
+    expect(mockUserRepo.findOne).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+  });
+});</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "🎮 Tester un contrôleur : UserController",
+            content: `
+                <p>Un contrôleur dépend du service. On mock le service pour tester uniquement la couche HTTP.</p>
+                <pre><code>// user.controller.ts
+@Controller('users')
+export class UserController {
+  constructor(private userService: UserService) {}
+
+  @Get(':email')
+  async getUser(@Param('email') email: string) {
+    return this.userService.findByEmail(email);
+  }
+}</code></pre>
+                <pre><code>// user.controller.spec.ts
+const mockUserService = {
+  findByEmail: jest.fn(),
+};
+
+describe('UserController', () => {
+  let controller: UserController;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [UserController],
+      providers: [{ provide: UserService, useValue: mockUserService }],
+    }).compile();
+    controller = module.get(UserController);
+  });
+
+  it('devrait retourner l\'utilisateur trouvé', async () => {
+    const user = { id: 1, email: 'john@doe.com' };
+    mockUserService.findByEmail.mockResolvedValue(user);
+    const result = await controller.getUser('john@doe.com');
+    expect(result).toEqual(user);
+    expect(mockUserService.findByEmail).toHaveBeenCalledWith('john@doe.com');
+  });
+});</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "🧩 Les mocks avancés avec jest.spyOn",
+            content: `
+                <p>Parfois on veut espionner une méthode réelle sans remplacer totalement l'implémentation. <code>jest.spyOn</code> est parfait.</p>
+                <pre><code>it('devrait appeler une méthode interne', () => {
+  const spy = jest.spyOn(service, 'privateMethod').mockReturnValue('mock');
+  const result = service.publicMethod();
+  expect(spy).toHaveBeenCalled();
+  spy.mockRestore();
+});</code></pre>
+                <div class="tip-box">🔍 <strong>Astuce :</strong> <code>mockResolvedValue()</code> pour les promesses résolues, <code>mockRejectedValue()</code> pour simuler une erreur.</div>
+                <p>Exemple de test d'échec :</p>
+                <pre><code>it('doit lever une exception si email introuvable', async () => {
+  mockUserService.findByEmail.mockRejectedValue(new NotFoundException());
+  await expect(controller.getUser('inconnu@test.com')).rejects.toThrow(NotFoundException);
+});</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "📊 Assertions utiles et bonnes pratiques",
+            content: `
+                <p><strong>Assertions courantes :</strong></p>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li><code>expect(value).toBe(expected)</code> → égalité stricte (===)</li>
+                    <li><code>expect(value).toEqual(expected)</code> → égalité profonde (objets)</li>
+                    <li><code>expect(array).toContain(item)</code> → vérifie présence</li>
+                    <li><code>expect(fn).toThrow(error)</code> → vérifie qu'une fonction lève une exception</li>
+                    <li><code>expect(mock).toHaveBeenCalledTimes(n)</code> → compte les appels</li>
+                </ul>
+                <div class="bg-green-50 p-3 rounded-lg mt-3">
+                    ✅ <span class="font-semibold">Bonnes pratiques :</span> Un test = une seule chose testée. Noms explicites. Isoler les dépendances externes (DB, API). Utiliser <code>beforeEach</code> pour réinitialiser les mocks.
+                </div>
+            `
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Récapitulatif",
+            conclusions: [
+                "Jest est intégré par défaut dans NestJS pour les tests unitaires",
+                "On utilise Test.createTestingModule pour créer un module de test isolé",
+                "On mock les repositories (avec useValue) et les services pour ne pas dépendre de la vraie DB",
+                "jest.spyOn permet d'espionner ou modifier des méthodes existantes",
+                "Des assertions claires garantissent la fiabilité du code",
+                "🎯 Exercice personnel : Testez un service qui crée un utilisateur avec hachage bcrypt (mocké) !"
+            ]
+        }
+    ];
+
+    let currentSlide = 0;
+
+    function renderSlides() {
+        const wrapper = $('#slides-wrapper');
+        wrapper.empty();
+        slidesData.forEach((slide, idx) => {
+            let slideHtml = `<div class="slide mb-6" data-slide-index="${idx}" style="display: ${idx === currentSlide ? 'block' : 'none'};">`;
+            slideHtml += `<div class="slide-content ${slide.bgClass || 'bg-white'} rounded-2xl">`;
+            
+            if (slide.type === 'title') {
+                slideHtml += `
+                    <div class="text-center py-6 md:py-10">
+                        <div class="text-6xl mb-4">${slide.emoji}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h1>
+                        <p class="text-gray-600 mt-3 text-lg">${slide.subtitle}</p>
+                        <div class="mt-6 inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm">Jest · Unit tests</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'objectives') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-b-2 border-blue-400 pb-2 inline-block">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-5">`;
+                slide.objectives.forEach(obj => {
+                    slideHtml += `<div class="objective-card flex items-start gap-3"><span class="text-blue-600 text-xl">🎯</span><span>${obj}</span></div>`;
+                });
+                slideHtml += `</div>`;
+            }
+            else if (slide.type === 'content') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-l-4 border-blue-500 pl-3">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-4 text-gray-700 leading-relaxed">${slide.content}</div>`;
+            }
+            else if (slide.type === 'conclusion') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2><div class="mt-4 space-y-2">`;
+                slide.conclusions.forEach(conc => {
+                    slideHtml += `<div class="flex items-start gap-2"><span class="text-green-600 text-lg">✓</span><span>${conc}</span></div>`;
+                });
+                slideHtml += `</div><div class="mt-6 p-3 bg-indigo-50 rounded-xl text-center text-indigo-800">🚀 À vous de jouer ! Lancez <code>npm run test:watch</code> et créez vos propres specs.</div>`;
+            }
+            
+            slideHtml += `</div></div>`;
+            wrapper.append(slideHtml);
+        });
+        updateDots();
+        updateProgress();
+        toggleButtons();
+    }
+
+    function updateDots() {
+        const container = $('#dotsContainer');
+        container.empty();
+        slidesData.forEach((_, idx) => {
+            const dot = $(`<button class="w-3 h-3 rounded-full mx-1 transition-all ${idx === currentSlide ? 'bg-blue-700 w-5' : 'bg-gray-400'}" data-index="${idx}"></button>`);
+            dot.on('click', () => goToSlide(idx));
+            container.append(dot);
+        });
+    }
+
+    function updateProgress() {
+        const percent = ((currentSlide + 1) / slidesData.length) * 100;
+        $('#progressBar').css('width', `${percent}%`);
+    }
+
+    function toggleButtons() {
+        $('#prevBtn').prop('disabled', currentSlide === 0);
+        if (currentSlide === slidesData.length - 1) {
+            $('#nextBtn').text('Terminé ✓');
+        } else {
+            $('#nextBtn').text('Suivant →');
+        }
+    }
+
+    function goToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= slidesData.length) index = slidesData.length - 1;
+        $(`.slide`).hide();
+        $(`.slide[data-slide-index="${index}"]`).fadeIn(200);
+        currentSlide = index;
+        updateDots();
+        updateProgress();
+        toggleButtons();
+        $('html, body').animate({ scrollTop: 0 }, 100);
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function nextSlide() {
+        if (currentSlide < slidesData.length - 1) {
+            goToSlide(currentSlide + 1);
+        } else {
+            alert("🎉 Félicitations ! Vous avez terminé la leçon sur les tests unitaires. Pratiquez en écrivant des tests pour vos propres contrôleurs.");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) goToSlide(currentSlide - 1);
+    }
+
+    $(document).ready(function() {
+        renderSlides();
+        $('#nextBtn').on('click', nextSlide);
+        $('#prevBtn').on('click', prevSlide);
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+    });
+</script>
+</body>
+</html>

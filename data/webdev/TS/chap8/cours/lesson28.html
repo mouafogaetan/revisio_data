@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 28 : Les Décorateurs en TypeScript</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s;
+            overflow: hidden;
+        }
+        .nav-button {
+            transition: all 0.2s ease;
+            background-color: #78350f;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            background-color: #451a03;
+            transform: scale(1.02);
+        }
+        .nav-button:active {
+            transform: scale(0.98);
+        }
+        .code-block {
+            background-color: #1e1b0e;
+            color: #fef3c7;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #d97706;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 1rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .progress-bar {
+            height: 4px;
+            background: #d6d3d1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #d97706;
+            border-radius: 2px;
+            width: 0%;
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .deco-tag {
+            background-color: #fffbeb;
+            color: #b45309;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border: 1px solid #fed7aa;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="slide-container" id="app">
+    <div id="slides-wrapper" class="relative"></div>
+    <div class="flex flex-col items-center mt-6 gap-4">
+        <div class="w-full max-w-md progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div class="flex gap-6 justify-center flex-wrap">
+            <button id="prevBtn" class="nav-button"><span class="mr-1">◀</span> Précédent</button>
+            <span id="pageIndicator" class="text-gray-700 font-medium bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full">Slide 1 / 1</span>
+            <button id="nextBtn" class="nav-button">Suivant <span class="ml-1">▶</span></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Slides pour la lesson28 : Décorateurs en TypeScript
+    const slides = [
+        { // Slide 0 : Titre
+            title: "Lesson 28 - Les Décorateurs",
+            content: `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                    <div class="bg-amber-100 text-amber-800 rounded-full px-6 py-2 text-sm font-semibold mb-4">Chapitre 8 - Fonctionnalités avancées</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-amber-700 to-orange-600 bg-clip-text text-transparent mb-6">Décorateurs TypeScript</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl mx-auto">Ajoutez des métadonnées, modifiez des classes et leurs membres avec élégance. 🇨🇲</p>
+                    <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">✨ @decorateurClasse</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">📝 @decorateurMethode</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🔖 @decorateurPropriete</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🎯 @decorateurParametre</span>
+                    </div>
+                    <div class="mt-6 bg-amber-50 p-4 rounded-xl border border-amber-200 max-w-lg mx-auto">
+                        <p class="text-sm text-amber-800"><span class="font-bold">⚠️ Important</span> : Les décorateurs sont une fonctionnalité expérimentale. Activez-les avec <span class="font-mono bg-white px-1 rounded">"experimentalDecorators": true</span> dans <span class="font-mono">tsconfig.json</span>.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 1 : Objectifs
+            title: "Objectifs de la leçon",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl md:text-3xl font-bold text-amber-800 border-l-8 border-amber-500 pl-4 mb-6">🎯 Objectifs pédagogiques</h2>
+                    <ul class="space-y-5 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Activer les décorateurs dans <span class="font-mono bg-gray-100 px-1 rounded">tsconfig.json</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Créer et utiliser un <strong>décorateur de classe</strong></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Appliquer des décorateurs sur des <strong>méthodes</strong>, <strong>propriétés</strong> et <strong>paramètres</strong></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Comprendre les cas d'usage : <strong>Angular</strong>, <strong>NestJS</strong>, logging, validation</li>
+                    </ul>
+                    <div class="mt-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200">
+                        <p class="text-amber-800"><span class="font-bold">💡 À savoir</span> : Un décorateur est une fonction spéciale qui s'exécute au moment de la définition de la classe (pas à l'instanciation).</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 2 : Activation des décorateurs
+            title: "1. Activer les décorateurs",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">⚙️ Configuration tsconfig.json</h2>
+                    <p>Les décorateurs sont une fonctionnalité expérimentale de TypeScript. Pour les utiliser, modifiez votre fichier de configuration :</p>
+                    <div class="code-block my-5">
+                        <pre>{
+  "compilerOptions": {
+    "target": "ES6",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true   // Optionnel : génère des métadonnées pour l'injection de dépendances
+  }
+}</pre>
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-4 mt-4">
+                        <div class="bg-green-50 p-3 rounded-lg flex-1">
+                            <p class="font-bold text-green-800">✅ Avec experimentalDecorators: true</p>
+                            <p class="text-sm">Les décorateurs sont reconnus et compilés correctement.</p>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-lg flex-1">
+                            <p class="font-bold text-red-800">❌ Sans l'option</p>
+                            <p class="text-sm">Erreur : "Decorators are not valid here"</p>
+                        </div>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 3 : Décorateur de classe
+            title: "2. Décorateur de classe",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">🏷️ @decorateurClasse</h2>
+                    <p>Un décorateur de classe est une fonction qui reçoit le constructeur de la classe comme argument. Il peut modifier ou remplacer la classe.</p>
+                    <div class="code-block my-5">
+                        <pre>// Décorateur qui ajoute une propriété statique
+function ajouterVersion(version: string) {
+  return function (constructeur: Function) {
+    constructeur.prototype.version = version;
+    console.log(\`Version \${version} ajoutée à \${constructeur.name}\`);
+  };
+}
+
+@ajouterVersion("1.0.0")
+class Application {
+  nom: string;
+  constructor(nom: string) {
+    this.nom = nom;
+  }
+}
+
+const app = new Application("MonApp");
+console.log((app as any).version); // "1.0.0"</pre>
+                    </div>
+                    <p>📌 On peut également utiliser un décorateur pour sceller une classe (<span class="font-mono">Object.seal</span>) ou enregistrer la classe dans un registre.</p>
+                </div>
+            `
+        },
+        { // Slide 4 : Décorateur de méthode
+            title: "3. Décorateur de méthode",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">📞 @decorateurMethode</h2>
+                    <p>Un décorateur de méthode reçoit 3 arguments : la cible (prototype), le nom de la méthode, et le descripteur de propriété.</p>
+                    <div class="code-block my-5">
+                        <pre>// Décorateur qui logue l'appel d'une méthode
+function logger(prefix: string = "LOG") {
+  return function (cible: any, nomMethode: string, descripteur: PropertyDescriptor) {
+    const methodeOriginale = descripteur.value;
+    descripteur.value = function (...args: any[]) {
+      console.log(\`[\${prefix}] Appel de \${nomMethode} avec \${JSON.stringify(args)}\`);
+      return methodeOriginale.apply(this, args);
+    };
+    return descripteur;
+  };
+}
+
+class Calculateur {
+  @logger("CALC")
+  additionner(a: number, b: number): number {
+    return a + b;
+  }
+}
+
+const calc = new Calculateur();
+calc.additionner(5, 3); // LOG: Appel de additionner avec [5,3]</pre>
+                    </div>
+                    <p>🔧 Utile pour le logging, la mesure de performance, la vérification des droits, etc.</p>
+                </div>
+            `
+        },
+        { // Slide 5 : Décorateur de propriété
+            title: "4. Décorateur de propriété",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">📦 @decorateurPropriete</h2>
+                    <p>Un décorateur de propriété s'exécute quand la propriété est définie. Il peut ajouter des métadonnées ou valider des valeurs.</p>
+                    <div class="code-block my-5">
+                        <pre>// Décorateur qui rend une propriété immuable après initialisation
+function readonly(cible: any, nomPropriete: string) {
+  const valeur = cible[nomPropriete];
+  Object.defineProperty(cible, nomPropriete, {
+    get: () => valeur,
+    set: () => { throw new Error(\`\${nomPropriete} est en lecture seule\`); }
+  });
+}
+
+class Utilisateur {
+  @readonly
+  nom: string = "Jean";
+  
+  @readonly
+  email: string = "jean@example.com";
+}
+
+const user = new Utilisateur();
+user.nom = "Paul"; // ❌ Erreur : nom est en lecture seule</pre>
+                    </div>
+                    <p>🎨 On peut aussi utiliser les décorateurs de propriété pour la validation (ex: @MinLength(3)).</p>
+                </div>
+            `
+        },
+        { // Slide 6 : Décorateur de paramètre
+            title: "5. Décorateur de paramètre",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">🎯 @decorateurParametre</h2>
+                    <p>Le décorateur de paramètre s'applique sur un paramètre spécifique d'une méthode. Très utilisé dans les frameworks d'injection de dépendances.</p>
+                    <div class="code-block my-5">
+                        <pre>// Simule l'injection de dépendances
+function inject(serviceName: string) {
+  return function (cible: any, nomMethode: string | symbol, indexParam: number) {
+    console.log(\`Injection de \${serviceName} sur paramètre index \${indexParam} de \${String(nomMethode)}\`);
+    // Dans la vraie vie, on enregistre les métadonnées
+  };
+}
+
+class ServiceA {
+  executer() { return "Service A exécuté"; }
+}
+
+class MonController {
+  faireAction(@inject("ServiceA") service: ServiceA) {
+    return service.executer();
+  }
+}</pre>
+                    </div>
+                    <p>⚡ NestJS et Angular utilisent ce pattern pour l'injection automatique des dépendances.</p>
+                </div>
+            `
+        },
+        { // Slide 7 : Cas concret - Validation avec décorateurs
+            title: "6. Exemple pratique : Validation",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">✅ Validation de formulaire avec décorateurs</h2>
+                    <div class="code-block my-5">
+                        <pre>// Décorateurs de validation simples
+function Requis(cible: any, nomPropriete: string) {
+  let valeur = cible[nomPropriete];
+  Object.defineProperty(cible, nomPropriete, {
+    get: () => valeur,
+    set: (nouvelleValeur) => {
+      if (!nouvelleValeur || nouvelleValeur.trim() === "") {
+        throw new Error(\`\${nomPropriete} est obligatoire\`);
+      }
+      valeur = nouvelleValeur;
+    }
+  });
+}
+
+function TailleMin(min: number) {
+  return function (cible: any, nomPropriete: string) {
+    let valeur = cible[nomPropriete];
+    Object.defineProperty(cible, nomPropriete, {
+      get: () => valeur,
+      set: (nouvelleValeur) => {
+        if (nouvelleValeur.length < min) {
+          throw new Error(\`\${nomPropriete} doit avoir au moins \${min} caractères\`);
+        }
+        valeur = nouvelleValeur;
+      }
+    });
+  };
+}
+
+class Inscription {
+  @Requis
+  @TailleMin(3)
+  nom: string = "";
+
+  @Requis
+  email: string = "";
+}
+
+const form = new Inscription();
+form.nom = "Jo"; // ❌ Erreur : nom doit avoir au moins 3 caractères</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 8 : Cas d'usage dans les frameworks
+            title: "7. Angular, NestJS et les décorateurs",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">🏢 Décorateurs dans les frameworks modernes</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-red-50 p-4 rounded-xl border border-red-200">
+                            <h3 class="font-bold text-red-700 text-lg mb-2">Angular</h3>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li><span class="font-mono">@Component</span> : déclare un composant</li>
+                                <li><span class="font-mono">@Input()</span> / <span class="font-mono">@Output()</span></li>
+                                <li><span class="font-mono">@Injectable()</span> : service injectable</li>
+                                <li><span class="font-mono">@NgModule()</span></li>
+                            </ul>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                            <h3 class="font-bold text-emerald-700 text-lg mb-2">NestJS</h3>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li><span class="font-mono">@Controller()</span></li>
+                                <li><span class="font-mono">@Get()</span>, <span class="font-mono">@Post()</span></li>
+                                <li><span class="font-mono">@Injectable()</span></li>
+                                <li><span class="font-mono">@Module()</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="code-block mt-4">
+                        <pre>// Exemple NestJS
+@Controller("utilisateurs")
+export class UserController {
+  @Get()
+  findAll(): string[] { return ["Alice", "Bob"]; }
+  
+  @Post()
+  create(@Body() createUserDto: CreateUserDto) { ... }
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 9 : Résumé et exercice
+            title: "Résumé & Exercice",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-amber-700 mb-4">📌 Ce qu'il faut retenir</h2>
+                    <ul class="list-disc pl-6 space-y-3 text-gray-700 mb-6">
+                        <li>Les décorateurs sont des fonctions spéciales précédées de <span class="font-mono">@</span>.</li>
+                        <li>Activez-les avec <span class="font-mono">experimentalDecorators: true</span> dans tsconfig.json.</li>
+                        <li>Types de décorateurs : classe, méthode, propriété, paramètre, accesseur.</li>
+                        <li>Ils permettent d'ajouter des comportements transversaux (logging, validation, injection).</li>
+                        <li>Frameworks populaires : Angular, NestJS, TypeORM.</li>
+                    </ul>
+                    <div class="p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+                        <p class="font-bold text-amber-800">🧪 Mini exercice :</p>
+                        <p>Créez un décorateur <span class="font-mono">@Deprecated()</span> pour une méthode qui affiche un avertissement dans la console quand la méthode est appelée, en indiquant qu'elle sera supprimée dans une future version.</p>
+                        <details class="mt-3"><summary class="cursor-pointer text-orange-600 font-medium">🔍 Voir une solution</summary>
+                        <div class="code-block mt-2 text-xs">function Deprecated(raison?: string) {
+  return function (cible: any, nomMethode: string, desc: PropertyDescriptor) {
+    const original = desc.value;
+    desc.value = function(...args: any[]) {
+      console.warn(\`⚠️ \${nomMethode} est dépréciée.\${raison ? " " + raison : ""}\`);
+      return original.apply(this, args);
+    };
+    return desc;
+  };
+}
+class Test { @Deprecated("Utilisez nouvelleMethode()") ancienne() { return "ok"; } }</div>
+                        </details>
+                    </div>
+                </div>
+            `
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        const html = `
+            <div class="slide-card overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-3 border-b border-amber-200">
+                    <h3 class="font-semibold text-amber-800">${slide.title}</h3>
+                </div>
+                <div>
+                    ${slide.content}
+                </div>
+            </div>
+        `;
+        $("#slides-wrapper").html(html);
+        $("#pageIndicator").text(`Slide ${index+1} / ${totalSlides}`);
+        const progressPercent = (index / (totalSlides - 1)) * 100;
+        $("#progress-fill").css("width", `${progressPercent}%`);
+        
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            alert("🎉 Bravo ! Vous avez terminé la leçon sur les décorateurs.");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+        } else {
+            alert("Début de la leçon.");
+        }
+    }
+
+    renderSlide(0);
+    $("#nextBtn").on("click", nextSlide);
+    $("#prevBtn").on("click", prevSlide);
+    
+    $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+    });
+</script>
+</body>
+</html>

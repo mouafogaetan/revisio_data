@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours NestJS - Déploiement final (Lesson 36)</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        .slide-content {
+            padding: 2rem;
+        }
+        @media (max-width: 640px) {
+            .slide-content { padding: 1.5rem; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            pre { font-size: 0.7rem; }
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #b91c1c !important;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #0f172a;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .objective-card {
+            background: #f8fafc;
+            border-left: 4px solid #dc2626;
+            padding: 0.8rem;
+            margin: 0.8rem 0;
+            border-radius: 0.75rem;
+        }
+        .tip-box {
+            background: #fef9e3;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 9999px;
+            font-weight: bold;
+            margin-right: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <div id="slides-wrapper" class="relative"></div>
+
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="nav-btn bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-50">← Précédent</button>
+        <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant →</button>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2 mt-4 overflow-hidden">
+        <div id="progressBar" class="progress-bar bg-red-600 h-2 rounded-full" style="width: 0%;"></div>
+    </div>
+</div>
+
+<script>
+    const slidesData = [
+        {
+            type: "title",
+            title: "🚀 Projet final : API REST complète",
+            subtitle: "NestJS - Lesson 36 : Tests, documentation et déploiement",
+            emoji: "🎯",
+            bgClass: "bg-gradient-to-br from-red-50 to-rose-100"
+        },
+        {
+            type: "objectives",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Écrire des tests unitaires et e2e pour une API NestJS",
+                "Documenter l'API avec Swagger/OpenAPI",
+                "Préparer l'application pour la production",
+                "Déployer sur Railway, Render ou Heroku",
+                "Mettre en place les bonnes pratiques CI/CD"
+            ]
+        },
+        {
+            type: "content",
+            title: "📝 Tests unitaires et e2e",
+            content: `
+                <p><strong>Tests unitaires</strong> : on teste chaque composant isolément (service, contrôleur) en mockant ses dépendances.</p>
+                <pre><code>// user.service.spec.ts
+const mockRepo = { findOne: jest.fn() };
+
+describe('UserService', () => {
+  let service: UserService;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(User), useValue: mockRepo },
+      ],
+    }).compile();
+    service = module.get(UserService);
+  });
+
+  it('devrait trouver un utilisateur par email', async () => {
+    const user = { id: 1, email: 'test@test.com' };
+    mockRepo.findOne.mockResolvedValue(user);
+    const result = await service.findByEmail('test@test.com');
+    expect(result).toEqual(user);
+  });
+});</code></pre>
+                <p><strong>Tests e2e</strong> : on teste les endpoints HTTP réels avec supertest.</p>
+                <pre><code>// app.e2e-spec.ts
+const request = require('supertest');
+
+describe('AppController (e2e)', () => {
+  let app;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    app = module.createNestApplication();
+    await app.init();
+  });
+
+  it('/users (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/users')
+      .expect(200)
+      .expect(res => Array.isArray(res.body));
+  });
+});</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "📚 Documentation Swagger",
+            content: `
+                <p>Générer automatiquement une documentation interactive :</p>
+                <pre><code>// main.ts
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+
+const config = new DocumentBuilder()
+  .setTitle('API MonProjet')
+  .setDescription('API complète avec NestJS')
+  .setVersion('1.0')
+  .addBearerAuth()
+  .build();
+
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('api-docs', app, document);</code></pre>
+                <div class="tip-box">💡 <strong>Astuce :</strong> Documentez vos DTO avec @ApiProperty pour une documentation riche et automatique.</div>
+                <p class="mt-2">Après déploiement, l'interface sera accessible sur <code>https://votre-api.com/api-docs</code>.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "⚙️ Préparation pour la production",
+            content: `
+                <p>Avant de déployer, il faut :</p>
+                <ul class="list-disc pl-6 mt-2 space-y-1">
+                    <li>✅ Définir <code>NODE_ENV=production</code></li>
+                    <li>✅ Utiliser les variables d'environnement pour les secrets</li>
+                    <li>✅ Compiler l'application : <code>npm run build</code></li>
+                    <li>✅ Lancer avec <code>node dist/main.js</code> (pas npm run start:dev)</li>
+                    <li>✅ Configurer un gestionnaire de processus (PM2, systemd)</li>
+                </ul>
+                <pre><code>// Procfile pour Heroku/Railway
+web: npm run start:prod
+
+// ecosystem.config.js pour PM2
+module.exports = {
+  apps: [{
+    name: 'nest-api',
+    script: 'dist/main.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: { NODE_ENV: 'production' }
+  }]
+};</code></pre>
+            `
+        },
+        {
+            type: "content",
+            title: "☁️ Déploiement sur Railway",
+            content: `
+                <p><strong>Railway</strong> est une plateforme simple et rapide.</p>
+                <ol class="list-decimal pl-6 mt-2 space-y-2">
+                    <li>Mettez votre code sur GitHub</li>
+                    <li>Connectez-vous sur <a href="https://railway.app" target="_blank" class="text-red-600 underline">railway.app</a></li>
+                    <li>Cliquez sur "New Project" → "Deploy from GitHub repo"</li>
+                    <li>Sélectionnez votre dépôt</li>
+                    <li>Railway détecte automatiquement Node.js et exécute <code>npm run build && npm run start:prod</code></li>
+                    <li>Ajoutez vos variables d'environnement dans l'onglet "Variables"</li>
+                </ol>
+                <div class="tip-box mt-3">🚀 Railway fournit un domaine public (ex: mon-api.up.railway.app) et un certificat HTTPS automatique.</div>
+            `
+        },
+        {
+            type: "content",
+            title: "☁️ Déploiement sur Render",
+            content: `
+                <p><strong>Render</strong> offre un plan gratuit pour les petites API.</p>
+                <ol class="list-decimal pl-6 mt-2 space-y-2">
+                    <li>Poussez votre code sur GitHub</li>
+                    <li>Sur <a href="https://render.com" target="_blank" class="text-red-600 underline">render.com</a>, cliquez "New +" → "Web Service"</li>
+                    <li>Connectez votre dépôt GitHub</li>
+                    <li>Configurer :<br>
+                    - Build Command: <code>npm install && npm run build</code><br>
+                    - Start Command: <code>npm run start:prod</code></li>
+                    <li>Ajoutez les variables d'environnement</li>
+                    <li>Cliquez "Create Web Service"</li>
+                </ol>
+                <p>Render redéploie automatiquement à chaque <code>git push</code> sur la branche principale.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "🐳 Alternative : Docker + Heroku",
+            content: `
+                <p>Utiliser Docker pour une meilleure reproductibilité :</p>
+                <pre><code># Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY dist ./dist
+EXPOSE 3000
+CMD ["node", "dist/main.js"]</code></pre>
+                <p>Déploiement sur Heroku :</p>
+                <pre><code>heroku create mon-api-nest
+heroku config:set JWT_SECRET=monSecret
+git push heroku main</code></pre>
+                <p>⚠️ Heroku va bientôt arrêter son plan gratuit, privilégiez Railway ou Render.</p>
+            `
+        },
+        {
+            type: "content",
+            title: "🔄 Mise en place CI/CD (GitHub Actions)",
+            content: `
+                <p>Automatisez les tests et le déploiement avec GitHub Actions :</p>
+                <pre><code># .github/workflows/deploy.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with: { node-version: 18 }
+      - run: npm ci
+      - run: npm run test
+      - run: npm run test:e2e
+      - run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: \${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: \${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: \${{ secrets.HEROKU_EMAIL }}</code></pre>
+            `
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Bilan du projet final",
+            conclusions: [
+                "✅ Tests unitaires et e2e garantissent la fiabilité du code",
+                "✅ Swagger offre une documentation interactive et professionnelle",
+                "✅ Les variables d'environnement protègent les données sensibles",
+                "✅ Railway, Render ou Heroku permettent un déploiement rapide",
+                "✅ GitHub Actions automatise les tests et le déploiement (CI/CD)",
+                "🎓 Félicitations ! Vous maîtrisez désormais le cycle complet de développement NestJS, de la conception au déploiement en production."
+            ]
+        }
+    ];
+
+    let currentSlide = 0;
+
+    function renderSlides() {
+        const wrapper = $('#slides-wrapper');
+        wrapper.empty();
+        slidesData.forEach((slide, idx) => {
+            let slideHtml = `<div class="slide mb-6" data-slide-index="${idx}" style="display: ${idx === currentSlide ? 'block' : 'none'};">`;
+            slideHtml += `<div class="slide-content ${slide.bgClass || 'bg-white'} rounded-2xl">`;
+            
+            if (slide.type === 'title') {
+                slideHtml += `
+                    <div class="text-center py-6 md:py-10">
+                        <div class="text-6xl mb-4">${slide.emoji}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h1>
+                        <p class="text-gray-600 mt-3 text-lg">${slide.subtitle}</p>
+                        <div class="mt-6 inline-block bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm">Tests · Swagger · Déploiement · CI/CD</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'objectives') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-b-2 border-red-400 pb-2 inline-block">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-5">`;
+                slide.objectives.forEach(obj => {
+                    slideHtml += `<div class="objective-card flex items-start gap-3"><span class="text-red-600 text-xl">🏆</span><span>${obj}</span></div>`;
+                });
+                slideHtml += `</div>`;
+            }
+            else if (slide.type === 'content') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800 border-l-4 border-red-500 pl-3">${slide.title}</h2>`;
+                slideHtml += `<div class="mt-4 text-gray-700 leading-relaxed">${slide.content}</div>`;
+            }
+            else if (slide.type === 'conclusion') {
+                slideHtml += `<h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2><div class="mt-4 space-y-2">`;
+                slide.conclusions.forEach(conc => {
+                    slideHtml += `<div class="flex items-start gap-2"><span class="text-red-600 text-lg">✓</span><span>${conc}</span></div>`;
+                });
+                slideHtml += `</div><div class="mt-6 p-3 bg-red-50 rounded-xl text-center text-red-800 font-semibold">🎉 Toutes nos félicitations ! Vous êtes prêt pour le monde professionnel ! 🎉</div>`;
+            }
+            
+            slideHtml += `</div></div>`;
+            wrapper.append(slideHtml);
+        });
+        updateDots();
+        updateProgress();
+        toggleButtons();
+    }
+
+    function updateDots() {
+        const container = $('#dotsContainer');
+        container.empty();
+        slidesData.forEach((_, idx) => {
+            const dot = $(`<button class="w-3 h-3 rounded-full mx-1 transition-all ${idx === currentSlide ? 'bg-red-700 w-5' : 'bg-gray-400'}" data-index="${idx}"></button>`);
+            dot.on('click', () => goToSlide(idx));
+            container.append(dot);
+        });
+    }
+
+    function updateProgress() {
+        const percent = ((currentSlide + 1) / slidesData.length) * 100;
+        $('#progressBar').css('width', `${percent}%`);
+    }
+
+    function toggleButtons() {
+        $('#prevBtn').prop('disabled', currentSlide === 0);
+        if (currentSlide === slidesData.length - 1) {
+            $('#nextBtn').text('Terminé 🎓');
+        } else {
+            $('#nextBtn').text('Suivant →');
+        }
+    }
+
+    function goToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= slidesData.length) index = slidesData.length - 1;
+        $(`.slide`).hide();
+        $(`.slide[data-slide-index="${index}"]`).fadeIn(200);
+        currentSlide = index;
+        updateDots();
+        updateProgress();
+        toggleButtons();
+        $('html, body').animate({ scrollTop: 0 }, 100);
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function nextSlide() {
+        if (currentSlide < slidesData.length - 1) {
+            goToSlide(currentSlide + 1);
+        } else {
+            alert("🎓 Félicitations ! Vous avez terminé le cours complet NestJS. Vous êtes maintenant capable de créer, tester, documenter et déployer des API professionnelles. Bonne continuation !");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) goToSlide(currentSlide - 1);
+    }
+
+    $(document).ready(function() {
+        renderSlides();
+        $('#nextBtn').on('click', nextSlide);
+        $('#prevBtn').on('click', prevSlide);
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+[
+  {
+    "intitule": "Diagnostiquer et expliquer la synchronisation offline dans une app e-commerce",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application mobile e-commerce développée avec React Native (Expo), on utilise <code>NetInfo</code> pour surveiller l'état de la connexion réseau. Lorsque l'utilisateur ajoute un produit à son panier hors ligne, l'action est stockée localement via <code>AsyncStorage</code> et synchronisée automatiquement au retour de la connexion. Un développeur observe que parfois, après reconnexion, le panier affiche un décalage (certains articles ajoutés hors ligne semblent manquants).<br><br><strong>Consigne :</strong> Analysez cette situation en vous basant sur les concepts de la leçon (file d'attente, synchronisation automatique, détection réseau).</p>",
+      "images": [
+        "Diagramme simplifié smartphone avec icône réseau coupé, flèches pointillées vers le cloud puis reconnectées"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le rôle de NetInfo dans la gestion du panier offline/online.",
+        "niveau": "easy",
+        "reponse": "NetInfo permet de détecter les changements d'état de connexion (connecté/déconnecté) et de déclencher automatiquement la synchronisation des données (panier) lorsque la connexion est rétablie.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la fonction de la file d'attente (queue) pour les requêtes hors ligne. Justifier pourquoi elle est essentielle.",
+        "niveau": "medium",
+        "reponse": "La file d'attente stocke localement chaque action utilisateur (ajout/suppression/modification de produit) réalisée hors ligne. Elle est essentielle car elle permet de ne pas perdre ces actions et de les rejouer dans le bon ordre dès que la connexion revient, garantissant une synchronisation fiable.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer deux causes possibles de l'incohérence observée (articles manquants après reconnexion) et justifier chaque cause.",
+        "niveau": "hard",
+        "reponse": "Cause 1 : La file d'attente n'est pas persistante (ex. stockée uniquement en mémoire) et a été effacée lors d'un redémarrage de l'application avant synchronisation.<br>Cause 2 : Le conflit de fusion (merge) entre le panier local et le panier distant n'utilise pas une stratégie adaptée (ex. toujours remplacer par le serveur) ou la résolution ignore les actions offline.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter une synchronisation panier offline → online avec NetInfo et AsyncStorage",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous développez un module de panier pour une application e-commerce multiplateforme. L'application doit permettre d'ajouter/supprimer des produits même en mode hors ligne. À la reconnexion, toutes les modifications offline doivent être synchronisées avec le serveur. Vous disposez de :<br>- <code>NetInfo</code> pour détecter la connexion.<br>- <code>AsyncStorage</code> pour stocker localement le panier et les actions en attente.<br>- Une API REST : <code>POST /cart/sync</code> acceptant un tableau d'actions (ex. <code>{type: 'add', productId, quantity}</code>).<br><br>Rédigez la logique (pseudo-code ou description structurée) de la synchronisation automatique, en incluant la mise en file d'attente et la reprise après reconnexion.</p>",
+      "images": [
+        "Schéma d'une architecture mobile avec zone offline stockage local et serveur cloud"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir le flux de détection de connexion avec NetInfo. Écrire le pseudo-code de l'écouteur qui déclenche la synchronisation.",
+        "niveau": "medium",
+        "reponse": "Exemple de pseudo-code :<br>NetInfo.addEventListener(state => { if(state.isConnected && state.isInternetReachable) { synchronizeOfflineActions(); } });<br>La synchronisation ne doit être déclenchée qu'en ligne et après avoir chargé la file d'attente.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la structure de la file d'attente (queue) des actions offline. Justifier le choix des champs nécessaires pour résoudre les conflits.",
+        "niveau": "medium",
+        "reponse": "Chaque action peut être stockée sous forme d'objet avec : { id: 'uuid', type: 'add'|'remove'|'update', productId, quantity, timestamp }. Le timestamp permet de gérer l'ordre et de résoudre les conflits (dernière action prioritaire). La file est sauvegardée dans AsyncStorage.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrire la fonction synchronizeOfflineActions() qui lit la file, envoie les actions au serveur et met à jour le stockage local en cas de succès ou d'erreur. Inclure la gestion d'échec partiel.",
+        "niveau": "very hard",
+        "reponse": "Pseudo-code détaillé :<br>async function synchronizeOfflineActions() {<br>  const queue = await AsyncStorage.getItem('offlineQueue');<br>  if(!queue || queue.length === 0) return;<br>  try {<br>    const response = await fetch('/cart/sync', { method:'POST', body: JSON.stringify(queue) });<br>    if(response.ok) { await AsyncStorage.removeItem('offlineQueue'); }<br>    else { /* conserver la file pour réessai ultérieur */ }<br>  } catch(error) { /* garder la file, nouvelle tentative au prochain événement réseau */ }<br>}<br>Pour un échec partiel, le serveur pourrait retourner la liste des actions réussies ; on ne supprime alors que celles-ci de la file.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

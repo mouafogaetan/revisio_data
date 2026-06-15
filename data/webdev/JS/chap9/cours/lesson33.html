@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Gestion des erreurs avec try...catch | JavaScript</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation douce des couleurs et styles complémentaires -->
+    <style>
+        /* transitions douces pour slides */
+        .slide-container {
+            transition: all 0.3s ease-in-out;
+        }
+        body {
+            background: #f9fafb;
+        }
+        .card-slide {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #1e3a8a !important;
+        }
+        code, pre {
+            background-color: #1e1e2f;
+            color: #f8f8f2;
+            border-radius: 0.75rem;
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }
+        pre {
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .prose a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        .badge-chapitre {
+            background: #e0e7ff;
+            color: #1e3a8a;
+        }
+        /* mobile first: boutons plus accessibles */
+        @media (max-width: 640px) {
+            .btn-nav {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+            .card-slide {
+                border-radius: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-indigo-50">
+
+    <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide -->
+        <div class="slide-card relative">
+            <!-- Affichage du titre de leçon et progression -->
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="badge-chapitre text-xs font-semibold px-3 py-1 rounded-full">Leçon 33 / 35</span>
+                    <span class="text-sm text-gray-600">Chapitre 9 : Persistance & optimisation</span>
+                </div>
+                <div class="text-sm font-medium text-gray-500" id="slideCounter">Slide 1 / 7</div>
+            </div>
+
+            <!-- Zone slide dynamique avec jQuery -->
+            <div id="slideContent" class="card-slide p-6 md:p-8 transition-all duration-300">
+                <!-- Le contenu sera injecté ici par jQuery -->
+                <div class="animate-pulse flex justify-center items-center h-64">
+                    <div class="text-indigo-400">Chargement du cours...</div>
+                </div>
+            </div>
+
+            <!-- Navigation slides (précédent / suivant) -->
+            <div class="flex justify-between items-center mt-8 gap-4">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-5 rounded-xl shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="flex gap-2" id="dotNav">
+                    <!-- dots générées dynamiquement -->
+                </div>
+                <button id="nextSlide" class="btn-nav bg-indigo-700 text-white font-semibold py-2 px-5 rounded-xl shadow-md hover:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+
+        <!-- petit pied de page informatif -->
+        <p class="text-center text-xs text-gray-400 mt-10">© Cours JavaScript - Enseignant Cameroun | Gestion robuste des erreurs</p>
+    </main>
+
+    <script>
+        // ********** STRUCTURE DES SLIDES **********
+        // Slide 0 : Titre principal, contexte leçon33
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Introduction aux erreurs & try...catch de base
+        // Slide 3 : Bloc finally
+        // Slide 4 : Lever des erreurs personnalisées avec throw
+        // Slide 5 : Exemples concrets (interaction avec formulaire simulé)
+        // Slide 6 : Résumé et bonnes pratiques
+
+        const slidesData = [
+            { // slide 0 : titre
+                title: "🧩 Gestion des erreurs en JavaScript",
+                content: `
+                    <div class="text-center space-y-5">
+                        <div class="inline-block p-3 bg-indigo-100 rounded-full mb-2">
+                            <svg class="w-12 h-12 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-800 to-purple-800 bg-clip-text text-transparent">try...catch, finally & throw</h1>
+                        <p class="text-lg text-gray-600 max-w-xl mx-auto">Rendre vos programmes robustes et éviter les crashs silencieux</p>
+                        <div class="pt-4 text-indigo-500 text-sm font-mono">Leçon 33 · Contrôle d'erreurs professionnel</div>
+                        <div class="mt-6 bg-gray-50 rounded-2xl p-4 text-left text-gray-700 border border-gray-200">
+                            <p class="font-semibold">📌 Contexte :</p>
+                            <p>En JavaScript, des erreurs peuvent survenir (variables inexistantes, API défaillante, mauvais type). Sans gestion, le script s'arrête brutalement. <code class="bg-gray-200 px-1 rounded">try...catch</code> permet de "capturer" l'erreur et d'agir sans casser l'expérience utilisateur.</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 1 : objectifs pédagogiques
+                title: "🎯 Objectifs de la leçon",
+                content: `
+                    <div class="space-y-5">
+                        <p class="text-gray-700">À la fin de cette leçon, tu seras capable de :</p>
+                        <ul class="list-disc pl-6 space-y-3 text-gray-800">
+                            <li>🔐 Utiliser <span class="font-mono bg-gray-100 px-1 rounded">try...catch</span> pour capturer et gérer les erreurs d'exécution.</li>
+                            <li>🧹 Comprendre l'utilité du bloc <span class="font-mono bg-gray-100 px-1 rounded">finally</span> pour exécuter du code quoi qu'il arrive.</li>
+                            <li>⚠️ Lever tes propres erreurs avec <span class="font-mono bg-gray-100 px-1 rounded">throw new Error()</span>.</li>
+                            <li>🛠️ Appliquer ces concepts dans des situations concrètes (formulaires, validation).</li>
+                            <li>🏆 Écrire du code plus fiable et résistant aux bugs imprévus.</li>
+                        </ul>
+                        <div class="bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-400 italic text-indigo-800">
+                            💡 "Un bon développeur anticipe les erreurs, un excellent développeur les gère avec élégance."
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 2 : try...catch bases
+                title: "⚙️ Structure try...catch",
+                content: `
+                    <div class="space-y-5">
+                        <h3 class="text-xl font-bold text-indigo-800">Syntaxe fondamentale</h3>
+                        <pre class="p-4 text-sm overflow-x-auto"><code>try {
+    // Code "dangereux" qui peut générer une erreur
+    let result = riskyOperation();
+} catch (error) {
+    // exécuté si une erreur survient dans try
+    console.error("Une erreur a été attrapée :", error.message);
+}</code></pre>
+                        <p class="text-gray-700"><strong>🔍 Explication :</strong> Le bloc <code class="font-mono">try</code> contient le code à tester. Si une erreur apparaît, l'exécution passe immédiatement dans <code class="font-mono">catch</code> avec un objet <strong>error</strong> contenant des infos (message, stack).</p>
+                        <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                            <p class="font-semibold">📌 Exemple concret :</p>
+                            <pre class="text-sm p-2 bg-gray-800 text-gray-100"><code>let nombre;
+try {
+    nombre = JSON.parse("texte non valide"); // déclenche SyntaxError
+} catch (err) {
+    console.log("Erreur attrapée :", err.name);
+    nombre = 0; // valeur par défaut
+}
+console.log("Programme continue :", nombre);</code></pre>
+                        </div>
+                        <p>✅ Le script ne s’arrête pas et on peut définir des comportements alternatifs.</p>
+                    </div>
+                `
+            },
+            { // slide 3 : finally
+                title: "🧹 Le bloc finally : exécution garantie",
+                content: `
+                    <div class="space-y-5">
+                        <p>Le bloc <code class="font-mono bg-gray-100 px-1 rounded">finally</code> s'exécute <strong>toujours</strong> après try/catch, qu'il y ait eu erreur ou non.</p>
+                        <pre class="p-4 text-sm"><code>try {
+    // tentative d'ouverture de fichier / connexion
+    console.log("Tentative...");
+    throw new Error("Problème réseau");
+} catch (err) {
+    console.warn("Erreur capturée :", err.message);
+} finally {
+    console.log("Nettoyage : fermer les ressources, cacher loader...");
+}</code></pre>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                                <span class="font-bold text-green-700">🌿 Utilité</span>
+                                <ul class="list-disc ml-5 text-sm mt-1">
+                                    <li>Fermer des connexions</li>
+                                    <li>Cacher des indicateurs de chargement</li>
+                                    <li>Libérer de la mémoire</li>
+                                </ul>
+                            </div>
+                            <div class="bg-slate-100 p-3 rounded-lg">
+                                <span class="font-bold">💬 Remarque :</span> Même si <code>return</code> est dans try ou catch, finally s'exécute avant la sortie.
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 4 : throw erreurs personnalisées
+                title: "⚠️ Lever des erreurs avec throw",
+                content: `
+                    <div class="space-y-5">
+                        <p>Parfois, nous voulons créer nos propres erreurs pour signaler des situations anormales (validation, logique métier). On utilise <code class="font-mono bg-gray-100 px-1 rounded">throw</code>.</p>
+                        <pre class="p-4"><code>function diviser(a, b) {
+    if (b === 0) {
+        throw new Error("Division par zéro impossible !");
+    }
+    return a / b;
+}
+
+try {
+    let resultat = diviser(10, 0);
+    console.log(resultat);
+} catch (err) {
+    console.log("Oops :", err.message);
+}</code></pre>
+                        <div class="bg-indigo-50 rounded-xl p-4">
+                            <p class="font-semibold">🎨 Types d'erreurs possibles :</p>
+                            <ul class="grid grid-cols-2 gap-1 mt-2 text-sm">
+                                <li>• <code>Error</code> (générique)</li>
+                                <li>• <code>TypeError</code></li>
+                                <li>• <code>SyntaxError</code></li>
+                                <li>• <code>RangeError</code></li>
+                            </ul>
+                            <p class="mt-2 text-gray-600">On peut aussi créer des classes d'erreur personnalisées.</p>
+                        </div>
+                        <div class="p-3 bg-gray-100 rounded-lg">
+                            <p class="text-sm">💡 <strong>Astuce :</strong> Utiliser <code>throw</code> pour interrompre le flux et déléguer la gestion au <code>catch</code> parent. Très utile dans les fonctions de validation.</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 5 : Exemple interactif mini simulateur
+                title: "🧪 Atelier interactif : validation de formulaire",
+                content: `
+                    <div class="space-y-5">
+                        <p>Imaginons un champ âge. On va utiliser <strong>try/catch + throw</strong> pour vérifier les données saisies.</p>
+                        <div id="demoErrorHandler" class="bg-white rounded-xl border p-4 shadow-sm">
+                            <label class="block font-medium text-gray-700">Âge (entre 1 et 120) :</label>
+                            <input type="number" id="ageInput" class="mt-1 block w-full border border-gray-300 rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="ex: 25">
+                            <button id="validateAgeBtn" class="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition">Valider l'âge</button>
+                            <div id="demoResult" class="mt-4 text-sm font-mono p-2 rounded bg-gray-50"></div>
+                        </div>
+                        <div class="text-sm text-gray-600 mt-2">
+                            ⚙️ Le script vérifie si l'âge est valide; sinon <code>throw</code> une erreur personnalisée, attrapée par <code>try...catch</code>. 
+                            <br> + affichage dans la zone démo.
+                        </div>
+                        <details class="cursor-pointer bg-gray-100 p-2 rounded-lg">
+                            <summary class="font-semibold">🔍 Voir le code utilisé dans cet exemple</summary>
+                            <pre class="text-xs mt-2 p-2 overflow-auto"><code>document.getElementById("validateAgeBtn").onclick = function() {
+    const ageInput = document.getElementById("ageInput");
+    const age = parseInt(ageInput.value);
+    const resultDiv = document.getElementById("demoResult");
+    try {
+        if (isNaN(age)) throw new Error("Veuillez entrer un nombre valide.");
+        if (age < 1 || age > 120) throw new Error("L'âge doit être entre 1 et 120 ans.");
+        resultDiv.innerHTML = "✅ Âge valide : " + age + " ans. Traitement réussi !";
+        resultDiv.className = "mt-4 text-sm p-2 bg-green-100 text-green-800 rounded";
+    } catch (err) {
+        resultDiv.innerHTML = "❌ Erreur : " + err.message;
+        resultDiv.className = "mt-4 text-sm p-2 bg-red-100 text-red-700 rounded";
+    } finally {
+        console.log("Validation terminée (finally toujours appelé)");
+    }
+};</code></pre>
+                        </details>
+                    </div>
+                `
+            },
+            { // slide 6 : résumé et bonnes pratiques
+                title: "📌 Récapitulatif & bonnes pratiques",
+                content: `
+                    <div class="space-y-5">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-white border rounded-xl p-4 shadow-sm">
+                                <h4 class="font-bold text-indigo-700 flex items-center gap-2">✅ Bonnes pratiques</h4>
+                                <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+                                    <li>Ne jamais laisser une erreur non gérée côté utilisateur.</li>
+                                    <li>Utiliser try/catch autour des appels <code>fetch()</code> ou <code>JSON.parse()</code>.</li>
+                                    <li>Dans catch, afficher un message compréhensible.</li>
+                                    <li>Ne pas utiliser <code>catch</code> vide (cache les bugs).</li>
+                                    <li>finally pour libérer les ressources.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-indigo-50 border rounded-xl p-4">
+                                <h4 class="font-bold text-indigo-800">🧠 Synthèse</h4>
+                                <p><code>try { ... } catch(erreur) { ... } finally { ... }</code></p>
+                                <p><code>throw new Error("message")</code> → crée une exception.</p>
+                                <p class="mt-2 text-sm">Ces outils permettent de développer des applications <strong>résilientes</strong> et agréables pour l'utilisateur.</p>
+                            </div>
+                        </div>
+                        <div class="border-t pt-4 mt-2 text-center text-gray-500 text-sm">
+                            ⭐ Exercice personnel : écrivez une fonction qui prend un email et lève une erreur si le format est invalide (sans @ par exemple). Gérez l'appel avec try/catch.
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlide = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour mettre à jour l'affichage du slide
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            const html = `
+                <div class="prose prose-lg max-w-none text-gray-800">
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-900 border-b pb-2 mb-5 flex items-center gap-2">${slide.title}</h2>
+                    <div class="content-slide">
+                        ${slide.content}
+                    </div>
+                </div>
+            `;
+            $("#slideContent").fadeOut(150, function() {
+                $(this).html(html);
+                $(this).fadeIn(200);
+            });
+            // Mise à jour du compteur
+            $("#slideCounter").text(`Slide ${index+1} / ${totalSlides}`);
+
+            // Mise à jour des dots actifs
+            updateDots(index);
+
+            // Gérer état boutons
+            $("#prevSlide").prop("disabled", index === 0);
+            $("#nextSlide").prop("disabled", index === totalSlides - 1);
+        }
+
+        // Génération des points de navigation (dots)
+        function generateDots() {
+            const dotContainer = $("#dotNav");
+            dotContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = $(`<button class="w-2.5 h-2.5 rounded-full mx-1 transition-all duration-200 focus:outline-none" data-slide-index="${i}"></button>`);
+                dotContainer.append(dot);
+            }
+            updateDots(currentSlide);
+            // gestionnaire click sur dots
+            $("[data-slide-index]").on("click", function() {
+                const idx = parseInt($(this).data("slide-index"));
+                if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                    currentSlide = idx;
+                    renderSlide(currentSlide);
+                }
+            });
+        }
+
+        function updateDots(activeIdx) {
+            $("[data-slide-index]").each(function(idx, el) {
+                const $el = $(el);
+                if (idx === activeIdx) {
+                    $el.removeClass("bg-gray-300 bg-indigo-600").addClass("bg-indigo-600 w-3 h-3");
+                } else {
+                    $el.removeClass("bg-indigo-600 w-3 h-3").addClass("bg-gray-300 w-2.5 h-2.5");
+                }
+            });
+        }
+
+        // navigation événements
+        function initNavigation() {
+            $("#prevSlide").on("click", function() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    renderSlide(currentSlide);
+                }
+            });
+            $("#nextSlide").on("click", function() {
+                if (currentSlide < totalSlides - 1) {
+                    currentSlide++;
+                    renderSlide(currentSlide);
+                }
+            });
+        }
+
+        // initialisation de l'exemple interactif slide5 (l'éditeur dynamique après chaque render ? 
+        // Mais on va attacher un événement via délégation car l'élément est recréé. 
+        // On utilise un événement fixe sur document prêt ou après render slide5 spécifiquement.
+        function bindInteractiveDemo() {
+            // on écoute au niveau du document pour les éléments qui apparaissent après render
+            $(document).off("click", "#validateAgeBtn").on("click", "#validateAgeBtn", function() {
+                const ageVal = $("#ageInput").val();
+                const ageNum = parseInt(ageVal, 10);
+                const $result = $("#demoResult");
+                if (!$result.length) return;
+                try {
+                    if (isNaN(ageNum)) throw new Error("Veuillez entrer un nombre valide.");
+                    if (ageNum < 1 || ageNum > 120) throw new Error("L'âge doit être compris entre 1 et 120 ans.");
+                    $result.html(`✅ Âge valide : ${ageNum} ans. Traitement réussi !`);
+                    $result.removeClass("bg-red-100 text-red-700").addClass("bg-green-100 text-green-800");
+                } catch (err) {
+                    $result.html(`❌ Erreur : ${err.message}`);
+                    $result.removeClass("bg-green-100 text-green-800").addClass("bg-red-100 text-red-700");
+                } finally {
+                    console.log("Validation terminée dans l'exemple (finally appelé)");
+                }
+            });
+        }
+
+        // également on vérifie que lorsque le slide 5 est affiché, on reset le champ
+        // On surcharge renderSlide pour déclencher un callback post-render
+        const originalRender = renderSlide;
+        window.renderSlide = function(index) {
+            originalRender(index);
+            if (index === 5) {
+                // reset zone demo
+                if ($("#demoResult").length) {
+                    $("#demoResult").html("En attente de validation...").removeClass("bg-red-100 bg-green-100 text-green-800 text-red-700").addClass("bg-gray-50 text-gray-600");
+                    $("#ageInput").val("");
+                }
+            }
+        };
+        renderSlide = window.renderSlide;
+        
+        // Lancement
+        $(function() {
+            generateDots();
+            initNavigation();
+            bindInteractiveDemo();
+            renderSlide(0);  // slide titre
+        });
+    </script>
+</body>
+</html>

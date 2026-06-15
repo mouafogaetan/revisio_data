@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS E-commerce - Suivi et annulation des commandes</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f0fdf4;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            scroll-behavior: smooth;
+        }
+        .slide {
+            scroll-snap-align: start;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .btn-nav {
+            background-color: #166534;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-prev {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-prev:hover {
+            background-color: #cbd5e1;
+        }
+        .btn-next:hover {
+            background-color: #14532d;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-paid { background: #dbeafe; color: #1e40af; }
+        .status-shipped { background: #cffafe; color: #0e7490; }
+        .status-delivered { background: #dcfce7; color: #166534; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        @media (max-width: 640px) {
+            .slide { padding: 0.8rem; align-items: flex-start; }
+            .card { border-radius: 1.5rem; }
+            .code-block { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide" id="slide1">
+        <div class="card max-w-4xl w-full p-6 md:p-10 text-center bg-white">
+            <div class="inline-block bg-green-100 text-green-800 px-4 py-1 rounded-full text-sm font-semibold">📦 Commandes · NestJS + TypeORM</div>
+            <h1 class="text-4xl md:text-6xl font-extrabold mt-6 bg-gradient-to-r from-slate-800 to-green-700 bg-clip-text text-transparent">Suivi et annulation des commandes</h1>
+            <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Récupérer l’historique, suivre le statut, annuler et restaurer les stocks</p>
+            <div class="mt-6 flex justify-center gap-2 flex-wrap">
+                <span class="status-badge status-pending">pending</span>
+                <span class="status-badge status-paid">paid</span>
+                <span class="status-badge status-shipped">shipped</span>
+                <span class="status-badge status-delivered">delivered</span>
+                <span class="status-badge status-cancelled">cancelled</span>
+            </div>
+            <div class="mt-10">
+                <div class="btn-nav btn-next mx-auto w-fit" data-next="slide2">Démarrer la leçon →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide" id="slide2">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-5">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-3 text-gray-700 text-lg">
+                <li class="flex gap-3"><span>✅</span> <strong>Récupérer</strong> l’historique des commandes d’un utilisateur (avec pagination, filtres).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Implémenter</strong> le suivi du statut avec une timeline (dates de transition).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Permettre</strong> l’annulation d’une commande (si statut non expédié) et restituer les stocks.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Sécuriser</strong> les opérations avec des règles métier claires.</li>
+            </ul>
+            <div class="mt-8 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide1">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide3">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : RÉCUPÉRER LES COMMANDES D'UN UTILISATEUR -->
+    <div class="slide" id="slide3">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">📋 Récupérer l’historique des commandes</h2>
+            <p class="mb-3">Endpoint <code>GET /orders/my-orders</code> (authentifié) retourne les commandes de l’utilisateur connecté.</p>
+            <div class="code-block text-sm">
+                // order.controller.ts<br>
+                @Get('my-orders')<br>
+                @UseGuards(JwtAuthGuard)<br>
+                async getUserOrders(@Req() req, @Query() paginationDto: PaginationDto) {<br>
+                &nbsp;&nbsp;return this.orderService.findByUser(req.user.id, paginationDto);<br>
+                }<br><br>
+                // order.service.ts<br>
+                async findByUser(userId: number, { page, limit }: PaginationDto) {<br>
+                &nbsp;&nbsp;const [orders, total] = await this.orderRepo.findAndCount({<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;where: { user: { id: userId } },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;relations: ['items', 'items.product'],<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;order: { createdAt: 'DESC' },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;skip: (page - 1) * limit, take: limit<br>
+                &nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;return { data: orders, total, page, limit };<br>
+                }
+            </div>
+            <p class="text-sm italic mt-3">📌 On inclut les items et le produit pour afficher les détails de la commande.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide2">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide4">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4 : SUIVI DU STATUT AVEC TIMELINE -->
+    <div class="slide" id="slide4">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">⏱️ Timeline des statuts</h2>
+            <p class="mb-3">Ajouter des champs de date pour chaque transition de statut dans l’entité <code>Order</code> :</p>
+            <div class="code-block text-sm">
+                @Entity()<br>
+                export class Order {<br>
+                &nbsp;&nbsp;@Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })<br>
+                &nbsp;&nbsp;status: OrderStatus;<br>
+                &nbsp;&nbsp;@Column({ nullable: true }) paidAt: Date;<br>
+                &nbsp;&nbsp;@Column({ nullable: true }) shippedAt: Date;<br>
+                &nbsp;&nbsp;@Column({ nullable: true }) deliveredAt: Date;<br>
+                &nbsp;&nbsp;@Column({ nullable: true }) cancelledAt: Date;<br>
+                }<br><br>
+                // Méthode de transition<br>
+                async transitionTo(status: OrderStatus) {<br>
+                &nbsp;&nbsp;this.status = status;<br>
+                &nbsp;&nbsp;if (status === 'paid') this.paidAt = new Date();<br>
+                &nbsp;&nbsp;if (status === 'shipped') this.shippedAt = new Date();<br>
+                &nbsp;&nbsp;if (status === 'delivered') this.deliveredAt = new Date();<br>
+                &nbsp;&nbsp;if (status === 'cancelled') this.cancelledAt = new Date();<br>
+                &nbsp;&nbsp;await this.save();<br>
+                }
+            </div>
+            <div class="mt-3 bg-gray-50 p-3 rounded-lg text-sm">
+                💡 <strong>Timeline retournée au client :</strong> { pending: "2025-01-01", paid: "2025-01-01", shipped: "2025-01-03", delivered: null }
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide3">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide5">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : ANNULATION DE COMMANDE -->
+    <div class="slide" id="slide5">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">❌ Annulation d’une commande</h2>
+            <p class="mb-2">Règles métier : seule une commande avec statut <code>pending</code> ou <code>paid</code> (non expédiée) peut être annulée. L’annulation doit restituer les stocks.</p>
+            <div class="code-block text-sm">
+                async cancelOrder(orderId: number, userId: number) {<br>
+                &nbsp;&nbsp;const order = await this.orderRepo.findOne({<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;where: { id: orderId, user: { id: userId } },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;relations: ['items', 'items.product']<br>
+                &nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;if (!order) throw new NotFoundException();<br>
+                &nbsp;&nbsp;if (order.status === 'shipped' || order.status === 'delivered') {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;throw new BadRequestException('Commande déjà expédiée, annulation impossible');<br>
+                &nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;// Restituer les stocks<br>
+                &nbsp;&nbsp;for (const item of order.items) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;item.product.stock += item.quantity;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;await this.productRepo.save(item.product);<br>
+                &nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;order.status = 'cancelled';<br>
+                &nbsp;&nbsp;order.cancelledAt = new Date();<br>
+                &nbsp;&nbsp;return this.orderRepo.save(order);<br>
+                }
+            </div>
+            <p class="text-sm text-gray-600 mt-2">⚠️ Si le paiement a déjà été effectué, il faut aussi déclencher un remboursement via Stripe/PayPal.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide4">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide6">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : GESTION DU REMBOURSEMENT -->
+    <div class="slide" id="slide6">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">💰 Remboursement après annulation</h2>
+            <p class="mb-3">Si la commande était déjà payée, on doit rembourser l’utilisateur via le fournisseur de paiement.</p>
+            <div class="code-block text-sm">
+                async refundOrder(order: Order) {<br>
+                &nbsp;&nbsp;if (order.paymentIntentId && order.status === 'paid') {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;await this.stripeService.refund(order.paymentIntentId);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;order.refundedAt = new Date();<br>
+                &nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;return order;<br>
+                }
+            </div>
+            <div class="mt-4 bg-amber-50 p-3 rounded-xl">
+                <p class="font-semibold">✨ Bonne pratique :</p>
+                <p class="text-sm">Utiliser une <strong>transaction</strong> pour regrouper : restitution des stocks + mise à jour statut + remboursement (appel API externe). En cas d’échec, tout est annulé.</p>
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide5">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide7">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : FILTRES & TRI DES COMMANDES -->
+    <div class="slide" id="slide7">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">🔍 Filtres et tri avancés</h2>
+            <p class="mb-2">Permettre à l’utilisateur de filtrer ses commandes par statut, période de date, etc.</p>
+            <div class="code-block text-sm">
+                // OrderFilterDto<br>
+                export class OrderFilterDto {<br>
+                &nbsp;&nbsp;@IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;<br>
+                &nbsp;&nbsp;@IsOptional() @IsDateString() startDate?: string;<br>
+                &nbsp;&nbsp;@IsOptional() @IsDateString() endDate?: string;<br>
+                &nbsp;&nbsp;@IsOptional() @IsString() sortBy?: 'createdAt' | 'total';<br>
+                &nbsp;&nbsp;@IsOptional() @IsIn(['ASC', 'DESC']) order?: 'ASC' | 'DESC';<br>
+                }<br><br>
+                // Construction dynamique du where<br>
+                const where: any = { user: { id: userId } };<br>
+                if (status) where.status = status;<br>
+                if (startDate && endDate) {<br>
+                &nbsp;&nbsp;where.createdAt = Between(new Date(startDate), new Date(endDate));<br>
+                }
+            </div>
+            <p class="text-sm text-gray-600 mt-2">📌 Le frontend peut ainsi proposer un tableau de bord personnalisé.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide6">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide8">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8 : RÉSUMÉ + EXERCICE PRATIQUE -->
+    <div class="slide" id="slide8">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-green-600 pl-5 mb-4">📌 Récapitulons</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">📋 <strong>GET /my-orders</strong> : historique paginé</div>
+                <div class="bg-gray-50 p-3 rounded-lg">⏱️ <strong>Timeline</strong> : champs paidAt, shippedAt, deliveredAt</div>
+                <div class="bg-gray-50 p-3 rounded-lg">❌ <strong>Annulation</strong> : status ≠ shipped/delivered + restitution stock</div>
+                <div class="bg-gray-50 p-3 rounded-lg">💰 <strong>Remboursement</strong> via Stripe/PayPal si payé</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔍 <strong>Filtres</strong> : statut, période, tri</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🛡️ <strong>Sécurité</strong> : l’utilitaire ne voit que ses propres commandes</div>
+            </div>
+            <div class="mt-6 p-4 border-2 border-dashed border-green-200 rounded-xl">
+                <p class="font-bold">🧪 Exercice :</p>
+                <p class="text-sm">Un client a passé une commande le 10 mars (statut "paid"). Le 12 mars, il demande l’annulation car il a changé d’avis. Le produit (stock initial 5, quantité commandée 2) n’a pas encore été expédié.</p>
+                <p class="text-sm mt-2">Décrivez les étapes techniques que l’API doit exécuter (séquences, transactions, appels externes).</p>
+                <details class="mt-2 text-xs text-gray-600">
+                    <summary>🔍 Voir solution</summary>
+                    <p>1. Vérifier que la commande existe et appartient bien à l’utilisateur.<br>
+                    2. Vérifier que status = 'paid' (non expédié).<br>
+                    3. Démarrer une transaction.<br>
+                    4. Restituer le stock : product.stock += 2 (5 → 7).<br>
+                    5. Appeler Stripe pour remboursement (refund).<br>
+                    6. Mettre à jour order.status = 'cancelled', cancelledAt = now.<br>
+                    7. Commiter la transaction. Si une étape échoue, tout est annulé.</p>
+                </details>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide7">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide1">⟳ Recommencer</div>
+            </div>
+            <p class="text-center text-xs text-gray-400 mt-4">Fin de la leçon — Gérez le cycle de vie des commandes comme un pro !</p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('.btn-next').on('click', function() {
+        let target = $(this).data('next');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+    $('.btn-prev').on('click', function() {
+        let target = $(this).data('prev');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Navigation au clavier (flèches)
+    $(document).on('keydown', function(e) {
+        let slides = $('.slide');
+        let current = -1;
+        for (let i = 0; i < slides.length; i++) {
+            let rect = slides[i][0].getBoundingClientRect();
+            if (rect.top >= -50 && rect.top <= window.innerHeight/2) {
+                current = i;
+                break;
+            }
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            if (current < slides.length-1) slides[current+1][0].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            if (current > 0) slides[current-1][0].scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
+</body>
+</html>

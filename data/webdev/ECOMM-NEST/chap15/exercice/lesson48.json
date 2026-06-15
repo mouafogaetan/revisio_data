@@ -1,0 +1,151 @@
+[
+  {
+    "intitule": "Configuration de l'environnement de test automatisé",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans le cadre du développement de l'API e-commerce avec NestJS, vous devez mettre en place un pipeline d'intégration continue (CI) qui exécute automatiquement les tests à chaque push sur la branche principale. Votre équipe utilise GitHub Actions.</p><p>Le fichier de configuration suivant est proposé :</p><pre><code>name: CI Tests\non: [push, pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - name: Use Node.js\n        uses: actions/setup-node@v3\n        with:\n          node-version: '18'\n      - run: npm ci\n      - run: npm run test:cov</code></pre><p><strong>Question :</strong> Que se passe-t-il si le taux de couverture des tests descend en dessous de 80% ? Comment modifier ce pipeline pour bloquer le déploiement si la couverture n'atteint pas le seuil requis ?</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le comportement actuel du pipeline et proposer une modification pour imposer un seuil minimal de 80% de couverture.",
+        "niveau": "medium",
+        "reponse": "Le pipeline actuel exécute `npm run test:cov` qui génère un rapport de couverture, mais ne bloque pas le build si le seuil n'est pas atteint. Pour imposer un seuil de 80%, il faut modifier le script `test:cov` dans le `package.json` en ajoutant `--coverageThreshold='{\"global\":{\"branches\":80,\"functions\":80,\"lines\":80,\"statements\":80}}'` ou créer un fichier `jest.config.js` avec l'option `coverageThreshold`. Une alternative est d'utiliser `npm run test:cov -- --coverageThreshold=80` et de faire échouer le pipeline si le seuil n'est pas atteint.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Déploiement sécurisé sur VPS avec migration automatique",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes responsable du déploiement de l'API e-commerce sur un VPS (DigitalOcean/Scaleway). L'application utilise NestJS, PostgreSQL et Redis. Une stratégie de déploiement doit être définie pour garantir zéro temps d'arrêt (zero-downtime) et l'exécution automatique des migrations de base de données.</p><p>Schéma de l'architecture cible :</p><p><img src=\"\" alt=\"Architecture déploiement VPS avec Nginx reverse proxy, application Node.js, PostgreSQL et Redis, montrant le flux de mise à jour blue-green\"></p>",
+      "images": [
+        "Diagramme d'architecture de déploiement sur VPS avec Nginx, application NestJS, PostgreSQL et Redis, illustrant une stratégie blue-green ou canary"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes nécessaires pour mettre en place un déploiement avec migration automatique et zéro temps d'arrêt.",
+        "niveau": "hard",
+        "reponse": "Les étapes sont : 1) Créer un script de déploiement (ex: deploy.sh) qui clone la nouvelle version, 2) Exécuter les tests en CI, 3) Arrêter l'ancienne instance, 4) Exécuter les migrations de base de données (`npm run migration:run`), 5) Démarrer la nouvelle instance, 6) Utiliser un reverse proxy (Nginx) avec health check pour basculer le trafic. Pour zero-downtime, on peut utiliser une stratégie blue-green : deux environnements (bleu actif, vert nouveau). On exécute les migrations (doivent être compatibles avec l'ancienne version), on déploie la nouvelle version sur l'environnement vert, on teste, puis on bascule le trafic via Nginx.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment garantir que les migrations SQL n'endommagent pas les données existantes lors d'un déploiement ?",
+            "niveau": "medium",
+            "reponse": "Les migrations doivent être non-destructives (ajout de colonnes nullable, création de nouvelles tables, ne pas supprimer ou renommer des colonnes sans période de transition). Utiliser des migrations progressives : d'abord ajouter les nouvelles colonnes, déployer l'application, puis dans une migration ultérieure supprimer les anciennes colonnes. Les migrations sont exécutées avant le démarrage de la nouvelle version de l'application."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse des logs et surveillance d'erreurs avec Sentry",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'API e-commerce est en production et vous recevez des rapports d'erreurs intermittentes. Vous avez intégré Sentry pour la surveillance des erreurs et Winston pour les logs structurés.</p><p>Extrait d'une erreur remontée dans Sentry :</p><pre><code>TypeError: Cannot read property 'price' of undefined\n    at OrderService.calculateTotal (order.service.ts:45)\n    at processTicksAndRejections (internal/process/task_queues.js:95)\n    at OrderController.create (order.controller.ts:28)</code></pre><p><strong>Question :</strong> Expliquer la démarche à suivre pour diagnostiquer et résoudre cette erreur en utilisant les outils de logging et de surveillance.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une méthode de diagnostic et de correction pour l'erreur 'Cannot read property price of undefined'.",
+        "niveau": "medium",
+        "reponse": "1) Identifier dans Sentry le contexte de l'erreur (utilisateur, requête, paramètres). 2) Vérifier les logs Winston pour voir l'état des données avant l'erreur (ex: contenu du panier, produits associés). 3) Analyser la ligne 45 du fichier order.service.ts : probablement un accès à `item.price` alors que `item` est undefined. 4) Corriger en ajoutant une validation : si l'item ou le produit associé est manquant, lever une exception claire ou ignorer l'item. 5) Ajouter des tests unitaires couvrant le cas où un produit est supprimé après ajout au panier. 6) Déployer le correctif et surveiller Sentry pour confirmer la résolution.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Automatisation du déploiement continu avec GitHub Actions",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez créer un pipeline CI/CD complet pour l'API e-commerce. Les exigences sont :</p><ul><li>Exécution des tests unitaires et d'intégration à chaque pull request</li><li>Déploiement automatique sur l'environnement de staging après validation des tests sur la branche 'develop'</li><li>Déploiement sur production après un tag git (ex: v1.0.0)</li><li>Exécution des migrations de base de données avant chaque déploiement</li></ul><p><strong>Question :</strong> Rédiger un fichier YAML pour GitHub Actions (ou un script équivalent) qui implémente ce pipeline.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir un workflow CI/CD complet répondant aux exigences ci-dessus.",
+        "niveau": "hard",
+        "reponse": "Le workflow doit comporter plusieurs jobs ou un workflow avec conditions :\n- Job 'test' : s'exécute sur push et pull_request, exécute `npm ci`, `npm run test`, `npm run test:e2e`, `npm run test:cov`.\n- Job 'deploy-staging' : déclenché sur push vers 'develop' après succès des tests, avec `if: github.ref == 'refs/heads/develop'`. Étapes : checkout, configuration SSH, exécution de `npm run migration:run` sur la base staging, puis déploiement via rsync ou scp.\n- Job 'deploy-prod' : déclenché sur création d'un tag avec pattern 'v*'. Étapes similaires mais sur environnement de production, avec validation manuelle (environnement de protection GitHub).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment gérer les secrets (variables d'environnement, clés SSH) dans ce pipeline ?",
+            "niveau": "easy",
+            "reponse": "Les secrets doivent être stockés dans GitHub Secrets (Settings → Secrets and variables → Actions). Ils sont accessibles dans le workflow via `${{ secrets.NOM_DU_SECRET }}`. Exemples : `${{ secrets.SSH_PRIVATE_KEY }}`, `${{ secrets.DB_PASSWORD }}`. Ne jamais les écrire en clair dans le fichier YAML."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Migration de base de données en production",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter une nouvelle colonne `discount_percentage` à la table `products` d'une base de données PostgreSQL en production. Cette colonne doit avoir une valeur par défaut de 0 et ne doit pas être nullable.</p><p><strong>Question :</strong> Rédiger la commande de migration TypeORM et expliquer les précautions à prendre avant de l'exécuter en production.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer la migration TypeORM et décrire le processus sécurisé d'application en production.",
+        "niveau": "medium",
+        "reponse": "Migration TypeORM : `typeorm migration:create -n AddDiscountToProducts` avec le contenu :\n```typescript\npublic async up(queryRunner: QueryRunner): Promise<void> {\n  await queryRunner.query(`ALTER TABLE \"products\" ADD \"discount_percentage\" integer NOT NULL DEFAULT 0`);\n}\npublic async down(queryRunner: QueryRunner): Promise<void> {\n  await queryRunner.query(`ALTER TABLE \"products\" DROP COLUMN \"discount_percentage\"`);\n}\n```\nPrécautions : 1) Sauvegarder la base de données, 2) Tester la migration sur un environnement de staging identique, 3) Exécuter pendant une faible activité, 4) Avoir un plan de rollback (migration down), 5) Utiliser `migration:run` en mode transactionnel, 6) Vérifier l'impact sur les requêtes existantes, 7) Mettre à jour les DTOs et entités NestJS.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Surveillance des performances avec PM2 en production",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'API e-commerce tourne en production sur un VPS géré avec PM2. Vous remarquez des temps de réponse élevés pendant les heures de pointe (soldes, black friday).</p><p><strong>Question :</strong> Décrire comment configurer PM2 pour :</p><ul><li>Lancer l'application en mode cluster (utilisation de tous les cœurs CPU)</li><li>Mettre en place une surveillance des métriques (CPU, mémoire, latence)</li><li>Redémarrer automatiquement l'application en cas de crash</li><li>Configurer un mécanisme de logging avancé</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Fournir la configuration PM2 (fichier ecosystem.config.js) répondant aux exigences de scalabilité et de surveillance.",
+        "niveau": "medium",
+        "reponse": "Fichier `ecosystem.config.js` :\n```javascript\nmodule.exports = {\n  apps: [{\n    name: 'ecommerce-api',\n    script: 'dist/main.js',\n    instances: 'max',      // Utilise tous les cœurs CPU\n    exec_mode: 'cluster',\n    watch: false,\n    max_memory_restart: '1G',\n    autorestart: true,\n    error_file: './logs/pm2-error.log',\n    out_file: './logs/pm2-out.log',\n    log_file: './logs/combined.log',\n    time: true,\n    env: {\n      NODE_ENV: 'production',\n    },\n    // Métriques avancées\n    metrics: {\n      cpu: true,\n      memory: true,\n      http: true\n    }\n  }]\n};\n```\nPour la surveillance : `pm2 monit` (terminal) ou `pm2 plus` (solution commerciale). Utiliser `pm2-logrotate` pour gérer la rotation des logs.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment automatiser le redémarrage de PM2 au démarrage du système ?",
+            "niveau": "easy",
+            "reponse": "Utiliser `pm2 startup` pour générer un script d'init systemd, puis `pm2 save` pour sauvegarder la liste des processus. La commande `pm2 startup systemd -u [user] --hp [home]` configure le redémarrage automatique après un reboot du serveur."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Tests de charge et benchmark avant mise en production",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Avant le lancement officiel de la plateforme e-commerce, vous devez effectuer des tests de charge pour valider que l'API peut supporter <strong>1000 requêtes par seconde</strong> sur l'endpoint de catalogue de produits.</p><p><strong>Question :</strong> Concevoir un plan de test de charge en utilisant un outil comme Artillery, k6 ou JMeter. Décrire les métriques critiques à surveiller et interpréter les résultats suivants :</p><pre><code>--------------------------------\n  📈 Requests completed: 8500\n  📉 Requests failed: 1500 (15%)\n  ⏱️ p95 response time: 3200ms\n  💥 Error rate: 15%\n  🧠 CPU usage moyenne: 95%\n  💾 Memory usage: 85%</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analyser les résultats du test et proposer des optimisations pour atteindre l'objectif de 1000 req/s avec moins de 1% d'erreurs et un p95 < 500ms.",
+        "niveau": "hard",
+        "reponse": "Les résultats montrent une surcharge : 15% d'échecs, latence élevée (3.2s), CPU saturé (95%). L'objectif n'est pas atteint. Optimisations possibles :\n1) Mettre en place un cache Redis sur l'endpoint GET /products (réduction de charge DB)\n2) Augmenter le nombre d'instances PM2 (mode cluster) ou horizontal scaling avec load balancer\n3) Optimiser les requêtes SQL (indexes sur les colonnes de recherche/filtre)\n4) Implémenter la pagination et limiter les résultats par page\n5) Utiliser un CDN pour les images produits\n6) Revoir les appels N+1 dans TypeORM (relations eager loading)\n7) Augmenter les ressources du VPS (CPU, RAM)\nAprès optimisations, re-exécuter le test avec montée en charge progressive (ramp-up) pour identifier le point de rupture.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

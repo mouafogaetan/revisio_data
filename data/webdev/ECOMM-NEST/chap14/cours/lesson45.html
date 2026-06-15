@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS E-commerce - Administration utilisateurs</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            scroll-behavior: smooth;
+        }
+        .slide {
+            scroll-snap-align: start;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .btn-nav {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-prev {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-prev:hover {
+            background-color: #cbd5e1;
+        }
+        .btn-next:hover {
+            background-color: #1e2b6e;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        .role-badge {
+            display: inline-block;
+            padding: 0.2rem 0.7rem;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .role-admin { background: #fee2e2; color: #991b1b; }
+        .role-seller { background: #fef3c7; color: #92400e; }
+        .role-customer { background: #dcfce7; color: #166534; }
+        @media (max-width: 640px) {
+            .slide { padding: 0.8rem; align-items: flex-start; }
+            .card { border-radius: 1.5rem; }
+            .code-block { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide" id="slide1">
+        <div class="card max-w-4xl w-full p-6 md:p-10 text-center bg-white">
+            <div class="inline-block bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-semibold">👑 Interface Admin · NestJS</div>
+            <h1 class="text-4xl md:text-6xl font-extrabold mt-6 bg-gradient-to-r from-slate-800 to-blue-700 bg-clip-text text-transparent">Gestion des utilisateurs (Admin)</h1>
+            <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Lister, bloquer, supprimer, changer les rôles, consulter l’historique des commandes</p>
+            <div class="mt-6 flex justify-center gap-2 flex-wrap">
+                <span class="role-badge role-admin">🔴 Admin</span>
+                <span class="role-badge role-seller">🟠 Vendeur</span>
+                <span class="role-badge role-customer">🟢 Client</span>
+            </div>
+            <div class="mt-10">
+                <div class="btn-nav btn-next mx-auto w-fit" data-next="slide2">Démarrer la leçon →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide" id="slide2">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-5">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-3 text-gray-700 text-lg">
+                <li class="flex gap-3"><span>✅</span> <strong>Lister</strong> tous les utilisateurs (admin uniquement) avec pagination et filtres.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Bloquer</strong> un compte utilisateur (sans suppression définitive).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Supprimer</strong> définitivement un compte (ou soft delete).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Changer les rôles</strong> (customer → seller, etc.).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Consulter</strong> l’historique des commandes d’un utilisateur.</li>
+            </ul>
+            <div class="mt-8 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide1">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide3">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : LISTER LES UTILISATEURS (ADMIN) -->
+    <div class="slide" id="slide3">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">📋 Lister tous les utilisateurs</h2>
+            <p class="mb-2">Endpoint protégé : <code>GET /admin/users</code>. Réservé aux administrateurs.</p>
+            <div class="code-block text-sm">
+                // users.controller.ts<br>
+                @Get('admin/users')<br>
+                @UseGuards(JwtAuthGuard, RolesGuard)<br>
+                @Roles('admin')<br>
+                async getAllUsers(@Query() paginationDto: PaginationDto) {<br>
+                &nbsp;&nbsp;return this.userService.findAll(paginationDto);<br>
+                }<br><br>
+                // user.service.ts<br>
+                async findAll({ page, limit }: PaginationDto) {<br>
+                &nbsp;&nbsp;const [users, total] = await this.userRepo.findAndCount({<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;skip: (page - 1) * limit,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;take: limit,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;select: ['id', 'email', 'firstName', 'lastName', 'isActive', 'roles'],<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;relations: ['roles']<br>
+                &nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;return { data: users, total, page, limit };<br>
+                }
+            </div>
+            <p class="text-sm italic mt-2">📌 On n’affiche jamais le mot de passe (même hashé) dans la liste.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide2">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide4">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4 : BLOQUER / DÉBLOQUER UN COMPTE -->
+    <div class="slide" id="slide4">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🔒 Bloquage temporaire d’un compte</h2>
+            <p class="mb-2">On ajoute une colonne <code>isActive</code> dans l’entité User. Un compte inactif ne peut pas se connecter.</p>
+            <div class="code-block text-sm">
+                // PATCH /admin/users/:id/block<br>
+                @Patch('admin/users/:id/block')<br>
+                @Roles('admin')<br>
+                async blockUser(@Param('id') id: number) {<br>
+                &nbsp;&nbsp;await this.userService.update(id, { isActive: false });<br>
+                &nbsp;&nbsp;return { message: 'Utilisateur bloqué' };<br>
+                }<br><br>
+                // PATCH /admin/users/:id/unblock<br>
+                async unblockUser(@Param('id') id: number) {<br>
+                &nbsp;&nbsp;await this.userService.update(id, { isActive: true });<br>
+                }
+            </div>
+            <div class="mt-3 bg-amber-50 p-2 rounded-lg text-sm">
+                💡 Dans le guard JWT, on vérifie aussi <code>user.isActive === true</code> pour refuser l’accès.
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide3">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide5">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : SUPPRIMER UN COMPTE (SOFT DELETE) -->
+    <div class="slide" id="slide5">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🗑️ Suppression de compte (soft delete)</h2>
+            <p class="mb-2">On utilise <code>@DeleteDateColumn()</code> pour marquer un utilisateur comme supprimé sans perdre l’historique des commandes.</p>
+            <div class="code-block text-sm">
+                // user.entity.ts<br>
+                @DeleteDateColumn()<br>
+                deletedAt: Date;<br><br>
+                // user.service.ts<br>
+                async softDelete(id: number) {<br>
+                &nbsp;&nbsp;await this.userRepo.softDelete(id);<br>
+                }<br><br>
+                // Dans les requêtes classiques, exclure les utilisateurs supprimés<br>
+                // TypeORM le fait automatiquement avec find()<br>
+                // Pour voir les supprimés : withDeleted()
+            </div>
+            <p class="text-sm text-gray-600 mt-2">📌 Avantages : conservation des commandes associées (pas d’erreur de clé étrangère), possibilité de restauration.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide4">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide6">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : CHANGER LES RÔLES -->
+    <div class="slide" id="slide6">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🔄 Changer les rôles (promouvoir client → vendeur)</h2>
+            <p class="mb-2">Les rôles sont stockés dans une entité <code>Role</code> avec relation ManyToMany. L’admin peut ajouter/supprimer des rôles.</p>
+            <div class="code-block text-sm">
+                // PATCH /admin/users/:id/roles<br>
+                async updateRoles(@Param('id') id: number, @Body() { roleNames }: { roleNames: string[] }) {<br>
+                &nbsp;&nbsp;const user = await this.userRepo.findOne({ where: { id }, relations: ['roles'] });<br>
+                &nbsp;&nbsp;const roles = await this.roleRepo.findBy({ name: In(roleNames) });<br>
+                &nbsp;&nbsp;user.roles = roles;<br>
+                &nbsp;&nbsp;await this.userRepo.save(user);<br>
+                }<br><br>
+                // Exemple : donner le rôle 'seller' à un client<br>
+                // { "roleNames": ["customer", "seller"] }
+            </div>
+            <div class="mt-3 bg-green-50 p-2 rounded-lg text-sm">
+                ✨ Important : on conserve le rôle <code>customer</code> même quand on ajoute <code>seller</code>.
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide5">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide7">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : HISTORIQUE DES COMMANDES D’UN UTILISATEUR -->
+    <div class="slide" id="slide7">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">📦 Voir l’historique des commandes</h2>
+            <p class="mb-2">L’admin peut consulter les commandes de n’importe quel utilisateur (pour support client).</p>
+            <div class="code-block text-sm">
+                // GET /admin/users/:id/orders<br>
+                @Get('admin/users/:id/orders')<br>
+                @Roles('admin')<br>
+                async getUserOrders(@Param('id') id: number, @Query() paginationDto: PaginationDto) {<br>
+                &nbsp;&nbsp;return this.orderService.findByUser(id, paginationDto);<br>
+                }<br><br>
+                // La méthode findByUser existe déjà (lesson21)<br>
+                // On peut ajouter des filtres : statut, période, etc.
+            </div>
+            <p class="text-sm italic mt-2">📌 Utile pour gérer les litiges, remboursements ou problèmes de livraison.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide6">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide8">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8 : RÉSUMÉ + EXERCICE -->
+    <div class="slide" id="slide8">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">📌 Récapitulons</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">👥 <strong>GET /admin/users</strong> : liste paginée</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔒 <strong>PATCH /admin/users/:id/block</strong> : isActive=false</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🗑️ <strong>DELETE /admin/users/:id</strong> : soft delete</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔄 <strong>PATCH /admin/users/:id/roles</strong> : changer les rôles</div>
+                <div class="bg-gray-50 p-3 rounded-lg">📦 <strong>GET /admin/users/:id/orders</strong> : historique commandes</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🛡️ <strong>Sécurité</strong> : RolesGuard + JwtAuthGuard</div>
+            </div>
+            <div class="mt-6 p-4 border-2 border-dashed border-blue-200 rounded-xl">
+                <p class="font-bold">🧪 Exercice :</p>
+                <p class="text-sm">Un vendeur se plaint qu’un client a posté un avis abusif. En tant qu’admin, vous devez :<br>
+                1. Bloquer temporairement le compte client.<br>
+                2. Consulter l’historique des commandes du client pour vérifier qu’il a bien acheté le produit.<br>
+                3. Supprimer l’avis incriminé (autre endpoint).<br>
+                Décrivez les appels API nécessaires.</p>
+                <details class="mt-2 text-xs text-gray-600">
+                    <summary>🔍 Voir solution</summary>
+                    <p>1. <code>PATCH /admin/users/123/block</code><br>
+                    2. <code>GET /admin/users/123/orders?productId=456</code> (ou filtrage côté backend)<br>
+                    3. <code>DELETE /admin/reviews/789</code> (avec permission admin)<br>
+                    Tous ces endpoints doivent être protégés par le rôle 'admin'.</p>
+                </details>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide7">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide1">⟳ Recommencer</div>
+            </div>
+            <p class="text-center text-xs text-gray-400 mt-4">Fin de la leçon — Gérez les utilisateurs de votre plateforme sereinement !</p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('.btn-next').on('click', function() {
+        let target = $(this).data('next');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+    $('.btn-prev').on('click', function() {
+        let target = $(this).data('prev');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Navigation au clavier
+    $(document).on('keydown', function(e) {
+        let slides = $('.slide');
+        let current = -1;
+        for (let i = 0; i < slides.length; i++) {
+            let rect = slides[i][0].getBoundingClientRect();
+            if (rect.top >= -50 && rect.top <= window.innerHeight/2) {
+                current = i;
+                break;
+            }
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            if (current < slides.length-1) slides[current+1][0].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            if (current > 0) slides[current-1][0].scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
+</body>
+</html>

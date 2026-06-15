@@ -1,0 +1,100 @@
+[
+  {
+    "intitule": "Calcul du panier : sous-total, taxes et frais de livraison",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce développée avec NestJS, vous devez implémenter la logique de calcul d'un panier d'achat. Le panier contient plusieurs articles (<code>CartItem</code>) avec chacun un produit, une quantité et un prix unitaire.</p><p>Règles métier :</p><ul><li>La TVA est de <strong>19,25%</strong> (taux applicable au Cameroun pour les biens électroniques)</li><li>Les frais de livraison sont de <strong>1500 FCFA</strong> si le sous-total est inférieur à <strong>25000 FCFA</strong>, sinon ils sont <strong>gratuits</strong></li><li>Un code promo peut donner une réduction de <strong>10%</strong> sur le sous-total (avant taxes)</li></ul><p>On vous fournit la structure suivante :</p><pre><code>interface CartItem {
+  productId: number;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+}
+
+interface Cart {
+  items: CartItem[];
+  promoCode?: string;
+}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculez le sous-total HT pour un panier contenant :<br>- 2 smartphones à 45000 FCFA chacun<br>- 3 coques à 2500 FCFA chacune",
+        "niveau": "easy",
+        "reponse": "Sous-total = (2 × 45000) + (3 × 2500) = 90000 + 7500 = 97500 FCFA",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Pour le panier de la question 1, déterminez :<br>a) Le montant de la TVA (19,25%)<br>b) Le total TTC<br>c) Les frais de livraison",
+        "niveau": "easy",
+        "reponse": "a) TVA = 97500 × 0,1925 = 18768,75 FCFA<br>b) Total TTC = 97500 + 18768,75 = 116268,75 FCFA<br>c) Frais de livraison = 0 FCFA (sous-total > 25000 FCFA, donc gratuit)",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez une méthode TypeScript `calculateCartTotals(cart: Cart): CartTotals` qui calcule et retourne :<br>- `subtotal` (sous-total HT)<br>- `discount` (réduction si code promo valide)<br>- `tax` (TVA)<br>- `shipping` (frais de livraison)<br>- `total` (total TTC final)",
+        "niveau": "hard",
+        "reponse": "```typescript\ninterface CartTotals {\n  subtotal: number;\n  discount: number;\n  tax: number;\n  shipping: number;\n  total: number;\n}\n\nfunction calculateCartTotals(cart: Cart): CartTotals {\n  const TAX_RATE = 0.1925;\n  const SHIPPING_THRESHOLD = 25000;\n  const SHIPPING_COST = 1500;\n  const PROMO_DISCOUNT_RATE = 0.10;\n\n  // Calcul du sous-total\n  const subtotal = cart.items.reduce(\n    (sum, item) => sum + (item.unitPrice * item.quantity),\n    0\n  );\n\n  // Application du code promo (si présent)\n  let discount = 0;\n  if (cart.promoCode === 'PROMO10') {\n    discount = subtotal * PROMO_DISCOUNT_RATE;\n  }\n\n  const afterDiscount = subtotal - discount;\n\n  // Calcul de la TVA\n  const tax = afterDiscount * TAX_RATE;\n\n  // Calcul des frais de livraison\n  const shipping = afterDiscount >= SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;\n\n  // Total final\n  const total = afterDiscount + tax + shipping;\n\n  return {\n    subtotal,\n    discount,\n    tax,\n    shipping,\n    total\n  };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Application des codes promo et frais de port pour une boutique camerounaise",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous développez l'API backend pour <strong>AfriShop</strong>, une plateforme e-commerce camerounaise spécialisée dans la vente de produits locaux (artisanat, alimentation, vêtements). Le client vous demande d'implémenter un système de calcul de panier qui gère :</p><ul><li><strong>Trois types de codes promo</strong> :<br>  - Type <code>PERCENT</code> : réduction de X% sur le sous-total<br>  - Type <code>FIXED</code> : réduction d'un montant fixe (en FCFA)<br>  - Type <code>FREE_SHIPPING</code> : offre les frais de livraison</li><li><strong>Conditions d'application</strong> :<br>  - Montant minimum d'achat (<code>minAmount</code>)<br>  - Validité temporelle (<code>validFrom</code>, <code>validUntil</code>)<br>  - Nombre maximal d'utilisations (<code>maxUses</code>)</li><li><strong>Frais de livraison</strong> :<br>  - Zone A (Douala, Yaoundé) : 1000 FCFA<br>  - Zone B (autres villes) : 2000 FCFA<br>  - Gratuit pour toute commande &gt; 50000 FCFA</li></ul>",
+      "images": [
+        "schéma des zones de livraison Cameroun avec Douala, Yaoundé et autres villes",
+        "diagramme de calcul du panier avec les différentes réductions et frais de port"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez l'entité TypeORM `Coupon` avec les propriétés nécessaires (type, valeur, conditions, validité, limites d'utilisation). Justifiez le choix des types de données.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Entity()\nexport class Coupon {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column({ unique: true })\n  code: string;\n\n  @Column({ type: 'enum', enum: ['PERCENT', 'FIXED', 'FREE_SHIPPING'] })\n  type: string;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })\n  value: number; // pourcentage ou montant fixe\n\n  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })\n  minAmount: number;\n\n  @Column({ type: 'timestamp' })\n  validFrom: Date;\n\n  @Column({ type: 'timestamp' })\n  validUntil: Date;\n\n  @Column({ default: 0 })\n  usageCount: number;\n\n  @Column({ nullable: true })\n  maxUses: number;\n\n  @Column({ default: true })\n  isActive: boolean;\n\n  @CreateDateColumn()\n  createdAt: Date;\n}\n```\nJustification : `decimal` pour les valeurs monétaires, `enum` pour les types de coupon, `timestamp` pour les dates de validité, compteurs d'utilisation pour limiter la promotion.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quelle serait la structure d'une table `Zones` pour gérer les frais de livraison ?",
+            "niveau": "easy",
+            "reponse": "```typescript\n@Entity()\nexport class ShippingZone {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column({ unique: true })\n  name: string; // 'Zone A', 'Zone B'\n\n  @Column('simple-array')\n  cities: string[]; // ['Douala', 'Yaoundé']\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  baseCost: number;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })\n  freeShippingThreshold: number;\n}\n```"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez la méthode `validateCoupon(coupon: Coupon, cartTotal: number, currentDate: Date): boolean` qui vérifie si un coupon est applicable (validité, montant minimum, limites d'utilisation).",
+        "niveau": "medium",
+        "reponse": "```typescript\nfunction validateCoupon(coupon: Coupon, cartTotal: number, currentDate: Date): boolean {\n  // Vérifier si le coupon est actif\n  if (!coupon.isActive) return false;\n\n  // Vérifier la période de validité\n  if (currentDate < coupon.validFrom || currentDate > coupon.validUntil) {\n    return false;\n  }\n\n  // Vérifier le montant minimum\n  if (coupon.minAmount && cartTotal < coupon.minAmount) {\n    return false;\n  }\n\n  // Vérifier la limite d'utilisation\n  if (coupon.maxUses && coupon.usageCount >= coupon.maxUses) {\n    return false;\n  }\n\n  return true;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez la méthode `calculateDiscountedTotal(subtotal: number, coupon: Coupon | null): { discount: number, newSubtotal: number }` qui applique la réduction selon le type de coupon.",
+        "niveau": "hard",
+        "reponse": "```typescript\nfunction calculateDiscountedTotal(\n  subtotal: number,\n  coupon: Coupon | null\n): { discount: number; newSubtotal: number } {\n  if (!coupon) {\n    return { discount: 0, newSubtotal: subtotal };\n  }\n\n  let discount = 0;\n  let newSubtotal = subtotal;\n\n  switch (coupon.type) {\n    case 'PERCENT':\n      discount = subtotal * (coupon.value / 100);\n      newSubtotal = subtotal - discount;\n      break;\n\n    case 'FIXED':\n      discount = Math.min(coupon.value, subtotal); // Ne pas dépasser le sous-total\n      newSubtotal = subtotal - discount;\n      break;\n\n    case 'FREE_SHIPPING':\n      // Pas de réduction sur le sous-total, discount = 0\n      discount = 0;\n      newSubtotal = subtotal;\n      break;\n  }\n\n  return { discount, newSubtotal };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Un client de Douala (Zone A) commande :<br>- 3 tableaux artisanaux à 12000 FCFA chacun<br>- 2 sacs en tissu à 8500 FCFA chacun<br>Il utilise un coupon <code>PROMO20</code> (20% de réduction) valide sans condition.<br><br>Calculez :<br>a) Le sous-total HT<br>b) La réduction<br>c) Le sous-total après réduction<br>d) La TVA (19,25%)<br>e) Les frais de livraison (Zone A)<br>f) Le total TTC à payer",
+        "niveau": "medium",
+        "reponse": "a) Sous-total = (3 × 12000) + (2 × 8500) = 36000 + 17000 = <strong>53000 FCFA</strong><br>b) Réduction 20% = 53000 × 0,20 = <strong>10600 FCFA</strong><br>c) Après réduction = 53000 - 10600 = <strong>42400 FCFA</strong><br>d) TVA = 42400 × 0,1925 = <strong>8162 FCFA</strong><br>e) Frais de livraison = <strong>0 FCFA</strong> (commande > 50000 FCFA avant réduction ? Attention : les règles disent \"commande > 50000 FCFA\" pour la gratuité. La commande avant réduction est 53000 > 50000 → livraison gratuite)<br>f) Total TTC = 42400 + 8162 + 0 = <strong>50562 FCFA</strong>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 5,
+        "texte": "Évaluez la pertinence d'utiliser le pattern <strong>Strategy</strong> pour implémenter les différentes stratégies de calcul (sous-total, réduction, livraison). Proposez un diagramme de classes simplifié.",
+        "niveau": "very hard",
+        "reponse": "Le pattern Strategy est très pertinent car :\n- Il permet d'encapsuler chaque algorithme (calcul de réduction, frais de livraison) dans sa propre classe\n- Il facilite l'ajout de nouveaux types de coupons ou de nouvelles zones sans modifier le code existant\n- Il respecte le principe Open/Closed (SOLID)\n\nDiagramme de classes :\n```\n┌─────────────────────┐\n│   DiscountStrategy  │\n│  ─────────────────  │\n│  + calculate()      │\n└──────────┬──────────┘\n           ▲\n           │\n┌──────────┴──────────┬─────────────────────┐\n│ PercentageDiscount  │ FixedDiscount       │ FreeShippingDiscount\n│  ─────────────────  │  ────────────────   │  ───────────────────\n│  + calculate()      │  + calculate()      │  + calculate()\n└─────────────────────┘─────────────────────┘\n\n┌─────────────────────┐\n│  ShippingStrategy   │\n│  ─────────────────  │\n│  + calculate()      │\n└──────────┬──────────┘\n           ▲\n┌──────────┴──────────┐\n│ ZoneBasedShipping   │\n│  ─────────────────  │\n│  + calculate()      │\n└─────────────────────┘\n\n┌─────────────────────┐\n│    CartCalculator   │\n│  ─────────────────  │\n│  - discountStrategy │\n│  - shippingStrategy │\n│  + calculateTotals()│\n└─────────────────────┘\n```\nLe `CartCalculator` utilise les stratégies injectées pour calculer les totaux, ce qui rend le code testable et extensible.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

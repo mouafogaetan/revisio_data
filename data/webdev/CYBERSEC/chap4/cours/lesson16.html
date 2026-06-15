@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 16 : Shift Left & CI/CD - Cours Cybersécurité</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transition douce pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* personnalisation scrollbar pour les slides (optionnel) */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        .progress-dot {
+            transition: all 0.2s;
+        }
+        .active-dot {
+            background-color: #2563eb;
+            width: 1.75rem;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide -->
+        <div class="card-glass p-5 md:p-8 shadow-2xl border border-white/30">
+            <div id="slides-container" class="relative min-h-[70vh]">
+                <!-- Les slides seront injectées ici par jQuery -->
+            </div>
+
+            <!-- Navigation et progression -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mt-8 gap-4 pt-4 border-t border-gray-200">
+                <div class="flex gap-3">
+                    <button id="prevBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2 px-5 rounded-full shadow-md transition">◀ Précédent</button>
+                    <button id="nextBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant ▶</button>
+                </div>
+                <div class="text-sm text-gray-600 font-medium">
+                    Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+                </div>
+                <div id="progressDots" class="flex flex-wrap justify-center gap-2"></div>
+            </div>
+        </div>
+        <footer class="text-center text-gray-500 text-xs mt-6">
+            Cours: Initiation à la Cybersécurité | Leçon 16 - Sécurisation de la chaîne de développement (Shift Left & CI/CD)
+        </footer>
+    </div>
+
+    <script>
+        // Définition des slides basées sur la lesson16 (objectifs et contenu enrichi)
+        // Titre de la leçon: "Shift Left : intégrer la sécurité dès la conception et dans les pipelines CI/CD"
+        const slidesData = [
+            {
+                type: "title",
+                title: "🔐 Sécurisation de la chaîne de développement",
+                subtitle: "Shift Left & Intégration continue / déploiement continu (CI/CD)",
+                icon: "🛡️",
+                bgClass: "bg-gradient-to-br from-blue-50 to-indigo-100"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Comprendre le concept Shift Left (sécurité en amont du cycle de vie)",
+                    "Intégrer SAST (SonarQube) et DAST (OWASP ZAP) dans un pipeline CI/CD",
+                    "Scanner les dépendances avec OWASP Dependency Check",
+                    "Analyser la sécurité des conteneurs avec Trivy",
+                    "Découvrir les bonnes pratiques DevSecOps"
+                ]
+            },
+            {
+                type: "content",
+                title: "📌 Qu'est-ce que le 'Shift Left' ?",
+                content: "<p><strong>Shift Left</strong> signifie déplacer la sécurité vers les premières phases du développement (la 'gauche' de la chronologie projet). Au lieu de tester la sécurité à la fin, on l'intègre dès l'écriture du code, la revue, et l'intégration continue.</p><br><p>✅ <strong>Avantages :</strong> détection précoce des vulnérabilités, coûts de correction réduits, livraison plus fiable, réduction des correctifs de dernière minute.</p><div class='bg-blue-100 p-4 rounded-xl mt-4'><span class='font-bold'>💡 Analogie simple :</span> C'est comme vérifier les ingrédients d'un gâteau avant de le cuire plutôt que de constater après qu'il est brûlé !</div>"
+            },
+            {
+                type: "content",
+                title: "⚙️ Pipeline CI/CD et sécurité (DevSecOps)",
+                content: "<p>Un pipeline CI/CD automatise la compilation, les tests et le déploiement. La sécurité y ajoute des <strong>portes de contrôle automatiques</strong> :</p><ul class='list-disc pl-6 mt-2 space-y-1'><li><strong>Commit / Pull Request</strong> → analyse statique (SAST) + vérification des secrets</li><li><strong>Build</strong> → analyse des dépendances (SCA) + scan de conteneurs</li><li><strong>Tests</strong> → tests dynamiques (DAST), tests d'intrusion automatisés</li><li><strong>Déploiement</strong> → validation des configurations, conformité</li></ul><p class='mt-3'>📈 Chaque étape peut 'casser' le build si une vulnérabilité critique est détectée.</p>"
+            },
+            {
+                type: "content",
+                title: "🛠️ SAST - Analyse statique (SonarQube)",
+                content: "<p><strong>SAST (Static Application Security Testing)</strong> examine le code source sans l'exécuter. SonarQube est un outil populaire pour détecter les failles comme les injections SQL, XSS, ou les faiblesses de conception.</p><br><div class='grid md:grid-cols-2 gap-4'><div class='bg-gray-50 p-3 rounded-lg'><span class='font-semibold'>✔️ Exemple de règle:</span> éviter les concaténations SQL.</div><div class='bg-gray-50 p-3 rounded-lg'><span class='font-semibold'>🔧 Intégration:</span> plugin SonarQube dans GitHub Actions, GitLab CI, Jenkins.</div></div><p class='mt-3'>📌 <em>Résultat</em> : un rapport de qualité et sécurité associé à chaque merge request.</p>"
+            },
+            {
+                type: "content",
+                title: "🌐 DAST - Test dynamique (OWASP ZAP)",
+                content: "<p><strong>DAST (Dynamic Application Security Testing)</strong> attaque l'application en cours d'exécution (environnement de test). OWASP ZAP (Zed Attack Proxy) est un outil de référence.</p><ul class='list-disc pl-6 mt-2 space-y-1'><li>Découverte automatique des endpoints</li><li>Injection de payloads (XSS, SQLi, commandes)</li><li>Analyse des failles de configuration</li></ul><p class='mt-3'>💻 Intégration typique : après déploiement d'un environnement de staging, lancer ZAP en mode 'baseline' ou 'full scan' et générer un rapport.</p>"
+            },
+            {
+                type: "content",
+                title: "📦 Analyse des dépendances (OWASP Dependency Check)",
+                content: "<p>Les projets modernes utilisent des librairies tierces (npm, pip, maven, etc.). <strong>OWASP Dependency Check</strong> identifie les vulnérabilités connues (CVE) dans ces composants.</p><br><div class='bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded'><span class='font-bold'>⚠️ Risque réel :</span> une vulnérabilité critique dans une librairie (ex: Log4Shell) peut compromettre toute l'application.</div><p class='mt-3'>Fonctionnement : analyse des fichiers de dépendances (package-lock.json, pom.xml, requirements.txt...) et comparaison avec la base NVD. Génération d'un rapport de vulnérabilités avec scores CVSS.</p>"
+            },
+            {
+                type: "content",
+                title: "🐳 Sécurité des conteneurs avec Trivy",
+                content: "<p><strong>Trivy</strong> (développé par Aqua Security) est un scanner de vulnérabilités pour conteneurs, systèmes de fichiers, et repos Git. Il détecte les failles dans les images Docker, les packages OS, et les langages.</p><br><p>✅ <strong>Commandes typiques :</strong> <code class='bg-gray-200 px-2 py-0.5 rounded'>trivy image monapp:latest</code> → liste les vulnérabilités critiques.</p><p>✅ Dans CI/CD : on bloque le déploiement si l'image contient une faille avec sévérité élevée.</p><div class='mt-3 flex flex-wrap gap-2'><span class='bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full'>✔️ Scan rapide</span><span class='bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full'>✔️ Support multi-format</span><span class='bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full'>✔️ Intégration CI native</span></div>"
+            },
+            {
+                type: "content",
+                title: "🔁 Exemple concret de pipeline sécurisé",
+                content: "<p><strong>GitHub Actions + DevSecOps :</strong></p><div class='bg-gray-800 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto'><pre>name: CI Security Scan<br><br>on: [push]<br>jobs:<br>  security:<br>    steps:<br>      - uses: actions/checkout@v3<br>      - name: SAST (SonarQube)<br>        run: sonar-scanner<br>      - name: Dependency Check<br>        run: dependency-check --scan .<br>      - name: Build Docker image<br>        run: docker build -t app .<br>      - name: Trivy scan<br>        run: trivy image --severity HIGH,CRITICAL app<br>      - name: DAST (ZAP)<br>        run: zap-full-scan.py -t http://staging-app</pre></div><p class='mt-2 text-sm'>→ Si l'un de ces scans échoue (vulnérabilité critique), le pipeline échoue et prévient l'équipe.</p>"
+            },
+            {
+                type: "content",
+                title: "🧠 Bonnes pratiques & culture DevSecOps",
+                content: "<ul class='list-disc pl-6 space-y-2'><li><strong>Automatiser</strong> au maximum les contrôles de sécurité (pas de processus manuel répétitif).</li><li><strong>Former les développeurs</strong> aux vulnérabilités fréquentes (OWASP Top 10).</li><li><strong>Ne pas négliger les secrets</strong> : utiliser des coffres (Vault, GitHub Secrets) et des scanners de secrets (TruffleHog, GitLeaks).</li><li><strong>Mettre en place des métriques</strong> : temps de correction, nombre de vulnérabilités par build, score de qualité.</li><li><strong>Chaînes d'outils</strong> : intégrer la sécurité dans les environnements déjà utilisés (Jenkins, GitLab, Azure DevOps).</li></ul><div class='mt-4 italic text-gray-600'>« La sécurité n'est pas un garde-fou en fin de ligne, mais un compagnon quotidien du développeur. »</div>"
+            },
+            {
+                type: "summary",
+                title: "✨ Récapitulatif de la leçon",
+                points: [
+                    "Shift Left = sécurité tôt dans le cycle de vie logiciel.",
+                    "SAST (SonarQube) analyse le code source, DAST (OWASP ZAP) teste l'application en marche.",
+                    "OWASP Dependency Check protège contre les vulnérabilités des librairies tierces.",
+                    "Trivy scanne les images Docker et conteneurs pour éviter des failles exploitables.",
+                    "Un pipeline CI/CD robuste bloque les déploiements non conformes."
+                ],
+                cta: "Prêt à appliquer ces outils dans vos projets web ? Commencez par intégrer un scan de dépendances !"
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            const isActive = (idx === currentIndex) ? "block" : "hidden";
+            let html = `<div class="slide ${isActive} transition-all duration-300" data-slide-idx="${idx}">`;
+            
+            if (slide.type === "title") {
+                html += `
+                    <div class="text-center py-6 md:py-12">
+                        <div class="text-6xl mb-4">${slide.icon}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-lg md:text-xl text-gray-700 mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                html += `
+                    <div class="p-2">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                        <div class="grid gap-4 md:grid-cols-2">
+                `;
+                slide.objectives.forEach(obj => {
+                    html += `<div class="bg-blue-50 p-4 rounded-xl shadow-sm flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span><span class="text-gray-700">${obj}</span></div>`;
+                });
+                html += `</div></div>`;
+            }
+            else if (slide.type === "content") {
+                html += `
+                    <div class="p-1">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-4 border-blue-400 inline-block pb-1 mb-5">${slide.title}</h2>
+                        <div class="prose max-w-none text-gray-700 leading-relaxed text-base md:text-lg">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "summary") {
+                html += `
+                    <div class="p-2">
+                        <h2 class="text-2xl md:text-3xl font-bold text-green-800 mb-5">📌 ${slide.title}</h2>
+                        <ul class="space-y-3 mb-6">
+                `;
+                slide.points.forEach(p => {
+                    html += `<li class="flex items-start gap-2"><span class="text-green-600 text-xl">●</span><span class="text-gray-700">${p}</span></li>`;
+                });
+                html += `</ul><div class="bg-green-100 p-4 rounded-xl text-green-800 font-medium">🎯 ${slide.cta}</div></div>`;
+            }
+            
+            html += `</div>`;
+            return html;
+        }
+
+        function updateSlides() {
+            // regénérer tout le conteneur slide
+            let slidesHtml = '';
+            for(let i = 0; i < totalSlides; i++) {
+                slidesHtml += renderSlide(slidesData[i], i);
+            }
+            $('#slides-container').html(slidesHtml);
+            $('#totalSlides').text(totalSlides);
+            updateProgressAndNav();
+            // Mettre à jour les points de progression
+            renderProgressDots();
+            // Afficher slide actif
+            showCurrentSlideOnly();
+            // Recharger MathJax si besoin (mais peu de formules)
+            if(window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function showCurrentSlideOnly() {
+            $('.slide').each(function() {
+                let slideIdx = parseInt($(this).data('slide-idx'));
+                if(slideIdx === currentIndex) {
+                    $(this).removeClass('hidden').show();
+                } else {
+                    $(this).addClass('hidden').hide();
+                }
+            });
+            $('#currentSlideIdx').text(currentIndex+1);
+            // désactiver boutons si besoin
+            $('#prevBtn').prop('disabled', currentIndex === 0);
+            $('#nextBtn').prop('disabled', currentIndex === totalSlides-1);
+            // mettre à jour classe active sur dots
+            $('.progress-dot').each(function(i) {
+                if(i === currentIndex) {
+                    $(this).addClass('active-dot').removeClass('bg-gray-400');
+                    $(this).css('width', '1.75rem');
+                } else {
+                    $(this).removeClass('active-dot').addClass('bg-gray-400');
+                    $(this).css('width', '0.65rem');
+                }
+            });
+        }
+
+        function renderProgressDots() {
+            let dotsHtml = '';
+            for(let i=0; i<totalSlides; i++) {
+                dotsHtml += `<button class="progress-dot h-2 rounded-full bg-gray-400 mx-1 transition-all duration-200 focus:outline-none" data-index="${i}" style="width: 0.65rem;"></button>`;
+            }
+            $('#progressDots').html(dotsHtml);
+            $('.progress-dot').on('click', function() {
+                let idx = parseInt($(this).data('index'));
+                if(!isNaN(idx) && idx !== currentIndex) {
+                    currentIndex = idx;
+                    showCurrentSlideOnly();
+                }
+            });
+        }
+
+        function updateProgressAndNav() {
+            // déjà faite dans showCurrentSlideOnly
+            showCurrentSlideOnly();
+        }
+
+        // Navigation
+        $('#prevBtn').on('click', function() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                showCurrentSlideOnly();
+                // scroll en haut (optionnel)
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        });
+        $('#nextBtn').on('click', function() {
+            if(currentIndex < totalSlides-1) {
+                currentIndex++;
+                showCurrentSlideOnly();
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        });
+
+        // Gestion clavier (gauche/droite)
+        $(document).on('keydown', function(e) {
+            if(e.key === 'ArrowLeft') {
+                $('#prevBtn').click();
+            } else if(e.key === 'ArrowRight') {
+                $('#nextBtn').click();
+            }
+        });
+
+        // Initialisation
+        updateSlides();
+    </script>
+</body>
+</html>

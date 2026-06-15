@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Évaluation OS - Séquence 3 : Gestion de la mémoire</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
+        .quiz-option { cursor: pointer; transition: all 0.2s ease; }
+        .quiz-option:hover { background-color: #eff6ff; border-color: #3b82f6; }
+        .animate-fade { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        [data-correct="true"] { border-left: 4px solid #10b981; background-color: #ecfdf5; }
+        .badge-memory { background-color: #dbeafe; color: #1e3a8a; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 9999px; }
+        .code-block { background: #1e293b; color: #e2e8f0; padding: 0.75rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; overflow-x: auto; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- En-tête -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div>
+                    <div class="text-sm font-semibold tracking-wide uppercase bg-white/20 inline-block px-3 py-1 rounded-full">Évaluation séquentielle N°3</div>
+                    <h1 class="text-2xl md:text-3xl font-bold mt-2">Systèmes d'exploitation – Gestion de la mémoire</h1>
+                    <p class="text-slate-300 mt-1">Classe : Développement Web · Matière : OS</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-2 text-center border border-white/20">
+                    <div class="text-xs font-medium">Durée 2h00 · Séquence 3</div>
+                    <div class="text-xl font-bold">Chap 3</div>
+                    <div class="text-xs">Hiérarchie mémoire · Pagination · Segmentation · Mémoire virtuelle</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Colonne principale : QCM et exercices -->
+            <div class="lg:col-span-2 space-y-8">
+                
+                <!-- QCM Théorique -->
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 animate-fade" id="section-quiz">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-wrap gap-2">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-blue-100 text-blue-800 w-6 h-6 rounded-full flex items-center justify-center text-sm">1</span> Concepts mémoire</h2>
+                        <span class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full">12 points</span>
+                    </div>
+                    <div class="p-6 space-y-6" id="quizContainer">
+                        <!-- Question 1 -->
+                        <div class="quiz-item border-b pb-4" data-qid="1">
+                            <p class="font-semibold text-gray-800">1. Quel composant matériel gère la traduction des adresses virtuelles en adresses physiques ?</p>
+                            <div class="mt-2 space-y-2">
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q1" value="A"> ALU (Arithmetic Logic Unit)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q1" value="B"> MMU (Memory Management Unit)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q1" value="C"> Contrôleur DMA</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q1" value="D"> Cache L1</label>
+                            </div>
+                            <div class="feedback text-sm mt-2 hidden"></div>
+                        </div>
+                        <!-- Question 2 -->
+                        <div class="quiz-item border-b pb-4" data-qid="2">
+                            <p class="font-semibold text-gray-800">2. Dans un système paginé, une adresse virtuelle est composée de :</p>
+                            <div class="mt-2 space-y-2">
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q2" value="A"> Numéro de segment et déplacement</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q2" value="B"> Numéro de trame et numéro de page</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q2" value="C"> Numéro de page et déplacement (offset)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q2" value="D"> Adresse de base et limite</label>
+                            </div>
+                            <div class="feedback text-sm mt-2 hidden"></div>
+                        </div>
+                        <!-- Question 3 -->
+                        <div class="quiz-item border-b pb-4" data-qid="3">
+                            <p class="font-semibold text-gray-800">3. La mémoire virtuelle permet principalement :</p>
+                            <div class="mt-2 space-y-2">
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q3" value="A"> D’augmenter la vitesse du processeur</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q3" value="B"> D’exécuter des programmes plus grands que la RAM physique</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q3" value="C"> De supprimer le besoin de cache</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q3" value="D"> De garantir l’absence de page fault</label>
+                            </div>
+                            <div class="feedback text-sm mt-2 hidden"></div>
+                        </div>
+                        <!-- Question 4 -->
+                        <div class="quiz-item" data-qid="4">
+                            <p class="font-semibold text-gray-800">4. L’algorithme de remplacement de pages "Second Chance" est une amélioration de :</p>
+                            <div class="mt-2 space-y-2">
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q4" value="A"> LRU (Least Recently Used)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q4" value="B"> FIFO (First In First Out)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q4" value="C"> Optimal (OPT)</label>
+                                <label class="quiz-option flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50"><input type="radio" name="q4" value="D"> Clock (horloge)</label>
+                            </div>
+                            <div class="feedback text-sm mt-2 hidden"></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-3 flex justify-end">
+                        <button id="checkQuizBtn" class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2 rounded-lg transition">✅ Vérifier mes réponses</button>
+                    </div>
+                </div>
+
+                <!-- Exercice pratique : Pagination et calcul d'adresse -->
+                <div class="bg-white rounded-2xl shadow-md border border-gray-100 animate-fade" style="animation-delay: 0.1s;">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-emerald-100 text-emerald-800 w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span> Calculs d’adresses paginées</h2>
+                        <span class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full ml-auto inline-block">8 points</span>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-700 mb-3">Un système utilise une pagination avec des pages de <strong>4 Ko (4096 octets)</strong>. La table des pages d’un processus est donnée partiellement :</p>
+                        <div class="bg-gray-100 p-3 rounded font-mono text-sm mb-4">
+                            Page 0 → Trame 5<br>
+                            Page 1 → Trame 12<br>
+                            Page 2 → Trame 0 (non chargée en mémoire → page fault)<br>
+                            Page 3 → Trame 7
+                        </div>
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                            <li>Convertir l’adresse virtuelle <strong>0x1A2F</strong> (hexadécimal) en numéro de page et déplacement.</li>
+                            <li>Quelle est l’adresse physique correspondante si la page est présente ?</li>
+                            <li>Quelle adresse virtuelle provoquerait un <strong>page fault</strong> ? Pourquoi ?</li>
+                            <li>Si la taille de la mémoire physique est de 16 trames, quelle est la taille maximale de la RAM ?</li>
+                        </ol>
+                        <textarea id="paginationAnswer" rows="5" class="w-full border border-gray-300 rounded-lg p-3 text-sm mt-3 font-mono" placeholder="Vos calculs et réponses..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Exercice : Algorithmes de remplacement de pages -->
+                <div class="bg-white rounded-2xl shadow-md border border-gray-100 animate-fade" style="animation-delay: 0.15s;">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><span class="bg-amber-100 text-amber-800 w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span> Algorithmes de remplacement</h2>
+                        <span class="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full">6 points</span>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-700 mb-3">On considère une séquence de références de pages : <code class="bg-gray-100 px-1">[1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]</code> avec un cadre de <strong>3 pages</strong> en mémoire.</p>
+                        <p class="font-semibold">Questions :</p>
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700 mt-2">
+                            <li>Simulez l’algorithme <strong>FIFO</strong> (First In First Out) et comptez le nombre de défauts de page.</li>
+                            <li>Simulez l’algorithme <strong>LRU</strong> (Least Recently Used) et comptez le nombre de défauts.</li>
+                            <li>Lequel des deux algorithmes donne le meilleur résultat sur cette séquence ? Justifiez.</li>
+                        </ol>
+                        <textarea id="replacementAnswer" rows="5" class="w-full border border-gray-300 rounded-lg p-3 text-sm mt-3 font-mono" placeholder="Simulations et réponses..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar droit : graphiques et schémas -->
+            <div class="space-y-6">
+                <!-- Graphique Chart.js : comparaison des algorithmes -->
+                <div class="bg-white rounded-2xl shadow-md p-5 border border-gray-200">
+                    <div class="flex justify-between items-center border-b pb-2 mb-3">
+                        <h3 class="font-bold text-gray-800">📊 Défauts de page par algorithme</h3>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Chart.js</span>
+                    </div>
+                    <canvas id="algoChart" width="300" height="200" style="max-height: 180px;"></canvas>
+                    <p class="text-xs text-gray-500 mt-2 text-center">Exemple pour séquence de 12 références (cadres=3)</p>
+                </div>
+
+                <!-- Diagramme Mermaid : Hiérarchie mémoire -->
+                <div class="bg-white rounded-2xl shadow-md p-4 border border-gray-200">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2"><span class="text-lg">🏗️</span> Hiérarchie mémoire</h3>
+                    <div class="mt-2">
+                        <pre class="mermaid" style="background: white; font-size: 12px;">
+flowchart TD
+    A[Registres CPU] --> B[Cache L1/L2/L3]
+    B --> C[RAM (Mémoire principale)]
+    C --> D[Swap / Disque]
+    style A fill:#fbbf24
+    style B fill:#fcd34d
+    style C fill:#fef08a
+    style D fill:#fde047
+                        </pre>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Plus on descend, plus la capacité est grande mais la latence augmente.</p>
+                </div>
+
+                <!-- Schéma mermaid : adressage paginé -->
+                <div class="bg-white rounded-2xl shadow-md p-4 border border-gray-200">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2"><span class="text-lg">📄</span> Adressage paginé</h3>
+                    <div class="mt-2">
+                        <pre class="mermaid" style="background: white; font-size: 12px;">
+flowchart LR
+    subgraph Adresse virtuelle
+        A[Numéro de page] --> B[Déplacement (offset)]
+    end
+    C[Table des pages] --> D[Numéro de trame]
+    B --> E[Adresse physique = trame × taille_page + offset]
+    D --> E
+                        </pre>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">La MMU utilise la table des pages pour la traduction.</p>
+                </div>
+
+                <!-- Score QCM + astuces -->
+                <div class="bg-slate-100 p-4 rounded-xl border border-slate-300">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-800">📋 Score QCM estimé</span>
+                        <span id="quizScoreDisplay" class="text-2xl font-bold text-slate-800">--/4</span>
+                    </div>
+                    <button id="showCorrectionBtn" class="mt-2 text-xs bg-white text-slate-600 px-3 py-1 rounded-full w-full shadow-sm">Afficher les corrections QCM</button>
+                    <hr class="my-3">
+                    <div class="text-sm text-slate-800">
+                        <p class="font-semibold">💡 Rappel :</p>
+                        <p>Le bit de référence (utilisé par Second Chance) évite d’éliminer une page récemment utilisée.</p>
+                    </div>
+                    <button id="submitExamBtn" class="mt-3 bg-slate-700 text-white w-full py-2 rounded-lg text-sm hover:bg-slate-800 transition">📤 Simuler remise de copie</button>
+                </div>
+
+                <!-- Formule MathJax -->
+                <div class="bg-white rounded-xl p-3 border">
+                    <p class="text-sm font-semibold">📐 Formule adresse paginée :</p>
+                    <div class="text-center text-lg">
+                        $$ \text{Adresse physique} = (\text{numéro trame} \times \text{taille page}) + \text{déplacement} $$
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pied de page -->
+        <div class="mt-10 bg-white border-t border-gray-200 rounded-2xl shadow-sm p-5 text-center text-sm text-gray-600">
+            <p>📌 Barème indicatif : QCM (12pts) + Pagination (8pts) + Remplacement (6pts) = 26 points.<br>
+            Toute réponse doit être détaillée. Les simulations FIFO/LRU doivent être justifiées étape par étape.</p>
+        </div>
+    </div>
+
+    <script>
+        // Initialisation Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { background: '#ffffff', primaryColor: '#334155' } });
+        
+        // Graphique comparatif FIFO vs LRU (valeurs standards pour la séquence donnée)
+        const ctx = document.getElementById('algoChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['FIFO', 'LRU', 'Optimal (référence)'],
+                datasets: [{
+                    label: 'Nombre de défauts de page',
+                    data: [9, 7, 6],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                    borderRadius: 6
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+        });
+
+        // Correction QCM
+        const answers = { q1: 'B', q2: 'C', q3: 'B', q4: 'B' };
+        let quizScore = 0;
+        
+        function evaluateQuiz() {
+            quizScore = 0;
+            for (let i = 1; i <= 4; i++) {
+                const selected = $(`input[name='q${i}']:checked`).val();
+                const correct = answers[`q${i}`];
+                const feedbackDiv = $(`[data-qid="${i}"] .feedback`);
+                if (selected === correct) {
+                    quizScore++;
+                    feedbackDiv.html('✅ <span class="text-green-600">Bonne réponse.</span>').removeClass('hidden');
+                    $(`[data-qid="${i}"]`).attr('data-correct', 'true');
+                } else {
+                    let msg = '';
+                    if (i === 1) msg = 'La MMU (Memory Management Unit) est le composant qui traduit adresses virtuelles → physiques.';
+                    else if (i === 2) msg = 'Une adresse virtuelle paginée = (numéro de page, offset).';
+                    else if (i === 3) msg = 'La mémoire virtuelle permet d’exécuter des processus dont la taille dépasse la RAM.';
+                    else msg = 'Second Chance est une amélioration de FIFO avec un bit de référence.';
+                    feedbackDiv.html(`❌ <span class="text-red-600">Incorrect. ${msg}</span>`);
+                    $(`[data-qid="${i}"]`).removeAttr('data-correct');
+                }
+                feedbackDiv.removeClass('hidden');
+            }
+            $('#quizScoreDisplay').text(`${quizScore}/4`);
+        }
+
+        $('#checkQuizBtn').on('click', evaluateQuiz);
+        $('#showCorrectionBtn').on('click', function() {
+            evaluateQuiz();
+            $('html, body').animate({ scrollTop: $('#section-quiz').offset().top - 20 }, 300);
+        });
+
+        // Simulation de remise
+        $('#submitExamBtn').on('click', function() {
+            const pagination = $('#paginationAnswer').val().trim();
+            const replacement = $('#replacementAnswer').val().trim();
+            console.log("===== Évaluation OS Séquence 3 =====");
+            console.log(`Score QCM : ${quizScore}/4`);
+            console.log("Réponse pagination : ", pagination || "(vide)");
+            console.log("Simulation FIFO/LRU : ", replacement || "(vide)");
+            alert("📬 Remise simulée ! Vérifiez la console (F12) pour voir vos réponses. En condition réelle, vous remettriez une copie détaillée.");
+        });
+
+        // Style des options QCM
+        $('.quiz-option').on('click', function() {
+            if ($(this).find('input[type="radio"]').length) {
+                $(this).closest('.quiz-item').find('.quiz-option').removeClass('bg-slate-50 border-slate-300');
+                $(this).addClass('bg-slate-50 border-slate-300');
+                $(this).find('input').prop('checked', true);
+            }
+        });
+    </script>
+</body>
+</html>

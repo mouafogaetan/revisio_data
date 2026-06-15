@@ -1,0 +1,118 @@
+[
+  {
+    "intitule": "Identifier le rôle et la configuration de Stripe dans une API e-commerce",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Stripe est une solution de paiement en ligne très utilisée pour les plateformes e-commerce.</p><p><strong>Question :</strong> Expliquez à quoi sert la clé secrète (<code>secret key</code>) et la clé publique (<code>publishable key</code>) dans l'intégration de Stripe.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définissez le rôle de la clé secrète et de la clé publique Stripe.",
+        "niveau": "easy",
+        "reponse": "La **clé publique (publishable key)** est utilisée côté client (frontend) pour initialiser Stripe.js et créer des éléments de paiement sécurisés. Elle peut être exposée publiquement. La **clé secrète (secret key)** est utilisée côté serveur (backend) pour effectuer des opérations sensibles comme créer des PaymentIntents, valider des webhooks ou rembourser des paiements. Elle ne doit jamais être exposée dans le code frontend.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Distinguer PaymentIntent, Checkout Session et Intent client",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Stripe propose plusieurs approches pour collecter les paiements.</p><p><strong>Consigne :</strong> Comparez <code>PaymentIntent</code> et <code>Checkout Session</code> en listant leurs différences et cas d'usage respectifs.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citez au moins trois différences entre PaymentIntent et Checkout Session.",
+        "niveau": "medium",
+        "reponse": "1) **PaymentIntent** est une API bas niveau qui permet de créer un flux de paiement personnalisé (intégration Elements). **Checkout Session** est une page de paiement préconstruite hébergée par Stripe.\n2) **PaymentIntent** nécessite de gérer manuellement l'affichage des erreurs et la confirmation côté client. **Checkout Session** gère automatiquement l'interface utilisateur.\n3) **PaymentIntent** offre plus de contrôle sur le processus (ex: confirmation différée, authentication 3D Secure personnalisée). **Checkout Session** est plus rapide à intégrer et gère automatiquement la redirection après paiement.\n4) **PaymentIntent** peut être utilisé pour des paiements récurrents ou des captures différées. **Checkout Session** est adapté aux paiements uniques standards.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Corriger une configuration Stripe incorrecte dans NestJS",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici un extrait de code d'un service de paiement Stripe dans NestJS :</p>\n<pre><code>@Injectable()\nexport class PaymentService {\n  private stripe: Stripe;\n\n  constructor(@Inject(ConfigService) private configService: ConfigService) {\n    this.stripe = new Stripe(this.configService.get('STRIPE_PUBLISHABLE_KEY'), {\n      apiVersion: '2023-10-16',\n    });\n  }\n\n  async createPaymentIntent(amount: number, currency: string) {\n    const paymentIntent = await this.stripe.paymentIntents.create({\n      amount,\n      currency,\n    });\n    return paymentIntent.client_secret;\n  }\n}\n</code></pre>\n<p><strong>Consigne :</strong> Identifiez les deux erreurs majeures dans ce code et proposez une version corrigée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Corrigez le code du service Stripe.",
+        "niveau": "medium",
+        "reponse": "Problèmes identifiés :\n1) Utilisation de la clé PUBLISHABLE (publique) au lieu de la clé SECRÈTE pour initialiser l'instance Stripe côté serveur.\n2) Le montant n'est pas converti en centimes (unité minimale). Stripe attend les montants dans la plus petite unité monétaire : pour l'Euro ou le FCFA, il faut multiplier par 100.\n\nVersion corrigée :\n```typescript\n@Injectable()\nexport class PaymentService {\n  private stripe: Stripe;\n\n  constructor(@Inject(ConfigService) private configService: ConfigService) {\n    // Utilisation de la clé SECRÈTE\n    this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'), {\n      apiVersion: '2023-10-16',\n    });\n  }\n\n  async createPaymentIntent(amount: number, currency: string) {\n    // Conversion en centimes (ex: 10.50 € -> 1050 centimes)\n    const amountInCents = Math.round(amount * 100);\n    \n    const paymentIntent = await this.stripe.paymentIntents.create({\n      amount: amountInCents,\n      currency,\n    });\n    return paymentIntent.client_secret;\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter un webhook Stripe pour confirmer les paiements",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Après qu'un client a payé via Stripe, votre API doit recevoir un webhook pour confirmer la commande et déclencher les actions post-paiement (mise à jour du statut, email, etc.).</p>\n<p><strong>Consigne :</strong> Écrivez un contrôleur NestJS qui reçoit les webhooks Stripe, vérifie la signature avec le secret du webhook, et traite l'événement <code>payment_intent.succeeded</code>. Le corps de la requête est brut (<code>raw body</code>).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code du contrôleur et du service pour gérer le webhook Stripe.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// StripeWebhookController\nimport { Controller, Post, Req, RawBodyRequest, Headers, HttpStatus, HttpException } from '@nestjs/common';\nimport { StripeWebhookService } from './stripe-webhook.service';\n\n@Controller('webhooks')\nexport class StripeWebhookController {\n  constructor(private readonly stripeWebhookService: StripeWebhookService) {}\n\n  @Post('stripe')\n  async handleStripeWebhook(\n    @Req() req: RawBodyRequest<Request>,\n    @Headers('stripe-signature') signature: string,\n  ) {\n    if (!req.rawBody) {\n      throw new HttpException('Raw body required', HttpStatus.BAD_REQUEST);\n    }\n\n    try {\n      const event = await this.stripeWebhookService.constructEvent(req.rawBody, signature);\n      \n      switch (event.type) {\n        case 'payment_intent.succeeded':\n          await this.stripeWebhookService.handlePaymentSucceeded(event.data.object);\n          break;\n        case 'payment_intent.payment_failed':\n          await this.stripeWebhookService.handlePaymentFailed(event.data.object);\n          break;\n        default:\n          console.log(`Unhandled event type: ${event.type}`);\n      }\n\n      return { received: true };\n    } catch (error) {\n      throw new HttpException(`Webhook Error: ${error.message}`, HttpStatus.BAD_REQUEST);\n    }\n  }\n}\n\n// StripeWebhookService\n@Injectable()\nexport class StripeWebhookService {\n  constructor(\n    private stripe: Stripe,\n    @Inject(ConfigService) private configService: ConfigService,\n    private orderService: OrderService,\n  ) {}\n\n  constructEvent(payload: Buffer, signature: string): Promise<Stripe.Event> {\n    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET');\n    return this.stripe.webhooks.constructEventAsync(payload, signature, webhookSecret);\n  }\n\n  async handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {\n    const orderId = paymentIntent.metadata.orderId;\n    if (orderId) {\n      await this.orderService.confirmOrder(orderId, paymentIntent.id);\n      // Envoyer un email de confirmation\n      // Libérer les stocks\n    }\n  }\n\n  async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {\n    // Marquer la commande comme échouée\n    // Débloquer le stock réservé\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir la création d'un PaymentIntent avec métadonnées",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Lors du checkout, l'API doit créer un <code>PaymentIntent</code> Stripe qui contient le montant total, la devise (FCFA), et des métadonnées permettant de lier le paiement à la commande (<code>orderId</code>, <code>userId</code>).</p>\n<p><strong>Consigne :</strong> Répondez aux questions suivantes pour implémenter cette fonctionnalité.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez un DTO, le service et le contrôleur pour créer un PaymentIntent. Incluez la validation du montant (supérieur à 0) et la devise fixée à 'XAF' (Franc CFA).",
+        "niveau": "hard",
+        "reponse": "```typescript\n// DTO\nexport class CreatePaymentIntentDto {\n  @IsNumber()\n  @Min(1)\n  amount: number;\n\n  @IsString()\n  @IsOptional()\n  @IsIn(['XAF', 'EUR', 'USD'])\n  currency?: string = 'XAF';\n\n  @IsNumber()\n  orderId: number;\n}\n\n// Service\n@Injectable()\nexport class PaymentService {\n  async createPaymentIntent(dto: CreatePaymentIntentDto, userId: number) {\n    const amountInCents = Math.round(dto.amount * 100);\n    \n    const paymentIntent = await this.stripe.paymentIntents.create({\n      amount: amountInCents,\n      currency: dto.currency || 'XAF',\n      metadata: {\n        orderId: dto.orderId.toString(),\n        userId: userId.toString(),\n        environment: this.configService.get('NODE_ENV'),\n      },\n      automatic_payment_methods: {\n        enabled: true,\n      },\n    });\n\n    return {\n      clientSecret: paymentIntent.client_secret,\n      paymentIntentId: paymentIntent.id,\n    };\n  }\n}\n\n// Controller\n@Controller('payments')\n@UseGuards(JwtAuthGuard)\nexport class PaymentController {\n  @Post('create-intent')\n  async createIntent(\n    @Body() createPaymentIntentDto: CreatePaymentIntentDto,\n    @CurrentUser() user: User,\n  ) {\n    return this.paymentService.createPaymentIntent(createPaymentIntentDto, user.id);\n  }\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment garantir que le montant envoyé au frontend correspond bien au vrai montant de la commande (prévention de fraude) ?",
+            "niveau": "very hard",
+            "reponse": "Il ne faut JAMAIS faire confiance au montant envoyé par le frontend. L'API doit recalculer le montant à partir de la commande stockée en base (via `orderId`). Ainsi, même si un utilisateur modifie la requête frontend, le montant réel de la commande sera utilisé. Exemple : `const order = await this.orderService.findOne(dto.orderId, userId); const amount = order.total;`. Cela évite les attaques où un client tenterait de payer 1 FCFA au lieu de 10000 FCFA.",
+            "reponse": "Il ne faut JAMAIS faire confiance au montant envoyé par le frontend. L'API doit recalculer le montant à partir de la commande stockée en base (via `orderId`). Ainsi, même si un utilisateur modifie la requête frontend, le montant réel de la commande sera utilisé. Exemple : `const order = await this.orderService.findOne(dto.orderId, userId); const amount = order.total;`. Cela évite les attaques où un client tenterait de payer 1 FCFA au lieu de 10000 FCFA."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir le mécanisme de confirmation de paiement et finalisation de commande",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Une fois le webhook Stripe <code>payment_intent.succeeded</code> reçu, l'API doit marquer la commande comme payée, décrémenter les stocks définitivement, et envoyer un email au client.</p>\n<p><strong>Consigne :</strong> Écrivez la méthode <code>handlePaymentSucceeded</code> avec gestion des erreurs, idempotence (éviter de traiter deux fois le même paiement) et transaction ACID.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez l'implémentation de la méthode <code>handlePaymentSucceeded</code> avec toutes les vérifications nécessaires.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {\n  const orderId = paymentIntent.metadata.orderId;\n  if (!orderId) {\n    this.logger.error('PaymentIntent sans orderId', paymentIntent.id);\n    return;\n  }\n\n  const queryRunner = this.connection.createQueryRunner();\n  await queryRunner.connect();\n  await queryRunner.startTransaction();\n\n  try {\n    // 1. Vérifier idempotence : la commande n'est pas déjà payée\n    const order = await queryRunner.manager.findOne(Order, {\n      where: { id: orderId },\n      relations: ['items', 'items.product'],\n    });\n\n    if (!order) {\n      throw new Error(`Commande ${orderId} introuvable`);\n    }\n\n    if (order.status === 'paid') {\n      this.logger.warn(`Commande ${orderId} déjà payée, webhook ignoré`);\n      await queryRunner.rollbackTransaction();\n      return;\n    }\n\n    // 2. Mettre à jour la commande\n    order.status = 'paid';\n    order.paymentIntentId = paymentIntent.id;\n    order.paidAt = new Date();\n    await queryRunner.manager.save(order);\n\n    // 3. Décrémenter les stocks définitifs (si pas déjà fait)\n    for (const item of order.items) {\n      const product = item.product;\n      product.stock -= item.quantity;\n      await queryRunner.manager.save(product);\n    }\n\n    // 4. Enregistrer la transaction\n    const transaction = this.transactionRepository.create({\n      orderId: order.id,\n      amount: order.total,\n      stripePaymentIntentId: paymentIntent.id,\n      status: 'completed',\n    });\n    await queryRunner.manager.save(transaction);\n\n    await queryRunner.commitTransaction();\n\n    // 5. Envoi email (hors transaction, en asynchrone)\n    await this.emailService.sendOrderConfirmation(order.user.email, order);\n\n    this.logger.log(`Commande ${orderId} confirmée avec succès`);\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    this.logger.error(`Erreur traitement webhook pour order ${orderId}`, error.stack);\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

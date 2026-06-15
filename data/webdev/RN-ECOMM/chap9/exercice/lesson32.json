@@ -1,0 +1,134 @@
+[
+  {
+    "intitule": "Architecture du CRUD d'adresses - Identification des composants",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous devez développer la fonctionnalité de gestion des adresses de livraison dans une application e-commerce React Native (Expo). L'utilisateur peut :<br>- Ajouter une nouvelle adresse<br>- Modifier une adresse existante<br>- Supprimer une adresse<br>- Définir une adresse par défaut<br><br>Répondez aux questions suivantes.</p>",
+      "images": [
+        "Écran mobile liste d'adresses avec icônes de modification et suppression, et étoile pour adresse par défaut"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez les quatre opérations de base du CRUD et associez chaque opération à la méthode HTTP correspondante dans une API REST.",
+        "niveau": "easy",
+        "reponse": "Create (POST), Read (GET), Update (PUT/PATCH), Delete (DELETE)",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez pourquoi il est nécessaire d'utiliser un store global (Zustand/Redux) pour gérer la liste des adresses plutôt qu'un state local à l'écran.",
+        "niveau": "medium",
+        "reponse": "Pour partager les adresses entre plusieurs écrans (profil, checkout, sélection de livraison) et éviter des appels API redondants. De plus, cela permet de persister les données localement avec AsyncStorage pour une expérience offline.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Quel composant React Native recommandez-vous pour afficher la liste des adresses avec des actions de modification et suppression sur chaque élément ? Justifiez votre choix.",
+        "niveau": "easy",
+        "reponse": "FlatList car elle permet un rendu efficace de listes dynamiques, supporte le swipe pour actions (avec react-native-gesture-handler) et optimise les performances pour un grand nombre d'adresses.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du formulaire d'adresse avec validation",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez coder un formulaire d'ajout/modification d'adresse. Les champs requis sont :<br>- Nom complet du destinataire<br>- Téléphone<br>- Rue/Quartier<br>- Ville<br>- Code postal (optionnel mais recommandé)<br>- Pays (sélecteur avec liste prédéfinie)<br><br>Le formulaire doit valider que les champs obligatoires ne sont pas vides et que le téléphone a un format camerounais ($+237\\d{9}$).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédigez le code du formulaire en utilisant `react-hook-form` et `zod` pour la validation. Incluez la gestion de l'état de chargement lors de la soumission.",
+        "niveau": "medium",
+        "reponse": "```jsx\nimport { useForm } from 'react-hook-form';\nimport { zodResolver } from '@hookform/resolvers/zod';\nimport { z } from 'zod';\nimport { View, TextInput, Button, Text, ActivityIndicator } from 'react-native';\n\nconst addressSchema = z.object({\n  fullName: z.string().min(2, 'Nom trop court'),\n  phone: z.string().regex(/^\\+237[0-9]{9}$/, 'Format: +237XXXXXXXXX'),\n  street: z.string().min(5, 'Adresse trop courte'),\n  city: z.string().min(2, 'Ville requise'),\n  postalCode: z.string().optional(),\n  country: z.string().min(2, 'Pays requis'),\n});\n\nexport default function AddressForm({ onSubmit, initialData, isLoading }) {\n  const { control, handleSubmit, formState: { errors } } = useForm({\n    resolver: zodResolver(addressSchema),\n    defaultValues: initialData || { country: 'Cameroun' }\n  });\n\n  return (\n    <View>\n      <TextInput placeholder=\"Nom complet\" {...control.register('fullName')} />\n      {errors.fullName && <Text>{errors.fullName.message}</Text>}\n      \n      <TextInput placeholder=\"Téléphone (+237XXXXXXXXX)\" {...control.register('phone')} />\n      {errors.phone && <Text>{errors.phone.message}</Text>}\n      \n      <TextInput placeholder=\"Rue / Quartier\" {...control.register('street')} />\n      <TextInput placeholder=\"Ville\" {...control.register('city')} />\n      <TextInput placeholder=\"Code postal (optionnel)\" {...control.register('postalCode')} />\n      <TextInput placeholder=\"Pays\" {...control.register('country')} />\n      \n      {isLoading ? <ActivityIndicator /> : <Button title=\"Enregistrer\" onPress={handleSubmit(onSubmit)} />}\n    </View>\n  );\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment modifieriez-vous le schéma de validation pour rendre le code postal obligatoire uniquement si le pays est 'France' ?",
+            "niveau": "hard",
+            "reponse": "Utiliser la méthode `superRefine` ou `refine` de Zod :\n```js\npostalCode: z.string().optional(),\n}).superRefine((data, ctx) => {\n  if (data.country === 'France' && !data.postalCode) {\n    ctx.addIssue({ path: ['postalCode'], message: 'Code postal requis pour la France' });\n  }\n});\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Debug d'une erreur de mise à jour d'adresse par défaut",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un développeur a implémenté la fonction `setDefaultAddress` dans un store Zustand. Mais quand l'utilisateur change d'adresse par défaut, l'interface ne se met pas à jour correctement. Analysez le code et corrigez les erreurs.</p>\n<pre><code>\n// addressStore.js\nimport { create } from 'zustand';\n\nexport const useAddressStore = create((set, get) => ({\n  addresses: [],\n  setAddresses: (addresses) => set({ addresses }),\n  setDefaultAddress: (addressId) => {\n    const { addresses } = get();\n    addresses.forEach(addr => addr.isDefault = false);\n    const target = addresses.find(addr => addr.id === addressId);\n    if (target) target.isDefault = true;\n    set({ addresses });\n  }\n}));\n</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez les deux problèmes majeurs dans ce code qui empêchent l'interface de se mettre à jour.",
+        "niveau": "hard",
+        "reponse": "1. Mutation directe du tableau `addresses` (forEach et modification des objets) - Zustand ne détecte pas les mutations imbriquées. 2. Le tableau modifié est le même objet référence, donc React ne déclenche pas de re-rendu.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Réécrivez la fonction `setDefaultAddress` en respectant l'immutabilité.",
+            "niveau": "hard",
+            "reponse": "```js\nsetDefaultAddress: (addressId) => {\n  set((state) => ({\n    addresses: state.addresses.map(addr => ({\n      ...addr,\n      isDefault: addr.id === addressId\n    }))\n  }));\n}\n```\nOu avec produce de immer :\n```js\nimport { produce } from 'immer';\nsetDefaultAddress: (addressId) => {\n  set(produce((state) => {\n    state.addresses.forEach(addr => addr.isDefault = (addr.id === addressId));\n  }));\n}\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Intégration de la sélection d'adresse sur carte (React Native Maps)",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Pour améliorer l'expérience utilisateur, vous devez permettre à l'utilisateur de sélectionner son adresse en plaçant un marqueur sur une carte interactive. Les contraintes :<br>- Utiliser `react-native-maps` avec Expo<br>- Obtenir la position actuelle de l'utilisateur (autorisation requise)<br>- Afficher un marqueur déplaçable (draggable)<br>- Convertir les coordonnées (latitude, longitude) en adresse textuelle via le service de géocodage inverse (ex: `expo-location` ou API Nominatim)<br>- Pré-remplir le formulaire d'adresse avec les données obtenues</p>",
+      "images": [
+        "Carte mobile avec marqueur rouge déplaçable et champ d'adresse qui se remplit automatiquement",
+        "Popup de demande d'autorisation de localisation sur iOS/Android"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédigez le code du composant `AddressMapPicker` qui :<br>1. Demande et gère les permissions de localisation<br>2. Affiche la carte centrée sur la position de l'utilisateur<br>3. Permet de déplacer un marqueur<br>4. Appelle une fonction `onLocationSelect(coords, addressText)` lorsque l'utilisateur valide",
+        "niveau": "very hard",
+        "reponse": "```jsx\nimport { useState, useEffect } from 'react';\nimport { View, Button, Alert, ActivityIndicator } from 'react-native';\nimport MapView, { Marker } from 'react-native-maps';\nimport * as Location from 'expo-location';\n\nexport default function AddressMapPicker({ onLocationSelect }) {\n  const [region, setRegion] = useState(null);\n  const [markerCoord, setMarkerCoord] = useState(null);\n  const [loading, setLoading] = useState(true);\n\n  useEffect(() => {\n    (async () => {\n      const { status } = await Location.requestForegroundPermissionsAsync();\n      if (status !== 'granted') {\n        Alert.alert('Permission refusée', 'Impossible d\\'obtenir votre position');\n        setLoading(false);\n        return;\n      }\n      const location = await Location.getCurrentPositionAsync({});\n      const { latitude, longitude } = location.coords;\n      setRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });\n      setMarkerCoord({ latitude, longitude });\n      setLoading(false);\n    })();\n  }, []);\n\n  const reverseGeocode = async (lat, lng) => {\n    const results = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });\n    if (results.length > 0) {\n      const addr = results[0];\n      return `${addr.street || ''} ${addr.district || ''}, ${addr.city || ''}, ${addr.region || ''}`;\n    }\n    return '';\n  };\n\n  const handleConfirm = async () => {\n    if (!markerCoord) return;\n    const addressText = await reverseGeocode(markerCoord.latitude, markerCoord.longitude);\n    onLocationSelect(markerCoord, addressText);\n  };\n\n  if (loading) return <ActivityIndicator size=\"large\" />;\n\n  return (\n    <View style={{ flex: 1 }}>\n      <MapView\n        style={{ flex: 1 }}\n        region={region}\n        onRegionChangeComplete={setRegion}\n      >\n        {markerCoord && (\n          <Marker\n            coordinate={markerCoord}\n            draggable\n            onDragEnd={(e) => setMarkerCoord(e.nativeEvent.coordinate)}\n            title=\"Votre adresse\"\n          />\n        )}\n      </MapView>\n      <Button title=\"Valider cette adresse\" onPress={handleConfirm} />\n    </View>\n  );\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Cas pratique : Synchronisation multi-appareils des adresses",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un client utilise l'application e-commerce sur son téléphone et sa tablette. Il souhaite que ses adresses soient synchronisées entre les deux appareils. Contraintes :<br>- Support offline : l'utilisateur peut ajouter/modifier/supprimer des adresses sans connexion<br>- Synchronisation automatique au retour en ligne<br>- Gestion des conflits (même adresse modifiée sur les deux appareils)<br>- Indicateur visuel des modifications en attente de synchronisation</p>",
+      "images": [
+        "Icône de synchronisation avec badge indiquant le nombre de modifications non synchronisées"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez l'architecture technique que vous mettriez en place pour gérer la synchronisation offline des adresses. Mentionnez les bibliothèques et les stratégies de résolution de conflits.",
+        "niveau": "very hard",
+        "reponse": "**Architecture proposée :**\n\n1. **Stockage local** : AsyncStorage + Zustand persist pour conserver les adresses et un journal des opérations (queue).\n\n2. **Bibliothèques clés** :\n   - `@tanstack/react-query` avec persistance offline\n   - `netinfo` pour détecter la connexion\n   - `expo-background-fetch` pour synchronisation périodique\n\n3. **Stratégie de conflit** :\n   - Chaque adresse a un `version` ou `updatedAt` timestamp\n   - Règle \"Last Write Wins\" (LWW) avec horodatage\n   - En cas de conflit sur le même champ, demander à l'utilisateur (modal) ou garder la version serveur\n\n4. **Journal des opérations** :\n   ```js\n   const pendingOps = [\n     { id: 'uuid', type: 'CREATE|UPDATE|DELETE', address, timestamp, retryCount }\n   ];\n   ```\n\n5. **Flux de synchronisation** :\n   - Au retour en ligne, traiter la queue FIFO\n   - Après succès, mettre à jour store local et supprimer de la queue\n   - Après échec, réessayer avec backoff exponentiel (max 5 tentatives)\n\n6. **Indicateur UI** : Badge sur l'icône \"Adresses\" affichant `pendingOps.length`",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Écrivez la fonction de synchronisation qui envoie les opérations en attente au backend et gère les réponses.",
+            "niveau": "very hard",
+            "reponse": "```js\nconst syncPendingAddresses = async () => {\n  const { pendingOps, addresses } = useAddressStore.getState();\n  if (pendingOps.length === 0) return;\n  \n  const netInfo = await NetInfo.fetch();\n  if (!netInfo.isConnected) return;\n  \n  for (const op of pendingOps) {\n    try {\n      let response;\n      switch (op.type) {\n        case 'CREATE':\n          response = await api.post('/addresses', op.address);\n          useAddressStore.getState().updateAddressAfterSync(op.id, response.data);\n          break;\n        case 'UPDATE':\n          response = await api.put(`/addresses/${op.address.id}`, op.address);\n          if (response.data.version > op.address.version) {\n            // Conflit détecté, on prend la version serveur\n            useAddressStore.getState().resolveConflict(op.address.id, response.data);\n          }\n          break;\n        case 'DELETE':\n          await api.delete(`/addresses/${op.addressId}`);\n          break;\n      }\n      useAddressStore.getState().removePendingOp(op.id);\n    } catch (error) {\n      if (op.retryCount >= 5) {\n        useAddressStore.getState().markOpAsFailed(op.id);\n      } else {\n        useAddressStore.getState().incrementRetry(op.id);\n      }\n    }\n  }\n};\n```"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,153 @@
+[
+  {
+    "intitule": "Configuration et intégration de Google Pay dans une application React Native",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce avec Expo et vous souhaitez intégrer Google Pay pour les utilisateurs Android. Le backend est déjà configuré pour fournir un PaymentToken.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes nécessaires pour configurer et intégrer Google Pay dans un projet React Native avec Expo.",
+        "niveau": "medium",
+        "reponse": "1. Installer `expo-build-properties` et configurer `android.minSdkVersion` (minimum 19, recommandé 21)\n2. Configurer la Google Pay API dans Google Play Console (créer une passerelle de paiement)\n3. Installer `react-native-google-pay` ou utiliser `expo-stripe` avec Google Pay intégré\n4. Dans le composant, initialiser Google Pay avec `isReadyToPayRequest`\n5. Créer un `PaymentDataRequest` avec les détails de la transaction\n6. Appeler `loadPaymentData` pour afficher la feuille Google Pay\n7. Récupérer le PaymentToken et l'envoyer au backend pour validation",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quelles informations doit contenir le `PaymentDataRequest` pour qu'une transaction soit valide ?",
+            "niveau": "medium",
+            "reponse": "Le `PaymentDataRequest` doit contenir : `apiVersion` (2), `apiVersionMinor` (0), `allowedPaymentMethods` (avec type='CARD'), `merchantInfo` (merchantId, merchantName), `transactionInfo` (totalPrice, currencyCode, countryCode), et `emailRequired` (booléen)."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation d'Apple Pay avec Expo",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes responsable de l'intégration d'Apple Pay pour la version iOS de votre application e-commerce. Le backend utilise Stripe comme processeur de paiement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code d'un composant React Native qui intègre Apple Pay avec Stripe, gère la réponse du backend, et affiche un toast de succès ou d'erreur.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport { useStripe } from '@stripe/stripe-react-native';\nimport { ApplePayButton } from '@stripe/stripe-react-native';\n\nconst ApplePayPayment = ({ amount, onSuccess }) => {\n  const { presentApplePay, confirmApplePayPayment } = useStripe();\n\n  const handleApplePay = async () => {\n    const { error, paymentIntent } = await fetchPaymentIntent(amount);\n    if (error) return showToast('Erreur de paiement');\n    \n    const { error: appleError } = await presentApplePay({\n      cartItems: [{ label: 'Total', amount: amount.toString() }],\n      country: 'CM',\n      currency: 'XAF',\n      paymentIntentClientSecret: paymentIntent.clientSecret,\n    });\n    \n    if (appleError) return showToast(appleError.message);\n    \n    const { error: confirmError } = await confirmApplePayPayment(paymentIntent.clientSecret);\n    if (confirmError) showToast(confirmError.message);\n    else onSuccess();\n  };\n\n  return <ApplePayButton onPress={handleApplePay} type=\"pay\" style={{ width: '100%', height: 48 }} />;\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse comparative des wallets mobiles pour un e-commerce camerounais",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Votre client, une boutique en ligne basée à Douala, hésite entre intégrer Google Pay, Apple Pay, ou se limiter aux cartes bancaires classiques. La clientèle est mixte (60% Android, 40% iOS).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer les avantages et inconvénients de chaque solution (Google Pay, Apple Pay, carte bancaire) dans le contexte camerounais. Proposer une recommandation argumentée.",
+        "niveau": "medium",
+        "reponse": "**Avantages Google Pay :**\n- Large couverture Android (plus de 60% des utilisateurs)\n- Pas de frais supplémentaires pour l'utilisateur\n- Tokenisation sécurisée\n\n**Inconvénients Google Pay :**\n- Nécessite un compte Google et carte bancaire internationale\n- Adoption encore modérée au Cameroun\n\n**Avantages Apple Pay :**\n- Très bonne UX, reconnaissance biométrique\n- Sécurité élevée\n\n**Inconvénients Apple Pay :**\n- Limitée aux utilisateurs iOS (40%)\n- Frais potentiels pour le commerçant\n\n**Recommandation :** Intégrer d'abord le paiement par carte bancaire classique (Stripe/Elements) comme solution principale, puis ajouter Google Pay et Apple Pay comme options secondaires. Proposer également MTN Mobile Money et Orange Money (plus répandus au Cameroun).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du fallback vers carte bancaire",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Lorsque l'utilisateur n'a pas configuré Google Pay ou Apple Pay sur son appareil, l'application doit basculer automatiquement vers le formulaire de paiement par carte bancaire classique.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code d'un composant `PaymentMethodSelector` qui détecte les wallets disponibles sur l'appareil et affiche les boutons appropriés, avec un fallback vers un formulaire Stripe Elements.",
+        "niveau": "hard",
+        "reponse": "```jsx\nconst PaymentMethodSelector = ({ amount, onPaymentComplete }) => {\n  const [isGooglePayReady, setIsGooglePayReady] = useState(false);\n  const [isApplePayReady, setIsApplePayReady] = useState(false);\n\n  useEffect(() => {\n    const checkWallets = async () => {\n      if (Platform.OS === 'android') {\n        const isReady = await GooglePay.isReadyToPay();\n        setIsGooglePayReady(isReady);\n      } else if (Platform.OS === 'ios') {\n        const isReady = await ApplePay.canMakePayments();\n        setIsApplePayReady(isReady);\n      }\n    };\n    checkWallets();\n  }, []);\n\n  if (Platform.OS === 'ios' && isApplePayReady) {\n    return <ApplePayButton onSuccess={onPaymentComplete} />;\n  }\n  if (Platform.OS === 'android' && isGooglePayReady) {\n    return <GooglePayButton onSuccess={onPaymentComplete} />;\n  }\n  return <CardPaymentForm onSuccess={onPaymentComplete} />;\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Test et débogage des paiements mobiles",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'intégration Google Pay fonctionne en développement mais échoue en production avec l'erreur \"Merchant not registered\". L'application est en ligne depuis une semaine.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Diagnostiquer les causes possibles de cette erreur et proposer un plan de résolution.",
+        "niveau": "hard",
+        "reponse": "**Causes possibles :**\n1. Le merchant ID Google Pay n'est pas activé pour le domaine de production\n2. La clé API de production est différente de celle de test\n3. Le certificat de chiffrement n'est pas correctement configuré sur le serveur\n4. L'application n'est pas signée avec la clé de production (build release)\n\n**Plan de résolution :**\n1. Vérifier dans Google Play Console que le merchant ID est bien associé à l'application\n2. Comparer les valeurs `GOOGLE_PAY_MERCHANT_ID` entre dev et prod\n3. Vérifier que le serveur backend utilise les clés de production Stripe/Adyen\n4. Tester avec un build signed en .aab ou .apk sur un vrai appareil\n5. Consulter les logs du backend pour voir le webhook de confirmation",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul du montant total avec taxes et livraison avant paiement",
+    "type": "competence",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un utilisateur a dans son panier :\n- 2 articles à 5 000 FCFA chacun\n- 3 articles à 3 500 FCFA chacun\n\nLes frais de livraison sont de 1 500 FCFA et la TVA est de 19,25% sur le sous-total (hors livraison).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculer le montant total que l'utilisateur devra payer, en détaillant les étapes. Ce montant sera transmis à Google Pay ou Apple Pay.",
+        "niveau": "easy",
+        "reponse": "**Sous-total :**\n$(2 \\times 5000) + (3 \\times 3500) = 10000 + 10500 = 20500 \\text{ FCFA}$\n\n**TVA :**\n$20500 \\times 0.1925 = 3946.25 \\text{ FCFA}$\n\n**Total :**\n$20500 + 3946.25 + 1500 = 25946.25 \\text{ FCFA}$\n\nArrondi à 25 946 FCFA (ou 25 950 selon l'arrondi choisi).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des erreurs de paiement et retry",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Lors d'un paiement avec Google Pay, la transaction échoue car le solde de la carte de l'utilisateur est insuffisant. L'application doit permettre à l'utilisateur de réessayer avec une autre carte ou une autre méthode de paiement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémenter la logique de gestion d'erreur et de fallback dans un composant React Native utilisant Google Pay.",
+        "niveau": "medium",
+        "reponse": "```jsx\nconst handleGooglePay = async () => {\n  try {\n    const paymentData = await GooglePay.loadPaymentData(request);\n    const response = await processPayment(paymentData);\n    if (response.success) {\n      navigation.navigate('Success');\n    }\n  } catch (error) {\n    console.log('Erreur Google Pay:', error);\n    \n    if (error.code === 'CANCELED') {\n      // L'utilisateur a annulé\n      return;\n    } else if (error.code === 'PAYMENT_FAILED') {\n      Alert.alert(\n        'Paiement échoué',\n        'Votre carte a été refusée. Souhaitez-vous réessayer avec une autre carte ou payer par carte bancaire ?',\n        [\n          { text: 'Réessayer', onPress: () => handleGooglePay() },\n          { text: 'Carte bancaire', onPress: () => setShowCardForm(true) },\n          { text: 'Annuler', style: 'cancel' }\n        ]\n      );\n    } else {\n      showToast('Une erreur est survenue');\n      setShowCardForm(true); // Fallback final\n    }\n  }\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration minimale requise pour Google Pay sur Android",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un développeur débutant souhaite ajouter Google Pay à son application. Il utilise Expo et Stripe.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Lister les prérequis techniques (version Android, bibliothèques, configuration) nécessaires avant de pouvoir afficher un bouton Google Pay fonctionnel.",
+        "niveau": "easy",
+        "reponse": "**Prérequis :**\n1. Android SDK version 21 minimum (Android 5.0)\n2. `expo-build-properties` configuré avec `minSdkVersion: 21`\n3. Installation de `react-native-google-pay` ou `@stripe/stripe-react-native` (qui inclut Google Pay)\n4. Compte Stripe avec Google Pay activé\n5. Backend capable de créer un PaymentIntent avec les paramètres Google Pay\n6. Appareil physique avec Google Play Services à jour\n7. Carte bancaire valide ajoutée dans Google Wallet",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 13 : Recherche, filtres et pagination sur le catalogue produits</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .slide-container { transition: transform 0.4s ease-in-out; }
+        .slide { min-width: 100%; box-sizing: border-box; scroll-snap-align: start; }
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slides-wrapper::-webkit-scrollbar { height: 6px; }
+        .slides-wrapper::-webkit-scrollbar-track { background: #fde68a; border-radius: 10px; }
+        .slides-wrapper::-webkit-scrollbar-thumb { background: #d97706; border-radius: 10px; }
+        .card-hover { transition: all 0.2s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15); }
+        .btn-nav:active { transform: scale(0.96); }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85em;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            background: #d97706;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .filter-card {
+            background: white;
+            border-left: 4px solid #d97706;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-5xl mx-auto px-3 md:px-6 py-5 md:py-8">
+    <!-- Header progression -->
+    <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-5 sticky top-2 z-10 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="text-amber-700 font-bold text-lg">🔍 Recherche avancée</span>
+            <span class="text-gray-500 text-sm">Lesson 13 - Chap 4</span>
+        </div>
+        <div class="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+            <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+        </div>
+    </div>
+
+    <!-- Slides wrapper -->
+    <div class="slides-wrapper relative flex overflow-x-auto rounded-2xl shadow-xl bg-white" id="slidesWrapper">
+        <div class="slide-container flex" id="slideContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="text-center space-y-5">
+                    <div class="inline-block bg-amber-100 text-amber-800 rounded-full px-5 py-1.5 text-sm font-semibold">📋 Catalogue produits</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-amber-700 to-yellow-600 bg-clip-text text-transparent">Recherche, Filtres & Pagination</h1>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">Implémenter des requêtes dynamiques sur le catalogue e-commerce</p>
+                    <div class="pt-6 flex justify-center gap-4 text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1">🔎 <span>Recherche par nom</span></span>
+                        <span class="flex items-center gap-1">⚙️ <span>Filtres (prix, stock)</span></span>
+                        <span class="flex items-center gap-1">📄 <span>Pagination</span></span>
+                    </div>
+                    <div class="mt-8 animate-bounce text-amber-500 text-sm">👆 Glissez ou utilisez les boutons 👆</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-amber-500 pl-5 mb-8">🎯 Objectifs</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Implémenter la recherche par nom et par catégorie</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Filtrer par prix, stock, notes</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Trier les résultats (prix croissant/décroissant, date, popularité)</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Paginer les résultats avec <strong>PaginationDto</strong></li>
+                    </ul>
+                    <div class="mt-10 bg-amber-50 p-4 rounded-xl italic text-gray-700 border border-amber-200">
+                        💡 <strong>Pourquoi ?</strong> Un catalogue performant doit permettre aux utilisateurs de trouver rapidement les produits qu'ils recherchent.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : DTO DE PAGINATION -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Structure de base</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📄 DTO de pagination</h2>
+                    <pre><code>// pagination.dto.ts
+import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class PaginationDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+}
+
+// Résultat paginé
+export class PaginatedResult&lt;T&gt; {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    lastPage: number;
+    limit: number;
+  };
+}</code></pre>
+                    <div class="bg-blue-50 p-3 rounded-lg mt-4 border-l-4 border-blue-400">
+                        📘 <strong>Exemple d'utilisation</strong> : <code>GET /products?page=2&limit=20</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : DTO COMPLET DE RECHERCHE -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Filtres avancés</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔍 DTO de recherche et filtres</h2>
+                    <pre><code>// filter-products.dto.ts
+export class FilterProductsDto extends PaginationDto {
+  @IsOptional()
+  @IsString()
+  search?: string;        // recherche par nom/description
+
+  @IsOptional()
+  @IsString()
+  category?: string;      // slug de catégorie
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  minPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  maxPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: 'price' | 'createdAt' | 'rating';
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'ASC' | 'DESC';
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(0)
+  minStock?: number;
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : IMPLÉMENTATION DU SERVICE -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Code métier</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">⚙️ Implémentation dans le service</h2>
+                    <pre><code>// products.service.ts
+async findAll(filters: FilterProductsDto) {
+  const query = this.productRepository.createQueryBuilder('product')
+    .leftJoinAndSelect('product.category', 'category');
+
+  // Filtre recherche (nom ou description)
+  if (filters.search) {
+    query.andWhere(
+      '(product.name ILIKE :search OR product.description ILIKE :search)',
+      { search: `%${filters.search}%` }
+    );
+  }
+
+  // Filtre catégorie
+  if (filters.category) {
+    query.andWhere('category.slug = :category', { category: filters.category });
+  }
+
+  // Filtre prix
+  if (filters.minPrice) {
+    query.andWhere('product.price >= :minPrice', { minPrice: filters.minPrice });
+  }
+  if (filters.maxPrice) {
+    query.andWhere('product.price <= :maxPrice', { maxPrice: filters.maxPrice });
+  }
+
+  // Filtre stock
+  if (filters.minStock) {
+    query.andWhere('product.stock >= :minStock', { minStock: filters.minStock });
+  }
+
+  // Tri
+  if (filters.sortBy) {
+    query.orderBy(`product.${filters.sortBy}`, filters.sortOrder || 'ASC');
+  }
+
+  // Pagination
+  const [data, total] = await query
+    .skip((filters.page - 1) * filters.limit)
+    .take(filters.limit)
+    .getManyAndCount();
+
+  return {
+    data,
+    meta: {
+      total,
+      page: filters.page,
+      lastPage: Math.ceil(total / filters.limit),
+      limit: filters.limit
+    }
+  };
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : CONTROLLER ET SWAGGER -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">API endpoint</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🌐 Controller avec documentation</h2>
+                    <pre><code>// products.controller.ts
+@Controller('products')
+export class ProductsController {
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Liste des produits avec filtres' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'category', required: false })
+  @ApiQuery({ name: 'minPrice', type: Number, required: false })
+  @ApiQuery({ name: 'maxPrice', type: Number, required: false })
+  @ApiQuery({ name: 'sortBy', enum: ['price', 'createdAt', 'rating'], required: false })
+  @ApiQuery({ name: 'sortOrder', enum: ['ASC', 'DESC'], required: false })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  async findAll(@Query() filters: FilterProductsDto) {
+    return this.productsService.findAll(filters);
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : EXEMPLES D'URL -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Cas d'usage</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔗 Exemples de requêtes</h2>
+                    <div class="space-y-3">
+                        <div class="filter-card p-3 rounded-lg">
+                            <code class="text-sm">GET /products?search=t-shirt&page=1&limit=20</code>
+                            <p class="text-gray-600 text-sm mt-1">🔎 Recherche les produits contenant "t-shirt"</p>
+                        </div>
+                        <div class="filter-card p-3 rounded-lg">
+                            <code class="text-sm">GET /products?minPrice=10&maxPrice=50&sortBy=price&sortOrder=ASC</code>
+                            <p class="text-gray-600 text-sm mt-1">💰 Produits entre 10 et 50€ triés par prix croissant</p>
+                        </div>
+                        <div class="filter-card p-3 rounded-lg">
+                            <code class="text-sm">GET /products?category=electronique&minStock=1&sortBy=createdAt&sortOrder=DESC</code>
+                            <p class="text-gray-600 text-sm mt-1">📦 Produits électroniques en stock, du plus récent au plus ancien</p>
+                        </div>
+                        <div class="filter-card p-3 rounded-lg">
+                            <code class="text-sm">GET /products?search=ordinateur&page=3&limit=10&sortBy=rating&sortOrder=DESC</code>
+                            <p class="text-gray-600 text-sm mt-1">⭐ Page 3 des ordinateurs triés par note décroissante</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RÉCAPITULATIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh] flex items-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">📋 Récapitulatif</h2>
+                    <div class="grid gap-4">
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">1️⃣ Pagination</div>
+                            <p><code>page</code> et <code>limit</code> avec validation, retour des métadonnées (total, lastPage)</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">2️⃣ Recherche textuelle</div>
+                            <p><code>ILIKE</code> (insensible à la casse) sur <code>name</code> et <code>description</code></p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">3️⃣ Filtres numériques</div>
+                            <p><code>minPrice</code>, <code>maxPrice</code>, <code>minStock</code> avec conditions <code>>=</code> et <code><=</code></p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">4️⃣ Tri dynamique</div>
+                            <p><code>sortBy</code> et <code>sortOrder</code> avec <code>orderBy</code> sécurisé (whitelist)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXERCICE INTERACTIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-5">🧪 Exercice - Code à compléter</h2>
+                    <div class="bg-gray-50 p-5 rounded-2xl shadow-inner">
+                        <p class="font-medium">Complétez la méthode pour ajouter un filtre par <strong>note minimale (minRating)</strong> :</p>
+                        <pre id="codeEditor" contenteditable="true" class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm my-4 whitespace-pre-wrap outline-none" style="caret-color: white;">async findAll(filters: FilterProductsDto) {
+  const query = this.productRepository.createQueryBuilder('product')
+    .leftJoinAndSelect('product.reviews', 'reviews');
+
+  // Filtre par note moyenne (minRating)
+  // À compléter : utiliser une sous-requête ou AVG(reviews.rating)
+
+  return query.getMany();
+}</pre>
+                        <button id="checkAnswerBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-6 rounded-full btn-nav transition">✅ Vérifier</button>
+                        <div id="feedbackMsg" class="mt-4 text-sm hidden p-3 rounded-lg"></div>
+                        <div class="text-xs text-gray-400 mt-3">💡 Indice : Utilisez <code>query.having('AVG(reviews.rating) >= :minRating')</code> avec un groupBy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm btn-nav disabled:opacity-40">← Précédent</button>
+        <div class="flex gap-2 overflow-x-auto pb-1" id="dotsContainer"></div>
+        <button id="nextBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-5 rounded-full shadow-sm btn-nav">Suivant →</button>
+    </div>
+    <div class="text-center text-gray-500 text-xs mt-6">
+        📘 Leçon 13 : Recherche, filtres (prix, stock, notes) et pagination - Chapitre 4 (Catalogue produits)
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const $wrapper = $('.slides-wrapper');
+    let slides = $('.slide');
+    let totalSlides = slides.length;
+    let currentIndex = 0;
+    let isScrolling = false;
+
+    $('#totalSlides').text(totalSlides);
+    updateDots();
+
+    function updateDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            let activeClass = (i === currentIndex) ? 'bg-amber-600 w-8' : 'bg-gray-300 w-3';
+            dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('#currentSlide').text(currentIndex + 1);
+    }
+
+    function scrollToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= totalSlides) index = totalSlides - 1;
+        currentIndex = index;
+        const slideWidth = slides.first().outerWidth();
+        $wrapper.animate({ scrollLeft: slideWidth * currentIndex }, 300, 'swing');
+        updateDots();
+        $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+        $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+    }
+
+    $wrapper.on('scroll', function() {
+        if (!isScrolling) {
+            requestAnimationFrame(() => {
+                const scrollPos = $wrapper.scrollLeft();
+                const slideWidth = slides.first().outerWidth();
+                let newIndex = Math.round(scrollPos / slideWidth);
+                if (newIndex !== currentIndex && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    updateDots();
+                    $('#currentSlide').text(currentIndex + 1);
+                    $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+                    $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+                }
+                isScrolling = false;
+            });
+            isScrolling = true;
+        }
+    });
+
+    $('#nextBtn').click(() => { if (currentIndex < totalSlides - 1) scrollToSlide(currentIndex + 1); });
+    $('#prevBtn').click(() => { if (currentIndex > 0) scrollToSlide(currentIndex - 1); });
+    $(document).on('click', '.dot', function() { scrollToSlide($(this).data('index')); });
+
+    let resizeTimer;
+    $(window).on('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            let slideWidth = slides.first().outerWidth();
+            $wrapper.scrollLeft(slideWidth * currentIndex);
+        }, 100);
+    });
+
+    // Exercice interactif
+    $('#checkAnswerBtn').click(function() {
+        let userCode = $('#codeEditor').text();
+        let hasGroupBy = /groupBy/.test(userCode);
+        let hasHaving = /having.*AVG.*rating/.test(userCode);
+        let hasMinRating = /minRating/.test(userCode);
+        let $feedback = $('#feedbackMsg');
+        $feedback.removeClass('hidden');
+        
+        if (hasGroupBy && hasHaving) {
+            $feedback.removeClass('bg-red-100').addClass('bg-green-100 text-green-800');
+            $feedback.html('🎉 Excellent ! Vous avez bien ajouté le filtre par note minimale avec GROUP BY et HAVING. Exemple :<br><code>query.groupBy("product.id").having("AVG(reviews.rating) >= :minRating", { minRating: filters.minRating });</code>');
+        } else {
+            $feedback.removeClass('bg-green-100').addClass('bg-red-100 text-red-800');
+            $feedback.html('❌ Pensez à utiliser <code>groupBy("product.id")</code> et <code>having("AVG(reviews.rating) >= :minRating", { minRating })</code> pour filtrer par note moyenne.');
+        }
+    });
+
+    setTimeout(() => {
+        let slideWidth = slides.first().outerWidth();
+        $wrapper.scrollLeft(slideWidth * currentIndex);
+        $('#prevBtn').addClass('opacity-40');
+    }, 100);
+});
+</script>
+</body>
+</html>

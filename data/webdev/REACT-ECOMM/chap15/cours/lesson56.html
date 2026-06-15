@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 56 : Accessibilité (ARIA, clavier, Lighthouse) – React E-commerce</title>
+  <!-- Tailwind CSS + config personnalisée (couleurs douces) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1E40AF',
+            accent: '#0D9488',
+            warning: '#F59E0B'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (au cas où) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide { transition: opacity 0.25s ease-in-out; }
+    body { background: linear-gradient(145deg, #f3f6fc 0%, #eef2f5 100%); }
+    .btn-slide:active { transform: scale(0.96); }
+    .prose pre { background-color: #1e293b; color: #e2e8f0; padding: 0.75rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.8rem; }
+    .prose code { background-color: #eef2ff; padding: 0.2rem 0.4rem; border-radius: 0.375rem; font-weight: 500; color: #0f172a; }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-5xl mx-auto px-4 py-5 md:py-8">
+  <!-- En-tête avec progression -->
+  <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+    <div class="flex items-center gap-2">
+      <span class="text-3xl">♿</span>
+      <div>
+        <h1 class="text-xl md:text-2xl font-bold text-slate-800">Accessibilité Web (a11y)</h1>
+        <p class="text-xs text-slate-500">Leçon 56 · ARIA, clavier, Lighthouse</p>
+      </div>
+    </div>
+    <div class="bg-white/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-medium shadow-sm border border-slate-200">
+      <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+    </div>
+  </div>
+
+  <!-- Conteneur slides -->
+  <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 min-h-[65vh] md:min-h-[70vh]"></div>
+
+  <!-- Navigation + dots -->
+  <div class="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <button id="prevBtn" class="btn-slide px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition">← Précédent</button>
+    <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+    <button id="nextBtn" class="btn-slide px-5 py-2.5 bg-primary text-white rounded-xl shadow-md hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition">Suivant →</button>
+  </div>
+
+  <footer class="mt-8 text-center text-xs text-slate-500 border-t pt-5">🌍 Cours Développement Web – Cameroun. Rendez votre e-commerce accessible à tous !</footer>
+</div>
+
+<script>
+  // ----- Slides pour la leçon 56 (ARIA, navigation clavier, tests Lighthouse/axe-core) -----
+  const slidesData = [
+    { type: "title", title: "♿ Accessibilité dans React", subtitle: "ARIA · Clavier · Tests d'audit", desc: "Apprenez à intégrer des attributs ARIA, à rendre votre site navigable au clavier et à vérifier l'accessibilité avec Lighthouse et axe-core." },
+    { type: "objectifs", title: "🎯 Objectifs de la leçon", objectives: [
+      "Comprendre les bases de l'accessibilité web (a11y).",
+      "Utiliser les attributs ARIA (rôles, labels, descriptions) dans les composants React.",
+      "Rendre l'application entièrement navigable au clavier (focus visible, ordre logique).",
+      "Tester l'accessibilité avec Lighthouse, axe-core et les outils de développement.",
+      "Connaître les erreurs fréquentes en e-commerce (modales, carrousels, formulaires)."
+    ] },
+    { type: "content", title: "📌 1. Pourquoi l'accessibilité ?", content: `
+      <div class="space-y-3">
+        <p>L'accessibilité (a11y) permet aux personnes handicapées (visuelles, motrices, cognitives) d'utiliser votre site. C’est aussi une obligation légale dans de nombreux pays (RGAA, WCAG).</p>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="bg-blue-50 p-3 rounded-lg">
+            <span class="font-bold">👁️ Déficience visuelle</span>
+            <p class="text-sm">Lecteurs d'écran (NVDA, VoiceOver) → besoin de textes alternatifs, rôles ARIA.</p>
+          </div>
+          <div class="bg-green-50 p-3 rounded-lg">
+            <span class="font-bold">⌨️ Difficultés motrices</span>
+            <p class="text-sm">Navigation au clavier uniquement (Tab, Entrée, Espace).</p>
+          </div>
+        </div>
+        <div class="bg-amber-50 p-3 rounded-lg text-sm">
+          💡 <strong>Avantage business :</strong> Un site accessible améliore le SEO, l'expérience utilisateur et touche un public plus large.
+        </div>
+      </div>
+    ` },
+    { type: "content", title: "🏷️ 2. Attributs ARIA essentiels", content: `
+      <div class="space-y-4">
+        <p>ARIA (Accessible Rich Internet Applications) comble les lacunes du HTML standard pour les composants dynamiques (modale, onglets, menu déroulant).</p>
+        <div class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+          <pre>&lt;button aria-label="Fermer la modale" aria-expanded="false"&gt;✖&lt;/button&gt;
+&lt;div role="dialog" aria-labelledby="dialogTitle"&gt;...&lt;/div&gt;
+&lt;input aria-describedby="emailHelp" /&gt;
+&lt;span id="emailHelp"&gt;Exemple: nom@domaine.com&lt;/span&gt;</pre>
+        </div>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="bg-white border p-2 rounded">
+            <span class="font-bold">🔹 role</span> : définit le type d’élément (button, navigation, dialog).
+          </div>
+          <div class="bg-white border p-2 rounded">
+            <span class="font-bold">🔹 aria-label</span> : texte alternatif pour les éléments sans texte visible.
+          </div>
+          <div class="bg-white border p-2 rounded">
+            <span class="font-bold">🔹 aria-expanded</span> : indique si un accordéon ou menu est ouvert.
+          </div>
+          <div class="bg-white border p-2 rounded">
+            <span class="font-bold">🔹 aria-hidden</span> : cache des éléments aux lecteurs d’écran (icônes décoratives).
+          </div>
+        </div>
+        <p class="text-sm">En React, on utilise ces attributs directement dans le JSX. Privilégiez les éléments HTML sémantiques (button, nav, main) avant d'utiliser ARIA.</p>
+      </div>
+    ` },
+    { type: "content", title: "⌨️ 3. Navigation au clavier & focus visible", content: `
+      <div class="space-y-3">
+        <p>Assurez-vous que chaque interaction est possible avec la touche <kbd>Tab</kbd> (ordre logique), <kbd>Entrée</kbd> et <kbd>Espace</kbd>.</p>
+        <div class="bg-indigo-50 p-3 rounded-lg">
+          <h4 class="font-bold">✅ Bonnes pratiques :</h4>
+          <ul class="list-disc pl-5 text-sm">
+            <li>Utiliser <code>:focus-visible</code> pour un contour accessible (anneau de focus).</li>
+            <li>Gérer les pièges à clavier (ex: modale : capturer le focus à l’ouverture, le rendre à la fermeture).</li>
+            <li>Ne pas retirer le <code>outline</code> sans alternative visible.</li>
+            <li>Les composants personnalisés (custom select) doivent implémenter <code>onKeyDown</code>.</li>
+          </ul>
+        </div>
+        <div class="bg-slate-800 text-white p-2 rounded text-sm">
+          <pre>/* CSS pour un focus visible */
+*:focus-visible {
+  outline: 2px solid #1E40AF;
+  outline-offset: 2px;
+}</pre>
+        </div>
+        <p>Testez votre site : naviguez uniquement avec la touche Tab. Vérifiez que les menus déroulants, modales et paniers sont accessibles.</p>
+      </div>
+    ` },
+    { type: "content", title: "🔍 4. Tester avec Lighthouse et axe-core", content: `
+      <div class="space-y-4">
+        <p><strong>Lighthouse</strong> (Chrome DevTools) : onglet "Lighthouse" > catégorie "Accessibility" génère un rapport avec des scores et recommandations.</p>
+        <div class="flex flex-wrap gap-4 items-start">
+          <div class="flex-1 bg-gray-100 p-3 rounded-lg">
+            <span class="font-bold">🔧 axe-core</span>
+            <p class="text-sm">Extension navigateur ou intégration dans les tests unitaires (jest-axe). Détecte automatiquement les violations ARIA.</p>
+          </div>
+          <div class="flex-1 bg-gray-100 p-3 rounded-lg">
+            <span class="font-bold">🧪 React Testing Library</span>
+            <p class="text-sm">Utilisez <code>screen.getByRole('button', {name: /fermer/i})</code> pour vérifier l'accessibilité.</p>
+          </div>
+        </div>
+        <div class="bg-yellow-50 p-3 rounded-lg text-sm">
+          📝 <strong>Erreurs fréquentes dans les e-commerce :</strong> images sans alt, contrastes insuffisants, modales sans piège clavier, labels de formulaire manquants.
+        </div>
+        <p>Objectif : obtenir un score ≥ 90 sur Lighthouse pour l’accessibilité.</p>
+      </div>
+    ` },
+    { type: "content", title: "🧩 5. Cas pratiques e-commerce (React)", content: `
+      <div class="space-y-4">
+        <div class="border-b pb-2">
+          <h4 class="font-bold text-primary">🛒 Panier :</h4>
+          <p class="text-sm">Le compteur de panier doit avoir <code>aria-live="polite"</code> pour annoncer l'ajout d'article. Les boutons "Supprimer" doivent avoir un label explicite.</p>
+          <pre class="bg-gray-800 text-white text-xs p-2 rounded mt-1">&lt;button aria-label="Retirer le produit du panier"&gt;🗑️&lt;/button&gt;</pre>
+        </div>
+        <div class="border-b pb-2">
+          <h4 class="font-bold text-primary">🖼️ Galerie produit :</h4>
+          <p class="text-sm">Carrousel : gérer les flèches au clavier, <code>role="region" aria-label="Galerie d'images"</code>.</p>
+        </div>
+        <div>
+          <h4 class="font-bold text-primary">📝 Formulaire de commande :</h4>
+          <p class="text-sm">Chaque champ doit être associé à un label via <code>htmlFor</code> / <code>id</code>. Afficher les messages d’erreur avec <code>role="alert"</code>.</p>
+        </div>
+      </div>
+    ` }
+  ];
+
+  let currentSlide = 0;
+  const total = slidesData.length;
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  function buildSlides() {
+    let html = '';
+    slidesData.forEach((slide, idx) => {
+      let inner = '';
+      if (slide.type === 'title') {
+        inner = `
+          <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+            <div class="bg-accent/20 p-5 rounded-full mb-5 shadow-md"><span class="text-5xl">♿</span></div>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-slate-800 mb-3">${escapeHtml(slide.title)}</h2>
+            <p class="text-lg text-accent font-medium">${escapeHtml(slide.subtitle)}</p>
+            <div class="mt-6 max-w-md bg-white/60 p-4 rounded-xl shadow-inner"><p class="text-slate-600">${escapeHtml(slide.desc)}</p></div>
+          </div>
+        `;
+      } else if (slide.type === 'objectifs') {
+        let list = '';
+        slide.objectives.forEach(obj => { list += `<li class="mb-3 flex items-start gap-2"><span class="text-primary text-xl font-bold">✓</span> <span>${escapeHtml(obj)}</span></li>`; });
+        inner = `<div class="p-6 md:p-8"><h2 class="text-2xl font-bold text-slate-800 border-b pb-3 mb-5 flex items-center gap-2">${escapeHtml(slide.title)}</h2><ul class="space-y-2 text-base md:text-lg list-none">${list}</ul><div class="mt-8 bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-4 text-sm italic border">💡 Un site accessible est un site plus juste et plus performant.</div></div>`;
+      } else if (slide.type === 'content') {
+        inner = `<div class="p-5 md:p-7"><h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">${escapeHtml(slide.title)}</h2><div class="prose prose-slate max-w-none leading-relaxed">${slide.content}</div></div>`;
+      }
+      html += `<div class="slide" data-slide-index="${idx}" style="display: ${idx === currentSlide ? 'block' : 'none'};">${inner}</div>`;
+    });
+    return html;
+  }
+
+  function generateDots() {
+    let dotsHtml = '';
+    for (let i = 0; i < total; i++) {
+      const activeClass = (i === currentSlide) ? 'bg-primary w-6' : 'bg-gray-300 w-3';
+      dotsHtml += `<button class="dot-indicator h-3 rounded-full transition-all mx-1 ${activeClass}" data-index="${i}"></button>`;
+    }
+    $('#dotsContainer').html(dotsHtml);
+    $('.dot-indicator').on('click', function() {
+      const idx = parseInt($(this).data('index'));
+      if (!isNaN(idx) && idx !== currentSlide && idx >= 0 && idx < total) {
+        currentSlide = idx;
+        updateSlideAndUI();
+      }
+    });
+  }
+
+  function updateSlideAndUI() {
+    $('.slide').each(function(idx) {
+      if (idx === currentSlide) $(this).fadeIn(180);
+      else $(this).hide();
+    });
+    $('#slideCounter').text(currentSlide + 1);
+    $('#totalSlides').text(total);
+    $('#dotsContainer .dot-indicator').each(function(idx) {
+      if (idx === currentSlide) {
+        $(this).removeClass('bg-gray-300 w-3').addClass('bg-primary w-6');
+      } else {
+        $(this).removeClass('bg-primary w-6').addClass('bg-gray-300 w-3');
+      }
+    });
+    $('#prevBtn').prop('disabled', currentSlide === 0);
+    $('#nextBtn').prop('disabled', currentSlide === total - 1);
+    if (window.MathJax) MathJax.typesetPromise && MathJax.typesetPromise();
+  }
+
+  $(document).ready(function() {
+    const slidesHtml = buildSlides();
+    $('#slidesContainer').html(slidesHtml);
+    $('#totalSlides').text(total);
+    generateDots();
+    updateSlideAndUI();
+
+    $('#prevBtn').on('click', () => {
+      if (currentSlide > 0) { currentSlide--; updateSlideAndUI(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+    $('#nextBtn').on('click', () => {
+      if (currentSlide < total - 1) { currentSlide++; updateSlideAndUI(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+    $(document).on('keydown', (e) => {
+      if (e.key === 'ArrowLeft') $('#prevBtn').click();
+      else if (e.key === 'ArrowRight') $('#nextBtn').click();
+    });
+  });
+</script>
+</body>
+</html>

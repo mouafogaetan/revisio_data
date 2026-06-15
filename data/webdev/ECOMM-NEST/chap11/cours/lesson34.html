@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 34 : Cache Redis - Amélioration des performances API E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s;
+            overflow: hidden;
+        }
+        .nav-button {
+            transition: all 0.2s ease;
+            background-color: #991b1b;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            background-color: #7f1d1d;
+            transform: scale(1.02);
+        }
+        .nav-button:active {
+            transform: scale(0.98);
+        }
+        .code-block {
+            background-color: #1e1b0e;
+            color: #fef3c7;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 1rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .progress-bar {
+            height: 4px;
+            background: #d6d3d1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #dc2626;
+            border-radius: 2px;
+            width: 0%;
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .cache-tag {
+            background-color: #fef2f2;
+            color: #991b1b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border: 1px solid #fecaca;
+        }
+        .redis-icon {
+            background-color: #dc2626;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="slide-container" id="app">
+    <div id="slides-wrapper" class="relative"></div>
+    <div class="flex flex-col items-center mt-6 gap-4">
+        <div class="w-full max-w-md progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div class="flex gap-6 justify-center flex-wrap">
+            <button id="prevBtn" class="nav-button"><span class="mr-1">◀</span> Précédent</button>
+            <span id="pageIndicator" class="text-gray-700 font-medium bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full">Slide 1 / 1</span>
+            <button id="nextBtn" class="nav-button">Suivant <span class="ml-1">▶</span></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Slides pour la lesson34 : Cache Redis avec NestJS
+    const slides = [
+        { // Slide 0 : Titre
+            title: "Lesson 34 - Cache Redis pour API E-commerce",
+            content: `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                    <div class="bg-red-100 text-red-800 rounded-full px-6 py-2 text-sm font-semibold mb-4">Chapitre 11 - Performances & Expérience utilisateur</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-red-700 to-orange-600 bg-clip-text text-transparent mb-6">Cache Redis<br>avec NestJS</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl mx-auto">Accélérez votre API e-commerce en mettant en cache les requêtes GET fréquentes (catalogue, produits). Réduisez la charge base de données jusqu'à 90% ! 🚀</p>
+                    <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">⚡ @nestjs/cache-manager</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">📦 Redis Store</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🔄 Cache invalidation</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🎯 TTL personnalisé</span>
+                    </div>
+                    <div class="mt-6 bg-red-50 p-4 rounded-xl border border-red-200 max-w-lg mx-auto">
+                        <p class="text-sm text-red-800"><span class="font-bold">🎯 Objectif :</span> Répondre en moins de 10ms aux requêtes de catalogue, même avec des millions de produits.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 1 : Objectifs
+            title: "Objectifs de la leçon",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl md:text-3xl font-bold text-red-800 border-l-8 border-red-500 pl-4 mb-6">🎯 Objectifs pédagogiques</h2>
+                    <ul class="space-y-5 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Comprendre l'utilité du cache dans une API e-commerce</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Installer et configurer <strong>Redis</strong> avec <span class="cache-tag">@nestjs/cache-manager</span></li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Mettre en cache les requêtes GET (catalogue, produit, catégories)</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> <strong>Invalider le cache</strong> après modification (POST, PUT, DELETE)</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Personnaliser la durée de vie (TTL) par endpoint</li>
+                    </ul>
+                    <div class="mt-6 bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl p-4 border border-red-200">
+                        <p class="text-red-800"><span class="font-bold">💡 Pourquoi Redis ?</span> Redis est une base de données en mémoire ultra-rapide (microsecondes). Parfait pour le cache car plus rapide que PostgreSQL et réduit la charge sur la base de données principale.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 2 : Installation de Redis et des packages
+            title: "1. Installation de Redis et des packages NestJS",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">📦 Installation des dépendances</h2>
+                    <p>Sur votre machine locale (Windows/Mac/Linux), installez Redis :</p>
+                    <div class="code-block my-3">
+                        <pre># Ubuntu / Debian
+sudo apt install redis-server
+
+# macOS
+brew install redis
+
+# Windows (WSL2 ou Docker)
+docker run -d --name redis -p 6379:6379 redis/redis-stack:latest</pre>
+                    </div>
+                    <p>Dans votre projet NestJS, installez les packages nécessaires :</p>
+                    <div class="code-block my-3">
+                        <pre>npm install @nestjs/cache-manager cache-manager cache-manager-redis-yet
+npm install @types/cache-manager-redis-yet -D</pre>
+                    </div>
+                    <p class="mt-3">✅ <span class="redis-icon">Redis</span> doit être démarré sur le port 6379 par défaut.</p>
+                </div>
+            `
+        },
+        { // Slide 3 : Configuration du module Cache
+            title: "2. Configuration du CacheModule avec Redis",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">⚙️ Configuration du CacheModule</h2>
+                    <div class="code-block my-5">
+                        <pre>// app.module.ts
+import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
+
+@Module({
+  imports: [
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async () => ({
+        store: await redisStore({
+          socket: {
+            host: process.env.REDIS_HOST || 'localhost',
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+          },
+          ttl: 60 * 5, // 5 minutes par défaut (en secondes)
+        }),
+      }),
+    }),
+  ],
+})
+export class AppModule {}</pre>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-3">
+                        <p class="font-bold text-amber-800">📌 Variables d'environnement (.env) :</p>
+                        <pre class="text-sm font-mono">REDIS_HOST=localhost
+REDIS_PORT=6379
+CACHE_TTL=300</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 4 : Mise en cache des endpoints GET
+            title: "3. Cache sur les endpoints GET",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">🔒 @UseInterceptors(CacheInterceptor)</h2>
+                    <div class="code-block my-5">
+                        <pre>// products.controller.ts
+import { Controller, Get, Param, UseInterceptors, CacheInterceptor, CacheTTL } from '@nestjs/common';
+
+@Controller('products')
+@UseInterceptors(CacheInterceptor) // Cache sur TOUTES les méthodes GET
+export class ProductsController {
+  
+  @Get()
+  @CacheTTL(30) // 30 secondes pour la liste (données qui changent plus souvent)
+  async findAll() {
+    return this.productsService.findAll();
+  }
+
+  @Get(':id')
+  @CacheTTL(3600) // 1 heure pour un produit spécifique
+  async findOne(@Param('id') id: number) {
+    return this.productsService.findOne(id);
+  }
+
+  @Get('categories/:slug')
+  @CacheTTL(86400) // 24h pour les catégories (changent rarement)
+  async findByCategory(@Param('slug') slug: string) {
+    return this.productsService.findByCategory(slug);
+  }
+}</pre>
+                    </div>
+                    <p>🔑 La clé de cache est générée automatiquement à partir de l'URL (ex: <span class="font-mono">GET /products/123</span>).</p>
+                </div>
+            `
+        },
+        { // Slide 5 : Invalidation du cache
+            title: "4. Invalider le cache après modification",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">🔄 Invalidation intelligente</h2>
+                    <p>Quand un produit est créé, modifié ou supprimé, il faut vider le cache pour que les nouvelles données soient visibles.</p>
+                    <div class="code-block my-5">
+                        <pre>// products.service.ts
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+
+@Injectable()
+export class ProductsService {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
+
+  async create(createProductDto: CreateProductDto) {
+    const product = await this.productRepository.save(createProductDto);
+    // Nettoyer le cache de la liste des produits
+    await this.cacheManager.del('GET /products');
+    // Option : pattern matching avec store.client
+    // await this.cacheManager.store.client.delByPattern('GET /products*');
+    return product;
+  }
+
+  async update(id: number, updateProductDto: UpdateProductDto) {
+    const product = await this.productRepository.update(id, updateProductDto);
+    // Supprimer le cache spécifique à ce produit
+    await this.cacheManager.del(\`GET /products/\${id}\`);
+    await this.cacheManager.del('GET /products'); // Invalider aussi la liste
+    return product;
+  }
+
+  async remove(id: number) {
+    await this.productRepository.delete(id);
+    await this.cacheManager.del(\`GET /products/\${id}\`);
+    await this.cacheManager.del('GET /products');
+  }
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 6 : Cache avancé avec pattern matching
+            title: "5. Invalidation par pattern (Redis)",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">🎯 Pattern matching avec Redis</h2>
+                    <p>Pour supprimer toutes les clés qui commencent par un préfixe :</p>
+                    <div class="code-block my-5">
+                        <pre>// products.service.ts
+async invalidateProductCache() {
+  // Accès direct au client Redis (cache-manager-redis-yet)
+  const client = this.cacheManager.store.client;
+  
+  // Supprimer toutes les clés commençant par "GET /products"
+  const keys = await client.keys('GET /products*');
+  if (keys.length > 0) {
+    await client.del(keys);
+  }
+  
+  // Alternative plus élégante : SCAN pour éviter de bloquer Redis
+  const stream = client.scanIterator({
+    match: 'GET /products*',
+    count: 100
+  });
+  for await (const key of stream) {
+    await client.del(key);
+  }
+}
+
+// Utilisation après modification d'une catégorie
+async updateCategory(categoryId: number, data: any) {
+  await this.categoryRepository.update(categoryId, data);
+  await this.invalidateProductCache(); // Tous les produits de cette catégorie sont recachés
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 7 : Cache adapté au rôle utilisateur
+            title: "6. Cache personnalisé avec clé dynamique",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">👤 Cache tenant compte du rôle</h2>
+                    <p>Les administrateurs voient les produits (même en stock négatif, masqués). Le cache doit donc inclure le rôle dans la clé.</p>
+                    <div class="code-block my-5">
+                        <pre>// products.controller.ts
+import { CacheKey, CacheInterceptor, ExecutionContext, Injectable } from '@nestjs/common';
+
+@Injectable()
+export class UserAwareCacheInterceptor extends CacheInterceptor {
+  protected trackBy(context: ExecutionContext): string | undefined {
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+    const userRole = user?.role || 'guest';
+    const url = request.url;
+    // Clé unique : rôle + URL
+    return \`\${userRole}:\${url}\`;
+  }
+}
+
+@Controller('products')
+@UseInterceptors(UserAwareCacheInterceptor)
+export class ProductsController {
+  // Le cache est séparé entre 'admin', 'seller', 'customer', 'guest'
+}</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 8 : Monitoring Redis
+            title: "7. Surveillance du cache Redis",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">📊 Monitoring des performances</h2>
+                    <p>Commandes utiles pour surveiller Redis :</p>
+                    <div class="code-block my-5">
+                        <pre># Voir les statistiques
+redis-cli INFO stats
+
+# Voir les clés présentes
+redis-cli KEYS "GET *"
+
+# Voir la mémoire utilisée
+redis-cli INFO memory
+
+# Mode monitor (live)
+redis-cli MONITOR
+
+# Tester les performances
+redis-benchmark -n 10000 -c 50</pre>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4 mt-4">
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <p class="font-bold text-green-800">✅ Bon signe</p>
+                            <p class="text-sm">Cache hit rate > 80%</p>
+                            <p class="text-sm">Temps de réponse < 10ms</p>
+                        </div>
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <p class="font-bold text-amber-800">⚠️ Signaux faibles</p>
+                            <p class="text-sm">Cache invalidation trop fréquente</p>
+                            <p class="text-sm">TTL trop court</p>
+                        </div>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 9 : Résumé et exercice
+            title: "Résumé & Exercice",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">📌 Ce qu'il faut retenir</h2>
+                    <ul class="list-disc pl-6 space-y-3 text-gray-700 mb-6">
+                        <li>Redis = base de données <strong>en mémoire</strong> ultra-rapide pour le cache</li>
+                        <li><span class="cache-tag">@nestjs/cache-manager</span> + <span class="cache-tag">cache-manager-redis-yet</span> : intégration facile</li>
+                        <li><span class="cache-tag">@UseInterceptors(CacheInterceptor)</span> : met automatiquement en cache les réponses GET</li>
+                        <li><span class="cache-tag">@CacheTTL(secondes)</span> : personnalise la durée de vie</li>
+                        <li><strong>Invalidation</strong> : clé par clé (<code>cacheManager.del()</code>) ou pattern avec <code>client.keys()</code></li>
+                        <li>Adapter la clé au rôle utilisateur pour éviter les fuites de données</li>
+                    </ul>
+                    <div class="p-5 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl">
+                        <p class="font-bold text-red-800">🧪 Exercice pratique :</p>
+                        <p>1. Installez Redis sur votre machine et configurez le CacheModule dans votre API e-commerce.</p>
+                        <p>2. Ajoutez <code>@UseInterceptors(CacheInterceptor)</code> sur <code>GET /products</code> et <code>GET /products/:id</code>.</p>
+                        <p>3. Implémentez une méthode <code>invalidateProductCache()</code> appelée après <code>POST</code>, <code>PATCH</code> et <code>DELETE</code>.</p>
+                        <p>4. Vérifiez dans Redis que les clés sont créées (<code>redis-cli KEYS "GET*"</code>) et supprimées après invalidation.</p>
+                        <details class="mt-3"><summary class="cursor-pointer text-orange-600 font-medium">🔍 Voir une solution</summary>
+                        <div class="code-block mt-2 text-xs">// products.service.ts<br>async invalidateProductCache(productId?: number) {<br>  await this.cacheManager.del('GET /products');<br>  if (productId) {<br>    await this.cacheManager.del(\`GET /products/\${productId}\`);<br>  }<br>}</div>
+                        </details>
+                    </div>
+                </div>
+            `
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        const html = `
+            <div class="slide-card overflow-hidden">
+                <div class="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-3 border-b border-red-200">
+                    <h3 class="font-semibold text-red-800">${slide.title}</h3>
+                </div>
+                <div>
+                    ${slide.content}
+                </div>
+            </div>
+        `;
+        $("#slides-wrapper").html(html);
+        $("#pageIndicator").text(`Slide ${index+1} / ${totalSlides}`);
+        const progressPercent = (index / (totalSlides - 1)) * 100;
+        $("#progress-fill").css("width", `${progressPercent}%`);
+        
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            alert("🎉 Félicitations ! Vous maîtrisez la mise en cache Redis avec NestJS. Votre API e-commerce est prête pour le passage à l'échelle !");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+        } else {
+            alert("Début de la leçon.");
+        }
+    }
+
+    renderSlide(0);
+    $("#nextBtn").on("click", nextSlide);
+    $("#prevBtn").on("click", prevSlide);
+    
+    $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+    });
+</script>
+</body>
+</html>

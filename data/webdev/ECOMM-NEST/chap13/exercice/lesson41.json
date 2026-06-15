@@ -1,0 +1,164 @@
+[
+  {
+    "intitule": "Identifier les décorateurs Swagger",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une API NestJS documentée avec Swagger, plusieurs décorateurs sont utilisés pour enrichir la documentation.</p><p>Associez chaque décorateur à son rôle spécifique.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le rôle de @ApiTags(), @ApiOperation() et @ApiProperty().",
+        "niveau": "easy",
+        "reponse": "- @ApiTags() : regroupe les endpoints par catégorie (ex: 'Products', 'Orders') dans l'interface Swagger\n- @ApiOperation() : décrit le but d'un endpoint (résumé et description détaillée)\n- @ApiProperty() : documente une propriété d'un DTO (type, exemple, requis, description)",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Documenter un contrôleur complet",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici un contrôleur <code>ProductsController</code> sans documentation Swagger.</p><pre><code>@Controller('products')\nexport class ProductsController {\n  @Get()\n  findAll() { return []; }\n  \n  @Get(':id')\n  findOne(@Param('id') id: string) { return {}; }\n  \n  @Post()\n  create(@Body() dto: CreateProductDto) { return {}; }\n}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Ajouter les décorateurs Swagger nécessaires pour documenter ce contrôleur.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';\n\n@ApiTags('products')  // Regroupe sous l'onglet 'products'\n@Controller('products')\nexport class ProductsController {\n  @Get()\n  @ApiOperation({ summary: 'Récupérer tous les produits', description: 'Retourne la liste complète des produits.' })\n  findAll() { return []; }\n  \n  @Get(':id')\n  @ApiOperation({ summary: 'Récupérer un produit par ID' })\n  @ApiParam({ name: 'id', description: 'Identifiant unique du produit', example: '123e4567-e89b-12d3-a456-426614174000' })\n  findOne(@Param('id') id: string) { return {}; }\n  \n  @Post()\n  @ApiOperation({ summary: 'Créer un nouveau produit' })\n  @ApiBody({ type: CreateProductDto, description: 'Données du produit à créer' })\n  create(@Body() dto: CreateProductDto) { return {}; }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Documenter un DTO avec @ApiProperty",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un DTO <code>CreateProductDto</code> doit être documenté pour Swagger avec les champs :</p><ul><li><code>name</code> : string, obligatoire, exemple: 'T-shirt'</li><li><code>price</code> : number, obligatoire, minimum 0</li><li><code>description</code> : string, optionnel</li><li><code>categoryId</code> : string (UUID), obligatoire</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Documenter le DTO en utilisant les décorateurs @ApiProperty appropriés.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';\n\nexport class CreateProductDto {\n  @ApiProperty({ description: 'Nom du produit', example: 'T-shirt en coton', required: true })\n  name: string;\n\n  @ApiProperty({ description: 'Prix en FCFA', example: 5000, minimum: 0, required: true })\n  price: number;\n\n  @ApiPropertyOptional({ description: 'Description détaillée du produit', example: 'T-shirt 100% coton, lavable en machine' })\n  description?: string;\n\n  @ApiProperty({ description: 'ID de la catégorie (UUID)', example: '550e8400-e29b-41d4-a716-446655440000', required: true })\n  categoryId: string;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Ajouter l'authentification JWT à Swagger",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre API utilise l'authentification JWT. Les endpoints protégés doivent pouvoir être testés depuis Swagger en ajoutant automatiquement le token dans le header <code>Authorization</code>.</p><p>Vous devez configurer Swagger pour supporter l'authentification par bearer token.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la configuration Swagger dans main.ts pour ajouter le support JWT.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// main.ts\nimport { NestFactory } from '@nestjs/core';\nimport { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';\nimport { AppModule } from './app.module';\n\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule);\n\n  const config = new DocumentBuilder()\n    .setTitle('API E-commerce')\n    .setDescription('Documentation de l\\'API e-commerce')\n    .setVersion('1.0')\n    .addBearerAuth(\n      {\n        type: 'http',\n        scheme: 'bearer',\n        bearerFormat: 'JWT',\n        name: 'JWT',\n        description: 'Entrez votre token JWT',\n        in: 'header',\n      },\n      'JWT-auth', // Nom de la stratégie\n    )\n    .build();\n\n  const document = SwaggerModule.createDocument(app, config);\n  SwaggerModule.setup('api/docs', app, document);\n\n  await app.listen(3000);\n}\nbootstrap();\n```\n\n**Utilisation dans un contrôleur :**\n```typescript\n@Post()\n@ApiBearerAuth('JWT-auth')\n@UseGuards(JwtAuthGuard)\ncreate(@Body() dto: CreateProductDto) {\n  return this.service.create(dto);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Personnaliser les réponses d'erreur",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour une meilleure documentation, vous devez spécifier les codes de retour HTTP possibles pour l'endpoint <code>GET /products/:id</code> :</p><ul><li>200 : produit trouvé</li><li>404 : produit non trouvé</li><li>401 : non authentifié</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Utiliser @ApiResponse pour documenter ces différents cas.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { ApiResponse, ApiBearerAuth } from '@nestjs/swagger';\n\n@Get(':id')\n@ApiBearerAuth('JWT-auth')\n@ApiOperation({ summary: 'Récupérer un produit par ID' })\n@ApiResponse({ status: 200, description: 'Produit trouvé', type: ProductResponseDto })\n@ApiResponse({ status: 401, description: 'Non authentifié - Token JWT manquant ou invalide' })\n@ApiResponse({ status: 404, description: 'Produit non trouvé' })\nasync findOne(@Param('id') id: string) {\n  const product = await this.service.findOne(id);\n  if (!product) throw new NotFoundException();\n  return product;\n}\n```\n\nOn peut aussi utiliser <code>@ApiNotFoundResponse()</code> et <code>@ApiUnauthorizedResponse()</code> comme raccourcis :\n```typescript\n@ApiNotFoundResponse({ description: 'Produit non trouvé' })\n@ApiUnauthorizedResponse({ description: 'Token JWT invalide' })\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Documenter une requête avec pagination",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'endpoint <code>GET /products</code> accepte des paramètres de pagination : <code>page</code> (défaut: 1) et <code>limit</code> (défaut: 10, max: 100).</p><p>Ces paramètres sont passés en query string.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Documenter ces paramètres avec @ApiQuery.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { ApiQuery } from '@nestjs/swagger';\n\n@Get()\n@ApiOperation({ summary: 'Lister les produits avec pagination' })\n@ApiQuery({ name: 'page', required: false, type: Number, description: 'Numéro de page', example: 1 })\n@ApiQuery({ name: 'limit', required: false, type: Number, description: 'Nombre d\\'éléments par page (max 100)', example: 10 })\nasync findAll(\n  @Query('page') page: number = 1,\n  @Query('limit') limit: number = 10\n) {\n  const validLimit = Math.min(limit, 100);\n  return this.service.findAll(page, validLimit);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Créer un DTO de réponse paginé",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour standardiser les réponses paginées, vous devez créer un DTO générique <code>PaginatedResponseDto&lt;T&gt;</code> qui contient :</p><ul><li><code>data</code> : tableau des éléments</li><li><code>total</code> : nombre total d'éléments</li><li><code>page</code> : page courante</li><li><code>limit</code> : éléments par page</li><li><code>totalPages</code> : nombre total de pages</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Documenter ce DTO générique pour Swagger.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { ApiProperty } from '@nestjs/swagger';\n\nexport class PaginatedResponseDto<T> {\n  @ApiProperty({ description: 'Liste des éléments', isArray: true })\n  data: T[];\n\n  @ApiProperty({ description: 'Nombre total d\\'éléments', example: 42 })\n  total: number;\n\n  @ApiProperty({ description: 'Page actuelle', example: 1 })\n  page: number;\n\n  @ApiProperty({ description: 'Nombre d\\'éléments par page', example: 10 })\n  limit: number;\n\n  @ApiProperty({ description: 'Nombre total de pages', example: 5 })\n  totalPages: number;\n}\n\n// Utilisation dans un contrôleur\n@Get()\n@ApiOperation({ summary: 'Liste paginée des produits' })\n@ApiOkResponse({ type: PaginatedResponseDto })\nasync findAll(@Query() paginationDto: PaginationDto) {\n  const [data, total] = await this.service.findAll(paginationDto);\n  return {\n    data,\n    total,\n    page: paginationDto.page,\n    limit: paginationDto.limit,\n    totalPages: Math.ceil(total / paginationDto.limit),\n  };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Grouper les endpoints par tag",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Une API e-commerce contient plusieurs contrôleurs : AuthController, ProductsController, OrdersController, PaymentsController.</p><p>Vous souhaitez organiser la documentation Swagger en groupes logiques.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Attribuer un tag à chaque contrôleur.",
+        "niveau": "easy",
+        "reponse": "```typescript\n// auth.controller.ts\n@ApiTags('Authentication')\n@Controller('auth')\nexport class AuthController {}\n\n// products.controller.ts\n@ApiTags('Products')\n@Controller('products')\nexport class ProductsController {}\n\n// orders.controller.ts\n@ApiTags('Orders')\n@Controller('orders')\nexport class OrdersController {}\n\n// payments.controller.ts\n@ApiTags('Payments')\n@Controller('payments')\nexport class PaymentsController {}\n```\n\nDans l'interface Swagger, les endpoints seront regroupés sous ces quatre onglets distincts.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Documenter un webhook Stripe",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>L'endpoint <code>POST /webhooks/stripe</code> est un webhook public (sans authentification) qui reçoit des événements Stripe. Le corps de la requête est brut (raw body) et non un JSON classique.</p><p>La documentation doit préciser que cet endpoint ne nécessite pas de token JWT et qu'il attend un <code>raw body</code> avec un header <code>stripe-signature</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Documenter ce webhook avec Swagger.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport { ApiBody, ApiHeader, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';\n\n@ApiTags('Webhooks')\n@Controller('webhooks')\nexport class WebhooksController {\n  @Post('stripe')\n  @ApiOperation({ \n    summary: 'Webhook Stripe',\n    description: 'Reçoit les événements Stripe (payment_intent.succeeded, etc.). Endpoint public sans authentification.'\n  })\n  @ApiHeader({\n    name: 'stripe-signature',\n    description: 'Signature Stripe pour vérifier l\\'authenticité du webhook',\n    required: true,\n  })\n  @ApiBody({\n    description: 'Raw body JSON envoyé par Stripe',\n    required: true,\n    schema: {\n      type: 'object',\n      example: {\n        id: 'evt_123',\n        type: 'payment_intent.succeeded',\n        data: { object: { id: 'pi_123', amount: 5000 } }\n      }\n    }\n  })\n  @ApiUnauthorizedResponse({ description: 'Signature Stripe invalide' })\n  @SkipThrottle()\n  @Public() // Désactive l'auth JWT\n  async handleStripeWebhook(@Req() req: Request) {\n    const sig = req.headers['stripe-signature'];\n    // Vérifier et traiter\n    return { received: true };\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

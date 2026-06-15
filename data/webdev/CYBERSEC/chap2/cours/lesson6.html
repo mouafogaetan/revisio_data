@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 6 : Fonctions de hachage et mots de passe | Cybersécurité</title>
+  <!-- Tailwind CSS + Font Awesome (icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (formules mathématiques si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions slides, scroll doux + customisation mobile */
+    .slide {
+      display: none;
+      transition: all 0.2s ease;
+    }
+    .slide.active {
+      display: block;
+      animation: fadeSlide 0.3s ease-out;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateX(12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    body {
+      background: #f8fafc;  /* fond clair mais reposant */
+    }
+    .card-glass {
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(2px);
+      border-radius: 2rem;
+      box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+    }
+    /* corrections pour petit écran */
+    @media (max-width: 640px) {
+      .container-custom {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+      .btn-nav {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+      }
+    }
+    /* style pour les pastilles objectifs */
+    .objective-badge {
+      background: #eef2ff;
+      border-left: 5px solid #3b82f6;
+    }
+    .highlight-code {
+      background: #1e293b;
+      color: #e2e8f0;
+      font-family: 'Courier New', monospace;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .schema-box {
+      background: #f1f5f9;
+      border-radius: 1rem;
+      padding: 1rem;
+      border: 1px dashed #94a3b8;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10 container-custom">
+    <!-- Conteneur principal style carte -->
+    <div class="card-glass p-5 md:p-8 border border-gray-100">
+      
+      <!-- Indicateur progression slide + controls -->
+      <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+        <div class="text-sm text-gray-500 bg-white/70 px-4 py-1.5 rounded-full shadow-sm">
+          <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+        </div>
+        <div class="flex gap-2">
+          <button id="prevSlide" class="btn-nav bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-medium py-2 px-4 rounded-xl transition flex items-center gap-1 shadow-sm"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>Précédent</button>
+          <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-xl transition shadow-md">Suivant <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg></button>
+        </div>
+      </div>
+
+      <!-- SLIDES DYNAMIQUES -->
+      <div id="slidesContainer">
+        <!-- SLIDE 1 : Titre de la leçon -->
+        <div class="slide active" data-slide="0">
+          <div class="text-center py-8 md:py-12">
+            <span class="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full mb-4">🔐 Leçon 6 • Cybersécurité</span>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent mb-5">Fonctions de hachage<br>et sécurisation des mots de passe</h1>
+            <div class="w-24 h-1 bg-indigo-300 mx-auto my-5 rounded-full"></div>
+            <p class="text-gray-600 text-lg max-w-xl mx-auto mt-4">Comprendre le hachage, les algorithmes modernes, et comment protéger efficacement les mots de passe dans les systèmes.</p>
+            <div class="mt-10 flex justify-center">
+              <div class="bg-gray-50 p-3 rounded-2xl inline-flex items-center gap-3 text-sm text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <span>Bases critiques pour développeurs et administrateurs</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 2 : Objectifs pédagogiques -->
+        <div class="slide" data-slide="1">
+          <div class="py-4 md:py-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+            <div class="grid gap-4 md:grid-cols-1">
+              <div class="objective-badge p-4 rounded-xl shadow-sm">
+                <span class="font-bold text-indigo-700 block text-lg">1️⃣</span>
+                <p class="text-gray-700">Comprendre les propriétés fondamentales du hachage : déterministe, non réversible, résistance aux collisions.</p>
+              </div>
+              <div class="objective-badge p-4 rounded-xl shadow-sm">
+                <span class="font-bold text-indigo-700 block text-lg">2️⃣</span>
+                <p class="text-gray-700">Découvrir les algorithmes modernes (SHA-256, SHA-3, bcrypt, Argon2) et leurs usages.</p>
+              </div>
+              <div class="objective-badge p-4 rounded-xl shadow-sm">
+                <span class="font-bold text-indigo-700 block text-lg">3️⃣</span>
+                <p class="text-gray-700">Utiliser les hachages pour stocker des mots de passe : salage, itération (sel + pepper).</p>
+              </div>
+            </div>
+            <div class="mt-6 bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-800 text-sm">
+              💡 Pourquoi le hachage est-il essentiel ? Il empêche qu'un attaquant découvre les mots de passe même s'il accède à la base de données.
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 3 : Propriétés des fonctions de hachage (déterministe, non réversible, résistance collisions) -->
+        <div class="slide" data-slide="2">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-4">🧠 Propriétés des fonctions de hachage</h2>
+          <div class="space-y-5">
+            <div class="bg-white border border-gray-200 rounded-2xl p-4">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">⚡</span>
+                <div><span class="font-semibold text-gray-800">Déterministe :</span> <span class="text-gray-600">une même entrée produit toujours la même empreinte (hash).</span></div>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-2xl p-4">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">🔒</span>
+                <div><span class="font-semibold text-gray-800">Non réversible (à sens unique) :</span> <span class="text-gray-600">impossible de retrouver le message original à partir du hash.</span></div>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-2xl p-4">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">🧩</span>
+                <div><span class="font-semibold text-gray-800">Résistance aux collisions :</span> <span class="text-gray-600">deux entrées différentes ne doivent pas donner le même hash.</span></div>
+              </div>
+            </div>
+            <div class="bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm">
+              📐 <span class="font-mono">h(x) = y</span> — facile à calculer, mais impossible d'inverser mathématiquement (grâce à la perte d'information).
+            </div>
+          </div>
+          <!-- Mini schéma dessiné maison -->
+          <div class="schema-box mt-6 text-center">
+            <p class="font-mono text-sm mb-2">"Mot de passe" → [Fonction Hachage] → <span class="bg-gray-800 text-green-300 px-2 py-1 rounded text-xs">5e884898da...</span></p>
+            <p class="text-xs text-gray-500">✅ même mot de passe → même hash &nbsp;&nbsp;|&nbsp;&nbsp; ❌ impossible de déchiffrer</p>
+          </div>
+        </div>
+
+        <!-- SLIDE 4 : Algorithmes modernes (SHA-256, SHA-3, bcrypt, Argon2) -->
+        <div class="slide" data-slide="3">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-4">⚙️ Algorithmes de hachage cryptographiques</h2>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="bg-gray-50 rounded-xl p-4 border-l-4 border-blue-500">
+              <h3 class="font-bold text-lg">SHA-256 / SHA-3</h3>
+              <p class="text-sm text-gray-600">Famille Secure Hash Algorithm. SHA-256 produit 256 bits. Utilisé pour signatures, intégrité, blockchain.</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 border-l-4 border-purple-500">
+              <h3 class="font-bold text-lg">bcrypt</h3>
+              <p class="text-sm text-gray-600">Conçu pour mots de passe, intégre un sel et un facteur de coût (itérations lentes).</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 border-l-4 border-rose-500">
+              <h3 class="font-bold text-lg">Argon2 (vainqueur PHC)</h3>
+              <p class="text-sm text-gray-600">Moderne, résistant aux GPU/ASIC, paramètres : mémoire, temps, parallélisme. Recommandé OWASP.</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 border-l-4 border-emerald-500">
+              <h3 class="font-bold text-lg">Scrypt / PBKDF2</h3>
+              <p class="text-sm text-gray-600">Alternatives robustes pour dérivation de clés. PBKDF2 utilisé dans WPA2, etc.</p>
+            </div>
+          </div>
+          <div class="mt-5 bg-yellow-50 p-3 rounded-xl text-yellow-800 text-sm flex gap-2">
+            <span>⚠️</span> Ne jamais utiliser MD5 ou SHA-1 pour des mots de passe (considérés vulnérables).
+          </div>
+        </div>
+
+        <!-- SLIDE 5 : Hachage pour mots de passe : salage + itération (sel, pepper) -->
+        <div class="slide" data-slide="4">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-4">🧂 Stockage sécurisé des mots de passe : sel & itération</h2>
+          <div class="prose prose-sm max-w-none">
+            <p class="mb-3">Le hachage seul ne suffit pas à cause des attaques par tables arc-en-ciel (pré-calculs). On ajoute :</p>
+            <ul class="list-disc pl-6 space-y-2 text-gray-700">
+              <li><strong>Sel (salt)</strong> : valeur aléatoire unique pour chaque utilisateur, concaténée au mot de passe avant hachage. Empêche les tables pré-calculées.</li>
+              <li><strong>Itérations / facteur de coût</strong> : appliquer la fonction de hachage plusieurs milliers de fois (ex: bcrypt coût 10-12). Ralentit les attaques par force brute.</li>
+              <li><strong>Pepper (secret)</strong> : clé secrète globale stockée séparément (hors base de données).</li>
+            </ul>
+            <div class="bg-gray-800 text-gray-100 p-3 rounded-lg font-mono text-xs my-4 overflow-x-auto">
+              hash = bcrypt( mot_de_passe + sel_unique, facteur_coût ) <br>
+              stockage en base : (hash, sel, coût)
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg text-green-800 text-sm border border-green-200">
+              ✅ Bonne pratique : utiliser Argon2id ou bcrypt avec sel généré automatiquement.
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 6 : Exemple pratique / illustration du principe + pourquoi résistance aux attaques -->
+        <div class="slide" data-slide="5">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-4">🛡️ Pourquoi le sel rend les mots de passe robustes ?</h2>
+          <div class="schema-box p-5">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-center">
+              <div class="bg-white rounded-xl p-3 shadow w-full">
+                <p class="font-bold">Utilisateur A</p>
+                <p class="text-xs font-mono">motdepasse123</p>
+                <p class="text-xs">+ sel_A: "f7s9D"</p>
+                <p class="text-indigo-600 text-xs mt-1">hash_A = 9c8df...</p>
+              </div>
+              <div class="text-2xl text-gray-400">→</div>
+              <div class="bg-white rounded-xl p-3 shadow w-full">
+                <p class="font-bold">Utilisateur B</p>
+                <p class="text-xs font-mono">motdepasse123</p>
+                <p class="text-xs">+ sel_B: "2kLp9"</p>
+                <p class="text-indigo-600 text-xs mt-1">hash_B = a7F3e...</p>
+              </div>
+            </div>
+            <p class="text-center text-sm text-gray-600 mt-4">✨ Même mot de passe → hash complètement différent grâce au sel. Une attaque par table arc-en-ciel devient impossible.</p>
+          </div>
+          <div class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3 text-center text-sm">
+            <div class="bg-white rounded-lg p-2 shadow-sm"><span class="font-bold">🔁 Sans sel :</span> hash identiques → vulnérable</div>
+            <div class="bg-white rounded-lg p-2 shadow-sm"><span class="font-bold">🧂 Avec sel :</span> hash uniques → sécurisé</div>
+            <div class="bg-white rounded-lg p-2 shadow-sm"><span class="font-bold">⚙️ Itérations :</span> ralentit le craquage</div>
+          </div>
+        </div>
+
+        <!-- SLIDE 7 : Bonnes pratiques pour les mots de passe et gestionnaires -->
+        <div class="slide" data-slide="6">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-3">🔑 Recommandations pratiques pour les mots de passe</h2>
+          <div class="space-y-3">
+            <div class="flex gap-3 items-start p-3 bg-white rounded-xl">
+              <span class="text-xl">✔️</span> <span><strong>Longueur & complexité</strong> : Au moins 12 caractères, mélange de minuscules, majuscules, chiffres, symboles.</span>
+            </div>
+            <div class="flex gap-3 items-start p-3 bg-white rounded-xl">
+              <span class="text-xl">✔️</span> <span><strong>Gestionnaires de mots de passe</strong> (Bitwarden, KeePass) pour générer et stocker des mots de passe uniques.</span>
+            </div>
+            <div class="flex gap-3 items-start p-3 bg-white rounded-xl">
+              <span class="text-xl">✔️</span> <span><strong>Double authentification (2FA/MFA)</strong> : réduire les risques même si hash compromis.</span>
+            </div>
+            <div class="flex gap-3 items-start p-3 bg-white rounded-xl">
+              <span class="text-xl">✔️</span> <span><strong>Politique de rotation intelligente</strong> : ne pas forcer trop souvent, éviter la réutilisation.</span>
+            </div>
+          </div>
+          <!-- Image “dessinée maison” sous forme d’un schéma simple (pas d’image externe, mais description textuelle graphique) -->
+          <div class="mt-6 p-3 border-t border-gray-200 text-center text-gray-500 text-xs">
+            <div class="bg-gray-100 rounded-lg p-2 inline-block mx-auto">
+              <span class="block text-indigo-700 font-mono">[Gestionnaire de mots de passe] → 🔐 hash stocké avec sel & itérations</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SLIDE 8 : Résumé et mise en situation (compétences finales) -->
+        <div class="slide" data-slide="7">
+          <h2 class="text-2xl font-bold text-indigo-800 mb-4">📌 Résumé & application concrète</h2>
+          <div class="bg-gradient-to-r from-indigo-50 to-sky-50 p-5 rounded-2xl">
+            <p class="font-semibold">Dans un projet web / développement :</p>
+            <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+              <li>Ne jamais stocker de mot de passe en clair.</li>
+              <li>Utiliser Argon2id ou bcrypt (librairies : <span class="font-mono text-xs bg-gray-200 px-1">bcrypt</span> pour Node/Python/PHP).</li>
+              <li>Le sel doit être aléatoire et d’au moins 16 octets.</li>
+              <li>Vérifier la robustesse des politiques de mot de passe côté utilisateur.</li>
+              <li>Mettre en œuvre le hachage aussi pour l’intégrité des données (fichiers, logs).</li>
+            </ul>
+            <div class="mt-5 bg-white rounded-xl p-3 shadow-sm">
+              <p class="text-sm text-gray-600">💡 <em>Exercice possible :</em> comparer les temps de génération bcrypt vs SHA-256, et comprendre l’importance des itérations.</p>
+            </div>
+          </div>
+          <div class="mt-5 text-center text-sm text-gray-500 border-t pt-4">
+            <span>📖 Leçon 6 – “Fonctions de hachage et mots de passe” | ✨ Capacité: utiliser hash, salage et itérations</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Footer discret -->
+    <div class="text-center text-gray-400 text-xs mt-6">
+      Cours d'initiation à la cybersécurité | Enseignant Cameroun | Leçon 6 : Hachage & Mots de passe
+    </div>
+  </main>
+
+  <script>
+    $(document).ready(function(){
+      const slides = $('.slide');
+      const totalSlides = slides.length;
+      $('#totalSlides').text(totalSlides);
+      let currentIndex = 0;
+
+      function updateSlideVisibility() {
+        slides.removeClass('active');
+        $(slides[currentIndex]).addClass('active');
+        $('#slideCounter').text(currentIndex+1);
+        // Désactiver/activer boutons si nécessaire
+        $('#prevSlide').prop('disabled', currentIndex === 0);
+        $('#nextSlide').prop('disabled', currentIndex === totalSlides-1);
+        if(currentIndex === 0) $('#prevSlide').addClass('opacity-50 cursor-not-allowed').prop('disabled', true);
+        else $('#prevSlide').removeClass('opacity-50 cursor-not-allowed').prop('disabled', false);
+        if(currentIndex === totalSlides-1) $('#nextSlide').addClass('opacity-50 cursor-not-allowed').prop('disabled', true);
+        else $('#nextSlide').removeClass('opacity-50 cursor-not-allowed').prop('disabled', false);
+        // Scroll en haut pour confort sur mobile
+        $('html, body').animate({ scrollTop: 0 }, 100);
+      }
+
+      $('#nextSlide').on('click', function(){
+        if(currentIndex < totalSlides-1){
+          currentIndex++;
+          updateSlideVisibility();
+        }
+      });
+      $('#prevSlide').on('click', function(){
+        if(currentIndex > 0){
+          currentIndex--;
+          updateSlideVisibility();
+        }
+      });
+      // Support clavier : flèches droite/gauche
+      $(document).on('keydown', function(e){
+        if(e.key === 'ArrowRight'){
+          if(currentIndex < totalSlides-1){
+            currentIndex++;
+            updateSlideVisibility();
+          }
+        } else if(e.key === 'ArrowLeft'){
+          if(currentIndex > 0){
+            currentIndex--;
+            updateSlideVisibility();
+          }
+        }
+      });
+      // Rafraîchir MathJax si nécessaire (aucune formule complexe ici, mais au cas où)
+      if(window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    });
+  </script>
+</body>
+</html>

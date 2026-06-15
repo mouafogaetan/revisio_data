@@ -1,0 +1,142 @@
+[
+  {
+    "intitule": "Comprendre l'automatisation EAS Build et GitHub Actions",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans le processus de livraison continue (CI/CD) d'une application React Native avec Expo, on utilise EAS Build et GitHub Actions. Réponds aux questions suivantes pour vérifier ta compréhension de ces outils.</p>",
+      "images": [
+        "schéma montrant le flux : code commit → GitHub Actions → EAS Build → soumission automatique aux stores"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Explique le rôle d'EAS Build dans le pipeline d'intégration continue d'une application Expo.",
+        "niveau": "easy",
+        "reponse": "EAS Build est un service cloud d'Expo qui permet de compiler et de signer des applications iOS et Android sans avoir besoin d'un environnement local lourd (Mac pour iOS, JDK pour Android). Il produit des artefacts prêts à être soumis aux stores (AAB, IPA) ou distribués en interne.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Identifie trois avantages d'utiliser GitHub Actions pour déclencher des builds EAS automatiquement lors d'un push sur la branche 'main'.",
+        "niveau": "medium",
+        "reponse": "1. Automatisation : à chaque nouveau commit, un build est généré sans intervention manuelle. 2. Cohérence : l'environnement de build est reproductible. 3. Gain de temps : les développeurs n'ont pas à lancer manuellement `eas build`. 4. Intégration avec les tests : on peut exécuter les tests avant le build. 5. Livraison continue : possibilité de soumettre automatiquement aux stores après succès.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer un workflow GitHub Actions pour EAS Build",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Tu travailles sur une application e-commerce avec Expo. L'équipe souhaite automatiser la génération des builds de production (Android AAB et iOS IPA) à chaque tag git de version (ex: v1.2.0). Tu dois écrire un workflow GitHub Actions (fichier YAML) qui : <br/>- Se déclenche sur la création d'un tag commençant par 'v'. <br/>- Installe Node.js, npm, EAS CLI. <br/>- Exécute `eas build --platform all --profile production --non-interactive` <br/>- Soumet automatiquement les artefacts au Play Store et à l'App Store (via `eas submit`).</p>",
+      "images": [
+        "extrait du fichier .github/workflows/eas-build.yml"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédige le contenu du fichier YAML pour ce workflow. Inclus les secrets nécessaires (EXPO_TOKEN, APPLE_APP_SPECIFIC_PASSWORD, etc.)",
+        "niveau": "very hard",
+        "reponse": "```yaml\nname: EAS Build on tag\non:\n  push:\n    tags:\n      - 'v*'\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Checkout code\n        uses: actions/checkout@v4\n      - name: Setup Node.js\n        uses: actions/setup-node@v4\n        with:\n          node-version: 18\n      - name: Install dependencies\n        run: npm ci\n      - name: Install EAS CLI\n        run: npm install -g eas-cli\n      - name: Login to Expo\n        run: eas login --non-interactive --token ${{ secrets.EXPO_TOKEN }}\n      - name: Build for both platforms (production)\n        run: eas build --platform all --profile production --non-interactive --wait\n      - name: Submit to stores\n        run: eas submit --platform all --profile production --non-interactive\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment éviter de soumettre automatiquement à l'App Store si le build iOS échoue ?",
+            "niveau": "medium",
+            "reponse": "On peut diviser le workflow en deux jobs : `build-android` et `build-ios`, ou utiliser l'option `--wait` qui force EAS à attendre la fin du build et à retourner un code de sortie non nul en cas d'échec, ce qui arrêtera le workflow avant `eas submit`. On peut aussi utiliser `if: success()` sur l'étape de soumission."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Quels secrets doivent être configurés dans GitHub Actions pour permettre l'authentification à Expo et la soumission à l'App Store ?",
+        "niveau": "medium",
+        "reponse": "- `EXPO_TOKEN` : jeton d'accès personnel Expo pour exécuter `eas login`.\n- Pour iOS : `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` (mot de passe spécifique à l'application), et éventuellement `APPLE_TEAM_ID`.\n- Pour Android : `SUPPLY_TRACK` (optionnel) et la clé de service account pour Google Play (encodée en base64).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter les mises à jour OTA (Over The Air) avec EAS Update",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Ton application e-commerce est en production. Tu souhaites pousser des correctifs (changements de texte, corrections de bugs mineurs) sans passer par une nouvelle soumission aux stores. Expo propose les <strong>mises à jour OTA (Over‑The‑Air)</strong> via <code>eas update</code>. Décris les étapes pour configurer et publier une mise à jour OTA sur un build existant.</p>",
+      "images": [
+        "schéma : build initial → publication sur store → mise à jour OTA → utilisateur récupère le nouveau bundle JavaScript"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Explique la différence entre une mise à jour OTA et une nouvelle soumission au store (native).",
+        "niveau": "easy",
+        "reponse": "Une mise à jour OTA (Over-The-Air) ne change que le bundle JavaScript et les assets, sans avoir à recompiler le code natif ni à passer par le processus de validation des stores. Cela permet de déployer rapidement des correctifs ou des modifications d'interface. Une nouvelle soumission au store nécessite une reconstruction complète (code natif) et un délai de validation (Apple Review). Les mises à jour OTA ne peuvent pas modifier le code natif ni les permissions.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décris les commandes et la configuration nécessaires pour publier une mise à jour OTA via EAS Update (depuis le terminal). Inclus la gestion des branches (production, staging).",
+        "niveau": "hard",
+        "reponse": "```bash\n# 1. Installer eas-cli (si ce n'est pas fait)\nnpm install -g eas-cli\n\n# 2. S'assurer d'être connecté\neas login\n\n# 3. Configurer le projet pour EAS Update (création de eas.json avec 'channel')\neas update:configure\n\n# 4. Publier une mise à jour sur le canal 'production'\neas update --branch production --message \"Correction du texte du panier\"\n\n# 5. Publier sur un canal 'staging' pour tester\neas update --branch staging\n\n# 6. Pour cibler un build spécifique :\neas update --branch production --message \"fix bug\" --target \u003cupdate-id\u003e\n```\n\nDans eas.json :\n```json\n{\n  \"cli\": { \"version\": \">= 3.0.0\" },\n  \"build\": {\n    \"production\": {\n      \"channel\": \"production\",\n      \"ios\": { \"simulator\": false },\n      \"android\": { \"buildType\": \"app-bundle\" }\n    }\n  }\n}\n```\nLes builds intègrent la configuration des canaux ; les mises à jour OTA sont automatiquement servies aux utilisateurs ayant ces builds.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser un échec de soumission automatique au Play Store",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Lors de l'exécution d'un workflow GitHub Actions, l'étape <code>eas submit --platform android</code> échoue avec le message : <em>\"Google Service Account credentials not found. Please set the GOOGLE_SERVICE_ACCOUNT_KEY_PATH environment variable.\"</em></p>",
+      "images": [
+        "capture d'écran d'une erreur GitHub Actions"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifie la cause probable de cette erreur et propose deux solutions pour la corriger.",
+        "niveau": "medium",
+        "reponse": "La variable d'environnement `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` n'est pas définie ou le fichier JSON de compte de service n'est pas accessible dans l'environnement CI. Solutions :\n1. Ajouter le fichier JSON du compte de service comme secret GitHub (encodé en base64) et le décoder dans le workflow.\n2. Définir la variable `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` pointant vers le fichier.\n3. Utiliser `eas submit` avec l'option `--latest` et des credentials configurés localement, mais pour CI il faut passer le chemin.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Rédige l'extrait de code YAML à ajouter dans le workflow pour créer le fichier de service account et définir la variable d'environnement.",
+        "niveau": "very hard",
+        "reponse": "```yaml\n- name: Setup Google Service Account\n  env:\n    GOOGLE_SERVICE_ACCOUNT_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_BASE64 }}\n  run: |\n    echo $GOOGLE_SERVICE_ACCOUNT_BASE64 | base64 --decode > /tmp/gplay-key.json\n    echo \"GOOGLE_SERVICE_ACCOUNT_KEY_PATH=/tmp/gplay-key.json\" >> $GITHUB_ENV\n\n- name: Submit to Google Play\n  run: eas submit --platform android --profile production --non-interactive\n```\nIl faut stocker le fichier JSON du compte de service encodé en base64 dans le secret `GOOGLE_SERVICE_ACCOUNT_BASE64`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Comparer les stratégies de mise à jour (OTA vs Store)",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client souhaite ajouter une nouvelle fonctionnalité qui nécessite une bibliothèque native (ex: scanner 3D). Il vous demande si une mise à jour OTA suffit. Réponds en justifiant.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Justifie pourquoi l'ajout d'une bibliothèque native ne peut pas être déployé via OTA.",
+        "niveau": "easy",
+        "reponse": "Les mises à jour OTA ne modifient que le bundle JavaScript et les assets (images, polices). L'ajout d'une bibliothèque native nécessite de modifier le code natif (Java/Kotlin pour Android, Objective-C/Swift pour iOS) et de recompiler l'application. Cela requiert une nouvelle soumission aux stores car le code natif est inclus dans l'APK/AAB/IPA. Les OTA ne peuvent pas injecter de code natif.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Propose un workflow de déploiement combinant OTA pour les correctifs rapides et builds classiques pour les changements natifs.",
+        "niveau": "hard",
+        "reponse": "1. Pour les changements natifs (ou version majeure) : déclencher un build EAS (via tag git), soumettre aux stores. 2. Pour les correctifs UI/logique : pousser une mise à jour OTA via `eas update --branch production`. 3. Sur le plan de versioning : incrémenter `versionCode` (Android) et `buildNumber` (iOS) uniquement lors des builds natifs. Utiliser des canaux EAS Update (production, staging) pour délivrer les OTA aux bons utilisateurs. 4. Documenter les limites : OTA uniquement pour les JS/Assets.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

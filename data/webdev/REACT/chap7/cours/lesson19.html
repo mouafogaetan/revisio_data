@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>React - Props Drilling & Composition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .code-block {
+            background: #1e1b4b;
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            margin: 1rem 0;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .bad-code {
+            background: #7f1d1d;
+            border-left: 4px solid #ef4444;
+        }
+        .good-code {
+            background: #064e3b;
+            border-left: 4px solid #10b981;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #fbcfe8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #db2777;
+            border-radius: 10px;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+        .badge {
+            display: inline-block;
+            background: #db2777;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .drilling-svg {
+            background: #fdf2f8;
+            border-radius: 16px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
+    <!-- Barre de progression -->
+    <div class="mb-5 bg-pink-200/50 rounded-full h-2 overflow-hidden">
+        <div id="progressBar" class="bg-gradient-to-r from-pink-600 to-rose-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- Indicateur de slide -->
+    <div class="text-center mb-3 text-sm text-gray-700 font-medium">
+        <i class="fas fa-layer-group"></i> Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+    </div>
+
+    <div id="slidesContainer">
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-pink-100 rounded-full mb-6">
+                    <i class="fas fa-sitemap text-6xl text-pink-600"></i>
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-700 to-rose-700 mb-4">
+                    Props Drilling & Composition
+                </h1>
+                <p class="text-xl text-gray-700 mb-3">Transmettre des données intelligemment</p>
+                <div class="border-t border-pink-300 w-24 mx-auto my-6"></div>
+                <p class="text-gray-600"><i class="fas fa-exchange-alt"></i> Props Drilling • Problèmes • Solutions • Composition</p>
+                <div class="mt-8 flex justify-center gap-4 text-sm text-gray-500">
+                    <span><i class="fas fa-graduation-cap text-pink-600"></i> Niveau: Intermédiaire</span>
+                    <span><i class="fas fa-clock"></i> Durée: 45 min</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 border-l-8 border-pink-500 pl-4 mb-6">
+                🎯 Objectifs de la leçon
+            </h2>
+            <ul class="space-y-4 text-gray-700">
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre le <strong>props drilling</strong> et ses inconvénients</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Identifier quand le props drilling devient <strong>problématique</strong></span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser la <strong>composition</strong> avec <code>children</code> comme alternative</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Apprendre à <strong>refactoriser</strong> un code qui souffre du props drilling</span></li>
+            </ul>
+            <div class="mt-8 bg-pink-50 p-4 rounded-xl text-pink-800 text-sm border border-pink-200">
+                <i class="fas fa-lightbulb"></i> À la fin, vous saurez organiser vos composants pour éviter le "tunnel" de props !
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : QU'EST-CE QUE LE PROPS DRILLING ? -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🕳️ Props Drilling : Définition</h2>
+            <p class="text-gray-700 mb-4">Le <strong>props drilling</strong> est une situation où l'on transmet des données à travers plusieurs niveaux de composants qui n'ont pas besoin de ces données, uniquement pour qu'elles atteignent un composant profond.</p>
+            
+            <div class="drilling-svg">
+                <!-- Schéma SVG du props drilling -->
+                <svg viewBox="0 0 500 280" class="w-full h-auto">
+                    <rect x="175" y="10" width="150" height="35" rx="6" fill="#db2777" />
+                    <text x="250" y="32" fill="white" text-anchor="middle" font-size="12" font-weight="bold">App (user)</text>
+                    
+                    <rect x="175" y="65" width="150" height="35" rx="6" fill="#ec4899" />
+                    <text x="250" y="87" fill="white" text-anchor="middle" font-size="11">Layout (user)</text>
+                    
+                    <rect x="175" y="120" width="150" height="35" rx="6" fill="#f472b6" />
+                    <text x="250" y="142" fill="white" text-anchor="middle" font-size="11">Header (user)</text>
+                    
+                    <rect x="175" y="175" width="150" height="35" rx="6" fill="#f9a8d4" />
+                    <text x="250" y="197" fill="#9d174d" text-anchor="middle" font-size="11">UserMenu (user) ✅</text>
+                    
+                    <!-- Flèches de transmission -->
+                    <path d="M250 45 L250 60" stroke="#db2777" stroke-width="2" marker-end="url(#arrowPink)" />
+                    <path d="M250 100 L250 115" stroke="#ec4899" stroke-width="2" marker-end="url(#arrowPink)" />
+                    <path d="M250 155 L250 170" stroke="#f472b6" stroke-width="2" marker-end="url(#arrowPink)" />
+                    
+                    <defs>
+                        <marker id="arrowPink" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                            <path d="M0,0 L8,4 L0,8 Z" fill="#db2777" />
+                        </marker>
+                    </defs>
+                </svg>
+                <p class="text-center text-sm text-gray-500 mt-2">La prop <code>user</code> traverse 3 composants inutiles avant d'arriver à destination !</p>
+            </div>
+            
+            <div class="bg-red-50 p-3 rounded-lg mt-2">
+                <p class="text-red-700 text-sm"><i class="fas fa-exclamation-triangle"></i> Problèmes : code moins maintenable, composants difficiles à réutiliser, re-rendus inutiles.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : EXEMPLE DE PROPS DRILLING -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🔴 Exemple problématique</h2>
+            <div class="code-block bad-code">
+                <pre><code>// Composant App (niveau 1)
+function App() {
+  const [user, setUser] = useState({ name: 'Alice', role: 'admin' });
+  return &lt;Layout user={user} /&gt;;
+}
+
+// Composant Layout (niveau 2) - n'utilise PAS user, mais doit le transmettre
+function Layout({ user }) {
+  return (
+    &lt;div&gt;
+      &lt;Header user={user} /&gt;
+      &lt;MainContent /&gt;
+    &lt;/div&gt;
+  );
+}
+
+// Composant Header (niveau 3) - n'utilise PAS user non plus !
+function Header({ user }) {
+  return &lt;UserMenu user={user} /&gt;;
+}
+
+// Composant UserMenu (niveau 4) - C'est ici qu'on a besoin de user !
+function UserMenu({ user }) {
+  return &lt;div&gt;Bienvenue {user.name}&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <p class="text-gray-700 mt-2"><strong>Observation :</strong> Layout et Header transmettent <code>user</code> sans l'utiliser. Si la structure change, il faut modifier tous les composants intermédiaires !</p>
+        </div>
+
+        <!-- SLIDE 5 : QUAND DEVIENT-CE PROBLÉMATIQUE ? -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Quand le props drilling devient un problème ?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <i class="fas fa-chart-line text-red-600"></i>
+                    <p class="font-bold mt-1">Niveaux profonds</p>
+                    <p class="text-sm">3+ niveaux de composants intermédiaires</p>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <i class="fas fa-sync-alt text-red-600"></i>
+                    <p class="font-bold mt-1">Restructuration fréquente</p>
+                    <p class="text-sm">Déplacer un composant casse le chemin de props</p>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <i class="fas fa-code-branch text-red-600"></i>
+                    <p class="font-bold mt-1">Beaucoup de données</p>
+                    <p class="text-sm">De nombreuses props traversent les mêmes composants</p>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <i class="fas fa-puzzle-piece text-red-600"></i>
+                    <p class="font-bold mt-1">Composants intermédiaires</p>
+                    <p class="text-sm">Ils reçoivent des props qu'ils n'utilisent pas</p>
+                </div>
+            </div>
+            <p class="text-gray-600 text-sm mt-3"><i class="fas fa-flag-checkered"></i> Si vous remarquez ces signes, il est temps de refactoriser !</p>
+        </div>
+
+        <!-- SLIDE 6 : SOLUTION 1 - LA COMPOSITION AVEC CHILDREN -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">✅ Solution 1 : La composition avec <code>children</code></h2>
+            <p class="text-gray-700 mb-3">Au lieu de transmettre les props à travers les composants intermédiaires, on les <strong>construit au bon endroit</strong> et on les passe via <code>children</code>.</p>
+            <div class="code-block good-code">
+                <pre><code>// Composant App (niveau 1)
+function App() {
+  const [user, setUser] = useState({ name: 'Alice', role: 'admin' });
+  return (
+    &lt;Layout&gt;
+      &lt;Header&gt;
+        &lt;UserMenu user={user} /&gt;
+      &lt;/Header&gt;
+    &lt;/Layout&gt;
+  );
+}
+
+// Layout devient générique - ne connaît plus user
+function Layout({ children }) {
+  return &lt;div className="layout"&gt;{children}&lt;/div&gt;;
+}
+
+// Header aussi devient générique
+function Header({ children }) {
+  return &lt;header className="header"&gt;{children}&lt;/header&gt;;
+}
+
+// UserMenu reçoit user directement !
+function UserMenu({ user }) {
+  return &lt;div&gt;Bienvenue {user.name}&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <p class="text-green-700 text-sm mt-2"><i class="fas fa-check-circle"></i> Plus de props drilling ! Chaque composant reçoit uniquement ce dont il a besoin.</p>
+        </div>
+
+        <!-- SLIDE 7 : COMPARAISON VISUELLE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">👀 Avant / Après</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <p class="font-bold text-red-700 text-center">❌ Props Drilling</p>
+                    <div class="text-center text-sm space-y-1 mt-2">
+                        <p>App → [user]</p>
+                        <p>↓</p>
+                        <p>Layout → [user] (ne l'utilise pas)</p>
+                        <p>↓</p>
+                        <p>Header → [user] (ne l'utilise pas)</p>
+                        <p>↓</p>
+                        <p>UserMenu ✅ utilise user</p>
+                    </div>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="font-bold text-green-700 text-center">✅ Composition</p>
+                    <div class="text-center text-sm space-y-1 mt-2">
+                        <p>App construit UserMenu avec user</p>
+                        <p>↓</p>
+                        <p>Layout reçoit children (qui contient UserMenu)</p>
+                        <p>↓</p>
+                        <p>Header reçoit children</p>
+                        <p>↓</p>
+                        <p>UserMenu ✅ utilise user (déjà injecté !)</p>
+                    </div>
+                </div>
+            </div>
+            <p class="text-gray-700 text-sm mt-3 text-center">La composition consiste à <strong>inverser la responsabilité</strong> : c'est le composant parent qui assemble les pièces.</p>
+        </div>
+
+        <!-- SLIDE 8 : PATTERN DE COMPOSITION AVANCÉ -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 Composition avec plusieurs "slots"</h2>
+            <p class="text-gray-700 mb-3">On peut passer plusieurs éléments via des props nommées (pas seulement <code>children</code>).</p>
+            <div class="code-block">
+                <pre><code>function Page({ header, sidebar, main, footer }) {
+  return (
+    &lt;div&gt;
+      &lt;header&gt;{header}&lt;/header&gt;
+      &lt;div className="flex"&gt;
+        &lt;aside&gt;{sidebar}&lt;/aside&gt;
+        &lt;main&gt;{main}&lt;/main&gt;
+      &lt;/div&gt;
+      &lt;footer&gt;{footer}&lt;/footer&gt;
+    &lt;/div&gt;
+  );
+}
+
+// Utilisation
+function App() {
+  const [user, setUser] = useState({ name: 'Alice' });
+  const [notifications, setNotifs] = useState([]);
+  
+  return (
+    &lt;Page
+      header={&lt;Logo /&gt;}
+      sidebar={&lt;UserMenu user={user} /&gt;}
+      main={&lt;Dashboard data={notifications} /&gt;}
+      footer={&lt;Footer /&gt;}
+    /&gt;
+  );
+}</code></pre>
+            </div>
+            <p class="text-pink-700 text-sm mt-2">🔑 Chaque "slot" est construit au niveau où les données sont disponibles, pas plus tard !</p>
+        </div>
+
+        <!-- SLIDE 9 : QUAND UTILISER QUOI ? -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🤔 Quand utiliser quelle approche ?</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead class="bg-pink-100">
+                        <tr><th class="p-2 border">Situation</th><th class="p-2 border">Solution recommandée</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="p-2">1 ou 2 niveaux de profondeur</td><td class="p-2">Props drilling acceptable</td></tr>
+                        <tr class="border-b"><td class="p-2">3+ niveaux, données statiques</td><td class="p-2">Composition (children / slots)</td></tr>
+                        <tr class="border-b"><td class="p-2">Données globales (thème, auth, langue)</td><td class="p-2">Context API (prochaine leçon)</td></tr>
+                        <tr class="border-b"><td class="p-2">État complexe partagé</td><td class="p-2">Context + useReducer ou Redux</td></tr>
+                        <tr><td class="p-2">Composants fortement couplés</td><td class="p-2">Refactoriser en composition</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 : SIGNES D'ALARME -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🚨 Signes que vous souffrez de props drilling</h2>
+            <ul class="list-disc pl-5 space-y-3 text-gray-700">
+                <li>Vous modifiez 5 fichiers pour ajouter une nouvelle donnée</li>
+                <li>Les composants intermédiaires ont des props <code>{...props}</code> ou <code>...rest</code> sans réelle intention</li>
+                <li>La refactorisation (déplacement d'un composant) casse tout</li>
+                <li>Les props traversent des composants qui n'en ont pas besoin</li>
+                <li>Il devient difficile de comprendre le flux de données</li>
+            </ul>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-4">
+                <p class="text-yellow-800 text-sm"><i class="fas fa-tools"></i> Si vous reconnaissez ces signes, la composition est votre meilleure amie !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 11 : EXERCICE DE REFACTORISATION -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Exercice : Refactoriser un code qui souffre</h2>
+            <p class="text-gray-700 mb-3"><strong>Code problématique :</strong></p>
+            <div class="code-block">
+                <pre><code>function Dashboard() {
+  const [theme, setTheme] = useState('light');
+  return &lt;Container theme={theme} onThemeChange={setTheme} /&gt;;
+}
+
+function Container({ theme, onThemeChange }) {
+  return &lt;Wrapper theme={theme} onThemeChange={onThemeChange} /&gt;;
+}
+
+function Wrapper({ theme, onThemeChange }) {
+  return &lt;Content theme={theme} onThemeChange={onThemeChange} /&gt;;
+}
+
+function Content({ theme, onThemeChange }) {
+  return (
+    &lt;div className={theme}&gt;
+      &lt;p&gt;Contenu&lt;/p&gt;
+      &lt;button onClick={() => onThemeChange('dark')}&gt;Mode sombre&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+            </div>
+            <button id="showHint" class="mt-3 bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 rounded transition">
+                <i class="fas fa-lightbulb"></i> Voir la solution
+            </button>
+            <div id="hintText" class="hidden mt-4 p-3 bg-green-100 rounded-lg text-green-800">
+                <pre class="bg-gray-800 text-white p-3 rounded text-sm"><code>function Dashboard() {
+  const [theme, setTheme] = useState('light');
+  const content = &lt;Content theme={theme} onThemeChange={setTheme} /&gt;;
+  return &lt;Container&gt;{content}&lt;/Container&gt;;
+}
+
+function Container({ children }) {
+  return &lt;Wrapper&gt;{children}&lt;/Wrapper&gt;;
+}
+
+function Wrapper({ children }) {
+  return &lt;div className="wrapper"&gt;{children}&lt;/div&gt;;
+}
+
+function Content({ theme, onThemeChange }) {
+  return (
+    &lt;div className={theme}&gt;
+      &lt;p&gt;Contenu&lt;/p&gt;
+      &lt;button onClick={() => onThemeChange('dark')}&gt;Mode sombre&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+                <p class="mt-2">✨ Container et Wrapper ne savent plus rien du thème !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 12 : RÉSUMÉ -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-pink-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Ce qu'il faut retenir</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-pink-50 p-3 rounded-lg">
+                    <p class="font-bold text-pink-700"><i class="fas fa-ban"></i> Props Drilling</p>
+                    <ul class="list-disc pl-4 text-sm mt-1">
+                        <li>Props traversent des niveaux inutiles</li>
+                        <li>Difficile à maintenir</li>
+                        <li>Composants moins réutilisables</li>
+                    </ul>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="font-bold text-green-700"><i class="fas fa-check"></i> Composition</p>
+                    <ul class="list-disc pl-4 text-sm mt-1">
+                        <li>Construire les composants où les données sont disponibles</li>
+                        <li>Utiliser children ou props nommées (slots)</li>
+                        <li>Composants génériques et réutilisables</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-5 bg-pink-100 p-4 rounded-xl text-center">
+                <i class="fas fa-gem text-pink-600 text-2xl"></i>
+                <p class="font-medium">Règle d'or : Remonter la construction, pas les props !</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="flex justify-between items-center mt-5 gap-4">
+        <button id="prevBtn" class="nav-btn bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50">
+            <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div class="flex gap-2" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">
+            Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        updateDots();
+
+        function updateProgress() {
+            let percent = ((current + 1) / total) * 100;
+            $('#progressBar').css('width', percent + '%');
+            $('#currentSlideIdx').text(current + 1);
+        }
+
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            current = index;
+            updateProgress();
+            updateDots();
+            $('#prevBtn').prop('disabled', current === 0);
+            if (current === total-1) {
+                $('#nextBtn').html('Terminer <i class="fas fa-check-circle"></i>');
+            } else {
+                $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+            }
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function updateDots() {
+            $('#dotsContainer').empty();
+            for(let i = 0; i < total; i++) {
+                let dot = $('<div>').addClass('w-3 h-3 rounded-full transition-all duration-200 cursor-pointer mx-1')
+                    .css('background-color', i === current ? '#db2777' : '#f9a8d4');
+                dot.on('click', (function(idx) { return function() { showSlide(idx); }; })(i));
+                $('#dotsContainer').append(dot);
+            }
+        }
+
+        $('#nextBtn').click(function() {
+            if(current < total-1) showSlide(current+1);
+            else alert('🎉 Félicitations ! Vous maîtrisez maintenant les techniques pour éviter le props drilling !');
+        });
+        $('#prevBtn').click(function() {
+            if(current > 0) showSlide(current-1);
+        });
+
+        $('#showHint').click(function() {
+            $('#hintText').toggleClass('hidden');
+        });
+
+        showSlide(0);
+    });
+</script>
+
+<footer class="text-center text-gray-600 text-sm py-5 border-t border-pink-300 mt-6">
+    <p><i class="fas fa-chalkboard-teacher"></i> Cours React - Props Drilling et Composition | Programme Développement Web (Cameroun)</p>
+    <p class="text-xs">Organisez votre code pour des composants simples et maintenables</p>
+</footer>
+</body>
+</html>

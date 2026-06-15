@@ -1,0 +1,122 @@
+[
+  {
+    "intitule": "Implémentation du compteur d'articles sur l'icône du panier",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce React Native avec Expo, vous devez afficher un badge sur l'icône du panier (dans la barre de navigation inférieure ou le header) indiquant le nombre total d'articles ajoutés. Ce badge doit se mettre à jour en temps réel lorsque l'utilisateur ajoute ou supprime un produit.</p>",
+      "images": ["shopping cart icon with red badge showing number 3 on iOS bottom tab bar", "cart badge updating animation when product added", "Zustand cart store structure diagram"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Développer un composant `CartBadge` qui affiche le nombre d'articles en utilisant le `cartStore` Zustand (avec `getTotalItems()`). Le badge doit disparaître si le panier est vide.",
+        "niveau": "medium",
+        "reponse": "```jsx\n// components/CartBadge.tsx\nimport { View, Text } from 'react-native';\nimport useCartStore from '../store/cartStore';\n\nconst CartBadge = () => {\n  const totalItems = useCartStore((state) => state.getTotalItems());\n  \n  if (totalItems === 0) return null;\n  \n  return (\n    <View className=\"absolute -top-2 -right-2 bg-red-500 rounded-full min-w-[20px] h-5 px-1 items-center justify-center\">\n      <Text className=\"text-white text-xs font-bold\">\n        {totalItems > 99 ? '99+' : totalItems}\n      </Text>\n    </View>\n  );\n};\n\nexport default CartBadge;\n```\n\n**Utilisation dans l'icône du panier :**\n```jsx\n<TouchableOpacity onPress={() => navigation.navigate('Cart')}>\n  <Ionicons name=\"cart-outline\" size={24} color=\"black\" />\n  <CartBadge />\n</TouchableOpacity>\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer pourquoi l'utilisation de `getTotalItems()` dans le composant provoque un re-rendu à chaque modification du panier.",
+            "niveau": "medium",
+            "reponse": "Zustand compare l'état sélectionné (`getTotalItems()`) à sa valeur précédente. Si la valeur change, le composant se re-rend. `getTotalItems()` dépend du tableau `items` ; quand on ajoute/supprime un article, la fonction retourne une nouvelle valeur numérique, ce qui déclenche la mise à jour du badge."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Créer un hook personnalisé `useCartBadge` qui retourne le nombre d'articles et un booléen indiquant si le badge doit être affiché.",
+        "niveau": "easy",
+        "reponse": "```typescript\n// hooks/useCartBadge.ts\nimport useCartStore from '../store/cartStore';\n\nconst useCartBadge = () => {\n  const totalItems = useCartStore((state) => state.getTotalItems());\n  const showBadge = totalItems > 0;\n  \n  return { totalItems, showBadge };\n};\n\nexport default useCartBadge;\n```\n\n**Utilisation :**\n```jsx\nconst { totalItems, showBadge } = useCartBadge();\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Badge sur l'icône de l'application (iOS et Android)",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le client souhaite que le nombre d'articles dans le panier apparaisse également sur l'icône de l'application (iOS : badge sur l'icône home screen, Android : notification badge sur le lanceur). Vous devez implémenter cette fonctionnalité en utilisant `expo-notifications` et en synchronisant le badge avec le panier.</p>",
+      "images": ["iOS app icon with red badge number 5 on home screen", "Android notification badge on app icon showing 3", "expo-notifications badge API diagram"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Développer une fonction `updateAppBadge` qui met à jour le badge de l'application iOS/Android en fonction du nombre d'articles dans le panier. Utiliser `expo-notifications`.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// services/badgeService.ts\nimport * as Notifications from 'expo-notifications';\nimport { Platform } from 'react-native';\nimport useCartStore from '../store/cartStore';\n\nconst updateAppBadge = async () => {\n  const totalItems = useCartStore.getState().getTotalItems();\n  \n  // Android nécessite une permission spécifique pour les badges\n  if (Platform.OS === 'android') {\n    // La plupart des lanceurs Android supportent setBadgeCountAsync\n    await Notifications.setBadgeCountAsync(totalItems);\n  } else {\n    // iOS supporte nativement setBadgeCountAsync\n    await Notifications.setBadgeCountAsync(totalItems);\n  }\n};\n\n// Appeler cette fonction après chaque modification du panier\n// Dans cartStore, ajouter un useEffect ou un subscriber\n\nexport default updateAppBadge;\n```\n\n**Intégration dans le store :**\n```typescript\n// Dans cartStore\nconst useCartStore = create<CartState>()(\n  persist(\n    (set, get) => ({\n      // ... actions existantes\n      addItem: (item, quantity) => {\n        // ... logique existante\n        updateAppBadge(); // Mettre à jour le badge après ajout\n      },\n      removeItem: (itemId) => {\n        // ... logique existante\n        updateAppBadge();\n      },\n      clearCart: () => {\n        set({ items: [] });\n        updateAppBadge(); // Mettre à 0\n      },\n    }),\n    // ... persist config\n  )\n);\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Décrire les prérequis de configuration pour que `setBadgeCountAsync` fonctionne sur Android.",
+            "niveau": "hard",
+            "reponse": "1. Installer `expo-notifications`.\n2. Configurer le `google-services.json` pour Firebase Cloud Messaging (même si on n'utilise pas les notifications push, le badge Android nécessite cette configuration).\n3. Pour les lanceurs qui supportent les badges (Samsung, Xiaomi, Pixel avec certaines versions), il faut souvent ajouter une permission dans `AndroidManifest.xml` : `<uses-permission android:name=\"android.permission.USE_EXACT_ALARM\" />`.\n4. Certains fabricants (Xiaomi, Huawei) nécessitent des permissions spécifiques activées par l'utilisateur dans les paramètres."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Expliquer comment réinitialiser le badge à zéro lors de la déconnexion de l'utilisateur.",
+            "niveau": "medium",
+            "reponse": "Appeler `await Notifications.setBadgeCountAsync(0)` dans la fonction `logout` du `authStore`. Il faut aussi vider le panier local (`clearCart()`). On s'assure ainsi que le badge disparaît de l'icône lorsque l'utilisateur se déconnecte, évitant la confusion."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire un composant `AppBadgeSync` qui s'abonne au store du panier pour synchroniser le badge de l'application en arrière-plan (même lorsque l'écran panier n'est pas ouvert).",
+        "niveau": "very hard",
+        "reponse": "```jsx\n// components/AppBadgeSync.tsx\nimport { useEffect } from 'react';\nimport useCartStore from '../store/cartStore';\nimport updateAppBadge from '../services/badgeService';\n\nconst AppBadgeSync = () => {\n  const totalItems = useCartStore((state) => state.getTotalItems());\n  \n  useEffect(() => {\n    // Mettre à jour le badge à chaque changement du totalItems\n    updateAppBadge();\n  }, [totalItems]);\n  \n  // Ce composant ne rend rien, il existe uniquement pour l'effet de bord\n  return null;\n};\n\nexport default AppBadgeSync;\n\n// Dans App.js\n<AppBadgeSync />\n```\n\n**Alternative avec abonnement Zustand :**\n```typescript\n// Dans App.tsx\nuseEffect(() => {\n  const unsubscribe = useCartStore.subscribe(\n    (state) => state.getTotalItems(),\n    (totalItems) => {\n      Notifications.setBadgeCountAsync(totalItems);\n    }\n  );\n  return unsubscribe;\n}, []);\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise à jour en temps réel du badge panier lors de la navigation",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Lorsque l'utilisateur ajoute un produit depuis l'écran de détail, le badge sur l'icône du panier (dans le tab bar) doit se mettre à jour instantanément, même si l'utilisateur n'a pas encore navigué vers l'écran panier.</p>",
+      "images": ["cart badge updating from 0 to 1 when add to cart button pressed", "navigation tab bar cart icon with badge", "zustand store subscription flow"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer comment le store Zustand permet une mise à jour réactive du badge sans avoir à re-rendre toute l'application.",
+        "niveau": "medium",
+        "reponse": "Zustand utilise la sélectivité : chaque composant qui utilise `useCartStore((state) => state.items)` ou `useCartStore((state) => state.getTotalItems())` ne se re-rend que lorsque la valeur sélectionnée change. Le composant du badge ne dépend que du `totalItems` ; quand cette valeur change (par ajout/suppression), seul le badge se re-rend, pas l'écran entier. C'est l'avantage de l'architecture flux/unidirectionnelle.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Développer un exemple où le badge est partagé entre un `BottomTab.Navigator` et un `Stack.Screen` séparé (ex: écran produit).",
+            "niveau": "hard",
+            "reponse": "```jsx\n// navigation/AppNavigator.tsx\nimport { createBottomTabNavigator } from '@react-navigation/bottom-tabs';\nimport { Ionicons } from '@expo/vector-icons';\nimport CartBadge from '../components/CartBadge';\n\nconst Tab = createBottomTabNavigator();\n\nfunction CartIconWithBadge({ focused, color, size }) {\n  return (\n    <View>\n      <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size} color={color} />\n      <CartBadge />\n    </View>\n  );\n}\n\n// Dans Tab.Navigator\n<Tab.Screen \n  name=\"Cart\" \n  component={CartStackNavigator}\n  options={{\n    tabBarIcon: CartIconWithBadge,\n  }}\n/>\n\n// Dans ProductScreen (où on ajoute au panier)\nconst addToCart = () => {\n  cartStore.addItem(product);\n  // Le badge se met à jour automatiquement via Zustand\n  Toast.show('Produit ajouté au panier');\n};\n```\nLe badge est réutilisé entre les onglets et les écrans profonds car il utilise le même store global."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation des performances du badge en temps réel",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une application avec de nombreuses modifications rapides du panier (ex: ajout de plusieurs produits en succession rapide), le badge ne doit pas provoquer de ralentissements ni d'appels redondants à l'API de badge de l'application.</p>",
+      "images": ["throttle debounce diagram for badge updates", "performance profiler showing badge updates", "setBadgeCountAsync call frequency optimization"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une optimisation avec debounce pour éviter d'appeler `setBadgeCountAsync` à chaque ajout individuel lorsque l'utilisateur ajoute plusieurs produits rapidement.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// services/badgeService.ts\nimport * as Notifications from 'expo-notifications';\nimport useCartStore from '../store/cartStore';\n\nlet debounceTimer: NodeJS.Timeout | null = null;\nconst DEBOUNCE_DELAY = 300; // ms\n\nconst updateAppBadgeDebounced = () => {\n  if (debounceTimer) {\n    clearTimeout(debounceTimer);\n  }\n  \n  debounceTimer = setTimeout(async () => {\n    const totalItems = useCartStore.getState().getTotalItems();\n    await Notifications.setBadgeCountAsync(totalItems);\n    debounceTimer = null;\n  }, DEBOUNCE_DELAY);\n};\n\n// Dans le store, appeler updateAppBadgeDebounced() au lieu de updateAppBadge()\n```\n\n**Explication :** Si l'utilisateur ajoute 5 produits en moins de 300 ms, seule la dernière mise à jour sera envoyée au système. Cela économise les ressources et évite la surcharge du pont JS-natif.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Analyser le compromis entre réactivité et performances avec cette approche.",
+            "niveau": "hard",
+            "reponse": "Le debounce de 300 ms est imperceptible pour l'utilisateur (un badge qui passe de 0 à 5 en 300 ms est fluide). Le bénéfice : réduction des appels natifs (de 5 appels à 1 appel), moins d'utilisation de la batterie, et meilleure fluidité sur les vieux appareils. L'inconvénient mineur : le badge peut mettre 300 ms à se mettre à jour après le dernier ajout, mais c'est acceptable."
+          }
+        ]
+      }
+    ]
+  }
+]

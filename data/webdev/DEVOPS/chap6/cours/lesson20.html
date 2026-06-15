@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 20 : Kubernetes - Pods, Deployments & Scaling | Cours DevOps</title>
+  <!-- Tailwind CSS + Font Awesome (pour icônes discrètes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules mathématiques éventuelles) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* ajustements personnalisés pour lisibilité et confort */
+    body {
+      background: linear-gradient(145deg, #f7f9fc 0%, #eef2f7 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+    .slide-container {
+      transition: transform 0.3s ease, opacity 0.2s;
+    }
+    .slide {
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(0px);
+      border-radius: 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .nav-btn {
+      transition: all 0.2s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      background-color: #1e40af;
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* optimisation mobile */
+    @media (max-width: 640px) {
+      .slide {
+        border-radius: 1.5rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+      }
+    }
+    /* code style simple */
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .badge-k8s {
+      background: #326ce5;
+      color: white;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <main class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <!-- Slides wrapper -->
+    <div id="slidesContainer" class="relative">
+      <!-- Les slides seront injectées dynamiquement via jQuery, mais on construit le DOM static pour plus de clarté 
+           mais on va créer un conteneur pour slides dynamiques. Cependant pour optimisation et clarté on génère en HTML directement -->
+    </div>
+
+    <!-- Navigation + progression -->
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 mb-3">
+      <div class="flex gap-3">
+        <button id="prevBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">◀ Précédent</button>
+        <button id="nextBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition">Suivant ▶</button>
+      </div>
+      <div class="text-sm text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
+        Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+      </div>
+    </div>
+    <!-- Barre de progression -->
+    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2 overflow-hidden">
+      <div id="progressFill" class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: 0%;"></div>
+    </div>
+    
+    <!-- Petit message pédagogique -->
+    <div class="text-center text-xs text-gray-500 mt-6">
+      📘 Cours DevOps - Initiation Kubernetes | Leçon 20 : Pods, Deployments & Scaling
+    </div>
+  </main>
+
+  <script>
+    // Définition des slides : Titre + contenu structuré, accessible et clair.
+    // slide 0: titre principal, slide 1: objectifs d'apprentissage, slides suivants: contenu détaillé
+    const slidesData = [
+      { // slide 0 : titre
+        type: "title",
+        title: "☸️ Kubernetes : Gérer des applications en conteneurs",
+        subtitle: "Pods, Deployments, ReplicaSets et Scaling",
+        chapter: "Leçon 20 · Chapitre 6 · Orchestration à grande échelle",
+        description: "Maîtriser les fondations de Kubernetes pour déployer, mettre à jour et passer à l'échelle vos applications."
+      },
+      { // slide 1 : objectifs pédagogiques
+        type: "objectives",
+        title: "🎯 Objectifs d'apprentissage",
+        objectives: [
+          "✅ Créer et gérer un Pod avec `kubectl run` et un fichier YAML",
+          "✅ Comprendre les Deployments : mises à jour (rolling update) et rollbacks",
+          "✅ Découvrir les ReplicaSets et leur rôle dans le scaling automatique",
+          "✅ Appliquer le scaling manuel et automatique (HPA)"
+        ]
+      },
+      { // slide 2 : Qu'est-ce qu'un Pod ?
+        type: "content",
+        title: "📦 1. Le Pod : plus petite unité déployable",
+        content: `
+          <p class="mb-3">Un <span class="font-bold text-blue-700">Pod</span> est le plus petit composant exécutable dans Kubernetes. Il contient un ou plusieurs conteneurs (souvent Docker) qui partagent :</p>
+          <ul class="list-disc list-inside space-y-1 mb-4 ml-2">
+            <li>Le même réseau (une seule IP)</li>
+            <li>Le même stockage (volumes)</li>
+            <li>Le cycle de vie (démarrage/arrêt)</li>
+          </ul>
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-lg mb-4">
+            <p class="text-sm"><span class="font-semibold">💡 Analogie :</span> Un Pod est comme une "capsule" qui peut contenir un seul conteneur principal (ex: une app web) ou plusieurs (ex: app + side-car pour logs).</p>
+          </div>
+          <h4 class="font-semibold text-lg mt-2">Créer un Pod avec kubectl run :</h4>
+          <div class="code-block mt-2 mb-3">
+            kubectl run mon-nginx --image=nginx:latest --port=80
+          </div>
+          <p class="text-sm text-gray-600">Cette commande crée un Pod nommé "mon-nginx" basé sur l'image nginx.</p>
+        `
+      },
+      { // slide 3 : Pod via fichier YAML
+        type: "content",
+        title: "📄 2. Pod en YAML : Déclaratif puissant",
+        content: `
+          <p class="mb-2">La meilleure pratique est d’utiliser un fichier YAML pour versionner et reproduire l’infrastructure. Exemple <span class="font-mono bg-gray-100 px-1">pod-example.yaml</span> :</p>
+          <div class="code-block my-3">
+            apiVersion: v1<br>
+            kind: Pod<br>
+            metadata:<br>
+              &nbsp;&nbsp;name: mon-app-pod<br>
+              &nbsp;&nbsp;labels:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;app: demo<br>
+            spec:<br>
+              &nbsp;&nbsp;containers:<br>
+              &nbsp;&nbsp;- name: mon-conteneur<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;image: nginx:alpine<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;ports:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;- containerPort: 80
+          </div>
+          <p class="mb-2">Commande pour appliquer : <code class="bg-gray-200 px-1 rounded">kubectl apply -f pod-example.yaml</code></p>
+          <p>Vérifier l'état : <code class="bg-gray-200 px-1 rounded">kubectl get pods</code>, détails : <code class="bg-gray-200 px-1 rounded">kubectl describe pod mon-app-pod</code></p>
+          <div class="mt-3 p-2 bg-yellow-50 rounded text-yellow-800 text-sm">⚠️ Un Pod seul ne "se répare" pas s'il tombe en panne → d'où l'intérêt des Deployments !</div>
+        `
+      },
+      { // slide 4 : Deployment - gestion de l'application
+        type: "content",
+        title: "🚀 3. Deployment : l'élément clé pour les mises à jour",
+        content: `
+          <p class="mb-3">Un <span class="font-bold text-indigo-700">Deployment</span> gère un ensemble de Pods identiques (réplicas) et assure :</p>
+          <ul class="list-disc list-inside space-y-1 ml-2 mb-4">
+            <li>✨ <strong>Rolling update</strong> : mise à jour progressive sans interruption</li>
+            <li>🔄 <strong>Rollback</strong> : retour à une version antérieure si erreur</li>
+            <li>📈 <strong>Scaling</strong> : augmenter ou diminuer le nombre de Pods</li>
+          </ul>
+          <div class="code-block text-sm">
+            apiVersion: apps/v1<br>
+            kind: Deployment<br>
+            metadata:<br>
+              &nbsp;&nbsp;name: web-deploy<br>
+            spec:<br>
+              &nbsp;&nbsp;replicas: 3<br>
+              &nbsp;&nbsp;selector:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;matchLabels:<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;app: webapp<br>
+              &nbsp;&nbsp;template:<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;metadata:<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;labels:<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;app: webapp<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;spec:<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;containers:<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- name: node-app<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;image: myapp:v1<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ports:<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- containerPort: 3000
+          </div>
+          <p class="mt-2">📌 <code>replicas: 3</code> → Kubernetes maintient toujours 3 Pods en vie.</p>
+        `
+      },
+      { // slide 5 : ReplicaSet & scaling
+        type: "content",
+        title: "⚙️ 4. ReplicaSet et Scaling (passer à l'échelle)",
+        content: `
+          <p class="mb-3">Le <span class="font-bold text-purple-700">ReplicaSet</span> est créé automatiquement par le Deployment. Son unique mission : garantir un nombre exact de Pods identiques en fonctionnement.</p>
+          <h4 class="font-semibold mt-2">📈 Scaling manuel :</h4>
+          <div class="code-block my-2">
+            kubectl scale deployment web-deploy --replicas=5
+          </div>
+          <p>La commande ci-dessus modifie instantanément le nombre de réplicas à 5. Kubernetes va créer 2 Pods supplémentaires.</p>
+          <h4 class="font-semibold mt-3">📉 Scaling automatique (HPA - Horizontal Pod Autoscaler) :</h4>
+          <div class="code-block my-2">
+            kubectl autoscale deployment web-deploy --cpu-percent=50 --min=2 --max=10
+          </div>
+          <p class="text-sm">👉 Le HPA ajuste automatiquement les réplicas selon l'utilisation CPU.</p>
+          <div class="bg-green-50 p-2 rounded mt-2 text-green-800 text-sm">✅ Scaling = Disponibilité sans gaspiller de ressources.</div>
+        `
+      },
+      { // slide 6 : Mise à jour et rollback
+        type: "content",
+        title: "🔄 5. Rolling update & Rollback en pratique",
+        content: `
+          <p class="mb-2">Avec un Deployment, changer la version d'image déclenche une <strong>mise à jour progressive</strong>. Exemple :</p>
+          <div class="code-block my-2">
+            kubectl set image deployment/web-deploy node-app=myapp:v2
+          </div>
+          <p>K8s va remplacer les Pods un par un (stratégie rolling update par défaut).</p>
+          <h4 class="font-semibold mt-3">📌 Surveiller la mise à jour :</h4>
+          <div class="code-block my-2">
+            kubectl rollout status deployment/web-deploy
+          </div>
+          <h4 class="font-semibold mt-3">🔁 Revenir en arrière (rollback) :</h4>
+          <div class="code-block my-2">
+            kubectl rollout undo deployment/web-deploy
+          </div>
+          <p>Cette commande annule la dernière mise à jour et restaure la révision précédente.</p>
+          <div class="bg-gray-100 p-2 rounded mt-2 text-sm">📖 Historique : <code>kubectl rollout history deployment/web-deploy</code></div>
+        `
+      },
+      { // slide 7 : Exercice pratique / exemple concret
+        type: "content",
+        title: "🧪 Exercice guidé : Déployer et scaler une app",
+        content: `
+          <p class="mb-2">🎯 <strong>Mettez en pratique sur votre cluster Minikube/Kind :</strong></p>
+          <ol class="list-decimal list-inside space-y-2 ml-2">
+            <li>Créer un fichier <span class="font-mono">app-deploy.yaml</span> avec un Deployment de 2 réplicas (image nginx)</li>
+            <li>Appliquer : <code class="bg-gray-200 px-1 rounded">kubectl apply -f app-deploy.yaml</code></li>
+            <li>Voir les Pods : <code class="bg-gray-200 px-1 rounded">kubectl get pods -l app=monapp</code></li>
+            <li>Scaler à 4 réplicas : <code class="bg-gray-200 px-1 rounded">kubectl scale deployment mon-deploy --replicas=4</code></li>
+            <li>Simuler une montée de version : <code class="bg-gray-200 px-1 rounded">kubectl set image deployment/mon-deploy nginx=nginx:1.25</code></li>
+            <li>Observer le rolling update : <code class="bg-gray-200 px-1 rounded">kubectl get pods -w</code></li>
+          </ol>
+          <div class="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+            <p class="font-semibold">💬 À retenir :</p>
+            <p class="text-sm">Un Deployment avec ReplicaSet garantit la haute disponibilité. Le scaling est un jeu d’enfant pour répondre à la charge.</p>
+          </div>
+        `
+      },
+      { // slide 8 : résumé & quiz rapide
+        type: "summary",
+        title: "📌 Récapitulatif & vérification des acquis",
+        points: [
+          "📦 Pod = un ou plusieurs conteneurs partageant réseau/stockage.",
+          "⚙️ Deployment = gestion des mises à jour, rollback, scaling.",
+          "📈 ReplicaSet = garantit un nombre fixe de Pods identiques.",
+          "➕ kubectl scale = scaling manuel, HPA = scaling automatique.",
+          "🔄 Rolling update = mise à jour sans downtime."
+        ],
+        quiz: "❓ Question : Quelle ressource Kubernetes permet de revenir facilement à une version antérieure d'une application ? (Réponse : Deployment, via `kubectl rollout undo`)"
+      }
+    ];
+
+    let currentIndex = 0;
+    let total = slidesData.length;
+
+    // Fonction pour générer les slides dans le DOM (container)
+    function renderSlides() {
+      const container = $("#slidesContainer");
+      container.empty();
+      slidesData.forEach((slide, idx) => {
+        let slideHtml = "";
+        const baseCardClass = "slide p-6 md:p-8 mb-5 transition-all duration-200";
+        if (slide.type === "title") {
+          slideHtml = `
+            <div class="${baseCardClass} bg-gradient-to-br from-white to-slate-50 text-center border border-blue-100">
+              <span class="badge-k8s inline-block mb-3">Kubernetes · Leçon 20</span>
+              <h1 class="text-3xl md:text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-indigo-700">${slide.title}</h1>
+              <p class="text-xl md:text-2xl text-gray-600 mt-3">${slide.subtitle}</p>
+              <p class="text-sm text-gray-500 mt-4 border-t pt-4 inline-block">${slide.chapter}</p>
+              <p class="text-gray-700 mt-4 max-w-xl mx-auto">${slide.description}</p>
+              <div class="mt-8 flex justify-center">
+                <div class="animate-pulse text-blue-500 text-sm">👨‍🏫 Cliquez sur Suivant pour commencer</div>
+              </div>
+            </div>
+          `;
+        } 
+        else if (slide.type === "objectives") {
+          let objList = "";
+          slide.objectives.forEach(obj => { objList += `<li class="mb-2 flex items-start gap-2"><span class="text-green-600 text-xl">✓</span><span>${obj}</span></li>`; });
+          slideHtml = `
+            <div class="${baseCardClass} border-l-8 border-l-green-500 shadow-lg">
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b pb-2 mb-4">${slide.title}</h2>
+              <ul class="space-y-2 text-gray-700 text-base md:text-lg">
+                ${objList}
+              </ul>
+              <div class="mt-6 bg-green-50 rounded-xl p-3 text-green-800 text-sm flex items-center gap-2">
+                🎓 À la fin de cette leçon, vous serez capable de manipuler les déploiements Kubernetes.
+              </div>
+            </div>
+          `;
+        }
+        else if (slide.type === "content") {
+          slideHtml = `
+            <div class="${baseCardClass} border border-gray-200">
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4">${slide.title}</h2>
+              <div class="prose prose-slate max-w-none text-gray-700">
+                ${slide.content}
+              </div>
+            </div>
+          `;
+        }
+        else if (slide.type === "summary") {
+          let pointsHtml = "";
+          slide.points.forEach(p => { pointsHtml += `<li class="mb-2 flex gap-2"><span class="text-blue-600 font-bold">➡️</span> ${p}</li>`; });
+          slideHtml = `
+            <div class="${baseCardClass} bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200">
+              <h2 class="text-2xl font-bold text-indigo-800 mb-4">${slide.title}</h2>
+              <ul class="list-none space-y-2 mb-5">
+                ${pointsHtml}
+              </ul>
+              <div class="bg-white p-4 rounded-xl shadow-inner mt-3">
+                <p class="font-semibold text-gray-800">🧠 Petit test :</p>
+                <p class="italic text-gray-700">${slide.quiz}</p>
+              </div>
+              <div class="mt-5 text-center text-sm text-gray-500">
+                ⭐ Bravo ! Vous avez complété la leçon sur les Pods, Deployments et scaling.
+              </div>
+            </div>
+          `;
+        }
+        container.append(`<div class="slide-wrapper" data-slide-idx="${idx}" style="display: ${idx === currentIndex ? 'block' : 'none'}">${slideHtml}</div>`);
+      });
+      updateNavAndProgress();
+    }
+
+    function updateNavAndProgress() {
+      $("#totalSlides").text(total);
+      $("#currentSlideIdx").text(currentIndex + 1);
+      const percent = ((currentIndex) / (total - 1)) * 100;
+      $("#progressFill").css("width", `${percent}%`);
+      // gestion désactivation boutons
+      $("#prevBtn").prop("disabled", currentIndex === 0);
+      $("#nextBtn").prop("disabled", currentIndex === total - 1);
+      // afficher le slide actif
+      $(".slide-wrapper").each(function() {
+        const idx = parseInt($(this).data("slide-idx"));
+        if (idx === currentIndex) $(this).show();
+        else $(this).hide();
+      });
+      // faire scroller en haut doucement (meilleur UX sur mobile)
+      $("html, body").animate({ scrollTop: $("#slidesContainer").offset().top - 20 }, 200);
+    }
+
+    function nextSlide() {
+      if (currentIndex < total - 1) {
+        currentIndex++;
+        updateNavAndProgress();
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateNavAndProgress();
+      }
+    }
+
+    // Initialisation
+    $(document).ready(function() {
+      renderSlides();
+      $("#nextBtn").on("click", nextSlide);
+      $("#prevBtn").on("click", prevSlide);
+      // Navigation au clavier pour accessibilité
+      $(document).keydown(function(e) {
+        if (e.key === "ArrowRight") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+      });
+      // Ajout d'info responsive petite aide
+      if(window.innerWidth < 640) {
+        $("body").append('<div class="fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-full opacity-70">← → clavier</div>');
+        setTimeout(() => { $("body > div:last").fadeOut(); }, 3000);
+      }
+    });
+  </script>
+  <!-- Note additionnelle : tout le contenu correspond à la Leçon 20 (chap6) : pods, deployments, replicasets et scaling -->
+</body>
+</html>

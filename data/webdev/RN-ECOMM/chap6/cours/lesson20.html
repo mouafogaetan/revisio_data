@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 20 : Authentification sociale (Google & Apple) avec Expo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f0f4f8; }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .slide-content { padding: 1rem; }
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .social-btn {
+            transition: all 0.2s ease;
+        }
+        .social-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Progress & counter -->
+        <div class="mb-4 flex justify-between items-center text-sm text-gray-500">
+            <span id="slideCounter">Slide 1 / 8</span>
+            <div class="progress-bar w-32 md:w-48">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active p-6 md:p-10 slide-content">
+                <div class="flex flex-col items-center text-center">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full mb-4">React Native · Expo</span>
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Authentification sociale</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl">Intégrer Google Sign-In et Apple Sign-In dans votre application e-commerce mobile</p>
+                    <div class="mt-8 w-24 h-1 bg-blue-500 rounded-full"></div>
+                    <p class="mt-6 text-gray-500">Leçon 20 · Formation React Native e-commerce · Cameroun</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🔐 Google Sign-In</span><p class="text-gray-600 mt-1">Configurer et intégrer l'authentification Google avec expo-auth-session</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🍎 Apple Sign-In</span><p class="text-gray-600 mt-1">Mettre en place l'authentification Apple (obligatoire pour iOS)</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🔄 Gestion des callbacks</span><p class="text-gray-600 mt-1">Traiter les retours d'authentification et créer des comptes</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🔗 Lier les comptes</span><p class="text-gray-600 mt-1">Permettre à un utilisateur de lier plusieurs comptes sociaux</p></div>
+                </div>
+                <div class="mt-6 bg-blue-50 p-3 rounded-lg text-blue-800 text-sm">💡 Apple Sign-In est obligatoire si votre application utilise un autre service social sur iOS (selon les règles App Store).</div>
+            </div>
+
+            <!-- SLIDE 3 : CONFIGURATION DE GOOGLE SIGN-IN -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔐 Configuration de Google Sign-In</h2>
+                <p class="text-gray-700 mb-3">Pour intégrer Google Sign-In avec Expo, on utilise le package <code class="bg-gray-100 px-1 rounded">expo-auth-session</code> et <code class="bg-gray-100 px-1 rounded">expo-auth-session/providers/google</code>.</p>
+                
+                <div class="code-block mb-4">
+<pre># Installation
+npx expo install expo-auth-session expo-random expo-web-browser
+
+# Configuration dans app.json
+{
+  "expo": {
+    "scheme": "monapp",
+    "ios": {
+      "bundleIdentifier": "com.monapp.ecommerce",
+      "config": {
+        "google": {
+          "iosClientId": "VOTRE_IOS_CLIENT_ID"
+        }
+      }
+    },
+    "android": {
+      "package": "com.monapp.ecommerce",
+      "config": {
+        "google": {
+          "androidClientId": "VOTRE_ANDROID_CLIENT_ID"
+        }
+      }
+    }
+  }
+}</pre>
+                </div>
+
+                <div class="code-block mt-3">
+<pre>// Composant GoogleSignInButton
+import * as Google from 'expo-auth-session/providers/google';
+
+const GoogleSignInButton = () => {
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: 'VOTRE_IOS_CLIENT_ID',
+    androidClientId: 'VOTRE_ANDROID_CLIENT_ID',
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      // Envoyer le token au backend
+      handleGoogleLogin(authentication.accessToken);
+    }
+  }, [response]);
+
+  return (
+    &lt;TouchableOpacity onPress={() => promptAsync()}&gt;
+      &lt;Text&gt;Se connecter avec Google&lt;/Text&gt;
+    &lt;/TouchableOpacity&gt;
+  );
+};</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : CONFIGURATION APPLE SIGN-IN -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🍎 Configuration Apple Sign-In</h2>
+                <p class="text-gray-700 mb-3">Apple Sign-In est disponible via <code class="bg-gray-100 px-1 rounded">expo-apple-authentication</code>. Nécessite un compte développeur Apple.</p>
+                
+                <div class="code-block mb-4">
+<pre># Installation
+npx expo install expo-apple-authentication
+
+# Configuration app.json
+{
+  "expo": {
+    "ios": {
+      "usesAppleSignIn": true,
+      "bundleIdentifier": "com.monapp.ecommerce"
+    }
+  }
+}</pre>
+                </div>
+
+                <div class="code-block mt-3">
+<pre>import AppleAuthentication from 'expo-apple-authentication';
+
+const AppleSignInButton = () => {
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      // credential.user, credential.email, credential.identityToken
+      await handleAppleLogin(credential);
+    } catch (error) {
+      console.log('Apple Sign-In annulé ou échoué', error);
+    }
+  };
+
+  return (
+    &lt;AppleAuthentication.AppleAuthenticationButton
+      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+      cornerRadius={8}
+      onPress={handleAppleSignIn}
+    /&gt;
+  );
+};</pre>
+                </div>
+                
+                <div class="bg-yellow-50 p-3 rounded-lg mt-3 text-yellow-800 text-sm">
+                    ⚠️ Note : Apple Sign-In ne fonctionne que sur un vrai appareil iOS (pas sur simulateur sans configuration spécifique).
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : GESTION DES CALLBACKS ET CRÉATION DE COMPTE -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔄 Gestion des callbacks et création de compte</h2>
+                <p class="text-gray-700 mb-3">Après réception du token, on l'envoie à notre backend pour créer ou connecter l'utilisateur.</p>
+                
+                <div class="code-block mb-4">
+<pre>// Service d'authentification sociale
+const handleSocialLogin = async (provider, token, userInfo) => {
+  try {
+    const response = await axios.post('/auth/social', {
+      provider,      // 'google' ou 'apple'
+      token,
+      email: userInfo.email,
+      name: userInfo.name,
+    });
+    
+    const { user, accessToken } = response.data;
+    // Stocker dans Zustand store
+    useAuthStore.getState().setUser(user, accessToken);
+    
+    // Redirection vers l'accueil
+    navigation.replace('Home');
+  } catch (error) {
+    if (error.response?.status === 409) {
+      // Compte existant avec email - proposition de lier
+      showLinkingDialog();
+    } else {
+      showToast('Erreur lors de la connexion');
+    }
+  }
+};</pre>
+                </div>
+
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="text-green-800 text-sm">✅ Bonne pratique : Toujours gérer le cas où l'email est déjà utilisé avec un mot de passe classique. Proposez de lier les comptes.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : LIER LES COMPTES SOCIAUX -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔗 Lier plusieurs comptes sociaux</h2>
+                <p class="text-gray-700 mb-3">Permettre aux utilisateurs déjà connectés d'ajouter une méthode de connexion supplémentaire.</p>
+                
+                <div class="code-block mb-4">
+<pre>// Dans l'écran des paramètres
+const LinkSocialAccount = ({ provider }) => {
+  const { user, linkAccount } = useAuthStore();
+  
+  const handleLink = async () => {
+    const token = await getSocialToken(provider);
+    await axios.post('/auth/link', {
+      provider,
+      token,
+      userId: user.id
+    });
+    showToast(`${provider} lié avec succès`);
+  };
+  
+  if (user?.linkedProviders?.includes(provider)) {
+    return &lt;Text&gt;✓ {provider} déjà lié&lt;/Text&gt;
+  }
+  
+  return &lt;Button onPress={handleLink} title={`Lier ${provider}`} /&gt;
+};</pre>
+                </div>
+
+                <div class="bg-purple-50 p-3 rounded-lg">
+                    <p class="text-purple-800 text-sm">📌 Pourquoi lier les comptes ? L'utilisateur peut se connecter indifféremment avec Google ou Apple au même compte, évitant les doublons.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : EXERCICES PRATIQUES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Exercices d'application</h2>
+                
+                <div class="space-y-5">
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 1 (compétence – medium)</p>
+                        <p>Implémentez un composant <code>SocialLoginButtons</code> qui affiche les boutons Google et Apple, gère les états de chargement, et redirige vers l'accueil après succès.</p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <pre class="mt-2 text-xs"><code>const SocialLoginButtons = () => {
+  const [loading, setLoading] = useState(false);
+  const [googleRequest, googleResponse, googlePrompt] = Google.useAuthRequest({...});
+  
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      setLoading(true);
+      handleSocialLogin('google', googleResponse.authentication.accessToken);
+    }
+  }, [googleResponse]);
+  
+  return (
+    &lt;View className="gap-3"&gt;
+      &lt;TouchableOpacity 
+        onPress={() => googlePrompt()}
+        disabled={loading}
+        className="bg-white border border-gray-300 py-3 rounded-lg flex-row justify-center items-center"
+      &gt;
+        {loading ? &lt;ActivityIndicator /&gt; : &lt;&gt;🅶 Se connecter avec Google&lt;/&gt;}
+      &lt;/TouchableOpacity&gt;
+      &lt;AppleAuthenticationButton onPress={handleAppleSignIn} /&gt;
+    &lt;/View&gt;
+  );
+};</code></pre>
+                        </details>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 2 (ressource – hard)</p>
+                        <p>Un utilisateur tente de se connecter avec Google mais son email est déjà utilisé par un compte classique (mot de passe). Proposez une solution UI/UX pour résoudre ce conflit.</p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <p class="text-gray-600 text-sm mt-2">Afficher une modal : "Cet email est déjà associé à un compte. Souhaitez-vous lier votre compte Google ?" avec deux options : "Lier" (appel API `/auth/link`) et "Se connecter avec mot de passe" (redirection vers formulaire classique).</p>
+                        </details>
+                    </div>
+                    
+                    <div class="pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 3 (compétence – easy)</p>
+                        <p>Ajoutez un indicateur visuel dans l'écran Profil pour montrer quels providers sont liés au compte (ex: badges "Google ✓", "Apple ✓").</p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <pre class="mt-2 text-xs"><code>&lt;View className="flex-row gap-2"&gt;
+  {user.linkedProviders.includes('google') && (
+    &lt;View className="bg-red-100 px-3 py-1 rounded-full"&gt;
+      &lt;Text className="text-red-700 text-xs"&gt;🅶 Google ✓&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+  {user.linkedProviders.includes('apple') && (
+    &lt;View className="bg-gray-100 px-3 py-1 rounded-full"&gt;
+      &lt;Text className="text-gray-700 text-xs"&gt;🍎 Apple ✓&lt;/Text&gt;
+    &lt;/View&gt;
+  )}
+&lt;/View&gt;</code></pre>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✅ Bonnes pratiques & récapitulatif</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Toujours gérer le cas où l'utilisateur annule l'authentification</li>
+                    <li>Stocker les tokens dans <code class="bg-gray-100 px-1 rounded">expo-secure-store</code> (pas AsyncStorage)</li>
+                    <li>Pour iOS, Apple Sign-In est obligatoire si vous utilisez Google Sign-In</li>
+                    <li>Testez sur des vrais appareils (simulateur limité pour ces auth)</li>
+                    <li>Utilisez des schémas URL uniques dans app.json pour le retour de l'auth</li>
+                    <li>Proposez toujours un fallback (connexion email/mot de passe)</li>
+                </ul>
+                
+                <div class="flex flex-wrap gap-2 justify-center mt-6">
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">📘 expo-auth-session docs</span>
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">🍎 Apple Dev portal</span>
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">🔑 SecureStore</span>
+                </div>
+                
+                <div class="mt-6 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg text-center text-sm text-blue-800">
+                    🎯 À retenir : L'authentification sociale améliore le taux de conversion en réduisant les frictions à l'inscription.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center mt-6 gap-3">
+            <button id="prevBtn" class="nav-btn bg-white border border-gray-300 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm hover:bg-gray-50 disabled:opacity-40 transition">◀ Précédent</button>
+            <div class="flex gap-2"><span id="pageIndicator" class="text-sm text-gray-500"></span></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 text-white font-medium py-2 px-5 rounded-full shadow-md hover:bg-blue-700 transition">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentIndex = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            const $prev = $('#prevBtn');
+            const $next = $('#nextBtn');
+            const $counter = $('#slideCounter');
+            const $progressFill = $('#progressFill');
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $counter.text(`Slide ${currentIndex+1} / ${total}`);
+                const percent = ((currentIndex) / (total-1)) * 100;
+                $progressFill.css('width', percent + '%');
+                $prev.prop('disabled', currentIndex === 0);
+                $next.prop('disabled', currentIndex === total-1);
+            }
+
+            $prev.on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+            $next.on('click', () => { if (currentIndex < total-1) { currentIndex++; updateSlides(); } });
+            $(document).on('keydown', (e) => {
+                if (e.key === 'ArrowLeft') $prev.trigger('click');
+                else if (e.key === 'ArrowRight') $next.trigger('click');
+            });
+            
+            updateSlides();
+        });
+    </script>
+    <script>if(window.MathJax) MathJax.typesetPromise();</script>
+</body>
+</html>

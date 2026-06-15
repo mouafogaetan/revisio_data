@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 13 : Stockage partagé NFS/SMB – Cloud Computing</title>
+  <!-- Tailwind CSS + base + transitions douces -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules si besoin, optionnel ici mais présent) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions slide */
+    .slide-container {
+      transition: opacity 0.25s ease-in-out;
+    }
+    .slide {
+      display: none;
+      opacity: 0;
+    }
+    .slide.active {
+      display: block;
+      opacity: 1;
+    }
+    /* navigation boutons hover */
+    .nav-btn:hover {
+      transform: scale(1.02);
+      transition: all 0.2s;
+    }
+    /* adapté aux petits écrans : texte lisible */
+    @media (max-width: 640px) {
+      .prose p, .prose li {
+        font-size: 0.95rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+      }
+      .card-padding {
+        padding: 1rem;
+      }
+    }
+    /* fond doux, contraste agréable */
+    body {
+      background: #f4f7fc;
+    }
+    .slide-card {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(0px);
+      border-radius: 2rem;
+      box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+    }
+    .bullet-icon {
+      background: #e0f2fe;
+      border-radius: 2rem;
+      padding: 0.2rem 0.6rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur principal des slides -->
+    <div id="slidesContainer" class="slide-container relative">
+      <!-- Slide 1 : Titre de la leçon -->
+      <div class="slide active" data-slide="0">
+        <div class="slide-card p-6 md:p-10 border border-gray-100">
+          <div class="flex flex-col items-center text-center">
+            <span class="text-sm font-semibold tracking-wide text-blue-600 bg-blue-100 px-4 py-1 rounded-full mb-4">Leçon 13 · Initiation Cloud</span>
+            <h1 class="text-3xl md:text-5xl font-bold text-gray-800 mt-2 mb-4">📁 Stockage partagé<br>NFS / SMB dans le cloud</h1>
+            <div class="w-24 h-1 bg-blue-400 rounded-full my-4"></div>
+            <p class="text-lg text-gray-600 max-w-xl">Comprendre comment plusieurs serveurs peuvent accéder aux mêmes fichiers comme sur un disque réseau partagé.</p>
+            <div class="mt-8 flex flex-wrap gap-3 justify-center text-sm text-gray-500">
+              <span class="bg-gray-100 px-3 py-1 rounded-full">☁️ Cloud Computing</span>
+              <span class="bg-gray-100 px-3 py-1 rounded-full">📂 Systèmes de fichiers distribués</span>
+              <span class="bg-gray-100 px-3 py-1 rounded-full">🔗 NFS · SMB</span>
+            </div>
+            <div class="mt-10 text-blue-600 text-sm font-medium">⬇️ Cliquez sur Suivant pour découvrir les objectifs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2 : Objectifs d'apprentissage -->
+      <div class="slide" data-slide="1">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+          <ul class="space-y-4 text-gray-700">
+            <li class="flex items-start gap-3"><span class="bullet-icon text-blue-700 text-sm mt-0.5">1</span> <span>Comprendre le stockage partagé NFS/SMB : principe, cas d’usage (cloud, VMs, clusters).</span></li>
+            <li class="flex items-start gap-3"><span class="bullet-icon text-blue-700 text-sm mt-0.5">2</span> <span>Monter un système de fichiers cloud partagé sur plusieurs VMs (machine virtuelle).</span></li>
+            <li class="flex items-start gap-3"><span class="bullet-icon text-blue-700 text-sm mt-0.5">3</span> <span>Comparer stockage objet (S3), bloc (EBS) et stockage partagé (EFS / Azure Files).</span></li>
+            <li class="flex items-start gap-3"><span class="bullet-icon text-blue-700 text-sm mt-0.5">4</span> <span>Identifier les services cloud managés : AWS EFS, Azure Files, GCP Filestore.</span></li>
+          </ul>
+          <div class="mt-8 bg-blue-50 p-4 rounded-xl text-sm text-blue-800 border border-blue-200">
+            💡 Pourquoi c'est important ? Les applications web, bases de données ou clusters ont besoin d'un stockage commun accessible depuis plusieurs serveurs.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 3 : Qu'est-ce que le stockage partagé NFS/SMB ? -->
+      <div class="slide" data-slide="2">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4">🧠 Définition : stockage partagé réseau</h2>
+          <p class="text-gray-700 mb-4 leading-relaxed">Le stockage partagé permet à <strong>plusieurs machines (serveurs, VMs)</strong> de lire et écrire dans les mêmes fichiers via le réseau. Deux protocoles principaux existent :</p>
+          <div class="grid md:grid-cols-2 gap-5 mt-3">
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div class="font-bold text-blue-800 text-lg">🐧 NFS</div>
+              <p class="text-sm text-gray-600 mt-1">Network File System – Très utilisé dans les environnements Linux/Unix. Rapide et standard dans le cloud.</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div class="font-bold text-blue-800 text-lg">🪟 SMB/CIFS</div>
+              <p class="text-sm text-gray-600 mt-1">Server Message Block – Natif Windows, compatible avec Linux via Samba. Idéal pour entreprises mixtes.</p>
+            </div>
+          </div>
+          <!-- dessin simple explicatif : plusieurs VMs + serveur de fichiers partagé -->
+          <div class="mt-8 bg-white rounded-xl border p-4 text-center">
+            <svg viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-md mx-auto">
+              <rect x="10" y="40" width="70" height="50" fill="#e2e8f0" stroke="#1e40af" stroke-width="1.5" rx="8" />
+              <text x="45" y="72" font-size="10" text-anchor="middle" fill="#1e3a8a">VM 1</text>
+              <rect x="165" y="40" width="70" height="50" fill="#e2e8f0" stroke="#1e40af" stroke-width="1.5" rx="8" />
+              <text x="200" y="72" font-size="10" text-anchor="middle" fill="#1e3a8a">VM 2</text>
+              <rect x="320" y="40" width="70" height="50" fill="#e2e8f0" stroke="#1e40af" stroke-width="1.5" rx="8" />
+              <text x="355" y="72" font-size="10" text-anchor="middle" fill="#1e3a8a">VM 3</text>
+              <path d="M45 90 L45 115 L200 115 L200 90" stroke="#f97316" stroke-width="2" fill="none" stroke-dasharray="4"/>
+              <path d="M200 115 L355 115 L355 90" stroke="#f97316" stroke-width="2" fill="none" stroke-dasharray="4"/>
+              <rect x="140" y="115" width="120" height="30" fill="#fef3c7" stroke="#b45309" stroke-width="1.5" rx="8" />
+              <text x="200" y="135" font-size="10" text-anchor="middle" fill="#92400e">📂 Serveur de fichiers partagés (NFS / SMB)</text>
+              <text x="200" y="158" font-size="9" fill="#4b5563">Accès simultané aux mêmes données</text>
+            </svg>
+            <p class="text-xs text-gray-500 mt-2">🔁 Plusieurs VMs montent le même point de montage réseau → données centralisées.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4 : Monter un système de fichiers cloud partagé sur plusieurs VMs -->
+      <div class="slide" data-slide="3">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-3">🔧 Monter un partage cloud sur plusieurs VMs</h2>
+          <p class="text-gray-700 mb-4">Exemple avec <strong>AWS EFS (NFS)</strong> ou <strong>Azure Files (SMB)</strong>. Étapes générales :</p>
+          <ol class="list-decimal list-inside space-y-2 text-gray-700 bg-gray-50 p-4 rounded-xl">
+            <li>Créer un système de fichiers partagé dans la console cloud (EFS / Azure Files / GCP Filestore).</li>
+            <li>Obtenir le point de montage (ex: <code class="bg-gray-200 px-1 rounded">fs-12345.efs.eu-west-1.amazonaws.com:/</code>).</li>
+            <li>Sur chaque VM Linux: installer le client NFS (<code class="bg-gray-200 px-1 rounded">sudo apt install nfs-common</code>).</li>
+            <li>Créer un dossier local et monter : <code class="bg-gray-200 px-1 rounded text-xs">sudo mount -t nfs4 endpoint:/ /mnt/cloudshare</code>.</li>
+            <li>Rendre le montage persistant via <code class="bg-gray-200 px-1 rounded">/etc/fstab</code>.</li>
+          </ol>
+          <div class="mt-5 p-3 bg-blue-100 rounded-lg border-l-4 border-blue-600 text-blue-800 text-sm">
+            💡 Résultat : Toutes les VMs écrivent dans le même espace → parfait pour une application PHP qui stocke les fichiers uploads, ou des logs centralisés.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 5 : Comparaison Stockage objet / bloc / partagé -->
+      <div class="slide" data-slide="4">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-5">⚖️ Comparaison : Objet vs Bloc vs Partagé</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-sm border text-sm">
+              <thead class="bg-gray-100">
+                <tr><th class="px-4 py-2 text-left">Type</th><th class="px-4 py-2 text-left">Exemple cloud</th><th class="px-4 py-2 text-left">Accès simultané</th><th class="px-4 py-2 text-left">Cas typique</th></tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">📦 Objet</td><td>AWS S3, GCS</td><td>via API HTTP, pas montage standard</td><td>Archivage, images statiques, sites web</td></tr>
+                <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">🔲 Bloc (EBS)</td><td>AWS EBS, Azure Disk</td><td>1 seule VM à la fois</td><td>Base de données, système d'exploitation</td></tr>
+                <tr class="hover:bg-gray-50 bg-blue-50"><td class="px-4 py-2 font-semibold">🔄 Partagé (NFS/SMB)</td><td>AWS EFS, Azure Files, GCP Filestore</td><td>✅ Multi-VM simultané</td><td>Contenu partagé, clusters, home directories</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-5 text-gray-700 text-sm">Le stockage partagé est <strong>idéal pour la collaboration</strong> entre services, contrairement au stockage bloc qui est comme un disque dur virtuel dédié à une seule instance.</p>
+        </div>
+      </div>
+
+      <!-- Slide 6 : Services cloud managés NFS/SMB -->
+      <div class="slide" data-slide="5">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4">☁️ Solutions cloud managées</h2>
+          <div class="grid sm:grid-cols-2 gap-5">
+            <div class="bg-gradient-to-br from-white to-gray-50 p-4 rounded-xl shadow-sm border">
+              <div class="font-bold text-lg text-orange-600">AWS EFS</div>
+              <p class="text-sm">NFS version 4.1, élastique, facturation à l'usage. Parfait pour les clusters EC2.</p>
+            </div>
+            <div class="bg-gradient-to-br from-white to-gray-50 p-4 rounded-xl shadow-sm border">
+              <div class="font-bold text-lg text-blue-600">Azure Files</div>
+              <p class="text-sm">SMB et NFS, compatible Windows/Linux, intégration Active Directory.</p>
+            </div>
+            <div class="bg-gradient-to-br from-white to-gray-50 p-4 rounded-xl shadow-sm border">
+              <div class="font-bold text-lg text-green-700">GCP Filestore</div>
+              <p class="text-sm">NFSv3 haute performance, utilisé pour GKE, Compute Engine.</p>
+            </div>
+            <div class="bg-gradient-to-br from-white to-gray-50 p-4 rounded-xl shadow-sm border">
+              <div class="font-bold text-lg text-purple-700">Open Source</div>
+              <p class="text-sm">GlusterFS, Ceph – mais demande plus d’administration.</p>
+            </div>
+          </div>
+          <div class="mt-6 text-gray-600 text-sm flex items-start gap-2">
+            <span class="text-xl">📌</span> Avec ces services, plus besoin de gérer un serveur NFS manuellement : le cloud s'occupe de la réplication, haute disponibilité et sauvegarde.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 7 : Avantages et limites + utilisations pratiques -->
+      <div class="slide" data-slide="6">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800">✅ Avantages & ⚠️ limites du stockage partagé cloud</h2>
+          <div class="mt-4 grid md:grid-cols-2 gap-5">
+            <div class="bg-green-50 p-4 rounded-xl border-l-4 border-green-500">
+              <h3 class="font-bold text-green-800">✨ Points forts</h3>
+              <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700 text-sm">
+                <li>Accès simultané depuis plusieurs VMs / conteneurs</li>
+                <li>Mise à l'échelle automatique (pas de gestion de quota complexe)</li>
+                <li>Protocoles standards (NFS / SMB) compatibilité maximale</li>
+                <li>Sauvegarde intégrée (snapshots)</li>
+              </ul>
+            </div>
+            <div class="bg-amber-50 p-4 rounded-xl border-l-4 border-amber-500">
+              <h3 class="font-bold text-amber-800">🧐 Limitations</h3>
+              <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700 text-sm">
+                <li>Latence réseau légèrement supérieure à un disque local</li>
+                <li>Certains workloads très haute performance préfèrent le stockage bloc (IOPS dédiées)</li>
+                <li>Quelques protocoles (NFSv3) moins sécurisés que versions récentes</li>
+              </ul>
+            </div>
+          </div>
+          <div class="mt-6 bg-gray-100 p-3 rounded-lg text-gray-800">
+            🚀 <strong>Exemple concret :</strong> Un site e-commerce tourne sur 3 serveurs web. Tous doivent accéder aux images des produits et fichiers de configuration. Avec un volume partagé NFS, chaque serveur voit les mêmes fichiers → synchronisation instantanée.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 8 : Comparaison avec objet et bloc (synthèse visuelle) -->
+      <div class="slide" data-slide="7">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-3">🧩 Quand choisir le stockage partagé ?</h2>
+          <div class="flex flex-wrap gap-4 justify-between">
+            <div class="flex-1 min-w-[140px] p-3 border rounded-lg text-center">
+              <div class="text-3xl">📄</div>
+              <div class="font-semibold">Sites web</div>
+              <div class="text-xs text-gray-600">Assets partagés, uploads</div>
+            </div>
+            <div class="flex-1 min-w-[140px] p-3 border rounded-lg text-center bg-blue-100">
+              <div class="text-3xl">🖥️</div>
+              <div class="font-semibold">Clusters HPC</div>
+              <div class="text-xs text-gray-600">Données partagées calculs</div>
+            </div>
+            <div class="flex-1 min-w-[140px] p-3 border rounded-lg text-center">
+              <div class="text-3xl">📁</div>
+              <div class="font-semibold">Répertoires personnels</div>
+              <div class="text-xs text-gray-600">Roaming profiles</div>
+            </div>
+            <div class="flex-1 min-w-[140px] p-3 border rounded-lg text-center">
+              <div class="text-3xl">🐳</div>
+              <div class="font-semibold">Conteneurs stateful</div>
+              <div class="text-xs text-gray-600">Persistance partagée</div>
+            </div>
+          </div>
+          <div class="mt-6 p-3 text-sm italic text-gray-600 bg-white rounded-lg shadow-inner">
+            ⚡ À retenir : Stockage objet pour API / big data ; Stockage bloc pour base de données ; Stockage partagé pour partage de fichiers entre machines.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 9 : Mise en pratique (exemple simple de montage) -->
+      <div class="slide" data-slide="8">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800 mb-4">🖥️ Exemple d'utilisation : montage NFS sur deux VMs Linux</h2>
+          <div class="bg-gray-900 rounded-xl p-4 text-green-300 font-mono text-sm overflow-x-auto">
+            <pre class="whitespace-pre-wrap"># Sur VM1 et VM2 (Ubuntu 22.04)
+$ sudo apt update && sudo apt install nfs-common -y
+
+# Créer un dossier de montage
+$ sudo mkdir -p /mnt/cloud-data
+
+# Monter le partage EFS (remplacer par votre endpoint)
+$ sudo mount -t nfs4 fs-12345678.efs.eu-west-3.amazonaws.com:/ /mnt/cloud-data
+
+# Tester l'écriture depuis VM1
+$ echo "Donnée partagée" | sudo tee /mnt/cloud-data/test.txt
+
+# Depuis VM2, vérifier :
+$ cat /mnt/cloud-data/test.txt
+Donnée partagée ✅
+
+# Montage automatique (fstab)
+fs-12345678.efs.eu-west-3.amazonaws.com:/ /mnt/cloud-data nfs4 defaults 0 0</pre>
+          </div>
+          <p class="mt-4 text-gray-700">✅ Le même fichier est accessible depuis toutes les VMs, comme un disque réseau ultra simple.</p>
+        </div>
+      </div>
+
+      <!-- Slide 10 : Quiz rapide & résumé -->
+      <div class="slide" data-slide="9">
+        <div class="slide-card p-6 md:p-10">
+          <h2 class="text-2xl font-bold text-gray-800">📝 Vérification des acquis</h2>
+          <div class="mt-4 space-y-3">
+            <div class="border-b pb-2"><span class="font-semibold">1️⃣</span> Quel protocole est le plus utilisé pour le partage sous Linux dans le cloud ? <br> <span class="text-blue-700">✔ Réponse : NFS (Network File System)</span></div>
+            <div class="border-b pb-2"><span class="font-semibold">2️⃣</span> Vrai ou faux ? Le stockage bloc (EBS) peut être monté simultanément sur 5 EC2 différentes.<br> <span class="text-blue-700">❌ Faux, un volume bloc est attaché à une seule instance à la fois.</span></div>
+            <div class="border-b pb-2"><span class="font-semibold">3️⃣</span> Citez deux services cloud de fichiers partagés managés.<br> <span class="text-blue-700">✔ AWS EFS, Azure Files, GCP Filestore.</span></div>
+          </div>
+          <div class="mt-6 bg-indigo-50 p-4 rounded-xl">
+            <p class="font-medium text-indigo-800">🎓 Résumé de la leçon 13 :</p>
+            <p class="text-sm">Le stockage partagé NFS/SMB rend possible l'accès concurrent à des fichiers depuis plusieurs VMs. Dans le cloud, les solutions managées comme AWS EFS simplifient énormément la tâche. Contrairement au stockage objet (S3) et bloc (EBS), il est le bon choix pour les applications nécessitant un système de fichiers classique distribué.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Navigation buttons (Prev / Next) + indicateur de slide -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevBtn" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+      <div class="text-sm text-gray-500 bg-white px-4 py-1 rounded-full shadow-sm">
+        <span id="slideCounter">1</span> / <span id="totalSlides">10</span>
+      </div>
+      <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-full shadow transition">Suivant ▶</button>
+    </div>
+
+    <!-- petite info footer -->
+    <div class="text-center text-xs text-gray-400 mt-8">
+      Cours Conçu pour la classe Développement Web – Initiation Cloud Computing 🇨🇲 Cameroun
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function(){
+      let slides = $('.slide');
+      let total = slides.length;
+      $('#totalSlides').text(total);
+      let currentIdx = 0;
+
+      function updateSlides() {
+        slides.removeClass('active');
+        $(slides[currentIdx]).addClass('active');
+        $('#slideCounter').text(currentIdx+1);
+        // gestion désactivation prev / next si extrême
+        $('#prevBtn').prop('disabled', currentIdx === 0);
+        $('#nextBtn').prop('disabled', currentIdx === total-1);
+        // scroll en haut pour confort mobile
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      $('#nextBtn').on('click', function() {
+        if (currentIdx < total-1) {
+          currentIdx++;
+          updateSlides();
+        }
+      });
+      $('#prevBtn').on('click', function() {
+        if (currentIdx > 0) {
+          currentIdx--;
+          updateSlides();
+        }
+      });
+      // swipe basique pour mobile (optionnel)
+      let touchStartX = 0;
+      $('body').on('touchstart', function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      }).on('touchend', function(e) {
+        let touchEndX = e.originalEvent.changedTouches[0].clientX;
+        if (touchEndX < touchStartX - 60 && currentIdx < total-1) {
+          currentIdx++;
+          updateSlides();
+        } else if (touchEndX > touchStartX + 60 && currentIdx > 0) {
+          currentIdx--;
+          updateSlides();
+        }
+      });
+      updateSlides();
+    });
+  </script>
+</body>
+</html>

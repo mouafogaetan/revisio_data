@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 13 : GitLab CI · DevOps | Cours Web</title>
+  <!-- Tailwind CSS via CDN + basic interceptions -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (optionnel, présent pour d'éventuelles formules mais non obligatoire pour cette leçon) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions douces pour slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+    }
+    .slide-hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    .slide-active {
+      display: block;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    /* navigation buttons hover */
+    .nav-btn {
+      transition: all 0.2s;
+    }
+    /* custom scrollbar discret */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+    body {
+      background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 100%);
+    }
+    /* amélioration du contraste pour les petits écrans */
+    @media (max-width: 640px) {
+      .card-slide {
+        padding: 1.25rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur principal des slides -->
+    <div id="slides-container" class="relative">
+      
+      <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+      <div class="slide slide-active" data-slide="0">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100 card-slide p-6 md:p-10">
+          <div class="flex flex-col items-center text-center">
+            <!-- icône dessinée maison (SVG basique pour représenter un pipeline/runner GitLab) -->
+            <div class="w-24 h-24 mb-5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7h16M4 7l2.5-3h11L20 7M9 12h6m-6 4h6" />
+              </svg>
+            </div>
+            <span class="text-sm font-mono bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">Leçon 13 · GitLab CI/CD</span>
+            <h1 class="text-3xl md:text-4xl font-extrabold mt-5 bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">Configurer une chaîne CI/CD avec GitLab</h1>
+            <p class="text-gray-600 mt-4 max-w-xl text-lg">Maîtriser <code class="bg-gray-100 px-1 rounded">.gitlab-ci.yml</code>, les runners, caches, artifacts et variables d'environnement.</p>
+            <div class="mt-8 flex gap-3">
+              <button class="next-slide px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition font-medium">Commencer →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+      <div class="slide slide-hidden" data-slide="1">
+        <div class="bg-white rounded-2xl shadow-xl border border-indigo-100 card-slide p-6 md:p-8">
+          <div class="border-l-4 border-indigo-500 pl-4 mb-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2>
+            <p class="text-gray-500 mt-1">À la fin de ce cours, vous serez capable de :</p>
+          </div>
+          <ul class="space-y-4 mt-4">
+            <li class="flex items-start gap-3">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold mt-0.5">1</span>
+              <span class="text-gray-700">Configurer le fichier <strong class="font-mono text-indigo-800">.gitlab-ci.yml</strong> en définissant <strong>stages, jobs et scripts</strong>.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold mt-0.5">2</span>
+              <span class="text-gray-700">Comprendre et utiliser les <strong>runners GitLab</strong> (shared vs specific).</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold mt-0.5">3</span>
+              <span class="text-gray-700">Gérer les <strong>caches, artifacts et variables d'environnement</strong> pour optimiser les pipelines.</span>
+            </li>
+          </ul>
+          <div class="mt-10 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100 transition">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700 transition">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 3 : Introduction & .gitlab-ci.yml de base -->
+      <div class="slide slide-hidden" data-slide="2">
+        <div class="bg-white rounded-2xl shadow-xl border border-indigo-100 card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">📄 Le fichier <code class="bg-gray-100 px-2 py-1 rounded text-indigo-700">.gitlab-ci.yml</code></h2>
+          <p class="text-gray-600 mt-3">GitLab CI utilise un fichier YAML à la racine du dépôt pour décrire l’automatisation. Il définit les <strong class="font-semibold">stages</strong> (étapes) et les <strong class="font-semibold">jobs</strong> (tâches). Chaque job s’exécute dans un runner.</p>
+          <div class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto mt-5 font-mono text-sm">
+            <pre>stages:
+  - build
+  - test
+  - deploy
+
+build_job:
+  stage: build
+  script:
+    - echo "Compilation en cours..."
+    - npm install
+  only:
+    - main</pre>
+          </div>
+          <p class="text-gray-600 mt-4"><span class="font-bold">✨ Explication :</span> Le pipeline s’exécute dans l’ordre : build, puis test, puis deploy. Chaque job a un script (commandes shell).</p>
+          <div class="mt-6 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+            <p class="text-indigo-800 text-sm">💡 À retenir : GitLab détecte automatiquement le fichier à chaque push ou MR. Les jobs parallèles si aucun besoin d'ordre.</p>
+          </div>
+          <div class="mt-8 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4 : Les runners GitLab (shared / specific) -->
+      <div class="slide slide-hidden" data-slide="3">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🏃‍♂️ Les runners GitLab</h2>
+          <p class="text-gray-600 mt-2">Un runner est un agent qui exécute les jobs. GitLab fournit des runners partagés (shared) ou vous pouvez installer vos propres runners spécifiques.</p>
+          <div class="grid md:grid-cols-2 gap-5 mt-6">
+            <div class="border rounded-xl p-4 bg-gray-50">
+              <div class="font-semibold text-indigo-700 text-lg">Shared Runners</div>
+              <p class="text-sm text-gray-600">Fournis par GitLab.com ou l'instance. Disponibles immédiatement, mais limités en ressources (concurrence). Idéal pour projets open-source ou début.</p>
+            </div>
+            <div class="border rounded-xl p-4 bg-gray-50">
+              <div class="font-semibold text-purple-700 text-lg">Specific Runners</div>
+              <p class="text-sm text-gray-600">Propres à un projet ou un groupe. Vous contrôlez l'infra (Docker, VM, Kubernetes). Parfait pour des besoins spécifiques ou sécurité.</p>
+            </div>
+          </div>
+          <div class="mt-5 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+            <p class="text-yellow-800 text-sm">⚙️ Installation d’un runner spécifique : avec <code class="bg-white px-1">gitlab-runner register</code> et un token depuis l’interface GitLab → Settings → CI/CD → Runners.</p>
+          </div>
+          <div class="mt-8 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5 : Caches & Artifacts — optimisation -->
+      <div class="slide slide-hidden" data-slide="4">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📦 Caches & Artifacts : accélérer les pipelines</h2>
+          <p class="text-gray-600 mt-2">Deux mécanismes essentiels pour ne pas refaire le travail à chaque fois.</p>
+          <div class="space-y-5 mt-4">
+            <div>
+              <h3 class="font-bold text-indigo-800">🗄️ Cache</h3>
+              <p class="text-gray-700">Conserve des dossiers entre les jobs <strong>du même pipeline</strong> (ex: <code>node_modules/</code>, <code>vendor/</code>). Défini via mot-clé <code>cache</code>.</p>
+              <div class="bg-gray-100 p-3 rounded text-sm font-mono mt-1">cache:<br>&nbsp;&nbsp;paths:<br>&nbsp;&nbsp;&nbsp;&nbsp;- node_modules/</div>
+            </div>
+            <div>
+              <h3 class="font-bold text-indigo-800">🎁 Artifacts</h3>
+              <p class="text-gray-700">Fichiers générés par un job et persistants après exécution, utilisables dans des jobs suivants ou téléchargeables (ex: binaires, rapports de tests).</p>
+              <div class="bg-gray-100 p-3 rounded text-sm font-mono mt-1">artifacts:<br>&nbsp;&nbsp;paths:<br>&nbsp;&nbsp;&nbsp;&nbsp;- dist/<br>&nbsp;&nbsp;expire_in: 1 week</div>
+            </div>
+          </div>
+          <div class="bg-green-50 p-3 rounded-lg mt-4 text-green-800 text-sm border border-green-200">
+            ✅ Bonne pratique : Utiliser le cache pour les dépendances, les artifacts pour les livrables.
+          </div>
+          <div class="mt-7 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6 : Variables d'environnement -->
+      <div class="slide slide-hidden" data-slide="5">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🔐 Variables d'environnement dans GitLab CI</h2>
+          <p class="text-gray-600">Stocker des secrets (clés API, mots de passe) ou configurer dynamiquement les pipelines.</p>
+          <div class="mt-4">
+            <p class="font-medium">📍 Déclaration possible :</p>
+            <ul class="list-disc list-inside text-gray-700 ml-2 space-y-1 mt-1">
+              <li>Dans le fichier <code class="bg-gray-100 px-1">.gitlab-ci.yml</code> (variables globales ou par job)</li>
+              <li>Via l'interface GitLab : <strong>Settings → CI/CD → Variables</strong> (masquées / protégées)</li>
+            </ul>
+            <div class="bg-gray-800 text-gray-200 p-3 rounded-lg mt-3 font-mono text-sm overflow-x-auto">
+              <pre>variables:
+  DEPLOY_ENV: "production"
+  DATABASE_URL: ${DB_URL}   # héritée depuis UI
+
+deploy_job:
+  script:
+    - echo "Déploiement sur $DEPLOY_ENV"
+    - deploy --token $SECRET_TOKEN</pre>
+            </div>
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-4 text-amber-800 text-sm">
+            🛡️ Les variables masquées (Masked) n'apparaissent pas dans les logs. Toujours protéger les secrets.
+          </div>
+          <div class="mt-7 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 7 : Exemple concret complet + schéma simplifié maison -->
+      <div class="slide slide-hidden" data-slide="6">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📁 Exemple complet : pipeline Node.js</h2>
+          <div class="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto text-xs md:text-sm font-mono">
+            <pre>stages:
+  - install
+  - test
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - npm install
+
+install_deps:
+  stage: install
+  script:
+    - echo "Dépendances déjà mises en cache"
+
+test_app:
+  stage: test
+  script:
+    - npm run test
+  artifacts:
+    reports:
+      junit: reports/junit.xml
+
+build:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+
+deploy_prod:
+  stage: deploy
+  script:
+    - scp -r dist/ user@server:/var/www/
+  only:
+    - main
+  variables:
+    ENV: "production"</pre>
+          </div>
+          <p class="text-gray-700 mt-3 text-sm">➡️ Ce pipeline installe les dépendances, teste, construit l'application et ne déploie que sur la branche <strong>main</strong>.</p>
+          <!-- petit schéma dessiné maison (svg) pour visualiser -->
+          <div class="mt-5 flex justify-center">
+            <svg width="100%" height="80" viewBox="0 0 600 70" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+              <rect x="5" y="20" width="90" height="35" rx="8" fill="#4f46e5" class="shadow-sm" />
+              <text x="50" y="42" fill="white" font-size="12" text-anchor="middle" font-family="monospace">install</text>
+              <path d="M95 37 L115 37" stroke="#c084fc" stroke-width="3" marker-end="url(#arrow)" />
+              <rect x="120" y="20" width="80" height="35" rx="8" fill="#8b5cf6" />
+              <text x="160" y="42" fill="white" font-size="12" text-anchor="middle">test</text>
+              <path d="M200 37 L220 37" stroke="#c084fc" stroke-width="3" />
+              <rect x="225" y="20" width="85" height="35" rx="8" fill="#a855f7" />
+              <text x="267" y="42" fill="white" font-size="12" text-anchor="middle">build</text>
+              <path d="M310 37 L330 37" stroke="#c084fc" stroke-width="3" />
+              <rect x="335" y="20" width="95" height="35" rx="8" fill="#ec489a" />
+              <text x="382" y="42" fill="white" font-size="12" text-anchor="middle">deploy</text>
+              <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#c084fc" /></marker></defs>
+            </svg>
+          </div>
+          <div class="mt-6 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 8 : Bonnes pratiques & recap -->
+      <div class="slide slide-hidden" data-slide="7">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📌 Bonnes pratiques & astuces</h2>
+          <div class="grid sm:grid-cols-2 gap-4 mt-5">
+            <div class="bg-indigo-50 p-3 rounded-xl">
+              <div class="font-semibold">🧪 Utiliser <code>rules</code></div>
+              <p class="text-sm">Plutôt que <code>only/except</code>, privilégiez <code>rules</code> pour des conditions plus souples.</p>
+            </div>
+            <div class="bg-indigo-50 p-3 rounded-xl">
+              <div class="font-semibold">🏷️ Tags runners</div>
+              <p class="text-sm">Assignez des tags aux runners spécifiques pour garantir l’exécution sur certaines machines.</p>
+            </div>
+            <div class="bg-indigo-50 p-3 rounded-xl">
+              <div class="font-semibold">⏱️ Timeouts</div>
+              <p class="text-sm">Configurer un timeout par job pour éviter des pipelines bloqués.</p>
+            </div>
+            <div class="bg-indigo-50 p-3 rounded-xl">
+              <div class="font-semibold">📈 Pipeline as code</div>
+              <p class="text-sm">Versionnez toujours <code>.gitlab-ci.yml</code> avec le code source.</p>
+            </div>
+          </div>
+          <div class="mt-6 p-4 bg-gray-100 rounded-xl">
+            <p class="text-gray-800 italic">"GitLab CI permet une intégration continue très puissante avec une configuration simple. Les runners partagés suffisent pour commencer."</p>
+          </div>
+          <div class="mt-8 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Précédent</button>
+            <button class="next-slide px-5 py-2 bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700">Suivant →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 9 : Résumé final / Q&R Mentale -->
+      <div class="slide slide-hidden" data-slide="8">
+        <div class="bg-white rounded-2xl shadow-xl card-slide p-6 md:p-8 text-center">
+          <div class="w-20 h-20 mx-auto bg-gradient-to-tr from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-extrabold text-gray-800">Félicitations ! 🎉</h2>
+          <p class="text-gray-600 mt-2">Vous avez exploré la configuration d’un pipeline GitLab CI : <strong>stages, jobs, runners, caches, artifacts et variables</strong>.</p>
+          <div class="mt-6 flex flex-col gap-3 items-center">
+            <p class="text-indigo-700 font-medium">💡 Exercice pratique :</p>
+            <div class="bg-gray-100 p-3 rounded-lg text-left w-full max-w-md text-sm">
+              • Créez un projet GitLab<br>
+              • Ajoutez un fichier .gitlab-ci.yml avec deux jobs (build + test)<br>
+              • Activez un runner partagé et observez l’exécution
+            </div>
+          </div>
+          <div class="mt-8 flex justify-between">
+            <button class="prev-slide px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-100">← Revoir</button>
+            <button class="restart-slide px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow transition">Recommencer le cours</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indicateur de progression (petit footer) -->
+    <div class="mt-6 text-center text-sm text-gray-500 flex justify-center gap-2 items-center flex-wrap">
+      <span id="slide-counter">Slide 1 / 9</span>
+      <div class="w-24 bg-gray-200 rounded-full h-1.5 ml-2 overflow-hidden">
+        <div id="progress-bar" class="bg-indigo-600 h-1.5 rounded-full" style="width: 11%;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    $(document).ready(function(){
+      let slides = $('.slide');
+      let currentIndex = 0;
+      const totalSlides = slides.length;
+
+      function updateSlidesAndCounter() {
+        slides.each(function(idx){
+          if(idx === currentIndex) {
+            $(this).removeClass('slide-hidden').addClass('slide-active');
+          } else {
+            $(this).removeClass('slide-active').addClass('slide-hidden');
+          }
+        });
+        $('#slide-counter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+        let percent = ((currentIndex+1) / totalSlides) * 100;
+        $('#progress-bar').css('width', percent+'%');
+      }
+
+      function nextSlide() {
+        if(currentIndex < totalSlides - 1) {
+          currentIndex++;
+          updateSlidesAndCounter();
+        } else {
+          // optionnel: on reste sur dernier slide
+        }
+      }
+
+      function prevSlide() {
+        if(currentIndex > 0) {
+          currentIndex--;
+          updateSlidesAndCounter();
+        }
+      }
+
+      function restartSlides() {
+        currentIndex = 0;
+        updateSlidesAndCounter();
+      }
+
+      // gestion des clics sur boutons génériques
+      $(document).on('click', '.next-slide', nextSlide);
+      $(document).on('click', '.prev-slide', prevSlide);
+      $(document).on('click', '.restart-slide', restartSlides);
+
+      // initialisation 
+      updateSlidesAndCounter();
+
+      // swipe simplifié pour mobile? (optionnel mais sympa) - on détecte touch
+      let touchstartX = 0;
+      let touchendX = 0;
+      $(document).on('touchstart', function(e) {
+        touchstartX = e.originalEvent.changedTouches[0].screenX;
+      });
+      $(document).on('touchend', function(e) {
+        touchendX = e.originalEvent.changedTouches[0].screenX;
+        if (touchendX < touchstartX - 50) nextSlide();
+        if (touchendX > touchstartX + 50) prevSlide();
+      });
+    });
+  </script>
+</body>
+</html>

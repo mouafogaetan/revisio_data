@@ -1,0 +1,143 @@
+[
+  {
+    "intitule": "Installation et configuration de Bull dans NestJS",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous devez intégrer Bull (système de file d'attente basé sur Redis) dans votre API NestJS pour traiter des tâches asynchrones (envoi d'emails, génération de PDF).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les packages npm nécessaires pour utiliser Bull avec NestJS.",
+        "niveau": "easy",
+        "reponse": "@nestjs/bull, bull, @nestjs/bullmq (selon version), et ioredis (ou redis) pour la connexion Redis.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la configuration d'import du module Bull dans `AppModule` pour une connexion Redis locale (port 6379) et pour enregistrer un processeur nommé 'email-queue'.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { Module } from '@nestjs/common';\nimport { BullModule } from '@nestjs/bull';\n\n@Module({\n  imports: [\n    BullModule.forRoot({\n      redis: {\n        host: 'localhost',\n        port: 6379,\n      },\n    }),\n    BullModule.registerQueue({\n      name: 'email-queue',\n    }),\n  ],\n})\nexport class AppModule {}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création et envoi d'un job dans une file d'attente",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Après la validation d'une commande, vous souhaitez envoyer un email de confirmation en arrière-plan pour ne pas ralentir la réponse HTTP. Vous utilisez Bull avec une queue nommée <code>email</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez comment injecter la queue dans un service NestJS et ajouter un job.",
+        "niveau": "medium",
+        "reponse": "On utilise `@InjectQueue('email')` pour injecter la queue. Puis on appelle `this.emailQueue.add('send-confirmation', { orderId, userEmail })`. Le job est alors placé dans Redis et sera traité asynchronement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez un processeur (consumer) qui écoute l'événement 'send-confirmation' et exécute l'envoi d'email. Utilisez le décorateur `@Processor()` et `@Process()`.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Processor, Process } from '@nestjs/bull';\nimport { Job } from 'bull';\n\n@Processor('email')\nexport class EmailConsumer {\n  @Process('send-confirmation')\n  async handleSendConfirmation(job: Job) {\n    const { orderId, userEmail } = job.data;\n    // Logique d'envoi d'email (via Nodemailer, etc.)\n    console.log(`Envoi d'email pour la commande ${orderId} à ${userEmail}`);\n    // Simuler l'envoi\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des erreurs et des tentatives dans Bull",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'envoi d'email peut échouer temporairement (serveur SMTP indisponible). Vous voulez que Bull réessaie automatiquement jusqu'à 3 fois avec un délai exponentiel avant de marquer le job comme définitivement échoué.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quels paramètres devez-vous ajouter lors de l'ajout du job pour configurer les tentatives ?",
+        "niveau": "medium",
+        "reponse": "On utilise l'option `attempts` et `backoff`. Exemple : `this.emailQueue.add('send-confirmation', data, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } })`. Cela réessaiera avec un délai exponentiel (2s, 4s, 8s).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment intercepter un job en échec après toutes les tentatives pour journaliser l'erreur ou déclencher une alerte.",
+        "niveau": "hard",
+        "reponse": "On peut utiliser l'événement 'failed' du processor : `@OnQueueFailed() onFailed(job: Job, error: Error) { console.error(`Job ${job.id} failed: ${error.message}`); }`. Ou bien utiliser un écouteur global sur la queue via `@OnQueueError()`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Génération asynchrone de factures PDF",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Lorsqu'une commande est finalisée, l'API doit générer une facture PDF (opération coûteuse) et la stocker sur le serveur. Vous décidez d'utiliser une file d'attente Bull pour ne pas bloquer l'utilisateur.</p>",
+      "images": [
+        "diagramme d'une file d'attente Bull avec producteur (commande) et consommateur (génération PDF)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez la structure du job pour la génération de PDF. Quelles données devez-vous passer dans le job ?",
+        "niveau": "medium",
+        "reponse": "Le job doit contenir l'identifiant de la commande (orderId) et éventuellement le chemin de destination. On n'inclut pas les données complètes de la commande pour éviter de surcharger Redis ; on les récupère depuis la base dans le processeur.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez le code du processeur qui écoute 'generate-invoice'. Utilisez une bibliothèque PDF fictive (ex: `pdfGenerator.generate(orderId)`). Gestion d'erreur incluse.",
+        "niveau": "hard",
+        "reponse": "```typescript\n@Processor('pdf-queue')\nexport class PdfConsumer {\n  constructor(private orderService: OrderService) {}\n\n  @Process('generate-invoice')\n  async handleInvoiceGeneration(job: Job) {\n    const { orderId } = job.data;\n    try {\n      const order = await this.orderService.findOne(orderId);\n      const pdfBuffer = await pdfGenerator.generate(order);\n      await fs.promises.writeFile(`./invoices/invoice-${orderId}.pdf`, pdfBuffer);\n      await this.orderService.updateInvoicePath(orderId, `/invoices/invoice-${orderId}.pdf`);\n    } catch (error) {\n      throw new Error(`PDF generation failed: ${error.message}`);\n    }\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposez une stratégie pour éviter que deux jobs identiques (même orderId) soient exécutés simultanément.",
+        "niveau": "very hard",
+        "reponse": "On peut utiliser l'option `jobId` basée sur `orderId` pour garantir l'unicité. Bull n'ajoutera pas un nouveau job avec le même `jobId` tant que l'ancien n'est pas terminé. Exemple : `await this.pdfQueue.add('generate-invoice', { orderId }, { jobId: `invoice-${orderId}` })`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Rapport de ventes mensuelles avec Bull",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'administrateur souhaite générer un rapport de ventes mensuelles (PDF ou Excel). La génération peut prendre plusieurs secondes. On utilise Bull pour traiter cette demande en arrière-plan, avec une notification une fois le rapport prêt.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez le flux complet : déclenchement de la génération, traitement, notification de l'utilisateur.",
+        "niveau": "hard",
+        "reponse": "1. L'admin envoie une requête POST /reports/sales avec les paramètres (mois, année). 2. Le contrôleur ajoute un job dans la queue 'reports' avec les données. 3. La réponse HTTP renvoie immédiatement un `jobId`. 4. Un processeur Bull génère le rapport (calculs + fichier). 5. Une fois terminé, le processeur met à jour une table Report (status = 'completed', url) et envoie un email/webhook à l'admin. 6. L'admin peut interroger GET /reports/status/:jobId pour récupérer le résultat.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comment gérer les rapports très longs (plusieurs minutes) sans timeout ?",
+        "niveau": "hard",
+        "reponse": "Bull n'a pas de timeout par défaut. On peut configurer `timeout` dans les options du job (ex: `timeout: 300000` pour 5 minutes). Si le job dépasse, Bull le marque comme failed. Pour les très longs traitements, on peut découper le traitement en plusieurs sous-jobs (pattern de workflow) ou utiliser un worker dédié avec heartbeat.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposez une optimisation pour ne pas régénérer le même rapport plusieurs fois pour les mêmes paramètres (ex: rapport du mois dernier déjà généré).",
+        "niveau": "very hard",
+        "reponse": "On peut utiliser un cache Redis : avant d'ajouter un job, on vérifie si un rapport avec ces paramètres existe déjà dans la table Report. Si oui et qu'il est récent, on retourne l'URL existante sans créer de nouveau job. On peut aussi utiliser `jobId` basé sur les paramètres (ex: `sales-report-2025-03`) pour garantir l'unicité. Bull n'ajoutera pas de job en double.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,162 @@
+[
+  {
+    "intitule": "Comprendre le hachage bcrypt et la validation d’email",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un module d’authentification NestJS, on souhaite inscrire un utilisateur. Le mot de passe doit être haché avec bcrypt avant d’être stocké en base de données. L’email doit être unique et validé (format standard).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi on ne doit jamais stocker un mot de passe en clair dans la base de données.",
+        "niveau": "easy",
+        "reponse": "Stocker un mot de passe en clair est une faille de sécurité majeure : en cas de fuite des données, un attaquant peut les utiliser directement. Le hachage (bcrypt) rend le mot de passe difficilement réversible même si la base est compromise.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la fonction du <code>salt</code> dans bcrypt.",
+        "niveau": "medium",
+        "reponse": "Le salt est une chaîne aléatoire ajoutée au mot de passe avant hachage. Cela garantit que deux utilisateurs avec le même mot de passe n’auront pas le même hash, protégeant ainsi contre les attaques par tables rainbow.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une expression régulière simple pour valider le format d’un email (ex: prenom@domaine.extension).",
+        "niveau": "easy",
+        "reponse": "<code>/^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$/</code> (explication : elle vérifie la présence d’un @ et d’un point après le domaine).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter l’inscription et la génération de tokens JWT",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez l’API d’inscription pour une boutique en ligne camerounaise. Les champs requis sont : email, password, firstName, lastName. Après inscription réussie, l’API doit retourner un <strong>access token</strong> (valide 15 min) et un <strong>refresh token</strong> (valide 7 jours).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le DTO <code>RegisterDto</code> avec les décorateurs de validation appropriés (class-validator).",
+        "niveau": "medium",
+        "reponse": "<code>export class RegisterDto { @IsEmail() email: string; @IsString() @MinLength(8) password: string; @IsString() firstName: string; @IsString() lastName: string; }</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Dans le service d’auth, écrire la méthode <code>hashPassword(password: string): Promise&lt;string&gt;</code> utilisant bcrypt.",
+        "niveau": "medium",
+        "reponse": "<code>async hashPassword(password: string): Promise&lt;string&gt; { const salt = await bcrypt.genSalt(10); return bcrypt.hash(password, salt); }</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décrire les étapes de génération d’un refresh token (JWT) avec une durée de vie plus longue que l’access token.",
+        "niveau": "hard",
+        "reponse": "Le refresh token est signé avec un secret différent ou le même mais avec une expiration plus longue (ex: 7j). Généralement on stocke son hash en base et on le renvoie dans un cookie httpOnly ou dans le corps de la réponse. Lorsqu’il expire, l’utilisateur doit se réauthentifier.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser le flux d’authentification JWT",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client se connecte avec email/mot de passe. Le serveur vérifie les identifiants, puis génère un access token JWT (contenant l’<code>id</code> et le <code>role</code>) et un refresh token. Expliquez le rôle de chaque token.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Justifier pourquoi l’access token a une courte durée de vie (ex: 15 minutes).",
+        "niveau": "medium",
+        "reponse": "Pour limiter les dégâts en cas de vol du token. Un token court oblige le client à utiliser le refresh token régulièrement, permettant de révoquer l’accès plus rapidement si nécessaire.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire le processus de rafraîchissement (refresh) : quand l’access token expire, comment le client obtient-il un nouveau ?",
+        "niveau": "hard",
+        "reponse": "Le client envoie le refresh token (via un endpoint sécurisé /refresh). Le serveur vérifie la validité du refresh token (signature, expiration, existence en base), puis génère un nouvel access token (et éventuellement un nouveau refresh token) et les renvoie au client.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Identifier deux mesures de sécurité supplémentaires pour protéger les tokens JWT dans une API e-commerce.",
+        "niveau": "hard",
+        "reponse": "1) Stocker le refresh token en base de données (hashé) et permettre sa révocation. 2) Utiliser HTTPS uniquement, et pour les cookies de refresh token, activer les flags HttpOnly, Secure, SameSite=Strict.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Écrire un endpoint complet d’inscription avec NestJS",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un entrepreneur de Douala vous demande de finaliser l’API d’inscription. Il faut :</p><ul><li>Vérifier que l’email n’existe pas déjà</li><li>Hacher le mot de passe</li><li>Enregistrer l’utilisateur en base</li><li>Générer un access token et un refresh token</li><li>Retourner les tokens ainsi que les informations utilisateur (sans le mot de passe)</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédiger la méthode <code>register</code> dans le <code>AuthService</code> en respectant ces étapes (pseudo-code ou TypeScript).",
+        "niveau": "very hard",
+        "reponse": "<code>async register(registerDto: RegisterDto) { const { email, password, firstName, lastName } = registerDto; const existing = await this.userRepo.findOne({ where: { email } }); if (existing) throw new ConflictException('Email déjà utilisé'); const hashed = await bcrypt.hash(password, 10); const user = this.userRepo.create({ email, password: hashed, firstName, lastName }); await this.userRepo.save(user); const accessToken = this.jwtService.sign({ sub: user.id, role: user.role }, { expiresIn: '15m' }); const refreshToken = this.jwtService.sign({ sub: user.id }, { expiresIn: '7d' }); return { accessToken, refreshToken, user: { id: user.id, email, firstName, lastName } }; }</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer pourquoi on doit <strong>hacher</strong> le refresh token avant de le stocker en base (option de sécurité avancée).",
+        "niveau": "hard",
+        "reponse": "Si la base de données est compromise, un attaquant ne pourra pas utiliser les refresh tokens stockés car ils sont hachés. Seul le serveur peut valider un refresh token entrant en le comparant au hash stocké.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une stratégie pour <strong>révoquer</strong> un refresh token (ex: en cas de mot de passe changé).",
+        "niveau": "hard",
+        "reponse": "Maintenir une liste noire (blacklist) des refresh tokens révoqués en base (table TokenBlacklist avec tokenId ou sa version hachée). À chaque requête /refresh, vérifier si le token est dans la liste noire. On peut aussi simplement supprimer le refresh token stocké de l’utilisateur.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Diagnostiquer les erreurs d’authentification",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client tente de se connecter mais reçoit une erreur <code>401 Unauthorized</code>. Les logs indiquent <em>invalid signature</em>. Expliquez les causes possibles.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citer deux raisons possibles pour lesquelles la signature JWT est invalide.",
+        "niveau": "easy",
+        "reponse": "1) Le secret utilisé pour vérifier le token est différent de celui utilisé pour le signer. 2) Le token a été modifié après sa génération (altération).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire comment vérifier manuellement un token JWT avec un outil comme jwt.io.",
+        "niveau": "easy",
+        "reponse": "Coller le token dans l’interface, renseigner le secret (ou la clé publique) ; l’outil indique si la signature est valide et décode le payload.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une correction : le secret JWT est stocké dans <code>.env</code> mais n’est pas chargé correctement. Que faire ?",
+        "niveau": "medium",
+        "reponse": "Vérifier que <code>ConfigModule</code> est bien importé globalement et que <code>process.env.JWT_SECRET</code> est accessible. Ajouter une validation dans le module JwtModule.register({ secret: configService.get('JWT_SECRET') }).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

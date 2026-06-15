@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours NestJS | Leçon 12 : Repository & QueryBuilder</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Personnalisation du thème Tailwind pour des couleurs douces mais visibles -->
+    <style>
+        /* Ajustements supplémentaires pour lisibilité et animations */
+        body {
+            background: linear-gradient(145deg, #f8fafc 0%, #eef2f5 100%);
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        /* Style des slides avec ombres et transitions fluides */
+        .slide-card {
+            transition: all 0.3s ease-in-out;
+            backdrop-filter: blur(2px);
+        }
+        /* personnalisation des puces et listes */
+        .custom-list li {
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .custom-list li::before {
+            content: "▹";
+            color: #2c7da0;
+            font-weight: bold;
+            display: inline-block;
+            width: 1.25rem;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .badge-nest {
+            background: #e0234e;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .slide-nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .slide-nav-btn:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules métier le cas échéant, pas obligatoire ici mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative">
+            <!-- Slide 1 : Titre -->
+            <div class="slide-card bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="0">
+                <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+                    <span class="badge-nest mb-4">NestJS · TypeORM</span>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-[#0f2b3d] to-[#2c7da0] bg-clip-text text-transparent mb-6">Leçon 12</h1>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Repository & QueryBuilder</h2>
+                    <p class="text-gray-600 max-w-xl text-lg">Injecter le repository, opérations CRUD avancées et requêtes complexes</p>
+                    <div class="mt-12 flex flex-wrap gap-3 justify-center">
+                        <div class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm font-medium">📦 @InjectRepository</div>
+                        <div class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm font-medium">✍️ save / find / update / delete</div>
+                        <div class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm font-medium">⚡ QueryBuilder</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="1">
+                <div class="flex flex-col min-h-[70vh] justify-center">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 border-l-8 border-[#2c7da0] pl-5 mb-8">🎯 Objectifs de la leçon</h2>
+                    <ul class="custom-list space-y-4 text-gray-700 text-lg">
+                        <li>🔹 Comprendre le rôle du <strong class="text-[#1e5a74]">Repository Pattern</strong> dans TypeORM avec NestJS.</li>
+                        <li>🔹 Injecter un repository spécifique grâce à <code class="bg-gray-200 px-1 rounded">@InjectRepository()</code>.</li>
+                        <li>🔹 Maîtriser les opérations courantes : <strong>save, find, update, delete</strong>.</li>
+                        <li>🔹 Construire des requêtes complexes et dynamiques avec le <strong>QueryBuilder</strong>.</li>
+                        <li>🔹 Appliquer ces concepts dans un service NestJS professionnel.</li>
+                    </ul>
+                    <div class="mt-10 p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-800 text-sm">
+                        💡 <span class="font-semibold">À la fin de ce cours</span> : vous serez capable d’interagir avec une base de données relationnelle efficacement dans vos APIs NestJS.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Repository et injection (contenu) -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="2">
+                <div class="flex flex-col min-h-[70vh]">
+                    <div class="flex items-center gap-3 mb-5 flex-wrap">
+                        <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-bold">🔌 1. Injection du Repository</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Injecter le repository avec <span class="bg-gray-800 text-white px-2 py-1 rounded-md text-lg">@InjectRepository()</span></h2>
+                    <p class="text-gray-700 mb-4">Dans NestJS, chaque entité possède un <strong>Repository</strong> TypeORM. Pour l’utiliser dans un service, on utilise le décorateur <code>@InjectRepository(Entité)</code>.</p>
+                    
+                    <div class="code-block mb-5">
+                        <pre class="text-sm"><span class="text-yellow-300">// user.service.ts</span>
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './user.entity';
+
+@Injectable()
+export class UserService {
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository&lt;User&gt;,
+  ) {}
+
+  async findAll(): Promise&lt;User[]&gt; {
+    return this.userRepository.find();
+  }
+}</pre>
+                    </div>
+                    <div class="bg-sky-50 p-4 rounded-xl border-l-4 border-sky-500 mt-2">
+                        <p class="text-sky-800"><span class="font-bold">📌 Rappel :</span> Le module doit importer <code>TypeOrmModule.forFeature([User])</code> pour rendre le repository disponible.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Opérations de base CRUD (save, find, update, delete) -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="3">
+                <div class="flex flex-col min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">📝 Opérations essentielles du Repository</h2>
+                    <p class="text-gray-600 mb-4">Les méthodes standards permettent un accès rapide à la BDD sans écrire de SQL.</p>
+                    <div class="grid md:grid-cols-2 gap-5 mb-5">
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <h3 class="font-bold text-indigo-700">💾 save()</h3>
+                            <p class="text-sm">Insère ou met à jour une entité.</p>
+                            <code class="text-xs block bg-gray-200 p-1 rounded mt-1">await repo.save(user);</code>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <h3 class="font-bold text-indigo-700">🔍 find() / findOne()</h3>
+                            <p class="text-sm">Récupérer plusieurs ou un seul enregistrement.</p>
+                            <code class="text-xs block bg-gray-200 p-1 rounded mt-1">repo.find({ where: { role: 'admin' } });</code>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <h3 class="font-bold text-indigo-700">✏️ update()</h3>
+                            <p class="text-sm">Mettre à jour sans charger l’entité.</p>
+                            <code class="text-xs block bg-gray-200 p-1 rounded mt-1">repo.update(id, { name: 'nouveau' });</code>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <h3 class="font-bold text-indigo-700">🗑️ delete()</h3>
+                            <p class="text-sm">Supprimer par identifiant ou critère.</p>
+                            <code class="text-xs block bg-gray-200 p-1 rounded mt-1">repo.delete(id);</code>
+                        </div>
+                    </div>
+                    <div class="code-block text-sm">
+                        <pre>// Exemple concret dans un service
+async createUser(createUserDto) {
+  const newUser = this.userRepository.create(createUserDto);
+  return this.userRepository.save(newUser);
+}
+
+async findUserByEmail(email: string) {
+  return this.userRepository.findOne({ where: { email } });
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : QueryBuilder avancé (requêtes complexes) -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="4">
+                <div class="flex flex-col min-h-[70vh]">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">⚡⚡</span>
+                        <span class="font-mono text-purple-700">QueryBuilder</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Requêtes complexes avec <span class="bg-purple-200 px-2 rounded">createQueryBuilder</span></h2>
+                    <p class="mb-4 text-gray-700">Le QueryBuilder permet d’écrire des requêtes SQL élégantes et sécurisées, idéal pour les jointures, sous-requêtes, agrégations.</p>
+                    <div class="code-block mb-5">
+                        <pre>// Trouver les utilisateurs avec leurs commandes récentes
+const usersWithOrders = await this.userRepository
+  .createQueryBuilder('user')
+  .leftJoinAndSelect('user.commandes', 'commande')
+  .where('user.isActive = :active', { active: true })
+  .andWhere('commande.date > :date', { date: '2025-01-01' })
+  .orderBy('user.createdAt', 'DESC')
+  .getMany();</pre>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                        <div class="bg-gradient-to-r from-gray-100 to-gray-50 p-3 rounded-xl">
+                            <span class="font-bold">🔧 Méthodes utiles :</span> <code>.select() .addSelect() .where() .andWhere() .leftJoin() .getRawMany()</code>
+                        </div>
+                        <div class="bg-gradient-to-r from-gray-100 to-gray-50 p-3 rounded-xl">
+                            <span class="font-bold">📊 Agrégation :</span> <code>.select('AVG(user.age)') .getRawOne()</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : Exemple complet & pratique -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="5">
+                <div class="flex flex-col min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">🛠️ Mise en pratique – Service complet</h2>
+                    <p class="mb-3 text-gray-700">Imaginons une entité <strong>Produit</strong> avec des relations et des recherches filtrées.</p>
+                    <div class="code-block text-xs md:text-sm mb-4">
+                        <pre>// produit.service.ts extrait
+async findProductsWithFilters(category?: string, minPrice?: number) {
+  const qb = this.produitRepository.createQueryBuilder('p');
+  
+  if(category) {
+    qb.andWhere('p.categorie = :cat', { cat: category });
+  }
+  if(minPrice) {
+    qb.andWhere('p.prix >= :prix', { prix: minPrice });
+  }
+  
+  return qb.leftJoinAndSelect('p.fournisseur', 'fournisseur')
+           .orderBy('p.prix', 'ASC')
+           .getMany();
+}
+
+async updateStock(productId: number, newStock: number) {
+  return this.produitRepository.update(productId, { stock: newStock });
+}</pre>
+                    </div>
+                    <div class="bg-teal-50 rounded-xl p-4 border border-teal-200">
+                        <p class="flex gap-2 items-start"><span class="text-teal-700 text-xl">✅</span> <span><strong class="text-teal-800">Bonnes pratiques :</strong> Utiliser le QueryBuilder pour les filtres dynamiques et les relations chargées. Éviter les N+1 requêtes avec <code>leftJoinAndSelect</code>.</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Récapitulatif & quiz rapide -->
+            <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/40 transition-all duration-300" data-slide="6">
+                <div class="flex flex-col min-h-[70vh] justify-center">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">🧠 Ce qu'il faut retenir</h2>
+                    <ul class="space-y-3 text-gray-800 text-lg">
+                        <li class="flex items-start gap-2">✔️ <strong>@InjectRepository(Entity)</strong> → injecte le repository dans le service.</li>
+                        <li class="flex items-start gap-2">✔️ Méthodes <strong>save, find, update, delete</strong> = CRUD basique.</li>
+                        <li class="flex items-start gap-2">✔️ <strong>QueryBuilder</strong> = puissance et flexibilité pour requêtes élaborées.</li>
+                        <li class="flex items-start gap-2">✔️ Toujours importer l’entité dans le module via <strong>TypeOrmModule.forFeature()</strong>.</li>
+                    </ul>
+                    <div class="mt-8 bg-gray-100 rounded-2xl p-5">
+                        <p class="font-semibold text-gray-700">🔎 Mini-exercice (pour vous entraîner) :</p>
+                        <p class="italic text-gray-600">Créez un service TaskService avec un repository Task. Écrivez une méthode qui récupère toutes les tâches non terminées et triées par date d’échéance, en utilisant QueryBuilder.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation slides buttons (précédent / suivant) + indicateur -->
+            <div class="flex justify-between items-center mt-8 gap-4 flex-wrap">
+                <button id="prevSlide" class="slide-nav-btn bg-white/70 hover:bg-white text-gray-800 font-semibold py-2 px-6 rounded-full shadow-md border border-gray-300 backdrop-blur-sm transition flex items-center gap-2">◀ Précédent</button>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsIndicator"></div>
+                <button id="nextSlide" class="slide-nav-btn bg-[#2c7da0] hover:bg-[#1f5e7a] text-white font-semibold py-2 px-6 rounded-full shadow-md transition flex items-center gap-2">Suivant ▶</button>
+            </div>
+        </div>
+        
+        <!-- petit footer pédagogique -->
+        <div class="text-center text-gray-500 text-xs mt-8 border-t border-gray-300 pt-5">
+            📘 Cours NestJS – Leçon 12 : Repository & QueryBuilder | Conçu pour les élèves du Cameroun | Support interactif
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide-card');
+            const totalSlides = slides.length;
+            
+            // Fonction pour afficher uniquement le slide actif, masquer les autres
+            function showSlide(index) {
+                if (index < 0) index = 0;
+                if (index >= totalSlides) index = totalSlides - 1;
+                currentSlide = index;
+                slides.each(function(i) {
+                    if (i === currentSlide) {
+                        $(this).removeClass('hidden').fadeIn(200);
+                    } else {
+                        $(this).addClass('hidden');
+                    }
+                });
+                updateDots();
+                // Scroll en douceur vers le haut pour mobile
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+            
+            // Générer les indicateurs (dots)
+            function generateDots() {
+                const dotsContainer = $('#dotsIndicator');
+                dotsContainer.empty();
+                for (let i = 0; i < totalSlides; i++) {
+                    const dot = $('<button>')
+                        .addClass('w-3 h-3 rounded-full transition-all duration-200 mx-1 focus:outline-none')
+                        .attr('data-index', i)
+                        .css('background-color', i === currentSlide ? '#2c7da0' : '#cbd5e1');
+                    dot.on('click', function() {
+                        const idx = parseInt($(this).attr('data-index'));
+                        showSlide(idx);
+                    });
+                    dotsContainer.append(dot);
+                }
+            }
+            
+            function updateDots() {
+                $('#dotsIndicator button').each(function(i) {
+                    if (i === currentSlide) {
+                        $(this).css('background-color', '#2c7da0').css('width', '1.25rem').css('border-radius', '0.75rem');
+                    } else {
+                        $(this).css('background-color', '#cbd5e1').css('width', '0.75rem').css('border-radius', '9999px');
+                    }
+                });
+            }
+            
+            // Navigation
+            $('#nextSlide').on('click', function() {
+                if (currentSlide < totalSlides - 1) {
+                    showSlide(currentSlide + 1);
+                } else {
+                    // optionnel: effet de boucle ou notification
+                    $(this).css('transform', 'scale(0.98)');
+                    setTimeout(() => $(this).css('transform', ''), 150);
+                }
+            });
+            $('#prevSlide').on('click', function() {
+                if (currentSlide > 0) {
+                    showSlide(currentSlide - 1);
+                } else {
+                    $(this).css('transform', 'scale(0.98)');
+                    setTimeout(() => $(this).css('transform', ''), 150);
+                }
+            });
+            
+            // Gestion du clavier (flèches droite/gauche)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    $('#nextSlide').click();
+                } else if (e.key === 'ArrowLeft') {
+                    $('#prevSlide').click();
+                }
+            });
+            
+            // Initialisation
+            generateDots();
+            showSlide(0);
+            
+            // Petite amélioration tactile pour les boutons
+            $('.slide-nav-btn').on('touchstart', function() {
+                $(this).css('opacity', '0.7');
+            }).on('touchend', function() {
+                $(this).css('opacity', '1');
+            });
+        });
+    </script>
+    <!-- Aucune image externe nécessaire; tout est textuel et code, conforme à la demande. -->
+</body>
+</html>

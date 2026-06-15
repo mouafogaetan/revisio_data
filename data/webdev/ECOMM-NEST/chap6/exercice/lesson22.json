@@ -1,0 +1,90 @@
+[
+  {
+    "intitule": "Dashboard commandes - Métriques et gestion des statuts",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans le cadre du développement d'une API e-commerce avec NestJS, vous devez implémenter un dashboard pour les administrateurs et les vendeurs. Ce dashboard doit permettre :</p><ul><li>D'afficher des métriques (chiffre d'affaires, nombre de commandes, panier moyen)</li><li>De lister les commandes avec filtres (statut, date, vendeur)</li><li>De changer le statut d'une commande (pending → paid → shipped → delivered → cancelled)</li></ul><p>Voici l'entité <code>Order</code> simplifiée :</p><pre><code>enum OrderStatus {\n  PENDING = 'pending',\n  PAID = 'paid',\n  SHIPPED = 'shipped',\n  DELIVERED = 'delivered',\n  CANCELLED = 'cancelled'\n}\n\n@Entity()\nexport class Order {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @ManyToOne(() => User)\n  user: User;\n\n  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })\n  status: OrderStatus;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  total: number;\n\n  @Column({ type: 'timestamp' })\n  createdAt: Date;\n\n  @Column({ nullable: true })\n  sellerId: string; // Pour les commandes avec des produits vendeurs\n}</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez la différence entre les rôles <strong>admin</strong> et <strong>seller</strong> dans le contexte du dashboard des commandes. Quelles commandes chaque rôle peut-il voir ?",
+        "niveau": "easy",
+        "reponse": "L'administrateur peut voir TOUTES les commandes de la plateforme, quel que soit le vendeur. Le vendeur ne peut voir que les commandes concernant ses propres produits (celles où `order.sellerId === seller.id`). Cette séparation respecte le principe de moindre privilège et protège les données sensibles des autres vendeurs.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la méthode <code>getOrderStatistics(startDate: Date, endDate: Date, sellerId?: string)</code> qui retourne :<br>- Le nombre total de commandes<br>- Le chiffre d'affaires total<br>- Le panier moyen (CA moyen par commande)",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync getOrderStatistics(\n  startDate: Date,\n  endDate: Date,\n  sellerId?: string\n): Promise<OrderStatistics> {\n  const queryBuilder = this.orderRepository\n    .createQueryBuilder('order')\n    .where('order.createdAt BETWEEN :startDate AND :endDate', {\n      startDate,\n      endDate,\n    });\n\n  // Filtrer par vendeur si nécessaire\n  if (sellerId) {\n    queryBuilder.andWhere('order.sellerId = :sellerId', { sellerId });\n  }\n\n  // Ne compter que les commandes payées ou livrées\n  queryBuilder.andWhere('order.status IN (:...statuses)', {\n    statuses: [OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.DELIVERED],\n  });\n\n  const result = await queryBuilder\n    .select([\n      'COUNT(order.id) as totalOrders',\n      'SUM(order.total) as totalRevenue',\n    ])\n    .getRawOne();\n\n  const totalOrders = parseInt(result.totalOrders) || 0;\n  const totalRevenue = parseFloat(result.totalRevenue) || 0;\n  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;\n\n  return {\n    totalOrders,\n    totalRevenue,\n    averageOrderValue,\n  };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Implémentez la méthode <code>updateOrderStatus(orderId: string, newStatus: OrderStatus, userId: string, userRole: string)</code> qui :<br>- Vérifie les autorisations (admin ou seller propriétaire)<br>- Valide la transition de statut (ex: on ne peut pas passer de 'delivered' à 'pending')<br>- Met à jour le statut et retourne la commande",
+        "niveau": "hard",
+        "reponse": "```typescript\n// Définition des transitions autorisées\nconst allowedTransitions: Record<OrderStatus, OrderStatus[]> = {\n  [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],\n  [OrderStatus.PAID]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],\n  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],\n  [OrderStatus.DELIVERED]: [],\n  [OrderStatus.CANCELLED]: [],\n};\n\nasync updateOrderStatus(\n  orderId: string,\n  newStatus: OrderStatus,\n  userId: string,\n  userRole: string\n): Promise<Order> {\n  const order = await this.orderRepository.findOne({\n    where: { id: orderId },\n    relations: ['user'],\n  });\n\n  if (!order) {\n    throw new NotFoundException('Commande non trouvée');\n  }\n\n  // Vérification des autorisations\n  if (userRole !== 'admin' && order.sellerId !== userId) {\n    throw new ForbiddenException(\n      'Vous n\\'êtes pas autorisé à modifier cette commande'\n    );\n  }\n\n  // Vérification de la transition\n  const allowed = allowedTransitions[order.status];\n  if (!allowed.includes(newStatus)) {\n    throw new BadRequestException(\n      `Transition de ${order.status} vers ${newStatus} non autorisée`\n    );\n  }\n\n  // Logique supplémentaire selon le nouveau statut\n  if (newStatus === OrderStatus.CANCELLED && order.status !== OrderStatus.PENDING) {\n    // Remboursement si la commande était déjà payée\n    await this.refundOrder(order);\n  }\n\n  if (newStatus === OrderStatus.SHIPPED) {\n    // Générer un numéro de suivi\n    order.trackingNumber = this.generateTrackingNumber();\n  }\n\n  order.status = newStatus;\n  await this.orderRepository.save(order);\n\n  // Envoyer une notification par email\n  await this.notificationService.notifyStatusChange(order, newStatus);\n\n  return order;\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "3.a",
+            "texte": "Que se passe-t-il si un administrateur tente d'annuler une commande déjà livrée ?",
+            "niveau": "easy",
+            "reponse": "La validation des transitions interdira cette opération car la commande livrée ne peut plus être annulée (allowedTransitions[OrderStatus.DELIVERED] est un tableau vide). Une exception BadRequestException sera levée avec un message explicite."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Dashboard vendeur et génération de factures PDF pour AfriShop",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous développez l'API backend pour <strong>AfriShop</strong>, une place de marché camerounaise où plusieurs vendeurs proposent leurs produits. Chaque vendeur doit disposer d'un tableau de bord lui permettant de :</p><ul><li>Visualiser ses commandes avec filtres (statut, période)</li><li>Exporter ses commandes au format CSV</li><li>Générer des factures PDF pour les commandes livrées</li><li>Recevoir des alertes par email quand une commande est passée pour ses produits</li></ul><p>L'API doit gérer la montée en charge (beaucoup de vendeurs) et respecter les bonnes pratiques de performance.</p>",
+      "images": [
+        "schéma du dashboard vendeur avec filtres, tableau des commandes et boutons d'export",
+        "diagramme du flux de génération de facture PDF (commande → service PDF → stockage S3 → lien temporaire)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez la méthode <code>getSellerOrders(sellerId: string, filters: OrderFiltersDto): Promise&lt;PaginatedResult&lt;Order&gt;&gt;</code> qui permet au vendeur de filtrer ses commandes par :<br>- Statut (pending, paid, shipped, delivered, cancelled)<br>- Période (dateFrom, dateTo)<br>- Client (recherche par nom/email)<br>- Montant min/max",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync getSellerOrders(\n  sellerId: string,\n  filters: OrderFiltersDto\n): Promise<PaginatedResult<Order>> {\n  const { page = 1, limit = 10, status, dateFrom, dateTo, search, minAmount, maxAmount } = filters;\n  \n  const query = this.orderRepository\n    .createQueryBuilder('order')\n    .leftJoinAndSelect('order.user', 'user')\n    .where('order.sellerId = :sellerId', { sellerId });\n\n  // Filtre par statut\n  if (status) {\n    query.andWhere('order.status = :status', { status });\n  }\n\n  // Filtre par période\n  if (dateFrom) {\n    query.andWhere('order.createdAt >= :dateFrom', { dateFrom });\n  }\n  if (dateTo) {\n    query.andWhere('order.createdAt <= :dateTo', { dateTo });\n  }\n\n  // Recherche par client\n  if (search) {\n    query.andWhere(\n      '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',\n      { search: `%${search}%` }\n    );\n  }\n\n  // Filtre par montant\n  if (minAmount) {\n    query.andWhere('order.total >= :minAmount', { minAmount });\n  }\n  if (maxAmount) {\n    query.andWhere('order.total <= :maxAmount', { maxAmount });\n  }\n\n  // Pagination\n  const [data, total] = await query\n    .orderBy('order.createdAt', 'DESC')\n    .skip((page - 1) * limit)\n    .take(limit)\n    .getManyAndCount();\n\n  return {\n    data,\n    meta: {\n      total,\n      page,\n      lastPage: Math.ceil(total / limit),\n      limit,\n    },\n  };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Évaluez la performance de l'approche synchrone vs asynchrone pour la génération de factures PDF. Proposez une architecture utilisant <strong>Bull Queue</strong> pour traiter les demandes de génération en arrière-plan.",
+        "niveau": "hard",
+        "reponse": "<strong>Approche synchrone (déconseillée) :</strong>\n- Génération PDF bloquante, temps de réponse long (> 2-3 secondes)\n- Risque de timeout sur les requêtes\n- Mauvaise expérience utilisateur\n- Bloque le thread principal de Node.js\n\n<strong>Approche asynchrone avec Bull Queue :</strong>\n\n```typescript\n// invoice.queue.ts\n@Processor('invoice')\nexport class InvoiceProcessor {\n  @Process('generate')\n  async generateInvoice(job: Job<{ orderId: string; sellerId: string }>) {\n    const { orderId, sellerId } = job.data;\n    \n    // 1. Récupérer les données de la commande\n    const order = await this.orderService.findOne(orderId, sellerId);\n    \n    // 2. Générer le PDF avec une bibliothèque (PDFKit, Puppeteer)\n    const pdfBuffer = await this.pdfService.generateOrderInvoice(order);\n    \n    // 3. Stocker le PDF sur S3 ou disque\n    const fileUrl = await this.storageService.upload(\n      `invoices/${orderId}.pdf`,\n      pdfBuffer\n    );\n    \n    // 4. Envoyer un webhook ou notification au frontend\n    await this.notificationService.notifyInvoiceReady(orderId, fileUrl);\n    \n    return { fileUrl };\n  }\n}\n\n// seller.controller.ts\n@Post('orders/:id/invoice')\n@UseGuards(JwtAuthGuard, RolesGuard)\n@Roles('seller', 'admin')\nasync generateInvoice(@Param('id') orderId: string, @Req() req) {\n  const job = await this.invoiceQueue.add('generate', {\n    orderId,\n    sellerId: req.user.id,\n  });\n  \n  return {\n    message: 'Génération de la facture en cours',\n    jobId: job.id,\n    statusUrl: `/api/seller/invoices/${job.id}/status`,\n  };\n}\n```\n\nAvantages :\n- Réponse immédiate (202 Accepted)\n- Traitement non bloquant\n- Possibilité de faire plusieurs PDF en parallèle\n- Reprise sur échec automatique",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Organisez le flux de notification par email lorsqu'une nouvelle commande est passée pour les produits d'un vendeur. Utilisez les verbes de la taxonomie de Bloom pour décrire les étapes.",
+        "niveau": "medium",
+        "reponse": "<strong>Flux de notification vendeur :</strong>\n\n1. <strong>Identifier</strong> : Après création d'une commande, extraire les `sellerId` uniques des `OrderItem`\n2. <strong>Regrouper</strong> : Aggréger les commandes par vendeur (un vendeur peut avoir plusieurs produits dans la même commande)\n3. <strong>Composer</strong> : Générer le contenu de l'email (récapitulatif des produits, montant total, infos client)\n4. <strong>Mettre en file</strong> : Ajouter un job dans la queue `email` pour éviter de bloquer la réponse du checkout\n5. <strong>Exécuter</strong> : Le worker Bull envoie l'email via Nodemailer ou un service tiers (SendGrid, Brevo)\n6. <strong>Journaliser</strong> : Enregistrer l'envoi dans une table `NotificationLog` pour audit\n\n```typescript\n// order.service.ts - après création de commande\nasync createOrder(cart: Cart): Promise<Order> {\n  // ... création commande\n  \n  // Envoyer notification aux vendeurs concernés\n  const sellerIds = [...new Set(order.items.map(item => item.product.sellerId))];\n  \n  for (const sellerId of sellerIds) {\n    const sellerOrders = order.items.filter(item => item.product.sellerId === sellerId);\n    await this.emailQueue.add('seller-new-order', {\n      sellerId,\n      orderId: order.id,\n      items: sellerOrders,\n      total: sellerOrders.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),\n      customerName: order.user.firstName + ' ' + order.user.lastName,\n    });\n  }\n  \n  return order;\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "3.a",
+            "texte": "Comment éviter d'envoyer des doublons de notification si un vendeur a plusieurs produits dans la même commande ?",
+            "niveau": "easy",
+            "reponse": "En utilisant `Set` sur les `sellerId` comme dans l'exemple ci-dessus (`[...new Set(order.items.map(item => item.product.sellerId))]`), on s'assure que chaque vendeur ne reçoit qu'une seule notification par commande, quel que soit le nombre de ses produits dans le panier."
+          }
+        ]
+      },
+      {
+        "numero": 4,
+        "texte": "Écrivez une méthode d'export CSV <code>exportOrdersToCSV(sellerId: string, filters: OrderFiltersDto): Promise&lt;string&gt;</code> qui génère un fichier CSV contenant les commandes filtrées et le sauvegarde temporairement.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync exportOrdersToCSV(\n  sellerId: string,\n  filters: OrderFiltersDto\n): Promise<string> {\n  // Récupérer toutes les commandes (sans pagination)\n  const orders = await this.orderRepository\n    .createQueryBuilder('order')\n    .leftJoinAndSelect('order.user', 'user')\n    .leftJoinAndSelect('order.items', 'items')\n    .where('order.sellerId = :sellerId', { sellerId })\n    .applyFilters(filters) // Application des mêmes filtres\n    .getMany();\n\n  // Définir les colonnes CSV\n  const csvColumns = [\n    'ID Commande',\n    'Client',\n    'Email',\n    'Date',\n    'Statut',\n    'Total (FCFA)',\n    'Articles',\n  ];\n\n  const csvRows = orders.map(order => [\n    order.id,\n    `${order.user.firstName} ${order.user.lastName}`,\n    order.user.email,\n    order.createdAt.toISOString().split('T')[0],\n    order.status,\n    order.total.toFixed(2),\n    order.items.map(i => `${i.quantity}x ${i.productName}`).join(', '),\n  ]);\n\n  // Générer le CSV\n  const csvContent = [csvColumns, ...csvRows]\n    .map(row => row.map(cell => `\"${cell}\"`).join(','))\n    .join('\\n');\n\n  // Sauvegarder temporairement\n  const filename = `orders_${sellerId}_${Date.now()}.csv`;\n  const filepath = path.join('/tmp', filename);\n  await fs.promises.writeFile(filepath, csvContent, 'utf-8');\n\n  // Option: uploader vers S3 et retourner URL\n  const fileUrl = await this.storageService.upload(`exports/${filename}`, filepath);\n  \n  // Nettoyage après 1 heure (cron job)\n  setTimeout(() => fs.promises.unlink(filepath).catch(() => {}), 3600000);\n\n  return fileUrl;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

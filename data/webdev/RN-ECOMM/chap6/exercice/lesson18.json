@@ -1,0 +1,115 @@
+[
+  {
+    "intitule": "Installation et configuration de l'authentification biométrique",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce avec Expo. Vous souhaitez ajouter une fonctionnalité de connexion rapide via <strong>Face ID</strong> (iOS) ou <strong>empreinte digitale</strong> (Android).</p>",
+      "images": ["expo-local-authentication package installation npm", "iOS Face ID permission prompt screenshot", "Android fingerprint dialog example"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les commandes d'installation de la bibliothèque `expo-local-authentication` et décrire les configurations natives nécessaires pour iOS et Android.",
+        "niveau": "medium",
+        "reponse": "```bash\nnpx expo install expo-local-authentication\n```\n\n**Configuration iOS** : ajouter dans `app.json` la clé `NSFaceIDUsageDescription` :\n```json\n{\n  \"expo\": {\n    \"ios\": {\n      \"infoPlist\": {\n        \"NSFaceIDUsageDescription\": \"Cette application utilise Face ID pour vous connecter rapidement et en toute sécurité.\"\n      }\n    }\n  }\n}\n```\n\n**Configuration Android** : aucune configuration supplémentaire requise. L'API utilise le capteur d'empreintes du système.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer pourquoi la clé `NSFaceIDUsageDescription` est obligatoire sur iOS.",
+            "niveau": "easy",
+            "reponse": "Apple impose une justification transparente pour l'utilisation de Face ID. La clé `NSFaceIDUsageDescription` affiche un message personnalisé dans la boîte de dialogue de demande d'autorisation. Sans cette clé, l'application plante lors de l'appel à l'authentification Face ID."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Développer une fonction asynchrone `checkBiometricSupport` qui vérifie si l'appareil supporte l'authentification biométrique et retourne les types disponibles.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport * as LocalAuthentication from 'expo-local-authentication';\n\nasync function checkBiometricSupport() {\n  try {\n    // Vérifier si l'appareil a un capteur biométrique\n    const hasHardware = await LocalAuthentication.hasHardwareAsync();\n    if (!hasHardware) {\n      return { isAvailable: false, reason: 'Aucun capteur biométrique détecté' };\n    }\n\n    // Vérifier si des données biométriques sont enregistrées\n    const isEnrolled = await LocalAuthentication.isEnrolledAsync();\n    if (!isEnrolled) {\n      return { isAvailable: false, reason: 'Aucune empreinte / Face ID configuré' };\n    }\n\n    // Récupérer les types supportés\n    const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();\n    \n    const typesMap = {\n      [LocalAuthentication.AuthenticationType.FINGERPRINT]: 'empreinte digitale',\n      [LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION]: 'reconnaissance faciale',\n      [LocalAuthentication.AuthenticationType.IRIS]: 'reconnaissance irienne',\n    };\n    \n    const availableMethods = supportedTypes.map(type => typesMap[type]).filter(Boolean);\n    \n    return { \n      isAvailable: true, \n      availableMethods,\n      reason: `Biométrie disponible : ${availableMethods.join(', ')}`\n    };\n  } catch (error) {\n    return { isAvailable: false, reason: error.message };\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation de la connexion biométrique dans un écran de login",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'application stocke les identifiants (email et mot de passe hashé) après une première connexion réussie. L'utilisateur peut ensuite se connecter rapidement via biométrie. Vous devez implémenter la fonction `authenticateWithBiometrics`.</p>",
+      "images": ["React Native login screen with biometric button", "Face ID authentication popup on iPhone", "fingerprint authentication dialog Android"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Développer la fonction `authenticateWithBiometrics` qui déclenche la boîte de dialogue biométrique, récupère les identifiants stockés et effectue la connexion.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as LocalAuthentication from 'expo-local-authentication';\nimport * as SecureStore from 'expo-secure-store';\nimport { loginUser } from '../services/authService';\n\nasync function authenticateWithBiometrics() {\n  // 1. Vérifier la disponibilité\n  const hasHardware = await LocalAuthentication.hasHardwareAsync();\n  const isEnrolled = await LocalAuthentication.isEnrolledAsync();\n  \n  if (!hasHardware || !isEnrolled) {\n    throw new Error('Biométrie non disponible ou non configurée');\n  }\n  \n  // 2. Lancer l'authentification\n  const result = await LocalAuthentication.authenticateAsync({\n    promptMessage: 'Connectez-vous avec votre empreinte ou Face ID',\n    fallbackLabel: 'Utiliser le mot de passe',\n    cancelLabel: 'Annuler',\n    disableDeviceFallback: false,\n  });\n  \n  if (!result.success) {\n    throw new Error('Authentification biométrique échouée');\n  }\n  \n  // 3. Récupérer les identifiants stockés de manière sécurisée\n  const storedEmail = await SecureStore.getItemAsync('user_email');\n  const storedPassword = await SecureStore.getItemAsync('user_password_hash');\n  \n  if (!storedEmail || !storedPassword) {\n    throw new Error('Aucun identifiant stocké. Veuillez vous connecter manuellement d\\'abord.');\n  }\n  \n  // 4. Appeler l'API de connexion\n  const response = await loginUser(storedEmail, storedPassword);\n  return response;\n}\n\n// Utilisation dans un composant\nfunction LoginScreen() {\n  const handleBiometricLogin = async () => {\n    try {\n      const user = await authenticateWithBiometrics();\n      navigation.replace('Home');\n      Toast.show('Connexion réussie');\n    } catch (error) {\n      Toast.show(error.message);\n    }\n  };\n  \n  return (\n    <TouchableOpacity onPress={handleBiometricLogin}>\n      <Text>🔐 Connexion biométrique</Text>\n    </TouchableOpacity>\n  );\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Justifier l'utilisation de `SecureStore` plutôt que `AsyncStorage` pour stocker les identifiants.",
+            "niveau": "medium",
+            "reponse": "`SecureStore` chiffre les données au niveau système (clé AES-256 sur Android, Keychain sur iOS), tandis qu'`AsyncStorage` stocke en clair. Les identifiants (email, hash de mot de passe) sont des informations sensibles. En cas de compromission de l'appareil (root/jailbreak), `SecureStore` offre une protection supplémentaire."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des erreurs et des cas particuliers",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'authentification biométrique peut échouer pour plusieurs raisons : capteur non disponible, utilisateur annule, trop de tentatives, mise à jour des empreintes après enrôlement. Vous devez gérer ces cas élégamment.</p>",
+      "images": ["biometric authentication error states flowchart", "iOS Face ID lockout after too many attempts", "fingerprint sensor hardware not available"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer une fonction `handleBiometricLoginWithFallback` qui gère tous les cas d'erreur et propose des actions appropriées.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync function handleBiometricLoginWithFallback() {\n  try {\n    // 1. Vérification matérielle\n    const hasHardware = await LocalAuthentication.hasHardwareAsync();\n    if (!hasHardware) {\n      return { success: false, error: 'NO_HARDWARE', message: 'Votre appareil ne dispose pas de capteur biométrique.' };\n    }\n    \n    // 2. Vérification des données enrôlées\n    const isEnrolled = await LocalAuthentication.isEnrolledAsync();\n    if (!isEnrolled) {\n      return { \n        success: false, \n        error: 'NOT_ENROLLED', \n        message: 'Aucune empreinte ou Face ID configuré sur cet appareil. Veuillez en ajouter un dans les paramètres.',\n        action: 'OPEN_SETTINGS'\n      };\n    }\n    \n    // 3. Tentative d'authentification\n    const result = await LocalAuthentication.authenticateAsync({\n      promptMessage: 'Vérification d\\'identité',\n      cancelLabel: 'Annuler',\n      fallbackLabel: 'Mot de passe',\n      disableDeviceFallback: false,\n    });\n    \n    if (!result.success) {\n      // Analyser le type d'erreur\n      if (result.error === 'user_cancel') {\n        return { success: false, error: 'USER_CANCEL', message: 'Authentification annulée par l\\'utilisateur' };\n      }\n      if (result.error === 'system_cancel') {\n        return { success: false, error: 'SYSTEM_CANCEL', message: 'Authentification annulée par le système (popup fermée)' };\n      }\n      if (result.error === 'not_available') {\n        return { success: false, error: 'NOT_AVAILABLE', message: 'Service biométrique temporairement indisponible' };\n      }\n      if (result.error === 'lockout') {\n        return { \n          success: false, \n          error: 'LOCKOUT', \n          message: 'Trop de tentatives échouées. Veuillez vous connecter avec votre mot de passe.',\n          action: 'FORCE_PASSWORD'\n        };\n      }\n      return { success: false, error: 'UNKNOWN', message: 'Échec de l\\'authentification' };\n    }\n    \n    // 4. Succès : récupérer et utiliser les identifiants\n    const credentials = await getStoredCredentials();\n    return { success: true, credentials };\n    \n  } catch (error) {\n    return { success: false, error: 'EXCEPTION', message: error.message };\n  }\n}\n\n// Utilisation dans l'UI\nconst result = await handleBiometricLoginWithFallback();\nif (!result.success) {\n  if (result.action === 'OPEN_SETTINGS') {\n    // Rediriger vers les paramètres système (nécessite Linking)\n    Linking.openSettings();\n  } else if (result.action === 'FORCE_PASSWORD') {\n    // Afficher formulaire de connexion classique\n    showPasswordLogin();\n  } else {\n    Alert.alert('Erreur', result.message);\n  }\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer comment détecter si l'utilisateur a supprimé ses empreintes depuis la dernière connexion réussie.",
+            "niveau": "hard",
+            "reponse": "On peut stocker un token `biometric_enrolled_at` dans `SecureStore` lors de la dernière authentification réussie. Puis, avant de proposer la biométrie, comparer avec `await LocalAuthentication.isEnrolledAsync()`. Si `isEnrolledAsync()` retourne `false` alors qu'avant c'était `true`, cela signifie que les données biométriques ont été supprimées. Il faut alors effacer les identifiants stockés et forcer une connexion manuelle."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposer une stratégie pour limiter les sollicitations biométriques abusives (rate limiting).",
+            "niveau": "medium",
+            "reponse": "On peut implémenter un compteur de tentatives échouées dans `SecureStore` :\n- Après 3 échecs consécutifs, désactiver la biométrie pendant 5 minutes.\n- Après 10 échecs, désactiver définitivement jusqu'à connexion manuelle réussie.\n- Réinitialiser le compteur après une connexion manuelle réussie.\nCeci évite les attaques par brute force sur le capteur biométrique."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Stockage sécurisé et réactivation de la biométrie",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Après une connexion manuelle réussie, l'utilisateur peut activer la connexion biométrique pour les prochaines fois. Il faut alors stocker ses identifiants de manière sécurisée.</p>",
+      "images": ["toggle switch for biometric login in settings screen", "secure storage encryption diagram"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les fonctions `enableBiometricLogin` et `disableBiometricLogin` qui stockent ou effacent les identifiants après authentification biométrique de l'utilisateur.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as LocalAuthentication from 'expo-local-authentication';\nimport * as SecureStore from 'expo-secure-store';\nimport CryptoJS from 'crypto-js'; // ou expo-crypto\n\nasync function enableBiometricLogin(email: string, password: string) {\n  // 1. Vérifier que la biométrie est disponible\n  const hasHardware = await LocalAuthentication.hasHardwareAsync();\n  const isEnrolled = await LocalAuthentication.isEnrolledAsync();\n  \n  if (!hasHardware || !isEnrolled) {\n    throw new Error('Biométrie non disponible');\n  }\n  \n  // 2. Demander confirmation biométrique avant d'activer\n  const auth = await LocalAuthentication.authenticateAsync({\n    promptMessage: 'Activez la connexion rapide',\n  });\n  \n  if (!auth.success) {\n    throw new Error('Authentification requise pour activer la biométrie');\n  }\n  \n  // 3. Hacher le mot de passe (ne jamais stocker en clair)\n  const passwordHash = CryptoJS.SHA256(password).toString();\n  \n  // 4. Stocker les identifiants dans SecureStore\n  await SecureStore.setItemAsync('user_email', email);\n  await SecureStore.setItemAsync('user_password_hash', passwordHash);\n  await SecureStore.setItemAsync('biometric_enabled', 'true');\n  await SecureStore.setItemAsync('biometric_enrolled_at', Date.now().toString());\n}\n\nasync function disableBiometricLogin() {\n  // Demander confirmation biométrique avant de désactiver\n  const auth = await LocalAuthentication.authenticateAsync({\n    promptMessage: 'Désactiver la connexion rapide ?',\n  });\n  \n  if (!auth.success) {\n    throw new Error('Authentification requise pour désactiver');\n  }\n  \n  await SecureStore.deleteItemAsync('user_email');\n  await SecureStore.deleteItemAsync('user_password_hash');\n  await SecureStore.setItemAsync('biometric_enabled', 'false');\n  await SecureStore.deleteItemAsync('biometric_enrolled_at');\n}\n\nasync function isBiometricLoginAvailable(): Promise<boolean> {\n  const enabled = await SecureStore.getItemAsync('biometric_enabled');\n  if (enabled !== 'true') return false;\n  \n  const hasHardware = await LocalAuthentication.hasHardwareAsync();\n  const isEnrolled = await LocalAuthentication.isEnrolledAsync();\n  \n  return hasHardware && isEnrolled;\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Décrire les risques de sécurité et les bonnes pratiques lors du stockage local des identifiants.",
+            "niveau": "hard",
+            "reponse": "**Risques :**\n- Appareil rooté/jailbreak : contournement possible de SecureStore.\n- Attaque par clavier malveillant lors de la saisie initiale.\n- Si le hash du mot de passe est volé, attaque par dictionnaire possible.\n\n**Bonnes pratiques :**\n- Ne jamais stocker le mot de passe en clair : utiliser un hash salé (bcrypt, SHA-256 + sel).\n- Utiliser `SecureStore` (chiffrement matériel).\n- Ajouter un token dédié (ex: `biometric_token`) plutôt que le mot de passe. Le backend génère un token à usage unique pour la biométrie.\n- Demander une re-authentification biométrique avant chaque utilisation des identifiants stockés.\n- Effacer les identifiants à la déconnexion ou après plusieurs échecs."
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Flutter : Animations fluides (Animated...)</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où, mais le cours n'a pas de formules lourdes) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Custom transitions pour slides smooth */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Personnalisation du thème couleurs douces (fond crémeux, texte foncé mais lisible) */
+        body {
+            background: #fef9e6; /* beige doux */
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .card-glass {
+            background: rgba(255, 255, 245, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+        .btn-nav {
+            background-color: #3b82f6;
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            background-color: #2563eb;
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            background-color: #e2e8f0;
+            border-radius: 999px;
+            height: 6px;
+        }
+        .progress-fill {
+            background-color: #3b82f6;
+            width: 0%;
+            height: 6px;
+            border-radius: 999px;
+            transition: width 0.2s ease;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        pre {
+            background: #1e293b;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            color: #f1f5f9;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            .slide h2 {
+                font-size: 1.6rem;
+            }
+            .slide p, li {
+                font-size: 0.95rem;
+            }
+            pre {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex items-center justify-center min-h-screen">
+
+    <div class="max-w-4xl w-full mx-auto">
+        <!-- Carte principale conteneur des slides -->
+        <div class="card-glass p-5 md:p-8 relative">
+            <!-- En-tête avec progression -->
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <div class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">📱 Flutter - Initiation</div>
+                <div class="text-sm text-gray-600" id="slideCounter">Slide 1 / 9</div>
+            </div>
+            <div class="progress-bar w-full mb-6">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <!-- Zone dynamique des slides -->
+            <div id="slidesContainer" class="min-h-[480px]">
+                <!-- Les slides seront injectées par jQuery, mais on peut les définir en HTML caché ou dynamique. 
+                Pour simplifier et maintenir, on va générer via JS. Mais pour lisibilité, on écrit structure dans le DOM caché ? 
+                Préférons construire avec jQuery sur ready pour plus de clarté. Toutefois, pour référence, on peut intégrer directement les slides dans HTML avec des classes slide-hidden -->
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav px-5 py-2 rounded-full text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed" disabled>◀ Précédent</button>
+                <div class="flex gap-2">
+                    <span id="slideDots" class="flex gap-2"></span>
+                </div>
+                <button id="nextSlide" class="btn-nav px-5 py-2 rounded-full text-white font-medium">Suivant ▶</button>
+            </div>
+        </div>
+        <p class="text-center text-gray-500 text-xs mt-6">✨ Cours interactif – Animation Flutter: widgets AnimatedContainer, AnimatedOpacity, AnimatedPositioned + Hero, courbes, durée</p>
+    </div>
+
+    <script>
+        // Définition des données des slides : Titre, objectifs, contenu (structuré).
+        // Nous allons créer 9 slides au total : 1 titre, 2 objectifs, puis le contenu de la leçon28 (Animations fluides: Animated*, Hero, etc.)
+        // L'objectif est d'enseigner la leçon 28 du programme: "Utiliser AnimatedContainer, AnimatedOpacity, AnimatedPositioned, Maîtriser AnimatedCrossFade et AnimatedSwitcher, Configurer durée/courbe"
+        // On complète avec des exemples de code, explications et dessins ASCII / simples schémas.
+        
+        const slidesData = [
+            { // Slide 0 : Titre principal
+                type: "title",
+                title: "✨ Créer des animations fluides avec Flutter",
+                subtitle: "Leçon 28 : Widgets AnimatedContainer, AnimatedOpacity, AnimatedPositioned & plus",
+                icon: "🎬"
+            },
+            { // Slide 1 : Objectifs d'apprentissage de la lesson28
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Utiliser AnimatedContainer, AnimatedOpacity et AnimatedPositioned pour animer des propriétés facilement.",
+                    "Maîtriser AnimatedCrossFade et AnimatedSwitcher pour des transitions entre widgets.",
+                    "Configurer la durée (duration) et la courbe d'animation (Curves) pour des mouvements naturels."
+                ]
+            },
+            { // Slide 2: Qu'est-ce qu'une animation implicite ?
+                type: "content",
+                title: "🎞️ Animations implicites vs explicites",
+                content: `
+                    <p class="mb-3">Flutter propose deux grandes familles d’animations :</p>
+                    <ul class="list-disc pl-6 space-y-2 mb-4">
+                        <li><strong>Animations implicites</strong> : <span class="bg-blue-100 px-1">AnimatedContainer</span>, <span class="bg-blue-100">AnimatedOpacity</span>, etc. Vous changez une propriété, Flutter anime automatiquement la transition.</li>
+                        <li><strong>Animations explicites</strong> : AnimationController, Tween, plus complexes, mais offrent un contrôle total.</li>
+                    </ul>
+                    <div class="bg-indigo-50 p-4 rounded-xl mt-2 border-l-8 border-indigo-400">
+                        💡 <span class="font-semibold">À retenir :</span> Les widgets <code class="text-sm">AnimatedXXX</code> sont parfaits pour débuter et produire des animations fluides sans code complexe.
+                    </div>
+                    <div class="mt-4 text-center text-gray-500 text-sm">📱 Exemple visuel d’un bouton qui change de taille / couleur -> image mentale : </div>
+                    <div class="flex justify-center mt-2">
+                        <svg width="180" height="60" viewBox="0 0 180 60" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="15" width="60" height="30" rx="8" fill="#3b82f6" />
+                            <text x="40" y="35" fill="white" font-size="10" text-anchor="middle">Avant</text>
+                            <rect x="100" y="5" width="70" height="50" rx="12" fill="#10b981" />
+                            <text x="135" y="35" fill="white" font-size="10" text-anchor="middle">Après + size</text>
+                        </svg>
+                    </div>
+                `
+            },
+            { // Slide 3 : AnimatedContainer (le plus populaire)
+                type: "content",
+                title: "📦 AnimatedContainer – Le couteau suisse",
+                content: `
+                    <p><code>AnimatedContainer</code> anime automatiquement les changements de ses propriétés : <strong>width, height, color, padding, margin, decoration, borderRadius, etc.</strong></p>
+                    <pre class="mt-3"><code>AnimatedContainer(
+  duration: Duration(seconds: 1),
+  curve: Curves.easeInOut,
+  width: _isExpanded ? 200 : 100,
+  height: _isExpanded ? 200 : 100,
+  color: _isExpanded ? Colors.blue : Colors.red,
+  child: Center(child: Text('Cliquez-moi'))
+)</code></pre>
+                    <p class="mt-2">✔️ Il suffit de modifier l'état (setState) et le widget anime la transition.</p>
+                    <div class="bg-gray-100 p-3 rounded-lg mt-2 text-sm">🎨 Courbes possibles : Curves.easeIn, Curves.elasticOut, Curves.bounceIn… pour des rendus vivants.</div>
+                    <div class="mt-3 flex justify-center">
+                        <svg width="140" height="70" viewBox="0 0 140 70">
+                            <rect x="10" y="20" width="40" height="30" fill="#f87171" rx="6" />
+                            <rect x="80" y="10" width="50" height="50" fill="#60a5fa" rx="8" />
+                            <path d="M55 35 L75 35" stroke="#333" stroke-dasharray="3"/>
+                        </svg>
+                        <span class="ml-2 text-xs">⬅️ petite ➡️ grande</span>
+                    </div>
+                `
+            },
+            { // Slide 4 : AnimatedOpacity (faire apparaître/disparaître)
+                type: "content",
+                title: "👻 AnimatedOpacity – Transparence en douceur",
+                content: `
+                    <p><code>AnimatedOpacity</code> anime la propriété <strong>opacity</strong> (de 0.0 à 1.0). Idéal pour faire fondre des widgets.</p>
+                    <pre class="mt-2"><code>AnimatedOpacity(
+  opacity: _visible ? 1.0 : 0.0,
+  duration: const Duration(milliseconds: 500),
+  child: FlutterLogo(size: 100),
+)</code></pre>
+                    <div class="grid grid-cols-2 gap-3 mt-3">
+                        <div class="border rounded p-2 text-center bg-white">✨ Apparition progressive</div>
+                        <div class="border rounded p-2 text-center bg-white">🌫️ Disparition fondante</div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3">💡 Combinez avec Visibility ou un booléen pour cacher / afficher en douceur.</p>
+                `
+            },
+            { // Slide 5 : AnimatedPositioned (dans un Stack)
+                type: "content",
+                title: "📍 AnimatedPositioned – Déplacer un élément",
+                content: `
+                    <p>Dans un widget <code>Stack</code>, <code>AnimatedPositioned</code> anime les propriétés <strong>top, left, right, bottom</strong>. Parfait pour créer des glissements.</p>
+                    <pre><code>Stack(
+  children: [
+    AnimatedPositioned(
+      duration: Duration(milliseconds: 400),
+      top: _isDown ? 150 : 20,
+      left: _isRight ? 120 : 20,
+      child: Container(width: 60, height: 60, color: Colors.purple),
+    )
+  ],
+)</code></pre>
+                    <div class="bg-purple-50 p-3 rounded-lg mt-3 flex items-center gap-2">
+                        <span>🎯 Exemple concret : menu coulissant, bouton qui se déplace à l'écran.</span>
+                    </div>
+                    <div class="flex justify-center mt-2">
+                        <svg width="200" height="100" viewBox="0 0 200 100">
+                            <rect x="20" y="20" width="40" height="40" fill="#a855f7" rx="6" />
+                            <path d="M90 40 L140 40" stroke="#aaa" stroke-width="2" stroke-dasharray="3"/>
+                            <rect x="150" y="20" width="40" height="40" fill="#a855f7" rx="6" />
+                            <text x="170" y="80" font-size="8">animation</text>
+                        </svg>
+                    </div>
+                `
+            },
+            { // Slide 6 : AnimatedCrossFade & AnimatedSwitcher
+                type: "content",
+                title: "🔄 AnimatedCrossFade & AnimatedSwitcher",
+                content: `
+                    <p><strong>AnimatedCrossFade</strong> : anime une transition en fondu enchaîné entre deux widgets enfants. Excellent pour changer d'icône, d'image.</p>
+                    <pre><code>AnimatedCrossFade(
+  firstChild: Icon(Icons.star, size: 50),
+  secondChild: Icon(Icons.favorite, size: 50),
+  crossFadeState: _showStar ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+  duration: Duration(milliseconds: 600),
+)</code></pre>
+                    <p class="mt-2"><strong>AnimatedSwitcher</strong> : anime la transition lorsqu'un enfant est remplacé par un autre (scale, fondu, rotation).</p>
+                    <div class="bg-teal-50 p-3 rounded mt-2 text-sm">🎭 Exemple : loader qui devient contenu, toggle de thème, slider de cartes.</div>
+                `
+            },
+            { // Slide 7 : Durée et courbes d'animation (paramètres essentiels)
+                type: "content",
+                title: "⏱️ Durée & Courbes : donner du style",
+                content: `
+                    <p>Pour contrôler le ressenti d'une animation, on joue sur :</p>
+                    <ul class="list-disc pl-6 space-y-1">
+                        <li><strong>duration</strong> : <code>Duration(milliseconds: 300)</code> ou <code>Duration(seconds: 1)</code>.</li>
+                        <li><strong>curve</strong> : vitesse de déroulement. Flutter fournit de nombreuses courbes : <code>Curves.linear</code>, <code>easeInOut</code>, <code>bounceOut</code>, <code>elasticInOut</code>.</li>
+                    </ul>
+                    <pre class="mt-3"><code>AnimatedContainer(
+  duration: Duration(milliseconds: 800),
+  curve: Curves.fastOutSlowIn,
+  ...
+)</code></pre>
+                    <div class="grid grid-cols-2 gap-2 mt-3 text-center text-xs font-mono">
+                        <div class="bg-slate-100 p-2 rounded">easeIn → doux démarrage</div>
+                        <div class="bg-slate-100 p-2 rounded">bounceOut → ressorte élastique</div>
+                        <div class="bg-slate-100 p-2 rounded">elasticIn → effet ressort</div>
+                        <div class="bg-slate-100 p-2 rounded">decelerate → ralentissement</div>
+                    </div>
+                `
+            },
+            { // Slide 8 : Bonnes pratiques et petit récap + défi
+                type: "content",
+                title: "🏁 Récapitulatif & exercice pratique",
+                content: `
+                    <div class="bg-green-50 p-4 rounded-xl">
+                        <p class="font-bold">✅ Ce qu'il faut retenir :</p>
+                        <ul class="list-disc pl-6 mt-2 space-y-1">
+                            <li>AnimatedContainer : anime taille, couleur, marge, etc.</li>
+                            <li>AnimatedOpacity : fondu pour afficher/masquer.</li>
+                            <li>AnimatedPositioned : déplacer dans un Stack.</li>
+                            <li>AnimatedCrossFade / Switcher : transitions entre deux widgets différents.</li>
+                            <li>Toujours spécifier <strong>duration</strong> et <strong>curve</strong> pour un résultat pro.</li>
+                        </ul>
+                        <p class="mt-4 font-semibold">🚀 Mini défi : Créez un cercle qui change de couleur et grandit au clic, avec AnimatedContainer.</p>
+                        <div class="flex justify-center mt-3">
+                            <div class="bg-gray-200 p-2 rounded-full w-12 h-12 flex items-center justify-center text-xl">🎯</div>
+                            <span class="ml-2">→ à toi de coder !</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-3">📚 Dans la leçon suivante : Hero animations & AnimationController.</p>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide text-center py-6 md:py-10">
+                        <div class="text-7xl mb-4">${slide.icon || "📱"}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-700 to-purple-600 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-gray-600 text-lg mt-4 max-w-md mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="bg-blue-100 rounded-full p-3 inline-flex items-center gap-2"><span class="animate-pulse">👇</span> Glissez / naviguez</div>
+                        </div>
+                    </div>
+                `;
+            } else if (slide.type === "objectifs") {
+                return `
+                    <div class="slide">
+                        <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-blue-500 pl-4 mb-6">${slide.title}</h2>
+                        <ul class="space-y-4">
+                            ${slide.objectives.map(obj => `<li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl shadow-sm"><span class="text-blue-500 text-xl">✔️</span><span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-6 p-3 bg-yellow-50 rounded-lg text-sm">🎓 À la fin de cette leçon, vous saurez animer des interfaces Flutter de manière fluide.</div>
+                    </div>
+                `;
+            } else if (slide.type === "content") {
+                return `
+                    <div class="slide">
+                        <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>
+                        <div class="prose prose-lg max-w-none text-gray-800">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div>Erreur</div>`;
+        }
+
+        // Mise à jour de l'affichage
+        function updateSlides() {
+            // Re-rendu container
+            const container = $("#slidesContainer");
+            container.empty();
+            const currentSlideData = slidesData[currentIndex];
+            const slideHtml = renderSlide(currentSlideData, currentIndex);
+            container.html(`<div class="slide-active" id="activeSlide">${slideHtml}</div>`);
+            
+            // Mise à jour compteur
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            
+            // Gestion état des boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides-1);
+            if(currentIndex === totalSlides-1) {
+                $("#nextSlide").text("Terminé ✓");
+            } else {
+                $("#nextSlide").text("Suivant ▶");
+            }
+            
+            // Mise à jour des dots
+            updateDots();
+            
+            // Scroll automatique en haut de slide pour mobile (optionnel)
+            $('html, body').animate({ scrollTop: $(".card-glass").offset().top - 20 }, 100);
+        }
+        
+        function updateDots() {
+            let dotsHtml = '';
+            for(let i = 0; i < totalSlides; i++) {
+                const activeClass = (i === currentIndex) ? 'bg-blue-600 w-6' : 'bg-gray-300 w-3';
+                dotsHtml += `<button class="dot-btn h-2 rounded-full ${activeClass} transition-all duration-200" data-index="${i}"></button>`;
+            }
+            $("#slideDots").html(dotsHtml);
+            $(".dot-btn").on("click", function() {
+                let idx = $(this).data("index");
+                if(idx !== undefined && idx !== currentIndex) {
+                    currentIndex = idx;
+                    updateSlides();
+                }
+            });
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if(currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlides();
+            }
+        }
+        
+        function prevSlide() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlides();
+            }
+        }
+        
+        // Gestion clavier flèches droite/gauche
+        $(document).on("keydown", function(e) {
+            if(e.key === "ArrowRight") {
+                nextSlide();
+                e.preventDefault();
+            } else if(e.key === "ArrowLeft") {
+                prevSlide();
+                e.preventDefault();
+            }
+        });
+        
+        // Initialisation
+        $(function() {
+            updateSlides();
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+            
+            // Support swiper pour mobile simple (avec jQuery)
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesContainerElem = document.getElementById("slidesContainer");
+            if(slidesContainerElem) {
+                slidesContainerElem.addEventListener('touchstart', (e) => {
+                    touchstartX = e.changedTouches[0].screenX;
+                }, false);
+                slidesContainerElem.addEventListener('touchend', (e) => {
+                    touchendX = e.changedTouches[0].screenX;
+                    if (touchendX < touchstartX - 50) nextSlide();
+                    if (touchendX > touchstartX + 50) prevSlide();
+                }, false);
+            }
+        });
+        
+        // Ajout d'un style supplémentaire pour les slides (lisibilité)
+        // On injecte pour les blocs de code préformatés
+        const style = document.createElement('style');
+        style.textContent = `
+            .slide pre {
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .slide code {
+                font-family: 'Fira Code', monospace;
+                font-size: 0.85rem;
+            }
+            .slide li, .slide p {
+                line-height: 1.5;
+            }
+            @media (max-width: 480px) {
+                .card-glass {
+                    padding: 1rem;
+                }
+                .slide h2 {
+                    font-size: 1.5rem;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

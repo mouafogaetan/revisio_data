@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 17 : Load Balancers & CDN – Cloud Computing</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, utilisé au cas où des formules réseau apparaissent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles supplémentaires pour la navigation fluide et lisibilité */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* pour les petits écrans: ajustement du texte */
+        @media (max-width: 640px) {
+            .slide-content {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        /* code blocks pour les exemples AWS etc */
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- En-tête simple avec titre du cours -->
+    <div class="max-w-7xl mx-auto px-4 py-4 md:py-6">
+        <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm p-3 md:p-4 flex justify-between items-center flex-wrap gap-2">
+            <div>
+                <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">Initiation Cloud Computing</span>
+                <h1 class="text-xl md:text-2xl font-bold text-gray-800 mt-1">Lesson 17 : Load Balancers &amp; CDN</h1>
+            </div>
+            <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">📡 Connectivité & Performance</div>
+        </div>
+    </div>
+
+    <!-- Conteneur principal des slides -->
+    <div class="max-w-5xl mx-auto px-3 sm:px-5 mb-8">
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+            <!-- Slide container dynamique -->
+            <div class="slide-container relative">
+                <!-- Les slides seront injectées via jQuery -->
+                <div id="slides-wrapper" class="relative"></div>
+
+                <!-- Barre de progression -->
+                <div class="w-full bg-gray-200 h-1.5">
+                    <div id="progress-bar" class="progress-bar bg-blue-600 h-1.5 rounded-r-full" style="width: 0%;"></div>
+                </div>
+
+                <!-- Navigation buttons (mobile friendly) -->
+                <div class="flex justify-between items-center px-5 py-4 bg-gray-50 border-t border-gray-200">
+                    <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                        ◀ Précédent
+                    </button>
+                    <span id="slide-counter" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Slide 1 / 1</span>
+                    <button id="nextSlide" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full shadow-sm transition flex items-center gap-1">
+                        Suivant ▶
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- petite note pédagogique -->
+        <p class="text-center text-xs text-gray-500 mt-5">📘 Glissez ou utilisez les boutons – Concepts clés: Équilibrage de charge, CDN, SSL/TLS</p>
+    </div>
+
+    <script>
+        // Définition des données de la leçon 17 (basé sur les objectifs fournis + enrichissement pédagogique)
+        // Structure: chaque slide a un titre, un contenu principal (HTML)
+        const slidesData = [
+            {   // Slide 0 : titre principal de la leçon
+                title: "🕸️ Load Balancers & CDN",
+                content: `
+                    <div class="text-center py-6 md:py-12 px-4">
+                        <div class="inline-block p-4 bg-blue-50 rounded-full mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c6.6-6.6 17.352-6.6 23.952 0M12 18.75h.008v.008H12v-.008z" /></svg>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">Load Balancers & Content Delivery Networks</h2>
+                        <div class="h-1 w-24 bg-blue-500 mx-auto my-5 rounded-full"></div>
+                        <p class="text-lg text-gray-600 max-w-xl mx-auto">Distribuez le trafic, accélérez le contenu, sécurisez les connexions.</p>
+                        <p class="mt-6 text-sm text-blue-700 bg-blue-50 inline-block px-4 py-2 rounded-full">Chapitre 5 – Connectivité réseau dans le cloud</p>
+                    </div>
+                `
+            },
+            {   // Slide 1 : Objectifs de la leçon (basés sur lesson17)
+                title: "🎯 Objectifs de la leçon",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-2xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-5">Ce que vous allez maîtriser</h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Utiliser les load balancers</strong> : ELB (AWS), ALB, Application Gateway (Azure)</span></li>
+                            <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Comprendre les CDN</strong> : CloudFront, Azure CDN, Cloud CDN (GCP) pour accélérer la diffusion</span></li>
+                            <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span><strong>Configurer la terminaison SSL/TLS</strong> et les règles d'affinité (session sticky).</span></li>
+                            <li class="flex items-start gap-3"><span class="text-blue-600 text-xl">✓</span> <span>Savoir quand utiliser un reverse proxy ou un équilibreur de charge applicatif.</span></li>
+                        </ul>
+                        <div class="mt-6 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm">💡 Pourquoi ? Sans LB, un serveur unique peut saturer. Sans CDN, vos utilisateurs lointains subissent une latence élevée.</div>
+                    </div>
+                `
+            },
+            {   // Slide 2 : Qu'est-ce qu'un Load Balancer ? concepts, types (ALB / ELB / Application Gateway)
+                title: "⚖️ Load Balancer : le répartiteur de trafic",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-xl font-bold text-gray-800">Définition simple</h3>
+                        <p class="mt-2 text-gray-700">Un <span class="font-semibold text-blue-700">Load Balancer</span> distribue les requêtes entrantes entre plusieurs serveurs (backend). Ainsi, aucun serveur n'est surchargé, et si un serveur tombe en panne, le trafic est redirigé.</p>
+                        <div class="my-6 bg-gray-100 p-4 rounded-2xl">
+                            <p class="font-mono text-sm text-gray-700">🌐 Client → Load Balancer → [Serveur Web 1, Serveur Web 2, Serveur Web 3]</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                <h4 class="font-bold text-blue-800">⚡ AWS Elastic Load Balancing (ELB)</h4>
+                                <p class="text-sm mt-1">ALB (Layer 7) pour HTTP/HTTPS, NLB (Layer 4) haute performance.</p>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                <h4 class="font-bold text-blue-800">🔷 Azure Application Gateway</h4>
+                                <p class="text-sm mt-1">Load balancer applicatif + WAF (pare-feu applicatif).</p>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                <h4 class="font-bold text-blue-800">🟢 GCP Load Balancing</h4>
+                                <p class="text-sm mt-1">Global, multi-région, avec équilibrage HTTP(S) et TCP/SSL.</p>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                                <h4 class="font-bold text-blue-800">🔁 Affinité (sticky sessions)</h4>
+                                <p class="text-sm mt-1">Force un utilisateur à toujours atteindre le même serveur (utile pour sessions).</p>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 3 : CDN (Content Delivery Network) explications + exemples 
+                title: "🌍 CDN : Mettre le contenu à proximité",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-xl font-bold text-gray-800">Qu’est-ce qu’un CDN ?</h3>
+                        <p class="mt-2 text-gray-700">Un <strong>réseau de diffusion de contenu</strong> (CDN) copie vos fichiers (images, vidéos, CSS, JS) sur des serveurs répartis dans le monde entier (points de présence). L’utilisateur est servi par le serveur le plus proche, ce qui réduit la latence.</p>
+                        <div class="mt-6 bg-gray-50 rounded-xl p-4 border-l-4 border-green-500">
+                            <p class="text-green-800 font-medium">✨ Avantages :</p>
+                            <ul class="list-disc list-inside text-gray-700 mt-1 space-y-1">
+                                <li>Réduction du temps de chargement ⚡</li>
+                                <li>Moins de charge sur le serveur d'origine</li>
+                                <li>Protection contre les attaques DDoS (certains CDN)</li>
+                            </ul>
+                        </div>
+                        <h4 class="font-bold mt-6 text-gray-800">Exemples de CDN cloud :</h4>
+                        <div class="flex flex-wrap gap-3 mt-3">
+                            <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm">AWS CloudFront</span>
+                            <span class="bg-sky-100 text-sky-800 px-3 py-1 rounded-full text-sm">Azure CDN</span>
+                            <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">Google Cloud CDN</span>
+                            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">Cloudflare (partenaires cloud)</span>
+                        </div>
+                        <!-- petit dessin simple en SVG (schéma client -> CDN -> origin) -->
+                        <div class="mt-5 flex justify-center">
+                            <svg width="280" height="80" viewBox="0 0 350 90" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+                                <rect x="10" y="30" width="50" height="30" fill="#3b82f6" rx="8" />
+                                <text x="20" y="50" fill="white" font-size="10">Client</text>
+                                <path d="M65 45 L100 45" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)"/>
+                                <circle cx="130" cy="45" r="20" fill="#facc15" />
+                                <text x="115" y="49" fill="black" font-size="9">CDN</text>
+                                <path d="M155 45 L190 45" stroke="#1e293b" stroke-width="2"/>
+                                <rect x="200" y="25" width="60" height="40" fill="#10b981" rx="6"/>
+                                <text x="210" y="48" fill="white" font-size="10">Origine</text>
+                                <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#1e293b"/></marker></defs>
+                            </svg>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2 text-center">Le CDN met en cache le contenu proche du client</p>
+                    </div>
+                `
+            },
+            {   // Slide 4 : Terminaison SSL/TLS et règles d'affinité (troisième objectif)
+                title: "🔒 Terminaison SSL & Règles d'affinité",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-2xl font-bold text-gray-800">Terminaison SSL/TLS</h3>
+                        <p class="mt-2 text-gray-700">Le load balancer peut gérer les certificats SSL et déchiffrer le trafic HTTPS, puis envoyer le trafic <strong>non chiffré ou chiffré</strong> vers les serveurs internes. Cela soulage les serveurs backend du coût du chiffrement.</p>
+                        <div class="code-block mt-3 text-sm">Exemple (AWS ALB) : écoute HTTPS (port 443) + certificat ACM → transfert HTTP vers instances EC2</div>
+                        
+                        <h3 class="text-xl font-bold text-gray-800 mt-7">🍪 Règles d'affinité (Sticky Sessions)</h3>
+                        <p>Par défaut, un load balancer distribue les requêtes de façon équitable (round robin). L'affinité permet de <strong>maintenir un utilisateur sur le même serveur backend</strong> durant toute sa session (via cookie).</p>
+                        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mt-4">
+                            <p class="text-yellow-800 text-sm">⚠️ Attention: l'affinité peut créer un déséquilibre et réduire la tolérance aux pannes. À utiliser avec précaution (par ex, pour des sessions locales).</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="font-bold">Application Gateway</span> – mode Cookie-Based Affinity</div>
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="font-bold">AWS ALB</span> – "stickiness" activé par target group</div>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 5 : Comparaison et cas pratiques / utilisation (règles de configuration)
+                title: "📐 Configurer un Load Balancer (exemple simple)",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-xl font-bold">Procédure générale sur AWS / Azure</h3>
+                        <ol class="list-decimal list-inside space-y-3 mt-3 text-gray-700">
+                            <li>Créer un groupe cible (Target Group) avec vos instances/containers.</li>
+                            <li>Définir un Listener (port 80 / 443) et les règles de routage.</li>
+                            <li>Configurer les vérifications de santé (health checks) pour éviter d'envoyer du trafic vers des serveurs défaillants.</li>
+                            <li>(Optionnel) Activer la terminaison SSL et charger un certificat.</li>
+                            <li>Associer le load balancer à un auto-scaling group pour l'élasticité.</li>
+                        </ol>
+                        <div class="mt-6 p-3 bg-gray-100 rounded-lg">
+                            <p class="font-mono text-sm"># Exemple avec Terraform (fragment pour un ALB):</p>
+                            <pre class="text-xs bg-gray-900 text-gray-200 p-2 rounded overflow-x-auto">resource "aws_lb" "mon_alb" { name = "mon-alb" internal = false load_balancer_type = "application" ... }</pre>
+                        </div>
+                        <p class="text-sm text-blue-700 mt-4">📘 Astuce: Associer un CDN devant un load balancer améliore les performances globales.</p>
+                    </div>
+                `
+            },
+            {   // Slide 6 : Résumé et QCM rapide pour vérifier la compréhension (interactif mais simple)
+                title: "📝 Points clés – Quiz express",
+                content: `
+                    <div class="p-5 md:p-7">
+                        <h3 class="text-2xl font-bold text-gray-800">Ce qu'il faut retenir</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-3">✅ Load Balancer = répartiteur de charge, haute disponibilité.</div>
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-3">🌍 CDN = cache global, faible latence.</div>
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-3">🔐 Terminaison SSL = déchargement chiffrement.</div>
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-3">🍪 Sticky sessions = persistance utilisateur.</div>
+                        </div>
+                        <div class="mt-7 bg-white shadow-inner rounded-xl p-4 border border-gray-200">
+                            <p class="font-bold">🧠 Petit test (oral) :</p>
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+                                <li>Quel service AWS permet de distribuer du contenu mondialement ? → CloudFront (CDN)</li>
+                                <li>Quel est l'intérêt de l'Application Gateway par rapport à un LB classique ? → WAF + équilibrage applicatif avancé.</li>
+                                <li>Une entreprise a des utilisateurs en Asie et Europe, quel outil réduit la latence ? → CDN avec points de présence locaux.</li>
+                            </ul>
+                        </div>
+                        <p class="italic text-gray-500 text-sm mt-4">✨ En entreprise, on combine souvent CDN + Load Balancer pour des applications robustes.</p>
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // génération du DOM des slides
+        function buildSlides() {
+            const wrapper = $('#slides-wrapper');
+            wrapper.empty();
+            slidesData.forEach((slide, idx) => {
+                const slideDiv = $('<div>').addClass('slide p-4 md:p-6 slide-content').attr('data-slide-idx', idx);
+                // ajout du titre interne dans la slide (sauf pour éviter doublon visuel mais on met un joli header)
+                let innerHtml = `
+                    <div class="mb-4 border-b border-gray-200 pb-2 flex items-center gap-2">
+                        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">Leçon 17</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+                    </div>
+                    ${slide.content}
+                `;
+                slideDiv.html(innerHtml);
+                wrapper.append(slideDiv);
+            });
+            // Afficher la première slide
+            $('.slide').removeClass('active');
+            $('.slide').first().addClass('active');
+            updateCounterAndProgress();
+        }
+
+        function updateCounterAndProgress() {
+            $('#slide-counter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const percent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $('#progress-bar').css('width', `${percent}%`);
+            // gestion désactivation boutons
+            if(currentIndex === 0) {
+                $('#prevSlide').prop('disabled', true).addClass('opacity-50');
+            } else {
+                $('#prevSlide').prop('disabled', false).removeClass('opacity-50');
+            }
+            if(currentIndex === totalSlides - 1) {
+                $('#nextSlide').prop('disabled', true).addClass('opacity-50');
+            } else {
+                $('#nextSlide').prop('disabled', false).removeClass('opacity-50');
+            }
+        }
+
+        function goToSlide(index) {
+            if(index < 0 || index >= totalSlides) return;
+            $('.slide').removeClass('active');
+            $(`.slide[data-slide-idx="${index}"]`).addClass('active');
+            currentIndex = index;
+            updateCounterAndProgress();
+            // scroll en haut de la slide (pour mobile)
+            $('html, body').animate({ scrollTop: $('.slide-container').offset().top - 20 }, 200);
+            // réactiver mathjax au cas où
+            if(window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Événements
+        $('#nextSlide').on('click', function() {
+            if(currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+        });
+        $('#prevSlide').on('click', function() {
+            if(currentIndex > 0) goToSlide(currentIndex - 1);
+        });
+
+        // Gestion du swipe (mobile) : simple avec touches jquery
+        let touchStartX = 0;
+        let touchEndX = 0;
+        $(document).on('touchstart', '.slide-container', function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $(document).on('touchend', '.slide-container', function(e) {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            const diff = touchEndX - touchStartX;
+            if(Math.abs(diff) > 60) {
+                if(diff > 0 && currentIndex > 0) goToSlide(currentIndex - 1);
+                else if(diff < 0 && currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+            }
+        });
+
+        // Raccourcis clavier
+        $(document).on('keydown', function(e) {
+            if(e.key === 'ArrowRight') {
+                if(currentIndex < totalSlides - 1) goToSlide(currentIndex + 1);
+            } else if(e.key === 'ArrowLeft') {
+                if(currentIndex > 0) goToSlide(currentIndex - 1);
+            }
+        });
+
+        // Initialisation
+        buildSlides();
+        goToSlide(0);
+    </script>
+    <!-- note supplémentaire: les formules mathématiques ne sont pas dominantes ici, mais MathJax prêt si besoin -->
+</body>
+</html>

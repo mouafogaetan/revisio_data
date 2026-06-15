@@ -1,0 +1,176 @@
+[
+  {
+    "intitule": "Migration de FlatList vers FlashList",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une application React Native existante, l'écran de catalogue utilise une <code>FlatList</code> standard pour afficher une longue liste de produits (plus de 200 articles). Les utilisateurs signalent des ralentissements lors du défilement et des saccades. La solution recommandée est de migrer vers <code>FlashList</code> de Shopify.</p>",
+      "images": [
+        "Comparaison de performances entre FlatList et FlashList sur un écran mobile",
+        "Graphique montrant l'utilisation mémoire réduite avec FlashList"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rappelez la commande d'installation de FlashList dans un projet Expo.",
+        "niveau": "easy",
+        "reponse": "npx expo install @shopify/flash-list",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrivez les étapes pour remplacer une FlatList par une FlashList dans un composant existant.",
+        "niveau": "medium",
+        "reponse": "1) Importer `FlashList` depuis '@shopify/flash-list' au lieu de `FlatList`. 2) Remplacer `<FlatList ... />` par `<FlashList ... />`. 3) Ajouter la prop `estimatedItemSize` (taille estimée d'un élément, ex: 120). 4) Si nécessaire, ajuster les props spécifiques comme `onEndReachedThreshold` et `contentContainerStyle` qui restent compatibles.",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Expliquez pourquoi la prop `estimatedItemSize` est obligatoire avec FlashList.",
+            "niveau": "medium",
+            "reponse": "FlashList utilise la virtualisation avec mesure approximative des éléments pour optimiser le calcul du layout et le recyclage. `estimatedItemSize` permet à FlashList de connaître la hauteur moyenne d'un élément avant de le rendre, ce qui lui permet d'allouer l'espace nécessaire et d'améliorer les performances du scroll."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Codez la conversion d'un composant ProductList de FlatList vers FlashList en conservant les props `data`, `renderItem`, `keyExtractor`, `onEndReached` et `onEndReachedThreshold`.",
+        "niveau": "medium",
+        "reponse": "```jsx\nimport { FlashList } from '@shopify/flash-list';\n\nconst ProductList = ({ products, onLoadMore, onProductPress }) => {\n  return (\n    <FlashList\n      data={products}\n      renderItem={({ item }) => <ProductCard product={item} onPress={onProductPress} />}\n      keyExtractor={(item) => item.id}\n      estimatedItemSize={150}\n      onEndReached={onLoadMore}\n      onEndReachedThreshold={0.3}\n      contentContainerStyle={{ paddingBottom: 20 }}\n    />\n  );\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du chargement infini (pagination)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce avec un catalogue de produits. L'API backend supporte la pagination avec les paramètres `page` et `limit` (ex: `?page=1&limit=20`). Vous devez implémenter un chargement infini (infinite scroll) qui charge plus de produits lorsque l'utilisateur atteint la fin de la liste.</p><p>Le store Zustand `productStore` contient les méthodes : `fetchProducts(page, limit)` et l'état `products` (liste), `hasMore` (booléen), `page` (numéro courant).</p>",
+      "images": [
+        "Animation de chargement infini : spinner apparaît en bas de la liste puis nouveaux produits chargés",
+        "Schéma de fonctionnement de la pagination avec limite de 20 produits par page"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez les éléments nécessaires pour gérer l'état de chargement infini (loading, hasMore, page).",
+        "niveau": "easy",
+        "reponse": "Il faut maintenir trois états : `isLoadingMore` (booléen, pour éviter les appels multiples), `page` (numéro de page actuel), `hasMore` (booléen indiquant s'il reste des pages à charger). Dans le store, on ajoute également `loading` pour le chargement initial.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Concevez la fonction `loadMoreProducts` qui est appelée lorsque l'utilisateur atteint la fin de la liste. Expliquez la logique de protection contre les appels simultanés.",
+        "niveau": "medium",
+        "reponse": "```javascript\nconst loadMoreProducts = async () => {\n  if (isLoadingMore || !hasMore) return;\n  \n  setIsLoadingMore(true);\n  const nextPage = page + 1;\n  const newProducts = await fetchProducts(nextPage, LIMIT);\n  \n  if (newProducts.length < LIMIT) setHasMore(false);\n  setProducts([...products, ...newProducts]);\n  setPage(nextPage);\n  setIsLoadingMore(false);\n};\n```\nLa protection `if (isLoadingMore || !hasMore) return` évite les appels multiples simultanés et arrête le chargement lorsqu'il n'y a plus de données.",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Proposez un affichage d'un indicateur de chargement (spinner) en bas de la liste pendant le chargement.",
+            "niveau": "easy",
+            "reponse": "Dans FlashList, on utilise la prop `ListFooterComponent`: `{isLoadingMore && <ActivityIndicator size=\"small\" color=\"#6200ee\" />}`. Ce composant s'affiche automatiquement en bas de la liste."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquez comment la prop `onEndReachedThreshold` de FlashList influence le déclenchement du chargement. Quelle valeur recommandez-vous pour un chargement fluide ?",
+        "niveau": "medium",
+        "reponse": "`onEndReachedThreshold` détermine à quelle distance (en pourcentage) de la fin de la liste le callback `onEndReached` est déclenché. Une valeur de 0.3 signifie que le chargement se déclenche lorsque l'utilisateur est à 30% de la fin. Pour une expérience fluide, on recommande 0.3 à 0.5 (ni trop tôt pour éviter des appels inutiles, ni trop tard pour ne pas laisser l'utilisateur attendre).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Virtualisation et recyclage des composants",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un étudiant a développé un écran de catalogue avec FlashList, mais il constate que les images se rechargent à chaque défilement et que le scroll n'est pas fluide. Voici son code :</p><pre><code>const ProductCard = ({ product }) => {\n  const [imageUri, setImageUri] = useState(null);\n  \n  useEffect(() => {\n    fetchImage(product.imageUrl).then(setImageUri);\n  }, [product.imageUrl]);\n  \n  return (\n    &lt;View&gt;\n      &lt;Image source={{ uri: imageUri }} style={{ width: 100, height: 100 }} /&gt;\n      &lt;Text&gt;{product.name}&lt;/Text&gt;\n    &lt;/View&gt;\n  );\n};\n</code></pre>",
+      "images": [
+        "Schéma expliquant le recyclage des composants dans FlashList (les éléments hors écran sont réutilisés)",
+        "Capture des outils de performance React Native montrant des re-rendus excessifs"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analysez le problème de performance dans le code fourni. Expliquez pourquoi chaque défilement provoque un rechargement des images.",
+        "niveau": "hard",
+        "reponse": "Le problème principal est que `useEffect` dépend de `product.imageUrl` ET qu'il n'y a pas de mise en cache des images. Lorsque FlashList recycle un composant (réutilise une instance pour un autre produit), l'URL change, ce qui déclenche le `useEffect` et un nouveau fetch. De plus, `Image` de React Native ne met pas automatiquement en cache les URI réseaux, ce qui cause un re-téléchargement à chaque réutilisation du composant.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposez une solution pour mettre en cache les images et éviter les rechargements.",
+            "niveau": "medium",
+            "reponse": "Utiliser `expo-image` qui supporte le caching automatique : `import { Image } from 'expo-image';` et `<Image source={{ uri: product.imageUrl }} cachePolicy=\"memory-disk\" />`. Ou utiliser `react-native-fast-image` avec son système de cache intégré."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Évaluez l'impact de l'absence de `React.memo` sur les performances du scroll. Proposez une optimisation.",
+        "niveau": "hard",
+        "reponse": "Sans `React.memo`, chaque changement dans le parent (ex: scroll qui met à jour un state de scrollY) provoque un re-render de tous les enfants, même ceux qui sont hors écran. En enveloppant `ProductCard` avec `React.memo`, on évite les re-rendus inutiles. On peut aussi optimiser avec `useCallback` pour les fonctions passées en props.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquez le principe de recyclage des composants (component recycling) dans FlashList. En quoi est-ce différent d'une FlatList standard ?",
+        "niveau": "hard",
+        "reponse": "FlatList recycle également les composants, mais FlashList utilise un algorithme plus efficace basé sur une estimation de taille (`estimatedItemSize`) et un recyclage par 'cell recycling' plus agressif. FlashList ne conserve en mémoire que les éléments visibles plus une marge, et réutilise les instances de composants pour afficher de nouvelles données. La différence majeure est que FlashList supporte mieux les listes de taille dynamique et a un overhead mémoire inférieur, grâce à son moteur de layout optimisé (C++ sur certaines plateformes).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation complète d'un catalogue produit",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous êtes responsable des performances d'une application e-commerce React Native. L'écran principal affiche un catalogue de 500+ produits avec :</p><ul><li>Images haute résolution</li><li>Nom, prix, note (étoiles)</li><li>Badge 'Promo' si réduction active</li><li>Bouton 'Ajouter au panier'</li></ul><p>Les utilisateurs se plaignent de :</p><ul><li>Scroll saccadé sur les anciens appareils Android</li><li>Mémoire vive (RAM) qui augmente anormalement</li><li>Images qui apparaissent en blanc puis se chargent (effet de flash)</li></ul>",
+      "images": [
+        "Profil de performance React Native devtools montrant des pics de rendu",
+        "Avant/après optimisation du scroll sur un catalogue produit"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une architecture complète pour optimiser ce catalogue en utilisant FlashList, expo-image, et les bonnes pratiques de rendu.",
+        "niveau": "very hard",
+        "reponse": "1) Remplacer FlatList par FlashList avec `estimatedItemSize` calculé (ex: 140). 2) Utiliser expo-image avec `cachePolicy=\"memory-disk\"`, `placeholder={blurhash}` et `contentFit=\"cover\"`. 3) Appliquer `React.memo` sur ProductCard. 4) Utiliser `useCallback` pour les fonctions (onAddToCart, onPress). 5) Implémenter la pagination avec `onEndReached`. 6) Pour les badges promo, utiliser `useMemo` pour le calcul conditionnel. 7) Ajouter `removeClippedSubviews={true}` sur FlashList. 8) Utiliser des images redimensionnées via CDN (paramètres width/height).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez comment implémenter un placeholder (blurhash) pour améliorer l'expérience de chargement des images.",
+            "niveau": "hard",
+            "reponse": "expo-image supporte nativement le blurhash. Il faut générer un blurhash pour chaque image côté serveur ou lors de l'upload. Ensuite, dans le composant : `<Image source={{ uri: product.imageUrl }} placeholder={{ blurhash: product.blurhash }} contentFit=\"cover\" transition={200} />`. L'image floue s'affiche instantanément, puis l'image haute résolution se charge en arrière-plan."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Quel est l'impact de `removeClippedSubviews` sur les performances et quand faut-il l'utiliser ?",
+            "niveau": "medium",
+            "reponse": "`removeClippedSubviews={true}` permet de détruire les composants qui sont hors de la zone visible, libérant ainsi de la mémoire. C'est particulièrement utile pour les longues listes d'images. Cependant, cela peut causer des problèmes de réinitialisation de scroll sur certaines versions de React Native. Il est recommandé de l'activer uniquement sur les listes de plus de 200 éléments."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Calculez le gain théorique en mémoire si on passe d'une FlatList sans optimisation à une FlashList avec virtualisation avancée pour 1000 produits (chaque produit consomme 2KB de mémoire JS + 150KB pour l'image en cache). Estimez la réduction en pourcentage.",
+        "niveau": "hard",
+        "reponse": "Avec FlatList standard, tous les composants sont montés en mémoire même hors écran : $1000 \\times (2 + 150) = 152000 \\text{ KB} \\approx 148 \\text{ MB}$. Avec FlashList, seuls les éléments visibles (environ 8 sur un petit écran) plus une marge de 20 sont conservés : $28 \\times 152 \\approx 4.2 \\text{ MB}$. Le gain est d'environ $\\frac{148 - 4.2}{148} \\times 100 \\approx 97\\%$ de réduction mémoire. Soit une formule : $\\text{Gain} = \\left(1 - \\frac{N_{visible}}{N_{total}}\\right) \\times 100$.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Organisez une stratégie de préchargement (prefetch) des images des produits des pages suivantes pour anticiper le scroll et améliorer la fluidité.",
+        "niveau": "very hard",
+        "reponse": "On utilise `expo-image` avec la méthode `Image.prefetch(product.imageUrl)`. Dans le callback `onEndReached`, après avoir chargé la page suivante, on précharge les images des produits de la page suivante (ou de la page +2). On peut limiter le préchargement aux images visibles par anticipation : `Image.prefetch(products[page+1].map(p => p.imageUrl))`. Attention à ne pas saturer le réseau : utiliser une limite de préchargement (ex: 10 images).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

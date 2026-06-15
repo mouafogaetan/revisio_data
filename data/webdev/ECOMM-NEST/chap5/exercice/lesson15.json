@@ -1,0 +1,118 @@
+[
+  {
+    "intitule": "Identifier la structure des entités du panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce avec NestJS et TypeORM, on souhaite modéliser le panier d'achat. Deux entités sont nécessaires : <code>Cart</code> (le panier) et <code>CartItem</code> (les lignes du panier).</p><p><strong>Question :</strong> Expliquez le rôle de chaque entité et précisez la relation entre <code>Cart</code> et <code>CartItem</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définissez les responsabilités de l'entité <code>Cart</code> et de l'entité <code>CartItem</code> dans une API e-commerce.",
+        "niveau": "easy",
+        "reponse": "<code>Cart</code> représente le panier d'achat global d'un utilisateur. Elle contient des informations comme l'ID du panier, l'utilisateur associé, la date de création, la date de dernière modification, et éventuellement un identifiant de session pour les visiteurs anonymes. <code>CartItem</code> représente une ligne de panier : un produit spécifique avec sa quantité, ses variations (taille, couleur), et le prix au moment de l'ajout. La relation entre <code>Cart</code> et <code>CartItem</code> est <code>OneToMany</code> : un panier contient plusieurs lignes, chaque ligne appartient à un seul panier.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Distinguer panier connecté et panier anonyme",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un panier d'achat doit pouvoir fonctionner même lorsque l'utilisateur n'est pas connecté (visiteur anonyme).</p><p><strong>Consigne :</strong> Comparez les deux stratégies (panier lié à un utilisateur connecté vs panier anonyme avec session/visitorId) en listant leurs avantages et inconvénients respectifs.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citez au moins trois différences entre la gestion d'un panier pour un utilisateur authentifié et celle pour un visiteur anonyme.",
+        "niveau": "medium",
+        "reponse": "1) **Persistance** : le panier connecté est stocké en base avec une clé étrangère vers l'utilisateur ; le panier anonyme utilise un identifiant temporaire (session ID, visitorId stocké en cookie ou localStorage). 2) **Durée de vie** : le panier connecté persiste tant que l'utilisateur existe ; le panier anonyme expire après une période définie (ex: 7 jours) ou à la fermeture du navigateur. 3) **Récupération** : le panier connecté est retrouvé à chaque connexion via l'userId ; le panier anonyme nécessite de transmettre l'identifiant à chaque requête. 4) **Fusion** : lors de la connexion, le panier anonyme doit être fusionné avec l'éventuel panier existant de l'utilisateur.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Corriger une entité Cart mal définie",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici une entité <code>Cart</code> TypeORM qui contient des erreurs :</p>\n<pre><code>@Entity()\nexport class Cart {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @OneToOne(() => User)\n  user: User;\n\n  @Column()\n  visitorId: string;\n\n  @OneToMany(() => CartItem, cartItem => cartItem.cart, { cascade: true })\n  items: CartItem[];\n\n  @CreateDateColumn()\n  createdAt: Date;\n}\n</code></pre>\n<p><strong>Consigne :</strong> Identifiez les trois problèmes dans cette entité et proposez une version corrigée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Corrigez l'entité Cart en respectant les bonnes pratiques TypeORM.",
+        "niveau": "medium",
+        "reponse": "Problèmes identifiés :\n1) La relation `@OneToOne` n'est pas complète : il manque le côté inverse et le décorateur `@JoinColumn()` (le côté propriétaire).\n2) `visitorId` et `user` sont tous deux présents alors qu'un panier ne devrait avoir qu'un seul des deux (soit un utilisateur connecté, soit un anonyme).\n3) Il manque les relations inverses du côté de `CartItem` et `User`.\n\nVersion corrigée :\n```typescript\n@Entity()\nexport class Cart {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @OneToOne(() => User, (user) => user.cart, { nullable: true })\n  @JoinColumn()\n  user?: User;\n\n  @Column({ nullable: true })\n  visitorId?: string;\n\n  @OneToMany(() => CartItem, (cartItem) => cartItem.cart, { cascade: true })\n  items: CartItem[];\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter la fusion des paniers anonyme et connecté",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, un utilisateur navigue d'abord sans être connecté et ajoute des produits à son panier (stocké avec un <code>visitorId</code>). Il décide ensuite de se connecter. Il faut alors fusionner le panier anonyme avec le panier existant de l'utilisateur (s'il en a un) et supprimer le panier anonyme.</p>\n<p><strong>Consigne :</strong> Écrivez une fonction <code>mergeCarts(visitorId: string, userId: number)</code> qui réalise cette fusion. Gérez les cas où :</p>\n<ul>\n  <li>Le panier anonyme n'existe pas</li>\n  <li>L'utilisateur n'a pas encore de panier</li>\n  <li>Un même produit est présent dans les deux paniers : additionner les quantités</li>\n</ul>\n<p>Utilisez le pseudo-code ou du TypeScript avec des méthodes TypeORM.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code TypeScript pour la fonction <code>mergeCarts</code>.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync function mergeCarts(visitorId: string, userId: number): Promise<Cart> {\n  // 1. Récupérer le panier anonyme\n  const anonymousCart = await cartRepository.findOne({\n    where: { visitorId },\n    relations: ['items', 'items.product']\n  });\n\n  // 2. Récupérer le panier de l'utilisateur (ou en créer un)\n  let userCart = await cartRepository.findOne({\n    where: { user: { id: userId } },\n    relations: ['items', 'items.product']\n  });\n\n  if (!userCart) {\n    userCart = cartRepository.create({ user: { id: userId }, items: [] });\n    await cartRepository.save(userCart);\n  }\n\n  // 3. Si pas de panier anonyme, retourner le panier utilisateur\n  if (!anonymousCart || anonymousCart.items.length === 0) {\n    return userCart;\n  }\n\n  // 4. Fusionner les items : addition des quantités pour les produits identiques\n  for (const anonymousItem of anonymousCart.items) {\n    const existingItem = userCart.items.find(\n      item => item.productId === anonymousItem.productId &&\n              item.variationId === anonymousItem.variationId\n    );\n\n    if (existingItem) {\n      existingItem.quantity += anonymousItem.quantity;\n      await cartItemRepository.save(existingItem);\n    } else {\n      // Créer un nouvel item dans le panier utilisateur\n      const newItem = cartItemRepository.create({\n        cart: userCart,\n        productId: anonymousItem.productId,\n        quantity: anonymousItem.quantity,\n        variationId: anonymousItem.variationId,\n        price: anonymousItem.price\n      });\n      userCart.items.push(newItem);\n      await cartItemRepository.save(newItem);\n    }\n  }\n\n  // 5. Supprimer le panier anonyme (cascade supprimera les items)\n  await cartRepository.remove(anonymousCart);\n\n  // 6. Retourner le panier utilisateur mis à jour\n  return userCart;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir le mécanisme d'expiration du panier anonyme",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour optimiser les ressources et inciter à l'achat, les paniers anonymes doivent expirer automatiquement après 7 jours d'inactivité. Un utilisateur peut avoir un seul panier anonyme actif à la fois.</p>\n<p><strong>Consigne :</strong> Concevez la solution complète en répondant aux questions suivantes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une stratégie pour supprimer les paniers anonymes inactifs après 7 jours.",
+        "niveau": "hard",
+        "reponse": "Plusieurs approches possibles :\n\n1) **Cron job** : exécuter une tâche planifiée chaque nuit qui supprime les paniers dont `updatedAt < NOW() - INTERVAL 7 DAYS` et `visitorId IS NOT NULL AND userId IS NULL`.\n\n2) **Trigger PostgreSQL** : créer un trigger qui vérifie l'âge du panier avant toute lecture/écriture.\n\n3) **Middleware/Interceptor** : à chaque requête sur le panier, vérifier si l'utilisateur est anonyme et si son panier a expiré ; si oui, créer un nouveau panier.\n\n**Implémentation avec cron dans NestJS :**\n```typescript\n@Injectable()\nexport class CartCleanupService {\n  @Cron('0 2 * * *') // Tous les jours à 2h du matin\n  async deleteExpiredCarts() {\n    const sevenDaysAgo = new Date();\n    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);\n\n    await cartRepository\n      .createQueryBuilder()\n      .delete()\n      .where('visitorId IS NOT NULL')\n      .andWhere('userId IS NULL')\n      .andWhere('updatedAt < :date', { date: sevenDaysAgo })\n      .execute();\n  }\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment garantir qu'un visiteur ne crée pas plusieurs paniers anonymes ?",
+            "niveau": "medium",
+            "reponse": "Il faut stocker l'identifiant du panier dans un cookie ou dans le localStorage du navigateur. À chaque chargement, on vérifie si un panier existe pour ce `visitorId`. Si oui, on le réutilise. Le `visitorId` doit être unique par session/navigateur et généré côté client ou serveur via un UUID. On utilise un cookie signé pour éviter les falsifications.",
+            "reponse": "Il faut stocker l'identifiant du panier dans un cookie ou dans le localStorage du navigateur. À chaque chargement, on vérifie si un panier existe pour ce `visitorId`. Si oui, on le réutilise. Le `visitorId` doit être unique par session/navigateur et généré côté client ou serveur via un UUID. On utilise un cookie signé pour éviter les falsifications."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir l'endpoint d'ajout au panier avec validation",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un client souhaite ajouter un produit à son panier. L'API doit :</p>\n<ul>\n  <li>Accepter les utilisateurs connectés (via JWT) et les anonymes (via `visitorId` dans le corps ou header)</li>\n  <li>Vérifier que le produit existe et que la quantité demandée est disponible en stock</li>\n  <li>Si le produit existe déjà dans le panier, augmenter la quantité (sans dépasser le stock)</li>\n  <li>Créer le panier s'il n'existe pas</li>\n</ul>\n<p><strong>Consigne :</strong> Écrivez le DTO, le service et le contrôleur NestJS pour cette fonctionnalité.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code complet (DTO, Service, Controller) pour l'ajout au panier.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// DTO\nexport class AddToCartDto {\n  @IsNumber()\n  productId: number;\n\n  @IsNumber()\n  @Min(1)\n  quantity: number;\n\n  @IsOptional()\n  @IsString()\n  visitorId?: string;\n\n  @IsOptional()\n  variationId?: number;\n}\n\n// Service\n@Injectable()\nexport class CartService {\n  async addToCart(addToCartDto: AddToCartDto, userId?: number): Promise<Cart> {\n    let cart: Cart;\n    \n    // 1. Trouver ou créer le panier\n    if (userId) {\n      cart = await this.findOrCreateCartByUser(userId);\n    } else if (addToCartDto.visitorId) {\n      cart = await this.findOrCreateCartByVisitor(addToCartDto.visitorId);\n    } else {\n      throw new BadRequestException('userId ou visitorId requis');\n    }\n\n    // 2. Vérifier le produit et le stock\n    const product = await this.productService.findOne(addToCartDto.productId);\n    if (!product) {\n      throw new NotFoundException('Produit non trouvé');\n    }\n\n    const requestedStock = addToCartDto.quantity;\n    if (product.stock < requestedStock) {\n      throw new BadRequestException(`Stock insuffisant. Disponible: ${product.stock}`);\n    }\n\n    // 3. Vérifier si le produit est déjà dans le panier\n    const existingItem = cart.items.find(\n      item => item.productId === addToCartDto.productId &&\n              item.variationId === addToCartDto.variationId\n    );\n\n    if (existingItem) {\n      const newQuantity = existingItem.quantity + addToCartDto.quantity;\n      if (product.stock < newQuantity) {\n        throw new BadRequestException(`Quantité totale (${newQuantity}) dépasse le stock (${product.stock})`);\n      }\n      existingItem.quantity = newQuantity;\n      await this.cartItemRepository.save(existingItem);\n    } else {\n      const newItem = this.cartItemRepository.create({\n        cart,\n        productId: addToCartDto.productId,\n        quantity: addToCartDto.quantity,\n        variationId: addToCartDto.variationId,\n        price: product.price\n      });\n      cart.items.push(newItem);\n      await this.cartItemRepository.save(newItem);\n    }\n\n    // 4. Mettre à jour la date du panier\n    cart.updatedAt = new Date();\n    await this.cartRepository.save(cart);\n\n    return cart;\n  }\n\n  private async findOrCreateCartByUser(userId: number): Promise<Cart> {\n    let cart = await this.cartRepository.findOne({\n      where: { user: { id: userId } },\n      relations: ['items']\n    });\n    if (!cart) {\n      cart = this.cartRepository.create({ user: { id: userId }, items: [] });\n      await this.cartRepository.save(cart);\n    }\n    return cart;\n  }\n\n  private async findOrCreateCartByVisitor(visitorId: string): Promise<Cart> {\n    let cart = await this.cartRepository.findOne({\n      where: { visitorId },\n      relations: ['items']\n    });\n    if (!cart) {\n      cart = this.cartRepository.create({ visitorId, items: [] });\n      await this.cartRepository.save(cart);\n    }\n    return cart;\n  }\n}\n\n// Controller\n@Controller('cart')\n@UseGuards(JwtAuthGuardOptional) // Guard optionnel\n export class CartController {\n  @Post('add')\n  async addToCart(\n    @Body() addToCartDto: AddToCartDto,\n    @CurrentUser() user?: User\n  ) {\n    return this.cartService.addToCart(addToCartDto, user?.id);\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]
