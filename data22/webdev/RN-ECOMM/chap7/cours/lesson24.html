@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 24 : Recherche avancée - Autocomplétion, historique et suggestions | React Native</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- MathJax (utilisé au cas où) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide {
+      transition: opacity 0.25s ease-in-out;
+    }
+    body {
+      background: #f0f4fa;
+    }
+    .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-indigo-50 font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+      
+      <!-- En-tête -->
+      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-search text-lg"></i>
+          <span class="font-semibold text-sm md:text-base">Recherche avancée · Autocomplétion</span>
+        </div>
+        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
+          Leçon 24 / 55
+        </div>
+      </div>
+
+      <!-- Conteneur slides -->
+      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
+          Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="text-center text-sm text-gray-500 mt-6">
+      <i class="fas fa-history"></i> Recherche intelligente : autocomplétion, historique local, suggestions personnalisées
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // Leçon 24 : Barre de recherche avec autocomplétion, recherches récentes, suggestions personnalisées
+    // Slides interactifs (titre, objectifs, contenu détaillé)
+    // --------------------------------------------------------------
+    const slidesData = [
+      {
+        type: "title",
+        title: "🔍 Recherche intelligente dans l'e-commerce",
+        subtitle: "Autocomplétion, historique des recherches et suggestions personnalisées",
+        icon: "fa-search",
+        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Créer une barre de recherche avec autocomplétion (suggestions en temps réel)",
+          "Afficher et stocker les recherches récentes de l'utilisateur (AsyncStorage)",
+          "Implémenter des suggestions personnalisées basées sur l'historique ou les tendances",
+          "Optimiser les performances (débouncing, appel API limité)",
+          "Gérer la navigation vers les résultats de recherche"
+        ]
+      },
+      {
+        type: "content",
+        title: "📱 Pourquoi une recherche avancée est cruciale",
+        content: `<p>Dans une application e-commerce, la recherche permet aux utilisateurs de trouver rapidement un produit. Une mauvaise recherche = perte de ventes. Les fonctionnalités avancées apportent une réelle valeur :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li><strong>Autocomplétion</strong> : suggère des termes dès les premières lettres tapées (gain de temps, réduction des fautes).</li>
+          <li><strong>Recherches récentes</strong> : mémorise les 5 à 10 derniers termes pour un accès rapide.</li>
+          <li><strong>Suggestions personnalisées</strong> : basées sur l'historique, les achats précédents, les produits populaires.</li>
+        </ul>
+        <div class="mt-4 p-3 bg-indigo-50 rounded-xl">
+          <i class="fas fa-chart-line text-indigo-600"></i> <strong>Impact :</strong> +30% de conversion pour les applications avec recherche intelligente.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🔧 Structure de base : TextInput + FlatList",
+        content: `<p>La barre de recherche mobile se compose généralement d’un <code>TextInput</code> et d’une liste de suggestions (autocomplétion / historique).</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+const SearchScreen = () => {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+
+  const fetchSuggestions = async (text) => {
+    if (text.length < 2) return setSuggestions([]);
+    const response = await api.get(\`/products/suggest?q=\${text}\`);
+    setSuggestions(response.data);
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput 
+        value={query}
+        onChangeText={(text) => {
+          setQuery(text);
+          fetchSuggestions(text);
+        }}
+        placeholder="Rechercher un produit..."
+      /&gt;
+      &lt;FlatList 
+        data={suggestions}
+        renderItem={({item}) => &lt;SuggestionItem term={item} /&gt;}
+      /&gt;
+    &lt;/View&gt;
+  );
+};
+        </pre>
+        <p class="text-sm text-gray-600 mt-2"><i class="fas fa-info-circle"></i> Attention : pour éviter trop d'appels API, on appliquera un debounce.</p>`
+      },
+      {
+        type: "content",
+        title: "⏱️ Debounce : limiter les appels API",
+        content: `<p>Sans debounce, chaque frappe déclenche une requête → surcharge réseau, expérience lente. Solution : attendre que l'utilisateur arrête de taper (300-500ms).</p>
+        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
+import { debounce } from 'lodash';
+
+const SearchInput = () => {
+  const debouncedFetch = useRef(
+    debounce(async (text) => {
+      if (text.length >= 2) {
+        const results = await searchAPI(text);
+        setSuggestions(results);
+      }
+    }, 400)
+  ).current;
+
+  const handleChange = (text) => {
+    setQuery(text);
+    debouncedFetch(text);
+  };
+
+  return &lt;TextInput onChangeText={handleChange} /&gt;;
+};
+        </pre>
+        <div class="mt-2 p-2 bg-yellow-50 rounded">
+          <i class="fas fa-stopwatch"></i> Utilisez <code>useCallback</code> ou <code>useRef</code> pour garder la même fonction debounced entre les rendus.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "📜 Historique des recherches (AsyncStorage)",
+        content: `<p>Stocker les dernières recherches améliore l'expérience : l'utilisateur peut relancer une recherche en un clic.</p>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@search_history';
+const MAX_HISTORY = 8;
+
+// Sauvegarder un terme
+const saveSearchTerm = async (term) => {
+  const existing = await getSearchHistory();
+  const newHistory = [term, ...existing.filter(t => t !== term)].slice(0, MAX_HISTORY);
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
+};
+
+// Récupérer l'historique
+const getSearchHistory = async () => {
+  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : [];
+};
+
+// Effacer l'historique
+const clearHistory = async () => {
+  await AsyncStorage.removeItem(STORAGE_KEY);
+};
+        </pre>
+        <p>On affiche cette liste sous le champ de recherche quand l'utilisateur n'a pas encore tapé.</p>`
+      },
+      {
+        type: "content",
+        title: "💡 Suggestions personnalisées basées sur l'historique & tendances",
+        content: `<p>Combiner :</p>
+        <ul class="list-disc pl-6 space-y-1">
+          <li>Les <strong>termes populaires</strong> (top recherches globales) récupérés depuis l'API.</li>
+          <li>Les <strong>recherches récentes</strong> de l'utilisateur (depuis AsyncStorage).</li>
+          <li>Les <strong>suggestions produit</strong> (autocomplétion temps réel).</li>
+        </ul>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+const getPersonalizedSuggestions = async (userId) => {
+  const history = await getSearchHistory();
+  const trending = await api.get('/search/trending');
+  // Mélanger et montrer les 6 premiers
+  const combined = [...new Set([...history, ...trending])].slice(0,6);
+  setPersonalized(combined);
+};
+        </pre>
+        <p class="mt-2">On peut aussi envoyer l'historique au backend pour obtenir des recommandations produits (filtrage avancé).</p>`
+      },
+      {
+        type: "content",
+        title: "📱 Exemple complet d'écran de recherche",
+        content: `<p>Voici un composant réactif qui intègre autocomplétion, historique, debounce et navigation :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm overflow-auto">
+const SearchScreen = () => {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const navigation = useNavigation();
+
+  useEffect(() => { loadHistory(); }, []);
+
+  const loadHistory = async () => {
+    const history = await getSearchHistory();
+    setRecentSearches(history);
+  };
+
+  const debouncedFetch = useCallback(debounce(async (text) => {
+    if (text.length >= 2) {
+      const results = await api.suggest(text);
+      setSuggestions(results);
+    } else {
+      setSuggestions([]);
+    }
+  }, 400), []);
+
+  const handleSearch = async (term) => {
+    await saveSearchTerm(term);
+    navigation.navigate('SearchResults', { q: term });
+  };
+
+  return (
+    &lt;View&gt;
+      &lt;TextInput 
+        value={query} 
+        onChangeText={text => { setQuery(text); debouncedFetch(text); }}
+        placeholder="iPhone, chargeur, ..."
+      /&gt;
+      {query === '' && recentSearches.length > 0 && (
+        &lt;RecentList data={recentSearches} onSelect={handleSearch} /&gt;
+      )}
+      {suggestions.length > 0 && (
+        &lt;SuggestionsList data={suggestions} onSelect={handleSearch} /&gt;
+      )}
+    &lt;/View&gt;
+  );
+};
+        </pre>`
+      },
+      {
+        type: "content",
+        title: "🎨 UX et conseils pour l'Afrique / zones à faible connexion",
+        content: `<ul class="list-disc pl-6 space-y-2">
+          <li><i class="fas fa-tachometer-alt"></i> <strong>Cache local</strong> : stocker les suggestions populaires dans AsyncStorage pour les afficher même hors ligne.</li>
+          <li><i class="fas fa-save"></i> <strong>Mode dégradé</strong> : si l'API est lente, afficher d'abord l'historique et les suggestions en cache.</li>
+          <li><i class="fas fa-font"></i> <strong>Police lisible</strong> : taille minimale 16px pour les champs de recherche.</li>
+          <li><i class="fas fa-times-circle"></i> Toujours prévoir un bouton "Effacer" (X) dans le champ de recherche.</li>
+          <li><i class="fas fa-lightbulb"></i> Permettre de lancer la recherche avec le bouton "Entrée" du clavier (clavier mobile).</li>
+        </ul>
+        <div class="mt-3 bg-green-50 p-3 rounded-xl">
+          <i class="fas fa-users"></i> <strong>Astuce terrain :</strong> Intégrer une recherche vocale (expo-speech) pour les utilisateurs qui ont du mal à taper.
+        </div>`
+      },
+      {
+        type: "summary",
+        title: "📝 Récapitulatif : Recherche et suggestions",
+        points: [
+          "Barre de recherche avec TextInput + FlatList pour suggestions",
+          "Debounce (lodash) pour limiter les appels API et améliorer les perfs",
+          "Historique des recherches sauvegardé dans AsyncStorage (8-10 termes)",
+          "Suggestions personnalisées : historique + tendances + autocomplétion",
+          "Navigation vers écran de résultats avec paramètre de recherche",
+          "Accessibilité et modes dégradés pour connexion faible"
+        ],
+        icon: "fa-check-double"
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(slide) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
+            <i class="fas ${slide.icon || 'fa-search'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
+            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
+            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">Autocomplétion · Historique · Personnalisation</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "objectives") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
+            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+            </div>
+            <ul class="space-y-4 flex-1">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Naviguez pour maîtriser la recherche avancée</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "content") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "summary") {
+        return `
+          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
+            <div class="text-center">
+              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+              <ul class="text-left max-w-md mx-auto space-y-3">
+                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
+                <i class="fas fa-mobile-alt"></i> Une recherche efficace = plus de ventes !
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `<div class="p-8 text-red-500">Erreur de contenu</div>`;
+    }
+
+    function updateSlide() {
+      const slideHtml = renderSlide(slidesData[currentIndex]);
+      $('#slides-container').fadeOut(150, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      let indicatorsHtml = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+      }
+      $('#slide-indicators').html(indicatorsHtml);
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlide();
+      } else {
+        alert('🎉 Félicitations ! Vous savez implémenter une recherche complète avec autocomplétion, historique et suggestions. À vous de jouer !');
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    $(document).ready(function() {
+      updateSlide();
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      
+      $(document).on('click', '.indicator-dot', function() {
+        const idx = $(this).data('index');
+        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
+          currentIndex = idx;
+          updateSlide();
+        }
+      });
+      
+      // Swipe mobile
+      let touchStartX = 0, touchEndX = 0;
+      const container = document.getElementById('slides-container');
+      if (container) {
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        });
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) nextSlide();
+          if (touchEndX > touchStartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

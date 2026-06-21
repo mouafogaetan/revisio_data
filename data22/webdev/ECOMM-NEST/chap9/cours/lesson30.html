@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 30 : Wishlist (Liste de souhaits) | API E-commerce</title>
+  <!-- Tailwind CSS + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body { background: #f5f7fb; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .slide-card { transition: all 0.2s ease; }
+    .progress-fill { transition: width 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
+    pre { white-space: pre-wrap; word-break: break-word; tab-size: 2; }
+    button:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; }
+    @media (max-width: 640px) {
+      .slide-content { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-3 md:px-5 py-5 md:py-8">
+    <!-- Barre sticky -->
+    <div class="sticky top-0 z-20 bg-white/85 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-6 flex flex-wrap items-center justify-between gap-3 border border-gray-100">
+      <div class="flex items-center gap-3">
+        <span class="bg-gradient-to-r from-rose-600 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">NestJS • E-commerce</span>
+        <span class="text-gray-600 text-sm font-medium hidden sm:inline-block">Leçon 30 : Wishlist</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="slideCounter" class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">1 / 7</span>
+        <div class="hidden sm:block w-36 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div id="progressFill" class="progress-fill h-full bg-rose-500 rounded-full" style="width: 14%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="slidesContainer" class="relative"></div>
+
+    <!-- Navigation slides -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Précédent
+      </button>
+      <span class="text-xs text-gray-400 hidden md:block">← / →  ou glisser</span>
+      <button id="nextSlide" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        Suivant
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+
+    <div class="text-center text-gray-400 text-xs mt-8 pt-4 border-t border-gray-200">
+      🇨🇲 Cours API e-commerce — Enseignant au Cameroun | Wishlist : favoris, relation ManyToMany
+    </div>
+  </div>
+
+  <script>
+    // Slides pour la leçon 30 (lesson30) : Wishlist, ManyToMany, ajout/suppression
+    const slidesData = [
+      { // Slide 1 - Titre
+        type: "title",
+        title: "❤️ Liste de souhaits (Wishlist)",
+        subtitle: "Favoris, relation ManyToMany user-product, ajout et suppression",
+        badge: "Leçon 30 • NestJS + TypeORM",
+        desc: "Permettez à vos utilisateurs de sauvegarder leurs produits préférés et d'y accéder facilement."
+      },
+      { // Slide 2 - Objectifs (selon programme)
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        items: [
+          "Créer une entité Wishlist avec relation ManyToMany entre User et Product",
+          "Implémenter l'ajout de produits aux favoris",
+          "Implémenter la suppression de produits des favoris"
+        ]
+      },
+      { // Slide 3 - Modélisation ManyToMany
+        type: "content",
+        title: "📐 1. Relation ManyToMany : User ⇄ Product",
+        text: "Un utilisateur peut avoir plusieurs produits favoris, et un produit peut être favori de plusieurs utilisateurs. C'est une relation ManyToMany.",
+        list: [
+          "Table de liaison `user_wishlist_product` avec user_id et product_id.",
+          "TypeORM permet de gérer cela avec `@ManyToMany` et `@JoinTable()`.",
+          "Pas besoin d'entité intermédiaire sauf si on veut des champs supplémentaires (date d'ajout)."
+        ],
+        example: "@ManyToMany(() => Product)\n@JoinTable({ name: 'user_wishlist_products' })\nproducts: Product[];",
+        note: "💡 On place généralement la relation du côté de User car c'est l'agrégat principal."
+      },
+      { // Slide 4 - Entités TypeORM complètes
+        type: "code-example",
+        title: "🏗️ 2. Implémentation des entités",
+        code: `// user.entity.ts
+import { Entity, Column, ManyToMany, JoinTable } from 'typeorm';
+import { Product } from '../products/product.entity';
+
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  email: string;
+
+  // ... autres champs
+
+  @ManyToMany(() => Product, { cascade: true })
+  @JoinTable({
+    name: 'user_wishlist_products',
+    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'product_id', referencedColumnName: 'id' }
+  })
+  wishlistProducts: Product[];
+}
+
+// product.entity.ts (extrait)
+@Entity()
+export class Product {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  // relation inverse (optionnelle)
+  @ManyToMany(() => User, user => user.wishlistProducts)
+  usersWhoFavorited: User[];
+}`,
+        explanation: "✅ La table `user_wishlist_products` est créée automatiquement par TypeORM. La relation inverse permet de savoir quels utilisateurs ont mis un produit en favori (optionnel mais utile pour les stats)."
+      },
+      { // Slide 5 - Service : ajouter aux favoris
+        type: "code-example",
+        title: "➕ 3. Ajouter un produit à la wishlist",
+        code: `// wishlist.service.ts
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../users/user.entity';
+import { Product } from '../products/product.entity';
+
+@Injectable()
+export class WishlistService {
+  constructor(
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
+    @InjectRepository(Product)
+    private productRepo: Repository<Product>,
+  ) {}
+
+  async addToWishlist(userId: number, productId: number): Promise<User> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['wishlistProducts'],
+    });
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+    const product = await this.productRepo.findOne({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+
+    // Vérifier si déjà présent pour éviter les doublons
+    const alreadyExists = user.wishlistProducts.some(p => p.id === productId);
+    if (!alreadyExists) {
+      user.wishlistProducts.push(product);
+      await this.userRepo.save(user);
+    }
+    return user;
+  }
+}`,
+        explanation: "✅ On récupère l'utilisateur avec ses produits favoris (relation chargée). On vérifie que le produit existe, puis on l'ajoute au tableau s'il n'y est pas déjà. La cascade sauvegarde la liaison dans la table pivot."
+      },
+      { // Slide 6 - Service : supprimer des favoris
+        type: "code-example",
+        title: "➖ 4. Supprimer un produit de la wishlist",
+        code: `// wishlist.service.ts (suite)
+async removeFromWishlist(userId: number, productId: number): Promise<User> {
+  const user = await this.userRepo.findOne({
+    where: { id: userId },
+    relations: ['wishlistProducts'],
+  });
+  if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+  user.wishlistProducts = user.wishlistProducts.filter(
+    product => product.id !== productId
+  );
+  return this.userRepo.save(user);
+}
+
+// Option : récupérer la wishlist
+async getWishlist(userId: number): Promise<Product[]> {
+  const user = await this.userRepo.findOne({
+    where: { id: userId },
+    relations: ['wishlistProducts'],
+  });
+  if (!user) throw new NotFoundException();
+  return user.wishlistProducts;
+}`,
+        explanation: "✅ La suppression se fait en filtrant le tableau des produits favoris. On sauvegarde ensuite l'utilisateur. TypeORM supprime automatiquement les entrées correspondantes dans la table de liaison."
+      },
+      { // Slide 7 - Récapitulatif & bonnes pratiques
+        type: "recap",
+        title: "✅ Récapitulatif & astuces pratiques",
+        items: [
+          "Relation ManyToMany via `@ManyToMany` et `@JoinTable` du côté propriétaire (User).",
+          "Ajout : push dans le tableau existant (après vérification des doublons).",
+          "Suppression : filter + save. TypeORM gère la table pivot.",
+          "Pensez à charger les relations avec `relations: ['wishlistProducts']` pour éviter les erreurs.",
+          "Optionnel : ajouter un champ `createdAt` dans la table pivot via une entité intermédiaire personnalisée."
+        ],
+        finalTip: "🧠 Pour les e-commerces à fort trafic, n'oubliez pas d'indexer les clés étrangères (user_id, product_id) dans la table de liaison. Évitez de charger la wishlist à chaque requête inutilement."
+      }
+    ];
+
+    let currentSlide = 0;
+    const total = slidesData.length;
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/\\n/g, '\n');
+    }
+
+    function renderSlide(index) {
+      const data = slidesData[index];
+      const container = $("#slidesContainer");
+      container.empty();
+
+      let html = `<div class="slide-card bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all">`;
+      html += `<div class="bg-gradient-to-r from-rose-50 to-pink-50 px-5 py-2 border-b border-rose-100 flex justify-between items-center">
+                  <span class="text-xs font-mono text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">slide ${index+1}/${total}</span>
+                  <span class="text-rose-400 text-xs">wishlist & favoris</span>
+                </div>`;
+
+      if (data.type === "title") {
+        html += `<div class="p-6 md:p-10 text-center">
+                  <div class="inline-block mb-3 px-4 py-1 bg-rose-100 text-rose-800 rounded-full text-sm font-bold">${data.badge}</div>
+                  <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-5">${data.title}</h1>
+                  <p class="text-xl text-gray-600 max-w-2xl mx-auto">${data.subtitle}</p>
+                  <div class="mt-7 text-gray-500 border-t border-gray-200 inline-block pt-3">${data.desc}</div>
+                  <div class="mt-6 flex justify-center"><div class="w-16 h-1 bg-rose-400 rounded-full"></div></div>
+                </div>`;
+      }
+      else if (data.type === "objectifs") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-rose-500 pl-4 mb-6">${data.title}</h2>
+                  <ul class="space-y-4">`;
+        data.items.forEach(item => {
+          html += `<li class="flex items-start gap-3"><span class="inline-flex items-center justify-center bg-green-100 text-green-700 rounded-full w-6 h-6 text-sm mt-0.5">✓</span><span class="text-gray-700 text-lg">${item}</span></li>`;
+        });
+        html += `</ul></div>`;
+      }
+      else if (data.type === "content") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="text-gray-700 leading-relaxed space-y-4 text-base">`;
+        if(data.text) html += `<p>${data.text}</p>`;
+        if(data.list) {
+          html += `<ul class="list-disc pl-6 space-y-2 mt-2">`;
+          data.list.forEach(item => html += `<li>${item}</li>`);
+          html += `</ul>`;
+        }
+        if(data.example) {
+          html += `<div class="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm mt-4 overflow-x-auto">${escapeHtml(data.example)}</div>`;
+        }
+        if(data.note) html += `<div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400 mt-4 text-yellow-800">${data.note}</div>`;
+        html += `</div></div>`;
+      }
+      else if (data.type === "code-example") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                    <div class="flex items-center gap-2 bg-gray-800 px-4 py-2 text-gray-300 text-xs font-mono"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="w-3 h-3 rounded-full bg-yellow-500"></span><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="ml-2">TypeScript / NestJS</span></div>
+                    <pre class="text-sm md:text-base text-gray-200 p-5 overflow-x-auto font-mono"><code>${escapeHtml(data.code)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-rose-50 p-4 rounded-xl text-rose-800 border-l-4 border-rose-400">${data.explanation}</div>
+                </div>`;
+      }
+      else if (data.type === "recap") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3 mb-5">📌 ${data.title}</h2>
+                  <ul class="space-y-3 mb-6">
+                    ${data.items.map(item => `<li class="flex gap-2 items-start"><span class="text-rose-500 text-xl">▹</span><span class="text-gray-700">${item}</span></li>`).join('')}
+                  </ul>
+                  <div class="bg-gradient-to-r from-rose-50 to-pink-50 p-5 rounded-2xl border border-rose-200 text-rose-900 font-medium shadow-inner">${data.finalTip}</div>
+                </div>`;
+      }
+
+      html += `</div>`;
+      container.html(html);
+
+      $("#slideCounter").text(`${index+1} / ${total}`);
+      let percent = ((index+1) / total) * 100;
+      $("#progressFill").css("width", `${percent}%`);
+      $("#prevSlide").prop("disabled", index === 0);
+      $("#nextSlide").prop("disabled", index === total-1);
+      if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    function next() { if (currentSlide < total-1) { currentSlide++; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+    function prev() { if (currentSlide > 0) { currentSlide--; renderSlide(currentSlide); window.scrollTo({ top: 0, behavior: "smooth" }); } }
+
+    $(document).ready(function() {
+      renderSlide(0);
+      $("#nextSlide").on("click", next);
+      $("#prevSlide").on("click", prev);
+      $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") { next(); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { prev(); e.preventDefault(); }
+      });
+      let touchstartX = 0;
+      $("body").on("touchstart", function(e) { touchstartX = e.originalEvent.touches[0].clientX; });
+      $("body").on("touchend", function(e) {
+        if (!touchstartX) return;
+        let endX = e.originalEvent.changedTouches[0].clientX;
+        let diff = endX - touchstartX;
+        if (Math.abs(diff) > 50) { diff > 0 ? prev() : next(); touchstartX = 0; }
+      });
+    });
+  </script>
+</body>
+</html>

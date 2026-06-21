@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Systèmes d'exploitation - Leçon 20 : Deadlocks (Interblocages)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Mermaid pour diagrammes -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            scroll-behavior: smooth;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+            scroll-margin-top: 1rem;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .code-inline {
+            background-color: #e2e8f0;
+            color: #0f172a;
+            font-family: monospace;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-size: 0.85rem;
+        }
+        .nav-dot {
+            transition: all 0.2s;
+            background-color: #cbd5e1;
+        }
+        .nav-dot.active {
+            background-color: #dc2626;
+            width: 2rem;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem;
+            }
+            .code-block {
+                font-size: 0.65rem;
+            }
+        }
+        .badge-lesson {
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 40px;
+            padding: 0.25rem 1rem;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+        .condition-card {
+            transition: transform 0.2s;
+        }
+        .condition-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-4xl mx-auto relative">
+    <!-- Indicateur de slide flottant -->
+    <div class="fixed bottom-4 right-4 z-30 bg-white/80 backdrop-blur rounded-full shadow-lg px-3 py-1 text-xs font-mono text-slate-600 hidden md:flex gap-1 items-center">
+        <i class="fas fa-deadlift text-red-600"></i> <span id="slideCounter">Slide 1 / 7</span>
+    </div>
+
+    <!-- SLIDE 1 : TITRE -->
+    <div id="slide1" class="slide p-6 md:p-10 mb-8">
+        <div class="flex flex-col items-center text-center">
+            <div class="bg-red-100 text-red-800 rounded-full px-4 py-1 text-sm font-semibold mb-4 inline-flex items-center gap-2">
+                <i class="fas fa-deadlift"></i> Leçon 20 – Chapitre 6
+            </div>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-red-700 to-rose-700 bg-clip-text text-transparent">⛓️ Deadlocks (Interblocages)</h1>
+            <p class="text-xl text-slate-600 mt-4 max-w-2xl">Conditions de Coffman, graphe d'allocation et identification</p>
+            <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-slate-500">
+                <span><i class="fas fa-clock mr-1"></i> Durée : 45 min</span>
+                <span><i class="fas fa-project-diagram mr-1"></i> Niveau : Intermédiaire</span>
+                <span><i class="fas fa-exclamation-triangle mr-1"></i> Blocages critiques</span>
+            </div>
+            <div class="mt-10 w-16 h-1 bg-red-400 rounded-full"></div>
+            <p class="mt-6 text-slate-400 text-sm italic">"Un interblocage est une situation où deux processus ou plus se bloquent mutuellement, chacun attendant une ressource détenue par l'autre."</p>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div id="slide2" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fas fa-bullseye text-3xl text-red-600"></i>
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800">🎯 Objectifs de la leçon</h2>
+        </div>
+        <ul class="space-y-4 text-slate-700 text-lg">
+            <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre les <strong>4 conditions de Coffman</strong> nécessaires à un interblocage.</span></li>
+            <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Représenter un interblocage avec un <strong>graphe d'allocation</strong> de ressources.</span></li>
+            <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Identifier des <strong>interblocages réels</strong> dans des exemples concrets.</span></li>
+        </ul>
+        <div class="mt-8 bg-red-50 rounded-xl p-4 border border-red-200 text-sm">
+            <i class="fas fa-lightbulb text-red-500 mr-2"></i> Un deadlock peut paralyser tout un système. Savoir l'identifier est essentiel pour l'administrateur système.
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : LES 4 CONDITIONS DE COFFMAN -->
+    <div id="slide3" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="fas fa-list-ol text-2xl text-red-600"></i>
+            <h2 class="text-2xl font-bold text-slate-800">📋 Les 4 conditions de Coffman</h2>
+        </div>
+        <p class="text-slate-600 mb-4">Pour qu'un interblocage se produise, les <strong>4 conditions suivantes</strong> doivent être simultanément réunies :</p>
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="condition-card bg-slate-50 p-4 rounded-xl border-l-4 border-red-500">
+                <p class="font-bold text-red-700"><i class="fas fa-lock"></i> 1. Exclusion mutuelle</p>
+                <p class="text-sm text-slate-600">Les ressources ne peuvent être utilisées que par un seul processus à la fois (ressource non partageable).</p>
+            </div>
+            <div class="condition-card bg-slate-50 p-4 rounded-xl border-l-4 border-red-500">
+                <p class="font-bold text-red-700"><i class="fas fa-hand-paper"></i> 2. Détention et attente</p>
+                <p class="text-sm text-slate-600">Un processus détient au moins une ressource et attend d'autres ressources détenues par d'autres.</p>
+            </div>
+            <div class="condition-card bg-slate-50 p-4 rounded-xl border-l-4 border-red-500">
+                <p class="font-bold text-red-700"><i class="fas fa-ban"></i> 3. Non-préemption</p>
+                <p class="text-sm text-slate-600">Les ressources ne peuvent pas être retirées de force à un processus. Seul le processus peut les libérer.</p>
+            </div>
+            <div class="condition-card bg-slate-50 p-4 rounded-xl border-l-4 border-red-500">
+                <p class="font-bold text-red-700"><i class="fas fa-sync-alt"></i> 4. Attente circulaire</p>
+                <p class="text-sm text-slate-600">Il existe une chaîne circulaire de processus où chacun attend une ressource détenue par le suivant.</p>
+            </div>
+        </div>
+        <p class="text-xs text-slate-400 mt-3"><i class="fas fa-info-circle"></i> Ces conditions ont été formalisées par Coffman, Elphick, Shoshani en 1971.</p>
+    </div>
+
+    <!-- SLIDE 4 : GRAPHE D'ALLOCATION (Mermaid) -->
+    <div id="slide4" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="fas fa-project-diagram text-2xl text-red-600"></i>
+            <h2 class="text-2xl font-bold text-slate-800">📊 Graphe d'allocation de ressources</h2>
+        </div>
+        <p class="text-slate-600 mb-3">Le graphe d'allocation permet de visualiser les interblocages :</p>
+        <div class="bg-white p-3 rounded-xl border border-gray-200">
+            <div class="mermaid">
+                graph LR
+                    subgraph "Situation d'interblocage"
+                        P1((Processus A))
+                        P2((Processus B))
+                        R1["<i class='fas fa-database'></i> Ressource 1"]
+                        R2["<i class='fas fa-database'></i> Ressource 2"]
+                        
+                        P1 -->|demande| R2
+                        R2 -->|détenue par| P2
+                        P2 -->|demande| R1
+                        R1 -->|détenue par| P1
+                    end
+            </div>
+        </div>
+        <div class="mt-4 text-sm text-slate-600">
+            <p><strong>Légende :</strong></p>
+            <ul class="list-disc pl-5 mt-1">
+                <li><span class="font-mono">Ressource → Processus</span> : la ressource est <strong>détenue</strong> par le processus.</li>
+                <li><span class="font-mono">Processus → Ressource</span> : le processus <strong>demande</strong> la ressource.</li>
+                <li>Un <strong>cycle</strong> dans le graphe indique un interblocage potentiel.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : EXEMPLES CONCRETS D'INTERBLOCAGE -->
+    <div id="slide5" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="fas fa-microchip text-2xl text-red-600"></i>
+            <h2 class="text-2xl font-bold text-slate-800">💡 Exemples concrets</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-blue-50 p-4 rounded-xl">
+                <p class="font-bold text-blue-800">🔹 Exemple 1 : Deux processus et deux ressources</p>
+                <p class="text-sm mt-1">Processus A détient l'imprimante et demande le scanner. Processus B détient le scanner et demande l'imprimante → <strong class="text-red-600">Deadlock !</strong></p>
+                <div class="text-xs font-mono bg-white p-2 rounded mt-2">
+                    P1: hold(Printer), wait(Scanner)<br>
+                    P2: hold(Scanner), wait(Printer)
+                </div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-xl">
+                <p class="font-bold text-green-800">🔹 Exemple 2 : Base de données</p>
+                <p class="text-sm mt-1">Transaction T1 verrouille la ligne A puis demande la ligne B. Transaction T2 verrouille la ligne B puis demande la ligne A → <strong class="text-red-600">Deadlock</strong> (détecté par le SGBD).</p>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-xl">
+                <p class="font-bold text-purple-800">🔹 Exemple 3 : Système de fichiers</p>
+                <p class="text-sm mt-1">Processus P1 verrouille le fichier X et attend le fichier Y. Processus P2 verrouille le fichier Y et attend le fichier X.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : EXERCICE - IDENTIFIER UN DEADLOCK -->
+    <div id="slide6" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="fas fa-search text-2xl text-red-600"></i>
+            <h2 class="text-2xl font-bold text-slate-800">🔍 Exercice : Identifier un deadlock</h2>
+        </div>
+        <p class="text-slate-600 mb-3">Analysez la situation suivante et répondez aux questions :</p>
+        <div class="bg-slate-100 p-4 rounded-xl mb-4">
+            <p class="font-semibold">Situation :</p>
+            <p class="text-sm mt-1">Trois processus A, B, C. Deux ressources R1 et R2.</p>
+            <ul class="list-disc pl-5 text-sm mt-2">
+                <li>A détient R1 et demande R2.</li>
+                <li>B détient R2 et demande R1.</li>
+                <li>C détient une clé USB (ressource R3) et ne demande rien d'autre.</li>
+            </ul>
+        </div>
+        <div class="space-y-3">
+            <p class="text-sm"><strong class="text-red-600">Question 1 :</strong> Y a-t-il un deadlock ? Justifiez en utilisant les 4 conditions de Coffman.</p>
+            <textarea rows="3" class="w-full p-2 border rounded-lg text-sm" placeholder="Votre réponse..."></textarea>
+            <details class="mt-2">
+                <summary class="text-sm text-red-600 cursor-pointer font-semibold">Voir la réponse</summary>
+                <div class="text-sm text-slate-700 mt-2 p-3 bg-green-50 rounded-lg">
+                    <p><strong>Oui, il y a un deadlock entre A et B.</strong> C n'est pas impliqué car il ne demande rien.</p>
+                    <p><strong>Conditions vérifiées :</strong></p>
+                    <ul class="list-disc pl-5 mt-1">
+                        <li>Exclusion mutuelle : R1 et R2 ne sont pas partageables.</li>
+                        <li>Détention et attente : A détient R1 et attend R2 ; B détient R2 et attend R1.</li>
+                        <li>Non-préemption : les ressources ne peuvent pas être retirées.</li>
+                        <li>Attente circulaire : A → R2 → B → R1 → A.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : RÉCAPITULATIF & CONCLUSION -->
+    <div id="slide7" class="slide p-6 md:p-10 mb-8">
+        <div class="flex items-center gap-3 mb-5">
+            <i class="fas fa-clipboard-list text-2xl text-red-600"></i>
+            <h2 class="text-2xl font-bold text-slate-800">📌 Récapitulatif</h2>
+        </div>
+        <div class="bg-amber-50 p-4 rounded-xl mb-4">
+            <p class="font-semibold text-amber-800"><i class="fas fa-graduation-cap"></i> Points clés à retenir :</p>
+            <ul class="list-disc pl-5 text-sm text-slate-700 mt-2 space-y-1">
+                <li>Les <strong>4 conditions de Coffman</strong> doivent être toutes réunies pour qu'un deadlock existe.</li>
+                <li>Le <strong>graphe d'allocation</strong> permet de visualiser les interblocages (un cycle = deadlock).</li>
+                <li>Les deadlocks surviennent dans les systèmes multi-utilisateurs, bases de données, systèmes de fichiers.</li>
+                <li>Savoir les identifier est la première étape avant de les prévenir ou les résoudre.</li>
+            </ul>
+        </div>
+        <div class="bg-red-50 p-4 rounded-xl border-l-8 border-red-500">
+            <p class="font-semibold text-red-800"><i class="fas fa-lightbulb"></i> À retenir :</p>
+            <p class="text-sm">Si une seule des 4 conditions de Coffman est absente, l'interblocage est impossible. C'est le principe des stratégies de prévention.</p>
+        </div>
+        <div class="mt-4 text-center text-sm text-slate-400">
+            <i class="fas fa-deadlift"></i> Prochaine leçon : Prévention et détection des deadlocks (Algorithme du banquier)
+        </div>
+    </div>
+
+    <!-- Navigation et dots -->
+    <div class="fixed bottom-6 left-0 right-0 flex justify-center gap-4 z-30">
+        <button id="prevSlide" class="bg-white/90 backdrop-blur px-5 py-2 rounded-full shadow-md text-red-700 font-semibold hover:bg-red-50 transition disabled:opacity-40"><i class="fas fa-chevron-left"></i> Précédent</button>
+        <button id="nextSlide" class="bg-red-600 text-white px-5 py-2 rounded-full shadow-md hover:bg-red-700 transition font-semibold">Suivant <i class="fas fa-chevron-right"></i></button>
+    </div>
+    <div class="flex justify-center gap-2 mt-10 mb-6 flex-wrap">
+        <div id="dotsContainer" class="flex gap-2"></div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let slides = ['#slide1', '#slide2', '#slide3', '#slide4', '#slide5', '#slide6', '#slide7'];
+        let currentIndex = 0;
+        const total = slides.length;
+
+        // Initialiser Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { background: '#ffffff', primaryColor: '#dc2626' } });
+
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= total) index = total - 1;
+            currentIndex = index;
+            slides.forEach((slide, i) => {
+                if (i === currentIndex) $(slide).fadeIn(200).removeClass('hidden');
+                else $(slide).fadeOut(100).addClass('hidden');
+            });
+            updateDots();
+            updateCounter();
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === total-1);
+        }
+
+        function updateDots() {
+            $('#dotsContainer').empty();
+            for(let i=0; i<total; i++) {
+                let dot = $('<button>', {
+                    class: `w-2 h-2 rounded-full transition-all ${i === currentIndex ? 'bg-red-600 w-6' : 'bg-gray-300 hover:bg-gray-400'}`,
+                    click: function() { showSlide(i); }
+                });
+                $('#dotsContainer').append(dot);
+            }
+        }
+
+        function updateCounter() {
+            $('#slideCounter').text(`Slide ${currentIndex+1} / ${total}`);
+        }
+
+        $('#prevSlide').on('click', () => showSlide(currentIndex - 1));
+        $('#nextSlide').on('click', () => showSlide(currentIndex + 1));
+
+        // Masquer tous les slides sauf le premier
+        slides.forEach((slide, idx) => {
+            if (idx !== 0) $(slide).hide();
+            else $(slide).show();
+        });
+        updateDots();
+        updateCounter();
+        $('#prevSlide').prop('disabled', true);
+
+        // Navigation clavier
+        $(document).keydown(function(e) {
+            if (e.key === 'ArrowLeft') { $('#prevSlide').click(); e.preventDefault(); }
+            if (e.key === 'ArrowRight') { $('#nextSlide').click(); e.preventDefault(); }
+        });
+    });
+</script>
+</body>
+</html>

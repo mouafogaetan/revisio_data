@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 7 : DTO et validation avec class-validator (NestJS)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+            border-radius: 1.8rem;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: #1e293b;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .badge-lesson {
+            background: #7c3aed;
+        }
+        @media (max-width: 640px) {
+            .slide-card { border-radius: 1.25rem; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+<div class="max-w-4xl mx-auto relative">
+    <!-- Contexte matière -->
+    <div class="mb-4 flex flex-wrap justify-between gap-2 items-center">
+        <div class="text-xs md:text-sm font-medium bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm text-gray-600">
+            🧩 NestJS · Framework Node.js progressif
+        </div>
+        <div class="text-xs bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full">
+            Chapitre 3 · Valider et transformer les entrées
+        </div>
+    </div>
+
+    <!-- Carte principale slide -->
+    <div class="slide-card bg-white shadow-xl border border-gray-100 p-5 md:p-8">
+        <div class="flex justify-between items-center mb-5 pb-2 border-b border-gray-100 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="badge-lesson text-white text-xs font-bold px-3 py-1 rounded-full">Leçon 7 / 36</span>
+                <span class="text-gray-500 text-sm">📦 DTO & validation avancée</span>
+            </div>
+            <div class="text-sm text-gray-400" id="slideCounter">Slide 1 / <span id="totalSlides">0</span></div>
+        </div>
+
+        <!-- zone de contenu dynamique -->
+        <div id="slideContent" class="min-h-[500px] transition-all duration-200"></div>
+
+        <!-- Navigation + progression -->
+        <div class="flex justify-between items-center mt-8 pt-5 border-t border-gray-100 gap-3">
+            <button id="prevSlide" class="nav-btn bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-5 rounded-full shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+                ← Précédent
+            </button>
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                <div id="progressFill" class="progress-bar h-full bg-purple-600 rounded-full w-0"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-purple-700 hover:bg-purple-800 text-white font-semibold py-2 px-6 rounded-full shadow-md transition">
+                Suivant →
+            </button>
+        </div>
+    </div>
+    <p class="text-center text-xs text-gray-400 mt-6">📱 Navigation tactile (glisser) ou boutons – cours adapté mobile</p>
+</div>
+
+<script>
+    // ----- Définition des slides pour la leçon 7 : DTO, class-validator, messages personnalisés -----
+    // Objectifs lesson7 :
+    // 0: Créer des DTO avec des classes TypeScript
+    // 1: Utiliser class-validator (IsString, IsInt, IsEmail)
+    // 2: Personnaliser les messages d'erreur
+    const slides = [
+        {
+            type: "title",
+            title: "📦 DTO & validation avec class-validator",
+            subtitle: "Protégez votre API avec des objets de transfert de données robustes",
+            emoji: "✅🛡️",
+            description: "Apprenez à définir des DTO (Data Transfer Objects) et à valider automatiquement les entrées utilisateur avec class-validator dans NestJS."
+        },
+        {
+            type: "objectives",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Créer des DTO sous forme de classes TypeScript pour structurer les données entrantes",
+                "Appliquer les décorateurs de validation (IsString, IsInt, IsEmail, MinLength, etc.)",
+                "Personnaliser les messages d'erreur pour une API compréhensible par le frontend"
+            ]
+        },
+        {
+            type: "concept",
+            title: "📌 Qu'est-ce qu'un DTO ?",
+            description: "Un DTO (Data Transfer Object) définit la forme des données envoyées au serveur (requête) ou renvoyées au client.",
+            features: [
+                "✅ Typage fort : propriétés et types explicites avec TypeScript",
+                "✅ Validation automatique via class-validator / class-transformer",
+                "✅ Séparation claire entre l'entité (base de données) et l'API",
+                "✅ Réduction des failles de sécurité (pas de propriétés indésirables)"
+            ],
+            note: "💡 NestJS encourage l'utilisation de classes pour les DTO plutôt que des interfaces, car les décorateurs de validation nécessitent des classes."
+        },
+        {
+            type: "code_install",
+            title: "⚙️ Installation des dépendances",
+            code: "npm install class-validator class-transformer",
+            note: "Ces deux packages sont indispensables : class-validator fournit les décorateurs de validation, class-transformer convertit les objets bruts en instances de classes."
+        },
+        {
+            type: "dto_example",
+            title: "📝 Créer un DTO CreateUserDto",
+            codeBlock: `import { IsString, IsEmail, MinLength, IsOptional } from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  @MinLength(2, { message: 'Le nom doit comporter au moins 2 caractères' })
+  name: string;
+
+  @IsEmail({}, { message: 'Email invalide' })
+  email: string;
+
+  @IsString()
+  @MinLength(6, { message: 'Le mot de passe doit faire au moins 6 caractères' })
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
+}`,
+            explication: "Les décorateurs s'exécutent automatiquement si ValidationPipe est actif. `@IsOptional()` autorise l'absence du champ."
+        },
+        {
+            type: "validation_pipe",
+            title: "🔧 Activer la validation globale",
+            codeBlock: `// main.ts
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,            // supprime les propriétés non définies dans le DTO
+    forbidNonWhitelisted: true, // rejette la requête si des propriétés inconnues
+    transform: true,            // transforme l'objet brut en instance du DTO
+  }));
+  await app.listen(3000);
+}
+bootstrap();`,
+            tip: "💡 `whitelist: true` est essentiel pour éviter l'injection de champs malveillants."
+        },
+        {
+            type: "custom_messages",
+            title: "✏️ Personnalisation des messages d'erreur",
+            examples: [
+                "`@MinLength(3, { message: 'Le titre doit contenir au moins 3 caractères' })`",
+                "`@IsInt({ message: 'La quantité doit être un nombre entier' })`",
+                "`@IsEnum(Role, { message: 'Le rôle doit être admin ou user' })`"
+            ],
+            globalTip: "Vous pouvez aussi créer des messages dynamiques avec des fonctions ou utiliser i18n."
+        },
+        {
+            type: "advanced_validation",
+            title: "🧠 Validation avancée avec @ValidateIf et classes custom",
+            codeBlock: `import { ValidateIf, registerDecorator } from 'class-validator';
+
+export class UpdateUserDto {
+  @ValidateIf(o => o.password !== undefined)
+  @MinLength(6)
+  password?: string;
+}
+
+// Validateur personnalisé
+function IsPhoneNumber(validationOptions?: any) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'isPhoneNumber',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: any) {
+          return typeof value === 'string' && /^[0-9+ ]{8,15}$/.test(value);
+        },
+        defaultMessage() {
+          return 'Numéro de téléphone invalide';
+        }
+      }
+    });
+  };
+}`,
+            note: "Les validateurs personnalisés permettent des règles métier complexes (ex: code promo, mot de passe avec chiffres)."
+        },
+        {
+            type: "tips",
+            title: "💡 Bonnes pratiques",
+            tips: [
+                "📌 Nommez vos DTO avec le suffixe `Dto` (CreateProductDto, UpdateUserDto)",
+                "📌 Utilisez `PartialType` depuis `@nestjs/swagger` ou `@nestjs/mapped-types` pour les mises à jour partielles",
+                "📌 Séparez les DTO de création et de mise à jour (CreateXxxDto / UpdateXxxDto)",
+                "📌 Évitez d'exposer l'entité TypeORM directement dans le contrôleur",
+                "📌 Testez vos DTO avec des assertions unitaires (ex: `validateSync` de class-validator)"
+            ]
+        },
+        {
+            type: "quiz",
+            title: "📝 Vérification des acquis",
+            question: "Que se passe-t-il si un client envoie une propriété supplémentaire non définie dans le DTO et que `whitelist: true` est activé dans ValidationPipe ?",
+            options: [
+                "La propriété est automatiquement ajoutée à l'objet DTO",
+                "La propriété est silencieusement supprimée de l'objet avant validation",
+                "NestJS lève une erreur 500",
+                "La requête est bloquée avec une erreur 400 si `forbidNonWhitelisted: true` est aussi activé ; sinon elle est simplement supprimée"
+            ],
+            correctIndex: 3,
+            explanation: "✅ Avec `whitelist: true`, les propriétés non déclarées dans le DTO sont supprimées. Si `forbidNonWhitelisted: true` est ajouté, la requête est rejetée (erreur 400). C'est une sécurité recommandée pour éviter l'injection de champs."
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Récapitulatif",
+            summary: "Les DTO associés à class-validator et ValidationPipe constituent le socle de validation des entrées dans NestJS. Ils améliorent la fiabilité, la sécurité et la maintenabilité de votre API.",
+            nextStep: "Prochaine leçon : Configurer ValidationPipe globalement et comprendre whitelist / transform."
+        }
+    ];
+
+    let currentIndex = 0;
+    const total = slides.length;
+    $("#totalSlides").text(total);
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        let html = '';
+
+        if (slide.type === 'title') {
+            html = `
+                <div class="text-center py-4 md:py-8">
+                    <div class="text-6xl mb-3">${slide.emoji}</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-purple-800 to-indigo-700 bg-clip-text text-transparent">${slide.title}</h1>
+                    <p class="text-gray-600 text-base md:text-lg mt-3 max-w-xl mx-auto">${slide.subtitle}</p>
+                    <div class="mt-5 bg-purple-50 inline-block px-5 py-2 rounded-full text-purple-800 text-sm">⏱️ 20 min · validation API</div>
+                    <div class="mt-4 text-gray-500">${slide.description}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'objectives') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-6"><span class="text-3xl">📌</span> ${slide.title}</h2>
+                    <ul class="space-y-4">
+                        ${slide.objectives.map(obj => `<li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl"><span class="text-purple-500 text-xl">✓</span> <span class="text-gray-700">${obj}</span></li>`).join('')}
+                    </ul>
+                    <div class="mt-6 p-4 bg-indigo-50 rounded-2xl border-l-4 border-purple-400 text-sm">
+                        💡 À la fin, vous saurez protéger votre API contre les données invalides.
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'concept') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-4">${slide.description}</p>
+                    <ul class="space-y-2 mb-5 bg-gray-50 p-4 rounded-xl">
+                        ${slide.features.map(f => `<li class="flex gap-2"><span class="text-purple-500">✨</span> <span>${f}</span></li>`).join('')}
+                    </ul>
+                    <div class="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm">${slide.note}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'code_install') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <pre><code class="language-bash">${escapeHtml(slide.code)}</code></pre>
+                    <div class="mt-3 text-gray-700 text-sm">${slide.note}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'dto_example') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <pre><code class="language-typescript">${escapeHtml(slide.codeBlock)}</code></pre>
+                    <div class="mt-3 text-gray-700 text-sm">${slide.explication}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'validation_pipe') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <pre><code class="language-typescript">${escapeHtml(slide.codeBlock)}</code></pre>
+                    <div class="mt-3 bg-green-50 p-3 rounded-xl text-green-800 text-sm">${slide.tip}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'custom_messages') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <ul class="space-y-2 bg-gray-50 p-4 rounded-2xl">
+                        ${slide.examples.map(ex => `<li class="font-mono text-sm">📌 ${ex}</li>`).join('')}
+                    </ul>
+                    <div class="mt-4 text-gray-600 text-sm">${slide.globalTip}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'advanced_validation') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <pre><code class="language-typescript">${escapeHtml(slide.codeBlock)}</code></pre>
+                    <div class="mt-3 text-gray-700 text-sm">${slide.note}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'tips') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-5">${slide.title}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${slide.tips.map(t => `<div class="bg-white border border-gray-200 p-3 rounded-xl shadow-sm flex gap-2"><span>💡</span> ${t}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'quiz') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <div class="bg-indigo-50 p-5 rounded-2xl">
+                        <p class="font-semibold text-gray-800 text-lg mb-4">❓ ${slide.question}</p>
+                        <div class="space-y-3" id="quizOptionsContainer">
+                            ${slide.options.map((opt, idx) => `<label class="flex items-center gap-3 p-3 bg-white rounded-xl border cursor-pointer hover:bg-gray-50"><input type="radio" name="quizRadio" value="${idx}" class="w-4 h-4 text-purple-600"><span>${opt}</span></label>`).join('')}
+                        </div>
+                        <button id="quizSubmitBtn" class="mt-5 bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700">Vérifier ma réponse</button>
+                        <div id="quizFeedbackMsg" class="mt-4 text-sm"></div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'conclusion') {
+            html = `
+                <div class="text-center py-6">
+                    <div class="text-5xl mb-3">🏁</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-5">${slide.summary}</p>
+                    <div class="bg-green-50 p-4 rounded-2xl text-green-800 text-sm">🚀 ${slide.nextStep}</div>
+                </div>
+            `;
+        }
+
+        $("#slideContent").html(html);
+        $("#slideCounter").text(`Slide ${index+1} / ${total}`);
+        const progressPercent = ((index) / (total - 1)) * 100;
+        $("#progressFill").css("width", `${progressPercent}%`);
+        $("#prevSlide").prop("disabled", index === 0);
+        $("#nextSlide").prop("disabled", index === total-1);
+
+        if (slide.type === 'quiz') {
+            $("#quizSubmitBtn").off('click').on('click', function() {
+                const selectedVal = $("input[name='quizRadio']:checked").val();
+                if (selectedVal === undefined) {
+                    $("#quizFeedbackMsg").html('<span class="text-orange-600">📢 Veuillez choisir une réponse.</span>');
+                    return;
+                }
+                const isCorrect = parseInt(selectedVal) === slide.correctIndex;
+                if (isCorrect) {
+                    $("#quizFeedbackMsg").html(`<span class="text-green-700 bg-green-100 p-2 rounded-lg inline-block">✅ ${slide.explanation}</span>`);
+                } else {
+                    $("#quizFeedbackMsg").html(`<span class="text-red-600 bg-red-50 p-2 rounded-lg inline-block">❌ ${slide.explanation}</span>`);
+                }
+            });
+        }
+    }
+
+    $("#nextSlide").on("click", () => { if (currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    $("#prevSlide").on("click", () => { if (currentIndex > 0) { currentIndex--; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    
+    let touchStartX = 0;
+    $("#slideContent").on("touchstart", (e) => { touchStartX = e.originalEvent.touches[0].clientX; });
+    $("#slideContent").on("touchend", (e) => {
+        if (!touchStartX) return;
+        const diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && currentIndex > 0) { currentIndex--; renderSlide(currentIndex); }
+            else if (diff < 0 && currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        touchStartX = 0;
+    });
+
+    renderSlide(0);
+</script>
+</body>
+</html>

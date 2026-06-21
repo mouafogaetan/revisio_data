@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 16 : Nettoyer des effets avec useEffect | React</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styles personnalisés pour améliorer la lisibilité */
+        body {
+            background: #f0f9ff;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin: 1.2rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .note-warning {
+            background: #fffbeb;
+            border-left: 5px solid #f59e0b;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        .note-success {
+            background: #ecfdf5;
+            border-left: 5px solid #10b981;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        .badge-cleanup {
+            background: #e0e7ff;
+            color: #3730a3;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            display: inline-block;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+    </style>
+    <!-- jQuery & MathJax -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Zone d'affichage dynamique des slides -->
+        <div id="slides-container" class="relative"></div>
+
+        <!-- Navigation entre slides -->
+        <div class="flex justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed border border-slate-300 text-sm md:text-base">◀ Précédent</button>
+            <div class="text-sm bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm text-slate-600">
+                Slide <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+            </div>
+            <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <footer class="text-center text-slate-400 text-xs py-5 border-t border-slate-200 mt-6">
+        🇨🇲 Cours React – Enseignant Cameroun | Leçon 16 : Cleanup dans useEffect
+    </footer>
+
+    <script>
+        // Contenu des slides pour la leçon 16 (nettoyage des effets)
+        // Slide 0 : Titre
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Pourquoi a-t-on besoin de nettoyer un effet ?
+        // Slide 3 : La fonction de cleanup (retour de useEffect)
+        // Slide 4 : Exemple 1 : nettoyer un timer (setInterval)
+        // Slide 5 : Exemple 2 : se désabonner d'un événement (scroll/resize)
+        // Slide 6 : Exemple 3 : annuler une requête API avec AbortController
+        // Slide 7 : Quand la fonction de cleanup s'exécute-t-elle ?
+        // Slide 8 : Bonnes pratiques et résumé
+        
+        const slidesData = [
+            {
+                type: "title",
+                icon: "🧹",
+                title: "Nettoyer des effets avec useEffect",
+                subtitle: "Évitez les fuites mémoire et les comportements inattendus",
+                badge: "Leçon 16 · Niveau Intermédiaire"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                list: [
+                    "✅ Comprendre pourquoi certains effets doivent être nettoyés (timers, abonnements, requêtes)",
+                    "✅ Utiliser la fonction de retour (cleanup) dans useEffect",
+                    "✅ Appliquer le nettoyage pour des setInterval, des écouteurs d'événements et des requêtes asynchrones",
+                    "✅ Maîtriser le moment d'exécution de la fonction de cleanup",
+                    "✅ Éviter les fuites mémoire et les appels inutiles"
+                ]
+            },
+            {
+                type: "content",
+                title: "🧠 Pourquoi a-t-on besoin de nettoyer un effet ?",
+                content: `
+                    <p>Certains effets créent des ressources qui continuent de vivre après que le composant a été démonté ou après que l'effet a été ré-exécuté. Sans nettoyage, cela peut causer :</p>
+                    <ul class="list-disc pl-6 mt-3 space-y-1">
+                        <li><span class="font-semibold">Des fuites mémoire</span> : des timers ou des écouteurs d'événements qui tournent indéfiniment.</li>
+                        <li><span class="font-semibold">Des erreurs</span> : tenter de mettre à jour l'état d'un composant qui n'existe plus.</li>
+                        <li><span class="font-semibold">Des comportements inattendus</span> : multiples abonnements qui s'accumulent.</li>
+                    </ul>
+                    <div class="note-warning mt-3">
+                        ⚠️ <strong>Exemple typique</strong> : Un composant qui démarre un <code>setInterval</code> et qui est démonté. Le timer continue de tourner en arrière-plan, consommant des ressources et appelant <code>setState</code> sur un composant inexistant → erreur.
+                    </div>
+                    <p>La solution : retourner une <strong>fonction de nettoyage (cleanup)</strong> dans <code>useEffect</code>.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔧 La fonction de cleanup : syntaxe",
+                content: `
+                    <p>La fonction que tu retournes dans <code>useEffect</code> est appelée automatiquement par React avant le démontage du composant, et avant chaque nouvelle exécution de l'effet (sauf au premier rendu).</p>
+                    <div class="code-block">
+                        useEffect(() => {
+                          // 1. Créer l'effet (abonnement, timer, requête...)
+                          const intervalId = setInterval(() => {
+                            console.log("Tick");
+                          }, 1000);
+                          
+                          // 2. Retourner une fonction de nettoyage
+                          return () => {
+                            clearInterval(intervalId); // Nettoyage
+                            console.log("Timer nettoyé");
+                          };
+                        }, []); // Tableau de dépendances
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-lg mt-2">
+                        📌 <strong>À retenir</strong> : La fonction de cleanup est exécutée juste avant que l'effet ne soit ré-exécuté (si les dépendances changent) et juste avant le démontage du composant.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "⏱️ Exemple 1 : Nettoyer un setInterval",
+                content: `
+                    <p>Imaginons un composant <code>Timer</code> qui affiche un compteur qui s'incrémente chaque seconde.</p>
+                    <div class="code-block">
+                        function Timer() {
+                          const [seconds, setSeconds] = useState(0);
+                          
+                          useEffect(() => {
+                            const interval = setInterval(() => {
+                              setSeconds(prev => prev + 1);
+                            }, 1000);
+                            
+                            // Nettoyage : on arrête l'intervalle
+                            return () => clearInterval(interval);
+                          }, []); // Dépendances vides = effet exécuté une fois
+                          
+                          return &lt;div&gt;Temps : {seconds} secondes&lt;/div&gt;;
+                        }
+                    </div>
+                    <div class="note-success">
+                        ✔️ Sans <code>clearInterval</code>, le timer continuerait même si le composant <code>Timer</code> est supprimé de l'écran (navigation, condition d'affichage).
+                    </div>
+                    <p>Le nettoyage évite aussi l'accumulation de plusieurs timers si le composant est remonté/démonté plusieurs fois.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "📡 Exemple 2 : Se désabonner d'un événement (scroll/resize)",
+                content: `
+                    <p>Les écouteurs d'événements sur <code>window</code> ou <code>document</code> persistent même après démontage du composant.</p>
+                    <div class="code-block">
+                        useEffect(() => {
+                          const handleResize = () => {
+                            console.log("Fenêtre redimensionnée", window.innerWidth);
+                          };
+                          
+                          window.addEventListener('resize', handleResize);
+                          
+                          // Nettoyage : on retire l'écouteur
+                          return () => {
+                            window.removeEventListener('resize', handleResize);
+                          };
+                        }, []); // Une seule fois au montage
+                    </div>
+                    <div class="note-warning mt-2">
+                        🧠 <strong>Attention</strong> : Il est important de passer la <strong>même fonction</strong> à <code>removeEventListener</code>. L'utilisation d'une fonction fléchée directement empêcherait le nettoyage.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🌐 Exemple 3 : Annuler une requête API (AbortController)",
+                content: `
+                    <p>Lorsqu'un composant est démonté avant la fin d'une requête fetch, on peut annuler la requête pour éviter de mettre à jour un état démonté.</p>
+                    <div class="code-block">
+                        useEffect(() => {
+                          const abortController = new AbortController();
+                          
+                          const fetchData = async () => {
+                            try {
+                              const response = await fetch('/api/data', {
+                                signal: abortController.signal
+                              });
+                              const data = await response.json();
+                              setData(data);
+                            } catch (error) {
+                              if (error.name !== 'AbortError') {
+                                console.error(error);
+                              }
+                            }
+                          };
+                          
+                          fetchData();
+                          
+                          // Nettoyage : annule la requête si le composant est démonté
+                          return () => abortController.abort();
+                        }, []);
+                    </div>
+                    <p>🔹 <span class="font-semibold">Pourquoi ?</span> Sans <code>abort()</code>, la requête se termine quand même et tente d'appeler <code>setData</code> sur un composant démonté → warning/erreur.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "⏰ Quand la fonction de cleanup s'exécute-t-elle ?",
+                content: `
+                    <p>La fonction de nettoyage s'exécute dans deux cas :</p>
+                    <ul class="list-disc pl-6 mt-3 space-y-1">
+                        <li><strong>Avant le démontage du composant</strong> (lorsque le composant disparaît de l'écran).</li>
+                        <li><strong>Avant la prochaine exécution de l'effet</strong> (si les dépendances ont changé). Elle nettoie l'effet précédent avant de créer le nouvel effet.</li>
+                    </ul>
+                    <div class="code-block">
+                        useEffect(() => {
+                          console.log("Effet exécuté");
+                          return () => console.log("Cleanup exécuté");
+                        }, [count]);
+                        // Si count passe de 0 à 1 :
+                        // Cleanup exécuté (effet précédent) → Effet exécuté (nouveau)
+                    </div>
+                    <div class="note-success mt-2">
+                        💡 <strong>Cas particulier :</strong> Si le tableau de dépendances est vide (<code>[]</code>), le cleanup s'exécute uniquement lors du démontage du composant.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🏁 Bonnes pratiques et résumé",
+                content: `
+                    <p><span class="font-bold text-indigo-700">✅ Ce qu'il faut retenir :</span></p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li>Tout effet qui crée une ressource persistante (timer, abonnement, requête, connexion WebSocket) doit être nettoyé.</li>
+                        <li>La fonction de nettoyage est la fonction retournée dans <code>useEffect</code>.</li>
+                        <li>Le nettoyage évite les fuites mémoire, les appels à setState sur composant démonté et les comportements inattendus.</li>
+                        <li>Les dépendances doivent être correctement définies pour que le cleanup s'exécute au bon moment.</li>
+                    </ul>
+                    <div class="grid grid-cols-2 gap-2 mt-4 text-center text-sm">
+                        <div class="bg-indigo-50 p-2 rounded-lg">🧹 clearInterval / clearTimeout</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">📡 removeEventListener</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">❌ abortController.abort()</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">🔌 WebSocket.close()</div>
+                    </div>
+                    <p class="mt-4 italic text-slate-500">"Un code propre nettoie ce qu'il crée." – Enseignant Cameroun 🇨🇲</p>
+                `
+            }
+        ];
+
+        let currentIdx = 0;
+        const total = slidesData.length;
+        
+        function renderSlide(index) {
+            const s = slidesData[index];
+            if (!s) return "<div class='text-center p-10'>Erreur slide</div>";
+            
+            if (s.type === "title") {
+                return `
+                    <div class="slide-card bg-gradient-to-br from-indigo-50 to-sky-50 rounded-3xl shadow-xl p-6 md:p-10 text-center border border-indigo-100">
+                        <div class="text-7xl mb-4">${s.icon}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-indigo-800 leading-tight">${s.title}</h1>
+                        <p class="text-lg md:text-xl text-slate-600 mt-4 max-w-xl mx-auto">${s.subtitle}</p>
+                        <div class="mt-6 inline-block bg-indigo-200 px-4 py-1 rounded-full text-indigo-800 text-sm font-medium">${s.badge}</div>
+                        <div class="mt-8 w-16 h-1 bg-indigo-300 mx-auto rounded-full"></div>
+                    </div>
+                `;
+            } 
+            else if (s.type === "objectifs") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8 border-l-8 border-indigo-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 mb-5">${s.title}</h2>
+                        <ul class="space-y-3">
+                            ${s.list.map(item => `<li class="flex items-start gap-3 text-slate-700 text-base md:text-lg"><span class="text-indigo-500 text-xl shrink-0">📌</span> <span>${item}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-6 bg-indigo-50 p-3 rounded-xl text-indigo-700 text-sm italic">
+                            🧠 Après cette leçon, vous saurez éviter les fuites mémoire et nettoyer proprement vos effets !
+                        </div>
+                    </div>
+                `;
+            }
+            else if (s.type === "content") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-b border-indigo-200 pb-3 mb-5">${s.title}</h2>
+                        <div class="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                            ${s.content}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="bg-white rounded-2xl p-6">Contenu non disponible</div>`;
+        }
+        
+        function updateDisplay() {
+            const html = renderSlide(currentIdx);
+            $("#slides-container").html(html);
+            $("#currentSlide").text(currentIdx + 1);
+            $("#totalSlides").text(total);
+            
+            $("#prevBtn").prop("disabled", currentIdx === 0);
+            $("#nextBtn").prop("disabled", currentIdx === total - 1);
+            
+            $("html, body").animate({ scrollTop: 0 }, 80);
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        function nextSlide() {
+            if (currentIdx < total - 1) {
+                currentIdx++;
+                updateDisplay();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                updateDisplay();
+            }
+        }
+        
+        $(document).ready(function() {
+            updateDisplay();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") { nextSlide(); e.preventDefault(); }
+                else if (e.key === "ArrowLeft") { prevSlide(); e.preventDefault(); }
+            });
+            
+            // Swipe mobile simple
+            let touchStartX = 0, touchEndX = 0;
+            const container = document.getElementById("slides-container");
+            if (container) {
+                container.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                container.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    if (touchEndX < touchStartX - 45) nextSlide();
+                    if (touchEndX > touchStartX + 45) prevSlide();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

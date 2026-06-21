@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Évaluation Séquentielle · Génie logiciel | Lesson 3 : Qualité & normes (ISO 25010)</title>
+    <!-- Tailwind + jQuery + Mermaid + Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- MathJax (pour formules éventuelles) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f4f7fb; font-family: 'Inter', system-ui, sans-serif; }
+        .quiz-card { transition: all 0.2s ease; }
+        .quiz-card:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -12px rgba(0,0,0,0.1); }
+        .feedback-correct { background-color: #dcfce7; border-left: 4px solid #22c55e; }
+        .feedback-wrong { background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        .progress-bar { transition: width 0.3s ease; }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête -->
+        <div class="bg-white rounded-2xl shadow-md p-5 mb-8 border-l-8 border-emerald-600">
+            <div class="flex flex-col md:flex-row justify-between gap-3">
+                <div>
+                    <span class="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">Génie logiciel · Séquentiel 3</span>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">📊 Qualité logicielle & normes (ISO 25010)</h1>
+                    <p class="text-gray-600">Attributs de qualité, normes ISO/IEC 25010, métriques (complexité cyclomatique, couverture de code)</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl px-5 py-2 text-center">
+                    <p class="text-xs text-gray-500">Note /20</p>
+                    <p class="text-2xl font-bold text-emerald-700">__ / 20</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barre de progression -->
+        <div class="mb-6 flex justify-between items-center text-sm">
+            <span id="progressText" class="font-medium">Question 1 / 10</span>
+            <div class="w-2/3 bg-gray-200 rounded-full h-2.5">
+                <div id="quizProgressFill" class="bg-emerald-600 h-2.5 rounded-full progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <!-- Conteneur quiz dynamique -->
+        <div id="quizContainer" class="bg-white rounded-2xl shadow-lg p-5 md:p-7 transition-all"></div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between mt-6 gap-3">
+            <button id="prevBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-50">◀ Précédent</button>
+            <button id="nextBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-full transition">Suivant ▶</button>
+        </div>
+        <div id="globalFeedback" class="mt-5 text-center text-sm text-gray-500"></div>
+
+        <!-- Diagramme Mermaid : ISO 25010 attributs -->
+        <div class="mt-12 bg-white rounded-2xl shadow-md p-5 border border-gray-200">
+            <h2 class="text-xl font-bold text-emerald-800 flex items-center gap-2">📐 <span>Modèle de qualité ISO/IEC 25010</span></h2>
+            <div class="mermaid mt-3 text-sm">
+                mindmap
+                  root((Qualité logicielle<br/>ISO 25010))
+                    Adéquation fonctionnelle
+                      Exhaustivité
+                      Exactitude
+                    Fiabilité
+                      Tolérance aux pannes
+                      Disponibilité
+                    Efficacité de performance
+                      Temps de réponse
+                      Utilisation des ressources
+                    Maintenabilité
+                      Modularité
+                      Réutilisabilité
+                    Compatibilité
+                      Interopérabilité
+                    Sécurité
+                      Confidentialité
+                      Intégrité
+                    Portabilité
+                      Adaptabilité
+                      Installabilité
+            </div>
+            <p class="text-xs text-gray-500 mt-3">💡 Les 8 caractéristiques principales selon la norme ISO 25010 (remplace l'ancienne ISO 9126).</p>
+        </div>
+
+        <!-- Encart métriques -->
+        <div class="mt-6 bg-gray-900 rounded-xl p-4 text-white shadow-lg">
+            <p class="font-mono text-sm"><span class="text-green-400">📊 Complexité cyclomatique</span> = nombre de chemins linéairement indépendants (Mc Cabe). <span class="text-blue-300">🎯 Couverture de code</span> = pourcentage de lignes/méthodes exécutées par les tests.</p>
+        </div>
+    </div>
+
+    <script>
+        // ----- 10 questions sur les attributs de qualité, normes et métriques (Lesson 3) -----
+        const questions = [
+            { // 0
+                text: "Selon le modèle ISO 25010, quel attribut de qualité évalue la capacité du logiciel à fournir les fonctions attendues avec précision ?",
+                options: ["Fiabilité", "Adéquation fonctionnelle", "Efficacité de performance", "Maintenabilité"],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "L'<strong>adéquation fonctionnelle</strong> (ou functional suitability) correspond à l'exactitude et l'exhaustivité des fonctions par rapport aux besoins. La fiabilité concerne la disponibilité et la tolérance aux pannes."
+            },
+            { // 1
+                text: "La complexité cyclomatique (métrique de McCabe) mesure :",
+                options: [
+                    "Le nombre de lignes de code",
+                    "Le nombre de chemins indépendants dans un programme",
+                    "La vitesse d'exécution du logiciel",
+                    "Le nombre de classes"
+                ],
+                correct: 1,
+                difficulty: "medium",
+                explanation: "La complexité cyclomatique calcule le nombre de chemins linéairement indépendants. Plus elle est élevée, plus le code est difficile à tester et à maintenir. Formule : $M = E - N + 2P$ (E = arêtes, N = nœuds, P = composants connectés)."
+            },
+            { // 2
+                text: "Quelle norme internationale définit les processus du cycle de vie du logiciel ?",
+                options: ["ISO 9001", "ISO/IEC 12207", "ISO 25010", "CMMI"],
+                correct: 1,
+                difficulty: "medium",
+                explanation: "L'<strong>ISO/IEC 12207</strong> établit un cadre pour les processus d'acquisition, de développement, d'exploitation et de maintenance des logiciels. ISO 25010 concerne la qualité, CMMI est un modèle de maturité."
+            },
+            { // 3
+                text: "La maintenabilité (selon ISO 25010) inclut les sous-caractéristiques suivantes, SAUF :",
+                options: ["Modularité", "Réutilisabilité", "Analysabilité", "Interopérabilité"],
+                correct: 3,
+                difficulty: "medium",
+                explanation: "L'<strong>interopérabilité</strong> fait partie de la <strong>compatibilité</strong>, pas de la maintenabilité. La maintenabilité comprend modularité, réutilisabilité, analysabilité, modifiabilité."
+            },
+            { // 4
+                text: "Qu'est-ce que la dette technique ?",
+                options: [
+                    "Le coût d'achat du matériel serveur",
+                    "L'effort supplémentaire nécessaire pour corriger des choix de conception ou de code non optimaux",
+                    "Le temps passé à écrire la documentation",
+                    "Le nombre de bugs détectés en production"
+                ],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "La dette technique représente les raccourcis ou conceptions imparfaites qui devront être corrigées plus tard, ralentissant la maintenance. Elle augmente avec le temps si non maîtrisée."
+            },
+            { // 5
+                text: "Quel outil est couramment utilisé pour mesurer la complexité cyclomatique et détecter les code smells ?",
+                options: ["Jira", "SonarQube", "Figma", "Postman"],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "SonarQube analyse la qualité du code : complexité cyclomatique, dette technique, couverture de tests, vulnérabilités, etc. C'est un standard dans l'industrie."
+            },
+            { // 6
+                text: "Une couverture de code de 80% signifie que :",
+                options: [
+                    "80% des développeurs ont testé le code",
+                    "80% des lignes ou branches du code ont été exécutées par les tests",
+                    "80% des bugs sont corrigés",
+                    "80% des utilisateurs sont satisfaits"
+                ],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "La couverture de code (code coverage) mesure la proportion de code exécuté lors des tests unitaires. Une haute couverture n'indique pas forcément l'absence de bugs mais réduit les risques."
+            },
+            { // 7
+                text: "Dans le modèle ISO 25010, la capacité d'un logiciel à être transféré d'un environnement à un autre est appelée :",
+                options: ["Maintenabilité", "Portabilité", "Compatibilité", "Fiabilité"],
+                correct: 1,
+                difficulty: "easy",
+                explanation: "La <strong>portabilité</strong> évalue la facilité d'installation, d'adaptation ou de remplacement du logiciel sur différents environnements (OS, matériel, cloud)."
+            },
+            { // 8
+                text: "Le framework CMMI (Capability Maturity Model Integration) sert à :",
+                options: [
+                    "Évaluer la maturité des processus logiciels d'une organisation",
+                    "Mesurer la qualité du code source",
+                    "Automatiser les tests d'intégration",
+                    "Gérer les exigences utilisateur"
+                ],
+                correct: 0,
+                difficulty: "medium",
+                explanation: "CMMI est un modèle d'évaluation des processus (niveaux 1 à 5). Il aide les organisations à améliorer leurs pratiques de développement et de gestion de projets."
+            },
+            { // 9
+                text: "Quelle métrique correspond au nombre de défauts pour mille lignes de code (souvent utilisé pour évaluer la fiabilité) ?",
+                options: ["MTBF", "Defect Density (KLOC)", "Cycle time", "Lead time"],
+                correct: 1,
+                difficulty: "hard",
+                explanation: "La <strong>densité de défauts</strong> (defect density) = nombre de bugs / millier de lignes de code (KLOC). Elle permet de comparer la fiabilité entre modules ou projets."
+            }
+        ];
+
+        let currentIndex = 0;
+        let userAnswers = new Array(questions.length).fill(null);
+        let submitted = new Array(questions.length).fill(false);
+
+        function isAnswerCorrect(qIdx, selectedIdx) {
+            return selectedIdx === questions[qIdx].correct;
+        }
+
+        function updateProgressCount() {
+            let validated = 0;
+            for (let i = 0; i < questions.length; i++) {
+                if (submitted[i] && userAnswers[i] !== null) validated++;
+            }
+            let percent = (validated / questions.length) * 100;
+            $('#quizProgressFill').css('width', percent + '%');
+            $('#progressText').text(`${validated}/${questions.length} questions validées`);
+            if (validated === questions.length) {
+                let totalCorrect = 0;
+                for (let i = 0; i < questions.length; i++) {
+                    if (submitted[i] && isAnswerCorrect(i, userAnswers[i])) totalCorrect++;
+                }
+                $('#globalFeedback').html(`<div class="bg-green-100 p-3 rounded-xl text-green-800 font-medium">🏆 Évaluation terminée ! Score : ${totalCorrect}/${questions.length}. Consultez les explications pour maîtriser la qualité logicielle.</div>`);
+            } else {
+                $('#globalFeedback').html('<span class="text-gray-500">✨ Validez chaque réponse pour voir l’explication et suivre votre progression.</span>');
+            }
+        }
+
+        function renderCurrentQuestion() {
+            const q = questions[currentIndex];
+            const selected = userAnswers[currentIndex];
+            const isSubmitted = submitted[currentIndex];
+            const isCurrCorrect = (selected !== null && isAnswerCorrect(currentIndex, selected));
+
+            let feedbackHtml = '';
+            if (isSubmitted && selected !== null) {
+                if (isCurrCorrect) {
+                    feedbackHtml = `<div class="feedback-correct p-3 rounded-lg mt-4 text-green-800">✅ <strong>Bonne réponse !</strong> ${q.explanation}</div>`;
+                } else {
+                    feedbackHtml = `<div class="feedback-wrong p-3 rounded-lg mt-4 text-red-800">❌ <strong>Mauvaise réponse.</strong> ${q.explanation}</div>`;
+                }
+            } else if (selected !== null && !isSubmitted) {
+                feedbackHtml = `<div class="bg-gray-100 p-3 rounded-lg mt-4 text-gray-600">📌 Réponse enregistrée. Cliquez sur "Valider" pour voir l'explication.</div>`;
+            }
+
+            let optionsHtml = '';
+            q.options.forEach((opt, idx) => {
+                const checked = (selected === idx) ? 'checked' : '';
+                optionsHtml += `
+                    <label class="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mb-2 transition">
+                        <input type="radio" name="questionRadio" value="${idx}" ${checked} class="mt-1 radio-opt">
+                        <span class="text-gray-800">${opt}</span>
+                    </label>
+                `;
+            });
+
+            const diffBadge = {
+                easy: 'bg-green-100 text-green-700',
+                medium: 'bg-yellow-100 text-yellow-800',
+                hard: 'bg-red-100 text-red-700'
+            }[q.difficulty] || 'bg-gray-100';
+
+            const html = `
+                <div class="flex justify-between items-start mb-3">
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-medium ${diffBadge}">Niveau ${q.difficulty}</span>
+                    <span class="text-xs text-gray-400">Q${currentIndex+1}/${questions.length}</span>
+                </div>
+                <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-5">${q.text}</h2>
+                <div class="space-y-1 mb-4">
+                    ${optionsHtml}
+                </div>
+                <div class="flex justify-between items-center mt-3">
+                    <button id="validateCurrentBtn" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-5 py-2 rounded-full font-medium transition">💡 Valider & voir correction</button>
+                    ${isSubmitted ? '<span class="text-emerald-600 text-sm">✓ Évaluée</span>' : ''}
+                </div>
+                ${feedbackHtml}
+            `;
+            $('#quizContainer').html(html);
+
+            $(document).off('change', '.radio-opt');
+            $(document).on('change', '.radio-opt', function() {
+                let val = parseInt($(this).val());
+                userAnswers[currentIndex] = val;
+                submitted[currentIndex] = false;
+                renderCurrentQuestion();
+                updateProgressCount();
+            });
+
+            $('#validateCurrentBtn').off('click').on('click', function() {
+                if (userAnswers[currentIndex] === null || userAnswers[currentIndex] === undefined) {
+                    alert("Veuillez sélectionner une réponse avant de valider.");
+                    return;
+                }
+                submitted[currentIndex] = true;
+                renderCurrentQuestion();
+                updateProgressCount();
+            });
+        }
+
+        function goToQuestion(index) {
+            if (index >= 0 && index < questions.length) {
+                currentIndex = index;
+                renderCurrentQuestion();
+                $('#prevBtn').prop('disabled', currentIndex === 0);
+                if (currentIndex === questions.length - 1) {
+                    $('#nextBtn').text('Terminer');
+                } else {
+                    $('#nextBtn').text('Suivant ▶');
+                }
+                window.scrollTo({ top: $('#quizContainer').offset().top - 30, behavior: 'smooth' });
+            }
+        }
+
+        $('#prevBtn').on('click', function() { if (currentIndex > 0) goToQuestion(currentIndex - 1); });
+        $('#nextBtn').on('click', function() {
+            if (currentIndex < questions.length - 1) {
+                goToQuestion(currentIndex + 1);
+            } else if (currentIndex === questions.length - 1) {
+                let totalCorrect = 0;
+                for (let i=0; i<questions.length; i++) {
+                    if (submitted[i] && userAnswers[i] !== null && isAnswerCorrect(i, userAnswers[i])) totalCorrect++;
+                }
+                alert(`✅ Évaluation terminée ! Score final : ${totalCorrect} / ${questions.length}\nConsultez les détails pour revoir les concepts de qualité logicielle.`);
+                $('#globalFeedback').html(`<div class="bg-emerald-50 p-3 rounded-xl text-center font-semibold">📊 Résultat final : ${totalCorrect}/${questions.length}. Bravo ! Relisez les attributs ISO 25010 et les métriques de qualité.</div>`);
+            }
+        });
+
+        // Initialisation Mermaid (mindmap)
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { primaryColor: '#059669' } });
+        mermaid.contentLoaded();
+
+        goToQuestion(0);
+        updateProgressCount();
+    </script>
+
+    <!-- Graphique Chart.js : importance des attributs de qualité -->
+    <div class="max-w-5xl mx-auto px-4 pb-8">
+        <div class="bg-white rounded-xl shadow-sm p-4 mt-5 border border-gray-100">
+            <h3 class="font-semibold text-gray-700 mb-2">📊 Importance des attributs de qualité (enquête industrielle)</h3>
+            <canvas id="qualityChart" width="400" height="200" style="max-height: 240px;"></canvas>
+            <p class="text-xs text-gray-400 mt-2">Source : IEEE Software — la maintenabilité et la fiabilité sont prioritaires pour 78% des équipes.</p>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('qualityChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Maintenabilité', 'Fiabilité', 'Sécurité', 'Efficacité', 'Portabilité', 'Compatibilité'],
+                datasets: [{
+                    label: 'Priorité (%)',
+                    data: [88, 85, 79, 72, 58, 55],
+                    backgroundColor: '#10b981',
+                    borderRadius: 8
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    </script>
+
+    <footer class="text-center text-xs text-gray-400 py-6 border-t mt-6">
+        <p>Évaluation conçue pour la classe Développement Web (Cameroun) · Module Génie logiciel · Lesson 3 : Attributs de qualité, normes ISO 25010 et métriques.</p>
+        <p>Basé sur les standards IEEE/ISO — Correction interactive incluse.</p>
+    </footer>
+</body>
+</html>

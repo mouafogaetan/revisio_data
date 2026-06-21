@@ -1,0 +1,194 @@
+[
+  {
+    "intitule": "Comprendre le pattern Strategy pour les paiements",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, on souhaite accepter plusieurs modes de paiement : Stripe, PayPal et virement bancaire. On utilise le pattern Strategy pour éviter les conditions <code>if/else</code> dans le service principal.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définir ce qu’est le pattern Strategy et expliquer son intérêt dans ce contexte.",
+        "niveau": "easy",
+        "reponse": "Le pattern Strategy permet de définir une famille d’algorithmes (ici les providers de paiement), de les encapsuler chacun dans sa propre classe, et de les rendre interchangeables. L’intérêt est d’éviter de polluer le service avec des conditions et de faciliter l’ajout d’un nouveau provider (ex: Mobile Money) sans modifier le code existant.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Dessiner le diagramme de classes simplifié du pattern Strategy appliqué aux paiements.",
+        "niveau": "medium",
+        "reponse": "Une interface <code>PaymentStrategy</code> avec <code>processPayment(amount, currency)</code>. Des classes concrètes <code>StripeStrategy</code>, <code>PayPalStrategy</code>, <code>BankTransferStrategy</code> qui implémentent cette interface. Un <code>PaymentContext</code> (ou <code>PaymentService</code>) qui reçoit une stratégie et délègue l’exécution.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Citer un avantage concret de cette approche pour une boutique en ligne camerounaise qui veut ajouter Orange Money plus tard.",
+        "niveau": "easy",
+        "reponse": "On peut ajouter <code>OrangeMoneyStrategy</code> sans toucher au code des autres providers ni au service principal. Cela respecte le principe ouvert/fermé (open/closed) et réduit les risques de régression.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter l’interface PaymentStrategy avec Stripe",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>On souhaite créer une stratégie concrète pour Stripe. La méthode <code>processPayment</code> doit créer un <code>PaymentIntent</code> et retourner le <code>clientSecret</code> pour que le frontend puisse finaliser le paiement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire l’interface <code>PaymentStrategy</code> avec ses méthodes.",
+        "niveau": "easy",
+        "reponse": "<code>export interface PaymentStrategy { processPayment(amount: number, currency: string, orderId: string): Promise<PaymentResult>; }</code> avec <code>PaymentResult</code> contenant <code>success, transactionId, clientSecret?, redirectUrl?</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémenter la classe <code>StripeStrategy</code> qui utilise le SDK Stripe. Inclure la création du PaymentIntent.",
+        "niveau": "hard",
+        "reponse": "<code>export class StripeStrategy implements PaymentStrategy { constructor(private stripe: Stripe) {} async processPayment(amount: number, currency: string, orderId: string): Promise<PaymentResult> { const paymentIntent = await this.stripe.paymentIntents.create({ amount: Math.round(amount * 100), currency, metadata: { orderId } }); return { success: true, clientSecret: paymentIntent.client_secret, transactionId: paymentIntent.id }; } }</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi on multiplie le montant par 100 avant de l’envoyer à Stripe.",
+        "niveau": "easy",
+        "reponse": "Stripe travaille en centimes (ou plus petite unité de la devise). Par exemple, 10.50 EUR devient 1050 centimes. Cela évite les problèmes de virgule flottante.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gérer plusieurs providers via un PaymentService",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le <code>PaymentService</code> doit permettre de sélectionner dynamiquement la stratégie en fonction du paramètre <code>method</code> (ex: 'stripe', 'paypal', 'bank'). Il doit aussi enregistrer chaque transaction dans une entité <code>Payment</code> (montant, devise, statut, transactionId, provider).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code du <code>PaymentService</code> qui injecte un registre de stratégies et choisit la bonne.",
+        "niveau": "hard",
+        "reponse": "<code>@Injectable() export class PaymentService { private strategies = new Map<string, PaymentStrategy>(); registerStrategy(provider: string, strategy: PaymentStrategy) { this.strategies.set(provider, strategy); } async process(order: Order, method: string) { const strategy = this.strategies.get(method); if (!strategy) throw new BadRequestException('Méthode inconnue'); const result = await strategy.processPayment(order.total, order.currency, order.id); const payment = this.paymentRepo.create({ order, amount: order.total, provider: method, transactionId: result.transactionId, status: result.success ? 'completed' : 'failed' }); await this.paymentRepo.save(payment); return result; } }</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire comment enregistrer les stratégies au démarrage de l’application (module NestJS).",
+        "niveau": "medium",
+        "reponse": "Dans le module principal (ou un module dédié), on instancie chaque stratégie avec ses dépendances, puis on appelle <code>paymentService.registerStrategy('stripe', stripeStrategy)</code> dans le constructeur ou via un <code>OnModuleInit</code>.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier pourquoi on enregistre la transaction <strong>avant</strong> ou <strong>après</strong> l’appel au provider, et proposer une stratégie pour gérer les échecs.",
+        "niveau": "very hard",
+        "reponse": "Idéalement, on enregistre la transaction avec un statut <code>pending</code> <strong>avant</strong> l’appel externe, puis on met à jour après succès/échec. Cela permet de tracer toutes les tentatives. En cas d’échec, on peut rejouer plus tard. Une transaction doit être atomique : utiliser une base de données ou un outil comme Outbox pour garantir la cohérence.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser les différences entre providers synchrones et asynchrones",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Le virement bancaire est asynchrone : l’utilisateur reçoit un RIB, paie manuellement, et un webhook confirme le paiement plus tard. Stripe peut être synchrone (paiement par carte) ou asynchrone (virement SEPA). Adaptez le pattern Strategy.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Modifier l’interface <code>PaymentStrategy</code> pour supporter les deux cas (synchrone et asynchrone).",
+        "niveau": "hard",
+        "reponse": "On peut garder <code>processPayment</code> qui retourne un résultat immédiat, et ajouter une méthode <code>handleWebhook(payload: any)</code> pour les providers asynchrones. Ou alors, <code>processPayment</code> retourne toujours un statut <code>pending</code> et un webhook finalise. L’important est que la stratégie expose comment interpréter la confirmation.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment le <code>PaymentService</code> doit gérer une transaction en attente (pending) et sa finalisation par webhook.",
+        "niveau": "medium",
+        "reponse": "Le service expose un endpoint <code>/webhook/:provider</code>. Le contrôleur appelle <code>strategy.handleWebhook(payload)</code> qui extrait le <code>transactionId</code> et le nouveau statut. Ensuite, on met à jour l’entité <code>Payment</code> et le statut de la commande correspondante.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Citer un risque de sécurité lié aux webhooks et une parade.",
+        "niveau": "hard",
+        "reponse": "Risque : un attaquant peut envoyer de faux webhooks pour valider des paiements sans réel encaissement. Parade : vérifier la signature du webhook (ex: <code>stripe.webhooks.constructEvent()</code> avec le secret du endpoint) et n’accepter que les requêtes provenant d’IPs connues du fournisseur.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Enregistrer les transactions dans l’entité Payment",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Créer l’entité <code>Payment</code> qui stocke les informations essentielles de chaque transaction pour une traçabilité complète (comptabilité, litiges).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer les champs de l’entité <code>Payment</code> (TypeORM) en respectant les besoins d’un e-commerce.",
+        "niveau": "easy",
+        "reponse": "<code>id, orderId, amount, currency, provider, transactionId, status (pending|completed|failed|refunded), metadata (JSON), createdAt, updatedAt, paidAt, refundedAt</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire la relation avec l’entité <code>Order</code> (ManyToOne ou OneToOne ?) et justifier.",
+        "niveau": "easy",
+        "reponse": "Une commande peut avoir plusieurs tentatives de paiement (ex: premier échec, deuxième essai). Donc <code>@ManyToOne(() => Order, order => order.payments)</code>. Une commande a une liste de paiements, mais un seul réussi (on peut ajouter un champ <code>isSuccessful</code>).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi stocker le champ <code>metadata</code> (JSON) et donner deux exemples d’informations utiles.",
+        "niveau": "medium",
+        "reponse": "Le <code>metadata</code> permet de stocker des données spécifiques au provider non normalisées (ex: <code>{ stripe_fee: 0.50, payment_method_type: 'card' }</code> ou <code>{ paypal_payer_id: 'xxx' }</code>). Cela évite de modifier le schéma à chaque ajout de provider.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Ajouter un provider Orange Money avec le pattern Strategy",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>On souhaite intégrer Orange Money Cameroun. L’API Orange nécessite un numéro de téléphone, envoie une requête de paiement, et notifie via webhook. Adaptez le pattern Strategy existant.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les méthodes spécifiques que doit implémenter <code>OrangeMoneyStrategy</code> en plus de <code>processPayment</code>.",
+        "niveau": "hard",
+        "reponse": "<code>processPayment</code> déclenche la demande de paiement (retourne transactionId et statut pending). Une méthode <code>handleWebhook</code> pour interpréter la notification de paiement réussi/échoué. Une méthode <code>getStatus(transactionId)</code> pour interroger l’API en cas de doute.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment passer le numéro de téléphone du client à la stratégie (alors que le DTO de paiement initial ne contient que <code>method</code>).",
+        "niveau": "hard",
+        "reponse": "On peut étendre le DTO de paiement avec un champ <code>phoneNumber</code> optionnel, ou utiliser le <code>metadata</code> de la commande (adresse de livraison). Le <code>PaymentService</code> transmet ces données supplémentaires à la stratégie.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une stratégie de fallback : si Orange Money est indisponible, basculer automatiquement sur un autre provider.",
+        "niveau": "very hard",
+        "reponse": "Dans le <code>PaymentService</code>, on peut définir un ordre de priorité ou une liste de fallback. Si <code>processPayment</code> lève une exception réseau ou retourne un code d’erreur spécifique, on tente le provider suivant. Attention : il faut garantir qu’un seul paiement soit finalement débité (transaction idempotente avec un identifiant unique).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

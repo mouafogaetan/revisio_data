@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 13 : Manipuler les données avec EF Core | API .NET</title>
+    <!-- Tailwind CSS via CDN + basic layer -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules mathématiques si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation supplémentaire pour slides et confort -->
+    <style>
+        /* transition douce pour les slides */
+        .slide-container {
+            transition: opacity 0.25s ease-in-out;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        /* amélioration du scroll et espacement */
+        body {
+            background: #f8fafc;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* code inline style simili */
+        code {
+            background-color: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #1e293b;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .btn-slide:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 640px) {
+            .prose p, .prose li {
+                font-size: 0.95rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            h3 {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Conteneur principal avec max-width et marges adaptées -->
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Slides wrapper -->
+        <div id="slidesWrapper" class="slide-container bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
+            <!-- ici les slides seront injectées dynamiquement via jquery -->
+        </div>
+
+        <!-- Navigation buttons + progression -->
+        <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+            <button id="prevSlide" class="btn-slide bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
+                ← Précédent
+            </button>
+            <div class="text-sm text-gray-500 bg-gray-100 px-4 py-1.5 rounded-full">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+            </div>
+            <button id="nextSlide" class="btn-slide bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">
+                Suivant →
+            </button>
+        </div>
+
+        <!-- petit message de navigation / pied de page -->
+        <div class="text-center text-xs text-gray-400 mt-6">
+            Cours sur Entity Framework Core – API .NET | Manipulation des données
+        </div>
+    </div>
+
+    <script>
+        // Données structurées de la leçon 13 (chapitre 4, lesson13)
+        // Basé sur les objectifs de la lesson13: 
+        // index 0: Récupérer des données avec DbSet<T>.ToList(), FirstOrDefault(), Find()
+        // index 1: Ajouter des entités avec AddAsync() et SaveChangesAsync()
+        // index 2: Modifier et supprimer des entités (Update, Remove)
+        // On ajoute des explications claires, exemples de code C# (ASP.NET Core)
+        // Création des slides : Slide 1 titre, slide 2 objectifs, puis slide 3 (récupération), slide 4 (ajout), slide 5 (modif/suppression), slide 6 (récap & best practices)
+        
+        const lessonData = {
+            title: "Leçon 13 : Opérations CRUD avec Entity Framework Core",
+            subtitle: "Manipuler la base de données dans une API .NET",
+            objectives: [
+                "Récupérer des données avec les méthodes ToList(), FirstOrDefault(), Find()",
+                "Ajouter de nouvelles entités en base via AddAsync() et SaveChangesAsync()",
+                "Modifier des entités existantes avec Update",
+                "Supprimer des entités avec Remove",
+                "Comprendre l'asynchronisme et les bonnes pratiques avec DbContext"
+            ],
+            sections: [
+                {
+                    title: "📥 Récupération des données",
+                    content: `<p class="mb-3">Pour interroger la base de données, EF Core met à disposition le <code>DbSet&lt;T&gt;</code>. Voici les méthodes essentielles :</p>
+                    <ul class="list-disc pl-6 space-y-2 mb-4">
+                        <li><strong class="text-indigo-700">.ToListAsync()</strong> : retourne toutes les entités d'une table sous forme de liste.</li>
+                        <li><strong class="text-indigo-700">.FirstOrDefaultAsync()</strong> : retourne le premier élément correspondant à une condition, ou null si rien trouvé.</li>
+                        <li><strong class="text-indigo-700">.FindAsync()</strong> : recherche une entité par sa clé primaire, efficace car vérifie d'abord le cache local.</li>
+                    </ul>
+                    <pre><code>// Exemple dans un contrôleur (service ou directement)
+public async Task&lt;IActionResult&gt; GetProducts()
+{
+    var produits = await _context.Products.ToListAsync();
+    return Ok(produits);
+}
+
+// Avec condition
+var produit = await _context.Products
+    .FirstOrDefaultAsync(p => p.Id == id);
+    
+// FindAsync par clé primaire
+var article = await _context.Articles.FindAsync(articleId);</code></pre>
+                    <p class="mt-3 text-sm bg-blue-50 p-3 rounded-lg">💡 <span class="font-medium">Bon à savoir :</span> <code>FindAsync</code> est idéal pour les updates ou suppression car il traque l’entité sans requête supplémentaire si déjà suivie.</p>`,
+                },
+                {
+                    title: "➕ Ajout d'entités",
+                    content: `<p class="mb-3">Pour insérer une nouvelle ligne dans la base, on utilise <code>DbSet.AddAsync()</code> (ou <code>Add()</code> synchrone) puis <code>SaveChangesAsync()</code> pour valider la transaction.</p>
+                    <pre><code>[HttpPost]
+public async Task&lt;IActionResult&gt; CreateProduct(ProductDto dto)
+{
+    var product = new Product 
+    { 
+        Name = dto.Name, 
+        Price = dto.Price 
+    };
+    
+    await _context.Products.AddAsync(product);
+    await _context.SaveChangesAsync(); // INSERT en base
+    
+    return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+}</code></pre>
+                    <div class="bg-emerald-50 border-l-4 border-emerald-500 p-3 my-3">
+                        <p class="text-sm">✨ <strong>Astuce :</strong> SaveChangesAsync() retourne le nombre d’entrées affectées. Pensez à l’asynchronisme pour ne pas bloquer le thread de l’API.</p>
+                    </div>`,
+                },
+                {
+                    title: "✏️ Modification et suppression",
+                    content: `<p class="mb-2">Entity Framework Core suit automatiquement les modifications des entités chargées via le DbContext. Pour modifier :</p>
+                    <ul class="list-decimal pl-6 space-y-2 mb-4">
+                        <li>Récupérer l'entité (ex: <code>FindAsync</code> ou <code>FirstOrDefault</code>)</li>
+                        <li>Modifier ses propriétés</li>
+                        <li>Appeler <code>SaveChangesAsync()</code></li>
+                    </ul>
+                    <pre><code>// Modification
+[HttpPut("{id}")]
+public async Task&lt;IActionResult&gt; UpdateProduct(int id, ProductUpdateDto updateDto)
+{
+    var product = await _context.Products.FindAsync(id);
+    if (product == null) return NotFound();
+    
+    product.Name = updateDto.Name;
+    product.Price = updateDto.Price;
+    
+    await _context.SaveChangesAsync(); // génère UPDATE
+    
+    return NoContent();
+}
+
+// Suppression
+[HttpDelete("{id}")]
+public async Task&lt;IActionResult&gt; DeleteProduct(int id)
+{
+    var product = await _context.Products.FindAsync(id);
+    if (product == null) return NotFound();
+    
+    _context.Products.Remove(product);
+    await _context.SaveChangesAsync();
+    
+    return NoContent();
+}</code></pre>
+                    <p class="mt-2 text-orange-700 bg-orange-50 p-2 rounded">⚠️ Attention : Si l'entité n'est pas suivie, vous pouvez attacher l'entité et marquer son état comme <code>EntityState.Modified</code>.</p>`,
+                },
+                {
+                    title: "⚙️ Bonnes pratiques & notions clés",
+                    content: `<p>Voici des recommandations pour bien manipuler les données avec EF Core dans une API REST :</p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li>Utilisez toujours les méthodes Async (<code>ToListAsync</code>, <code>SaveChangesAsync</code>) pour éviter les blocages.</li>
+                        <li>Préférez <code>FindAsync</code> pour les accès par clé primaire, car il utilise le cache de contexte.</li>
+                        <li>Pour les relations et le chargement de données associées, utilisez <code>.Include()</code> (Eager Loading).</li>
+                        <li>N'oubliez pas d'injecter votre DbContext en Scoped (par défaut dans ASP.NET Core).</li>
+                        <li>Pour les mises à jour partielles, le pattern <code>Attach</code> peut être utilisé mais reste plus complexe.</li>
+                    </ul>
+                    <div class="bg-indigo-50 mt-4 p-3 rounded-xl text-indigo-800 text-sm">
+                        🔁 <strong>Résumé des opérations CRUD :</strong> Create → Add + SaveChanges, Read → ToList/Find/FirstOrDefault, Update → Modifier entité suivie + SaveChanges, Delete → Remove + SaveChanges.
+                    </div>
+                    <pre class="mt-3"><code>// Exemple générique pour un service réutilisable
+public async Task&lt;Product&gt; GetByIdAsync(int id) => await _context.Products.FindAsync(id);
+public async Task AddAsync(Product entity) => await _context.Products.AddAsync(entity);
+public void Update(Product entity) => _context.Products.Update(entity);
+public void Remove(Product entity) => _context.Products.Remove(entity);
+public async Task SaveAsync() => await _context.SaveChangesAsync();</code></pre>`
+                }
+            ]
+        };
+
+        // Construction des slides : titre, objectifs, puis 4 slides de contenu (récup, ajout, modif/suppr, bonnes pratiques)
+        const slides = [];
+        
+        // Slide 1 : Titre de la leçon
+        slides.push(`
+            <div class="slide bg-gradient-to-br from-indigo-50 to-white p-6 md:p-10 flex flex-col justify-center min-h-[450px]">
+                <div class="text-center">
+                    <span class="inline-block px-4 py-1 rounded-full bg-indigo-100 text-indigo-800 text-sm font-semibold mb-4">API .NET (ASP.NET Core) | EF Core</span>
+                    <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight text-gray-800 mb-4">${lessonData.title}</h1>
+                    <p class="text-gray-600 text-lg max-w-2xl mx-auto">${lessonData.subtitle}</p>
+                    <div class="mt-8 flex justify-center gap-2">
+                        <div class="w-12 h-1 rounded-full bg-indigo-400"></div>
+                        <div class="w-12 h-1 rounded-full bg-gray-300"></div>
+                        <div class="w-12 h-1 rounded-full bg-gray-300"></div>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-8">Classe: Développement Web – Matière: API .NET</p>
+                </div>
+            </div>
+        `);
+        
+        // Slide 2 : Objectifs pédagogiques
+        let objectivesHtml = `<div class="slide bg-white p-6 md:p-10 min-h-[450px]">
+            <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-500 pl-4 mb-6 text-gray-800">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-4 mt-4">`;
+        lessonData.objectjectives = lessonData.objectives; // correction mineure
+        lessonData.objectives.forEach(obj => {
+            objectivesHtml += `<li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✔️</span><span class="text-gray-700">${obj}</span></li>`;
+        });
+        objectivesHtml += `</ul><div class="mt-8 p-4 bg-gray-50 rounded-2xl text-center text-gray-500 text-sm">À la fin de ce module, vous saurez manipuler la base via EF Core dans vos contrôleurs.</div></div>`;
+        slides.push(objectivesHtml);
+        
+        // Slides de contenu (les 4 sections)
+        lessonData.sections.forEach(section => {
+            slides.push(`
+                <div class="slide bg-white p-6 md:p-10 min-h-[450px] overflow-y-auto">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b border-gray-200 pb-3 mb-5">${section.title}</h2>
+                    <div class="prose max-w-none text-gray-700">
+                        ${section.content}
+                    </div>
+                </div>
+            `);
+        });
+        
+        // Slide récapitulatif supplémentaire pour bien clore
+        slides.push(`
+            <div class="slide bg-gradient-to-r from-gray-50 to-indigo-50 p-6 md:p-10 min-h-[450px] flex flex-col justify-center">
+                <h2 class="text-2xl font-bold text-center mb-4 text-gray-800">📌 En résumé</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm"><span class="font-mono text-indigo-700">AddAsync() + SaveChangesAsync()</span><br/>➜ Insertion</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm"><span class="font-mono text-indigo-700">ToListAsync() / FirstOrDefaultAsync()</span><br/>➜ Lecture</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm"><span class="font-mono text-indigo-700">Modifier propriétés + SaveChangesAsync()</span><br/>➜ Mise à jour</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm"><span class="font-mono text-indigo-700">Remove(entity) + SaveChangesAsync()</span><br/>➜ Suppression</div>
+                </div>
+                <p class="mt-6 text-center text-gray-600">Pratiquez en construisant un mini contrôleur de gestion de produits !</p>
+                <div class="mt-6 text-center text-sm text-gray-400">🌟 Entity Framework Core rend le travail avec la base simple et puissant.</div>
+            </div>
+        `);
+        
+        let currentIndex = 0;
+        let totalSlides = slides.length;
+        
+        // Injecter les slides dans le wrapper
+        function renderSlides() {
+            const $wrapper = $('#slidesWrapper');
+            $wrapper.empty();
+            slides.forEach((slideHtml, idx) => {
+                const $slideDiv = $(`<div class="slide" data-slide-index="${idx}">${slideHtml}</div>`);
+                if (idx === 0) $slideDiv.addClass('active');
+                $wrapper.append($slideDiv);
+            });
+            $('#totalSlidesCount').text(totalSlides);
+            $('#currentSlideIdx').text(currentIndex + 1);
+            updateButtons();
+        }
+        
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            if (index === currentIndex) return;
+            
+            $('.slide').removeClass('active');
+            $(`.slide[data-slide-index="${index}"]`).addClass('active');
+            currentIndex = index;
+            $('#currentSlideIdx').text(currentIndex + 1);
+            updateButtons();
+            // scroll smooth vers le haut
+            $('html, body').animate({ scrollTop: $('#slidesWrapper').offset().top - 20 }, 200);
+        }
+        
+        function updateButtons() {
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            if (currentIndex === 0) {
+                $('#prevSlide').addClass('opacity-50');
+            } else {
+                $('#prevSlide').removeClass('opacity-50');
+            }
+            // next n'est pas désactivé bloquant si dernière slide? on peut laisser cliquable mais rester sur dernière
+            if (currentIndex === totalSlides - 1) {
+                $('#nextSlide').text('Terminé ✓');
+            } else {
+                $('#nextSlide').text('Suivant →');
+            }
+        }
+        
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                showSlide(currentIndex + 1);
+            } else {
+                // petite notification optionnelle
+                alert("🎉 Félicitations ! Vous avez terminé la leçon 13. Révisez les exemples pour bien maîtriser les opérations CRUD.");
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                showSlide(currentIndex - 1);
+            }
+        }
+        
+        // Gestion des événements avec jQuery
+        $(document).ready(function() {
+            renderSlides();
+            
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            
+            // Gestion du clavier (flèches droite/gauche) pour meilleure expérience
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    prevSlide();
+                }
+            });
+            
+            // ajout d'un petit tooltip ou adaptation mobile tactile
+            let touchStartX = 0;
+            $('#slidesWrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesWrapper').on('touchend', function(e) {
+                if (!touchStartX) return;
+                let touchEndX = e.originalEvent.changedTouches[0].clientX;
+                let diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+            
+            // Mise en forme des blocs de code pour un rendu plus lisible (ajout de classes)
+            $('pre code').each(function() {
+                // déjà bien géré via <pre><code>
+            });
+        });
+    </script>
+</body>
+</html>

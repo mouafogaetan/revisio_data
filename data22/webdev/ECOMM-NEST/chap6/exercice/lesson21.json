@@ -1,0 +1,164 @@
+[
+  {
+    "intitule": "Identifier les statuts d'une commande",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un système e-commerce, une commande passe par plusieurs statuts avant d'être finalisée.</p><p>Listez les statuts typiques d'une commande dans l'ordre chronologique, de la création à la livraison.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Énumérer dans l'ordre les statuts d'une commande e-commerce.",
+        "niveau": "easy",
+        "reponse": "1. pending (en attente de paiement)\n2. paid (payée) ou confirmed (confirmée)\n3. processing (en préparation)\n4. shipped (expédiée)\n5. delivered (livrée)\n6. cancelled (annulée) - possible à plusieurs stades\n7. refunded (remboursée) - après annulation",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Récupérer les commandes d'un utilisateur",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API NestJS avec TypeORM, vous devez créer un endpoint <code>GET /orders/my-orders</code> qui retourne toutes les commandes de l'utilisateur authentifié.</p><p>L'entité <code>Order</code> possède une relation <code>@ManyToOne(() => User, user => user.orders)</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode du contrôleur et la logique du service pour récupérer les commandes de l'utilisateur connecté.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// Controller\n@Get('my-orders')\n@UseGuards(JwtAuthGuard)\nasync getMyOrders(@Req() req: Request) {\n  const userId = req.user.id;\n  return this.orderService.findByUser(userId);\n}\n\n// Service\nasync findByUser(userId: string): Promise<Order[]> {\n  return this.orderRepository.find({\n    where: { user: { id: userId } },\n    relations: ['items', 'items.product'],\n    order: { createdAt: 'DESC' }\n  });\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter la timeline d'une commande",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour améliorer l'expérience client, on souhaite ajouter une <strong>timeline</strong> (historique des changements de statut) pour chaque commande.</p><p>Proposez une structure de données (entité) pour stocker l'historique des statuts avec les dates et éventuellement des commentaires.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer l'entité `OrderStatusHistory` avec ses relations et champs.",
+        "niveau": "hard",
+        "reponse": "```typescript\n@Entity()\nexport class OrderStatusHistory {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @ManyToOne(() => Order, order => order.statusHistory)\n  order: Order;\n\n  @Column({ type: 'varchar' })\n  status: string; // pending, paid, shipped, etc.\n\n  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })\n  changedAt: Date;\n\n  @Column({ type: 'text', nullable: true })\n  comment: string; // Optionnel: 'Paiement reçu', 'Colis remis au transporteur'\n\n  @Column({ type: 'varchar', nullable: true })\n  changedBy: string; // 'system', 'admin', 'user'\n}\n\n// Dans Order entity\n@OneToMany(() => OrderStatusHistory, history => history.order)\nstatusHistory: OrderStatusHistory[];\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Annuler une commande avant expédition",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client a passé commande mais souhaite l'annuler car il a changé d'avis. La commande est actuellement au statut <code>paid</code> (payée) mais pas encore expédiée.</p><p>L'administrateur peut annuler la commande manuellement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes à suivre dans l'API pour annuler la commande et rembourser le stock.",
+        "niveau": "medium",
+        "reponse": "Étapes :\n1. Vérifier que la commande existe et que son statut est 'paid' (pas encore expédiée)\n2. Pour chaque OrderItem, récupérer la variation de produit associée\n3. Augmenter le stock de chaque variation du montant initialement acheté\n4. Changer le statut de la commande à 'cancelled'\n5. Enregistrer un statut dans la timeline avec commentaire 'Annulée par client/admin'\n6. Déclencher un remboursement via Stripe/PayPal (si déjà payé par carte)\n7. Envoyer un email de confirmation d'annulation au client\n8. Retourner la commande annulée avec son nouveau statut",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Restaurer le stock après annulation",
+    "type": "compétence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Lorsqu'une commande est annulée, les produits doivent être remis en stock.</p><p>La table <code>OrderItem</code> contient un champ <code>productVariantId</code> et <code>quantity</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une méthode `restoreStock(orderId: string)` qui restaure le stock de tous les articles de la commande annulée.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync restoreStock(orderId: string): Promise<void> {\n  // Récupérer la commande avec ses items\n  const order = await this.orderRepository.findOne({\n    where: { id: orderId },\n    relations: ['items', 'items.productVariant']\n  });\n\n  if (!order) throw new NotFoundException('Commande introuvable');\n\n  // Pour chaque item, restaurer le stock\n  for (const item of order.items) {\n    const variant = item.productVariant;\n    if (variant) {\n      variant.stock += item.quantity;\n      await this.productVariantRepository.save(variant);\n      \n      // Optionnel : logger la restauration\n      this.logger.log(`Stock restauré pour ${variant.sku}: +${item.quantity}`);\n    }\n  }\n  \n  // Mettre à jour le statut de la commande\n  order.status = 'cancelled';\n  await this.orderRepository.save(order);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Suivi du statut par le client",
+    "type": "competence",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Le client souhaite suivre l'évolution de sa commande via l'application.</p><p>L'API doit fournir le statut actuel et l'historique des changements.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer un DTO de réponse pour la route `GET /orders/:id/status` qui inclut le statut actuel et la timeline.",
+        "niveau": "easy",
+        "reponse": "```typescript\nexport class OrderStatusResponseDto {\n  orderId: string;\n  currentStatus: string;      // 'shipped'\n  currentStatusDate: Date;    // Date du dernier changement\n  estimatedDelivery?: Date;   // Optionnel\n  \n  timeline: Array<{\n    status: string;\n    date: Date;\n    comment?: string;\n  }>;\n}\n```\nExemple de réponse JSON :\n```json\n{\n  \"orderId\": \"ord_123\",\n  \"currentStatus\": \"shipped\",\n  \"currentStatusDate\": \"2025-06-15T10:00:00Z\",\n  \"estimatedDelivery\": \"2025-06-20T00:00:00Z\",\n  \"timeline\": [\n    { \"status\": \"pending\", \"date\": \"2025-06-14T08:00:00Z\" },\n    { \"status\": \"paid\", \"date\": \"2025-06-14T08:05:00Z\", \"comment\": \"Paiement validé\" },\n    { \"status\": \"shipped\", \"date\": \"2025-06-15T10:00:00Z\", \"comment\": \"Colis expédié\" }\n  ]\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Conditions d'annulation par le client",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans votre API e-commerce, vous devez permettre au client d'annuler sa commande <strong>uniquement si</strong> le statut est <code>pending</code> ou <code>paid</code> et que la commande n'est pas encore expédiée.</p><p>Si le statut est <code>shipped</code> ou plus avancé, l'annulation doit être refusée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la logique de validation dans le service avant d'annuler une commande.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync cancelOrder(orderId: string, userId: string): Promise<Order> {\n  const order = await this.orderRepository.findOne({\n    where: { id: orderId, user: { id: userId } },\n    relations: ['items']\n  });\n\n  if (!order) throw new NotFoundException('Commande introuvable');\n  \n  // Vérifier les conditions d'annulation\n  const cancellableStatuses = ['pending', 'paid'];\n  if (!cancellableStatuses.includes(order.status)) {\n    throw new BadRequestException(\n      `Impossible d'annuler la commande : statut actuel \"${order.status}\". Seules les commandes en attente ou payées non expédiées peuvent être annulées.`\n    );\n  }\n  \n  // Vérifier que la commande n'est pas déjà expédiée (par sécurité)\n  if (order.shippedAt && order.shippedAt <= new Date()) {\n    throw new BadRequestException('Commande déjà expédiée, annulation impossible');\n  }\n\n  // Procéder à l'annulation\n  await this.restoreStock(orderId);\n  order.status = 'cancelled';\n  order.cancelledAt = new Date();\n  \n  return this.orderRepository.save(order);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Notifier le client du changement de statut",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>À chaque changement de statut d'une commande (paiement validé, expédition, livraison), le client doit recevoir une notification par email.</p><p>L'API NestJS utilise déjà un <code>EmailService</code> avec une méthode <code>sendOrderStatusEmail(userEmail, orderId, newStatus)</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémenter un mécanisme pour déclencher l'envoi d'email automatiquement lors du changement de statut d'une commande.",
+        "niveau": "hard",
+        "reponse": "Plusieurs approches possibles :\n\n**Approche 1 : Dans le service (simple)**\n```typescript\nasync updateStatus(orderId: string, newStatus: string) {\n  const order = await this.orderRepository.findOne({ where: { id: orderId }, relations: ['user'] });\n  const oldStatus = order.status;\n  order.status = newStatus;\n  await this.orderRepository.save(order);\n  \n  // Envoyer l'email\n  await this.emailService.sendOrderStatusEmail(\n    order.user.email,\n    order.id,\n    newStatus,\n    oldStatus\n  );\n}\n```\n\n**Approche 2 : Avec un Event (plus propre et découplé)**\n```typescript\n// Événement\nexport class OrderStatusChangedEvent {\n  constructor(public orderId: string, public oldStatus: string, public newStatus: string) {}\n}\n\n// Dans le service\nasync updateStatus(orderId: string, newStatus: string) {\n  // ... mise à jour\n  this.eventEmitter.emit('order.status.changed', new OrderStatusChangedEvent(orderId, oldStatus, newStatus));\n}\n\n// Dans un listener\n@OnEvent('order.status.changed')\nasync handleOrderStatusChanged(event: OrderStatusChangedEvent) {\n  const order = await this.orderRepository.findOne({ where: { id: event.orderId }, relations: ['user'] });\n  await this.emailService.sendOrderStatusEmail(order.user.email, order.id, event.newStatus);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calculer le délai moyen de livraison",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>L'administrateur souhaite connaître le <strong>délai moyen de livraison</strong> (en jours) entre la validation de la commande (statut <code>paid</code>) et la livraison effective (statut <code>delivered</code>).</p><p>Vous devez écrire une requête TypeORM ou une méthode de calcul.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une méthode `getAverageDeliveryDays(startDate: Date, endDate: Date): Promise<number>` qui calcule la moyenne des délais de livraison sur une période donnée.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync getAverageDeliveryDays(startDate: Date, endDate: Date): Promise<number> {\n  // Récupérer toutes les commandes livrées dans la période\n  const orders = await this.orderRepository\n    .createQueryBuilder('order')\n    .where('order.status = :status', { status: 'delivered' })\n    .andWhere('order.deliveredAt BETWEEN :startDate AND :endDate', { startDate, endDate })\n    .getMany();\n\n  if (orders.length === 0) return 0;\n\n  let totalDays = 0;\n  for (const order of orders) {\n    // Le statut 'paid' a été enregistré dans la timeline\n    const paidEntry = await this.statusHistoryRepository.findOne({\n      where: { order: { id: order.id }, status: 'paid' }\n    });\n    \n    if (paidEntry && order.deliveredAt) {\n      const diffTime = Math.abs(order.deliveredAt.getTime() - paidEntry.changedAt.getTime());\n      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));\n      totalDays += diffDays;\n    }\n  }\n\n  const average = totalDays / orders.length;\n  return parseFloat(average.toFixed(2));\n}\n```\n\nAlternative avec une requête SQL brute plus performante :\n```sql\nSELECT AVG(EXTRACT(DAY FROM (o.delivered_at - h.changed_at))) as avg_delivery_days\nFROM orders o\nJOIN order_status_history h ON h.order_id = o.id AND h.status = 'paid'\nWHERE o.status = 'delivered' \n  AND o.delivered_at BETWEEN $1 AND $2;\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

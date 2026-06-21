@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 7 : PKI, Certificats X.509 & TLS/SSL - Cybersécurité</title>
+    <!-- Tailwind CSS + Google Fonts pour une meilleure lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax pour formules mathématiques (si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Personnalisation supplémentaire pour slides et confort -->
+    <style>
+        /* Transition fluide entre slides + boutons tactiles */
+        .slide {
+            transition: all 0.3s ease-in-out;
+        }
+        .slide-container {
+            min-height: 70vh;
+        }
+        /* Amélioration du focus pour accessibilité mobile */
+        button:focus, a:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        /* Pour les petites résolutions, assurer que les textes restent lisibles */
+        @media (max-width: 640px) {
+            .prose {
+                font-size: 0.95rem;
+            }
+        }
+        /* Couleurs douces mais contrastées */
+        body {
+            background: #f3f4f6;
+        }
+        .card-bg {
+            background: #ffffff;
+        }
+        .primary-btn {
+            background-color: #1e3a8a;
+            transition: background 0.2s;
+        }
+        .primary-btn:hover {
+            background-color: #1e40af;
+        }
+        .secondary-btn {
+            background-color: #4b5563;
+        }
+        .secondary-btn:hover {
+            background-color: #374151;
+        }
+        .nav-btn {
+            background-color: #e0e7ff;
+            color: #1e3a8a;
+        }
+        .nav-btn:hover {
+            background-color: #c7d2fe;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- En-tête principale avec infos matière/classe (visible sur tous les slides) -->
+    <header class="bg-gradient-to-r from-blue-900 to-indigo-800 text-white shadow-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            <div class="flex flex-col">
+                <span class="text-xs font-semibold uppercase tracking-wide">Classe: Développement Web</span>
+                <h1 class="text-lg sm:text-xl font-bold">Initiation à la Cybersécurité</h1>
+            </div>
+            <div class="text-right">
+                <span class="text-xs bg-blue-700 px-2 py-1 rounded-full">Chapitre 2: Cryptographie</span>
+                <p class="text-sm font-medium mt-1">Leçon 7 · PKI & TLS/SSL</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-3 sm:px-6 py-6">
+        <!-- Conteneur du slideshow -->
+        <div class="card-bg rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <!-- Slide dynamique -->
+            <div id="slides-container" class="slide-container p-6 sm:p-8 md:p-10">
+                <!-- Le contenu sera injecté par jQuery -->
+            </div>
+
+            <!-- Indicateur de progression + boutons de navigation -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-sm text-gray-600">
+                    Slide <span id="current-slide-num">1</span> / <span id="total-slides">0</span>
+                </div>
+                <div class="flex gap-3">
+                    <button id="prev-slide" class="nav-btn px-4 py-2 rounded-lg font-medium shadow-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition">◀ Précédent</button>
+                    <button id="next-slide" class="primary-btn px-5 py-2 rounded-lg text-white font-medium shadow-sm flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition">Suivant ▶</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Petit rappel de navigation pour mobile -->
+        <p class="text-center text-xs text-gray-500 mt-5">Glissez ou utilisez les boutons pour naviguer entre les slides</p>
+    </main>
+
+    <script>
+        // Définition des slides pour la lesson 7 (chap2, lesson7)
+        // Objectifs : Comprendre le rôle des autorités de certification (CA)
+        // Utiliser les certificats X.509 et TLS/SSL
+        // Gérer la chaîne de confiance et la révocation (CRL, OCSP)
+        const slidesData = [
+            {
+                type: "title",
+                title: "🔐 Infrastructure à Clés Publiques (PKI) & Certificats",
+                subtitle: "Comprendre le rôle des CA, certificats X.509, TLS/SSL et la chaîne de confiance",
+                icon: "🛡️"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Comprendre le rôle des autorités de certification (CA) dans la sécurisation des échanges.",
+                    "Utiliser les certificats X.509 et le protocole TLS/SSL pour garantir confidentialité et authentification.",
+                    "Gérer la chaîne de confiance et les mécanismes de révocation (CRL, OCSP)."
+                ]
+            },
+            {
+                type: "content",
+                title: "📌 Introduction : Pourquoi la PKI ?",
+                paragraphs: [
+                    "Sur Internet, comment être sûr que vous communiquez bien avec le site web officiel (votre banque, réseau social) et non un imposteur ? Comment chiffrer les données sans avoir échangé de clé secrète à l’avance ?",
+                    "La cryptographie asymétrique (clé publique/privée) résout en partie le problème, mais il manque un maillon essentiel : l’association entre une clé publique et une identité (ex: google.com). C’est là qu’intervient la PKI (Public Key Infrastructure) grâce aux **autorités de certification (CA)** ."
+                ],
+                note: "💡 La PKI permet de délivrer, renouveler et révoquer des certificats numériques qui lient une identité à une paire de clés."
+            },
+            {
+                type: "content",
+                title: "🏛️ Qu'est-ce qu'une Autorité de Certification (CA) ?",
+                paragraphs: [
+                    "Une CA (Certificate Authority) est une entité de confiance qui émet des certificats numériques. Son rôle est de vérifier l’identité du demandeur (organisation ou site web) avant de signer électroniquement son certificat.",
+                    "Exemples de CA célèbres : Let's Encrypt (gratuit), DigiCert, GlobalSign, IdenTrust. Ces CA sont intégrées par défaut dans les navigateurs et systèmes d’exploitation.",
+                    "Schéma simplifié : Demande de certificat → Vérification d’identité → Signature par CA → Certificat délivré."
+                ],
+                // Petite illustration dessinée en SVG simple pour la CA
+                drawSvg: true,
+                svgDescription: "Schéma d'une Autorité de Certification qui délivre un certificat à un serveur web"
+            },
+            {
+                type: "content",
+                title: "📜 Certificat X.509 : la carte d’identité numérique",
+                paragraphs: [
+                    "Le standard X.509 définit la structure d’un certificat numérique. Un certificat contient :",
+                    "• Version et numéro de série • Titulaire (sujet) : nom de domaine ou organisation • Clé publique du titulaire • Émetteur (CA) • Période de validité (start/expire) • Signature numérique de la CA • Usages (chiffrement, signature, TLS serveur...)",
+                    "Quand vous visitez un site https, le serveur envoie son certificat X.509 à votre navigateur. Le navigateur vérifie la signature de la CA, les dates et que le nom de domaine correspond."
+                ],
+                highlight: "Un certificat ne garantit pas que le site est sûr à 100%, mais garantit que la communication est chiffrée et que le serveur est bien celui annoncé."
+            },
+            {
+                type: "content",
+                title: "🔗 Chaîne de confiance : Root CA → Intermédiaire → Certificat final",
+                paragraphs: [
+                    "Les CA racines (root CA) sont au sommet de la confiance. Elles sont intégrées dans le navigateur. Pour des raisons de sécurité, les CA racines ne signent pas directement les certificats des sites web, mais délèguent à des CA intermédiaires (Intermediate CA).",
+                    "Résultat : une chaîne hiérarchique. Lors de la validation, le navigateur remonte jusqu’à la racine qu’il connaît et vérifie chaque signature intermédiaire.",
+                    "Si l’un des maillons est invalide ou révoqué, la confiance est rompue."
+                ],
+                drawChain: true
+            },
+            {
+                type: "content",
+                title: "🌐 TLS/SSL : le protocole qui utilise les certificats",
+                paragraphs: [
+                    "TLS (Transport Layer Security) est le successeur de SSL. C’est le cadenas 🔒 dans votre navigateur. Il repose sur les certificats X.509 pour :",
+                    "1. Authentifier le serveur (et optionnellement le client).",
+                    "2. Établir une session chiffrée via un échange de clés (ex: Diffie-Hellman authentifié).",
+                    "3. Garantir l’intégrité des données (éviter les altérations).",
+                    "Les versions SSL 2.0/3.0 sont obsolètes ; aujourd'hui TLS 1.2 et 1.3 sont les standards."
+                ],
+                techNote: "HTTPS = HTTP + TLS. Pour mettre en place HTTPS, il faut un certificat TLS/SSL."
+            },
+            {
+                type: "content",
+                title: "🚫 Révocation de certificat : CRL & OCSP",
+                paragraphs: [
+                    "Un certificat peut être compromis (clé privée volée) ou ne plus être valide (site fermé, changement d’organisation). Il faut alors le révoquer.",
+                    "Méthodes principales :",
+                    "- **CRL (Certificate Revocation List)** : liste noire publiée par la CA. Le navigateur doit télécharger régulièrement la liste. Inconvénient : liste peut devenir volumineuse et pas temps réel.",
+                    "- **OCSP (Online Certificate Status Protocol)** : interrogation en ligne d’un serveur OCSP pour vérifier en temps réel l’état du certificat. Plus efficace.",
+                    "Une amélioration : OCSP Stapling : le serveur web attache une réponse OCSP pré-signée lors de la handshake TLS."
+                ]
+            },
+            {
+                type: "content",
+                title: "🧪 Exemple visuel : comment le navigateur vérifie un certificat",
+                paragraphs: [
+                    "Étapes simplifiées :",
+                    "1. Connexion à https://exemple.com → serveur envoie son certificat + chaîne intermédiaire.",
+                    "2. Navigateur vérifie la date de validité.",
+                    "3. Vérifie que le nom du site correspond au champ 'Common Name' ou 'SAN'.",
+                    "4. Construit la chaîne de confiance : certif site → CA intermédiaire → CA racine (connue). Vérifie les signatures.",
+                    "5. Optionnellement consulte OCSP/CRL pour vérifier si non révoqué.",
+                    "6. Si tout est OK, la connexion TLS est établie."
+                ]
+            },
+            {
+                type: "summary",
+                title: "📝 Récapitulatif des points clés",
+                points: [
+                    "La PKI repose sur des Autorités de Certification (CA) qui signent des certificats X.509.",
+                    "Les certificats lient une clé publique à une identité (nom de domaine/organisation).",
+                    "TLS/SSL utilise ces certificats pour chiffrer et authentifier les communications web.",
+                    "La chaîne de confiance part des CA racines intégrées aux navigateurs/OS.",
+                    "La révocation se fait via CRL (listes) ou OCSP (vérification en ligne)."
+                ]
+            },
+            {
+                type: "conclusion",
+                title: "✨ À retenir pour la pratique",
+                text: "En tant que développeur ou administrateur : protégez vos clés privées, renouvelez vos certificats avant expiration, utilisez Let's Encrypt pour des certificats gratuits, surveillez la révocation via OCSP. La sécurité des identités numériques est la colonne vertébrale de la confiance sur Internet."
+            }
+        ];
+
+        let currentIndex = 0;
+
+        // Fonction pour générer le slide HTML selon le type
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            
+            let html = '';
+            switch(slide.type) {
+                case 'title':
+                    html = `
+                        <div class="text-center py-6 md:py-10">
+                            <div class="text-7xl mb-4">${slide.icon || '🔏'}</div>
+                            <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-4">${slide.title}</h2>
+                            <p class="text-xl text-gray-600">${slide.subtitle || ''}</p>
+                            <div class="mt-8 border-t border-gray-200 pt-6 text-sm text-blue-700 font-medium">Cours de cybersécurité - Cameroun 🇨🇲</div>
+                        </div>
+                    `;
+                    break;
+                case 'objectives':
+                    html = `
+                        <div>
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-4 border-indigo-600 pl-4 mb-6">${slide.title}</h2>
+                            <ul class="space-y-3 list-disc list-inside text-gray-700">
+                                ${slide.objectives.map(obj => `<li class="text-lg">${obj}</li>`).join('')}
+                            </ul>
+                            <div class="mt-6 bg-blue-50 p-4 rounded-lg italic text-blue-800 text-sm">🎯 À la fin de cette leçon, vous serez capable de décrire le rôle de la PKI et vérifier un certificat TLS.</div>
+                        </div>
+                    `;
+                    break;
+                case 'content':
+                    let extraContent = '';
+                    if (slide.drawSvg) {
+                        // Dessin SVG simple : Autorité de Certification et certificat
+                        extraContent = `
+                            <div class="my-6 bg-gray-50 rounded-xl p-4 flex justify-center border border-gray-200">
+                                <svg width="280" height="140" viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg" class="max-w-full h-auto">
+                                    <rect x="20" y="40" width="100" height="50" fill="#1e3a8a" rx="8" />
+                                    <text x="45" y="72" fill="white" font-size="12">Autorité de</text>
+                                    <text x="45" y="88" fill="white" font-size="12">Certification (CA)</text>
+                                    <path d="M125 65 L200 65" stroke="#f97316" stroke-width="3" stroke-dasharray="5,5" />
+                                    <text x="145" y="55" fill="#f97316" font-size="10">signature</text>
+                                    <rect x="210" y="30" width="150" height="70" fill="#e0f2fe" stroke="#0284c7" rx="6" />
+                                    <text x="225" y="55" fill="#0f172a" font-size="11">Certificat X.509</text>
+                                    <text x="225" y="72" fill="#0f172a" font-size="10">✅ identité + clé publique</text>
+                                    <text x="225" y="88" fill="#0f172a" font-size="10">🔒 Signé par CA</text>
+                                </svg>
+                            </div>
+                        `;
+                    }
+                    if (slide.drawChain) {
+                        extraContent = `
+                            <div class="my-6 bg-gray-50 rounded-xl p-4 flex justify-center border border-gray-200">
+                                <svg width="350" height="110" viewBox="0 0 450 110" xmlns="http://www.w3.org/2000/svg" class="max-w-full h-auto">
+                                    <rect x="10" y="30" width="100" height="40" fill="#1f2937" rx="6" />
+                                    <text x="32" y="56" fill="white" font-size="12">Root CA</text>
+                                    <path d="M115 50 L175 50" stroke="#34d399" stroke-width="3" />
+                                    <rect x="180" y="30" width="110" height="40" fill="#3b82f6" rx="6" />
+                                    <text x="200" y="56" fill="white" font-size="12">Intermediate CA</text>
+                                    <path d="M295 50 L340 50" stroke="#34d399" stroke-width="3" />
+                                    <rect x="345" y="25" width="95" height="50" fill="#facc15" rx="6" />
+                                    <text x="360" y="48" fill="#1e1b4b" font-size="11">Certificat</text>
+                                    <text x="360" y="64" fill="#1e1b4b" font-size="11">Serveur Web</text>
+                                </svg>
+                                <p class="sr-only">Chaîne de confiance : Root CA → Intermédiaire → Certificat serveur</p>
+                            </div>
+                        `;
+                    }
+                    html = `
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800 border-b border-gray-300 pb-2 mb-5">${slide.title}</h2>
+                            ${slide.paragraphs.map(p => `<p class="mb-4 text-gray-700 leading-relaxed">${p}</p>`).join('')}
+                            ${slide.highlight ? `<div class="bg-amber-50 border-l-4 border-amber-500 p-3 my-4 text-amber-800">⚠️ ${slide.highlight}</div>` : ''}
+                            ${slide.techNote ? `<div class="bg-gray-100 p-3 rounded-md font-mono text-sm text-gray-700 my-4">🔧 ${slide.techNote}</div>` : ''}
+                            ${extraContent}
+                            ${slide.note ? `<p class="text-sm text-blue-700 bg-blue-50 p-2 rounded-md mt-3">${slide.note}</p>` : ''}
+                        </div>
+                    `;
+                    break;
+                case 'summary':
+                    html = `
+                        <div>
+                            <h2 class="text-2xl font-bold text-green-800 mb-5">${slide.title}</h2>
+                            <ul class="space-y-3 list-disc pl-5 marker:text-green-600">
+                                ${slide.points.map(pt => `<li class="text-gray-800">${pt}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    break;
+                case 'conclusion':
+                    html = `
+                        <div class="bg-gradient-to-r from-indigo-50 to-white p-6 rounded-xl">
+                            <h2 class="text-2xl font-bold text-indigo-900 mb-4">${slide.title}</h2>
+                            <p class="text-gray-800 text-lg leading-relaxed">${slide.text}</p>
+                            <div class="mt-6 flex justify-center">
+                                <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🔐 Sécurisons ensemble le web</span>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                default:
+                    html = `<p>Contenu en cours...</p>`;
+            }
+            return html;
+        }
+
+        // Mise à jour de l'affichage + gestion désactivation boutons
+        function updateSlide() {
+            const total = slidesData.length;
+            $('#total-slides').text(total);
+            $('#current-slide-num').text(currentIndex+1);
+            const slideHtml = renderSlide(currentIndex);
+            $('#slides-container').fadeOut(150, function() {
+                $(this).html(slideHtml);
+                // Appliquer MathJax si nécessaire (aucune formule complexe mais au cas où)
+                if(window.MathJax) {
+                    MathJax.typesetPromise && MathJax.typesetPromise();
+                }
+                $(this).fadeIn(200);
+            });
+            
+            // Gestion des boutons prev/next désactivés aux extrémités
+            $('#prev-slide').prop('disabled', currentIndex === 0);
+            $('#next-slide').prop('disabled', currentIndex === total-1);
+        }
+
+        // Navigation
+        function nextSlide() {
+            if(currentIndex < slidesData.length-1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        
+        function prevSlide() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+
+        // Ajout support clavier flèches gauche/droite
+        $(document).on('keydown', function(e) {
+            if(e.key === 'ArrowRight') {
+                nextSlide();
+                e.preventDefault();
+            } else if(e.key === 'ArrowLeft') {
+                prevSlide();
+                e.preventDefault();
+            }
+        });
+
+        // Initialisation
+        $(document).ready(function() {
+            updateSlide();
+            $('#next-slide').on('click', nextSlide);
+            $('#prev-slide').on('click', prevSlide);
+            
+            // Option tactile / swipe simplifié pour mobile (jQuery avec événements touch)
+            let touchstartX = 0;
+            let touchendX = 0;
+            const container = $('#slides-container')[0];
+            container.addEventListener('touchstart', (e) => {
+                touchstartX = e.changedTouches[0].screenX;
+            }, false);
+            container.addEventListener('touchend', (e) => {
+                touchendX = e.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 40) nextSlide();
+                if (touchendX > touchstartX + 40) prevSlide();
+            }, false);
+        });
+    </script>
+    <!-- Note : toutes les illustrations sont dessinées en SVG inline, pas d'appels externes -->
+    <!-- Accessibilité et responsivité garanties -->
+</body>
+</html>

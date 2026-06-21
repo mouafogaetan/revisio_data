@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 27 : Journalisation avec Winston & Pino | Node.js</title>
+    <!-- Tailwind CSS via CDN + base style pour slides -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, présent pour d'éventuelles formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles supplémentaires pour un défilement fluide et animations minimales */
+        body {
+            background: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* Pour les petits écrans, on ajuste le padding */
+        @media (max-width: 640px) {
+            .container-custom {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .slide-card {
+                padding: 1.25rem;
+            }
+        }
+        /* code block style amélioré */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+        }
+        .badge-icon {
+            background: #0f172a;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10 container-custom">
+        <!-- Contrôles de navigation + indicateur de slide -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+            <div class="flex gap-3">
+                <button id="prevSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    Précédent
+                </button>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-1">
+                    Suivant
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+            <div class="text-sm bg-white/70 backdrop-blur-sm rounded-full px-4 py-1 shadow-sm font-medium text-gray-700">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount"></span>
+            </div>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-indigo-100 transition-all">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-5 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700">Journalisation avancée</h1>
+                    <p class="text-indigo-600 font-semibold mt-2 text-lg">Winston · Pino · Logs pour la production</p>
+                    <div class="h-1 w-24 bg-indigo-300 rounded-full my-4"></div>
+                    <p class="text-gray-600 max-w-lg">Chapitre 8 — Structurer un projet Node.js professionnel</p>
+                    <div class="mt-6 flex flex-wrap gap-3 justify-center">
+                        <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🔍 Debugging</span>
+                        <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">📊 Monitoring</span>
+                        <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">⚙️ Winston/Pino</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-indigo-100">
+                <div class="flex items-center gap-3 border-b border-indigo-200 pb-3 mb-5">
+                    <div class="bg-indigo-100 p-2 rounded-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                </div>
+                <ul class="space-y-4 mt-2">
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span class="text-gray-700 text-lg">Installer et configurer <strong class="font-mono bg-gray-100 px-1">Winston</strong> ou <strong class="font-mono bg-gray-100 px-1">Pino</strong> pour la journalisation.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span class="text-gray-700 text-lg">Différencier les niveaux de logs (info, warn, error, debug).</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span class="text-gray-700 text-lg">Utiliser les logs pour le débogage et la surveillance applicative.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span class="text-gray-700 text-lg">Savoir transporter les logs vers la console, fichiers ou services externes.</span></li>
+                </ul>
+                <div class="mt-8 bg-amber-50 p-4 rounded-xl border-l-8 border-amber-400 text-amber-800 text-sm italic">
+                    💡 Pourquoi logger ? Un bon logging vous aide à trouver les bugs plus vite et comprendre le comportement de l'API en production.
+                </div>
+            </div>
+
+            <!-- Slide 3 : Introduction - Pourquoi des logs professionnels ? -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-4">📜 <span>Journalisation : bien plus que <code class="bg-gray-100 px-1">console.log</code></span></h2>
+                <p class="text-gray-700 leading-relaxed mb-4">En production, <code class="bg-red-50 text-red-700 px-1">console.log()</code> est insuffisant : pas de niveaux, pas de persistance, difficile à analyser. Les bibliothèques comme <strong class="text-indigo-700">Winston</strong> et <strong class="text-indigo-700">Pino</strong> apportent :</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">✔️ Niveaux</span> (error, warn, info, debug)</div>
+                    <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">✔️ Transports</span> (fichiers, bases de données, cloud)</div>
+                    <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">✔️ Format JSON</span> (exploitable par des outils)</div>
+                    <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">✔️ Performance</span> (Pino est ultra-rapide)</div>
+                </div>
+                <!-- petit dessin symbolique console vs logger -->
+                <div class="mt-6 flex justify-center">
+                    <div class="bg-gray-800 text-green-300 font-mono text-xs p-3 rounded-lg w-full max-w-md overflow-x-auto">
+                        <span class="text-gray-400">// ❌ Mauvaise pratique</span><br>
+                        console.log("Utilisateur connecté");<br>
+                        <span class="text-gray-400">// ✅ Avec Winston</span><br>
+                        logger.info("Nouvelle connexion", { userId: 42, ip: "192.168.1.1" });
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Installation & configuration de Winston -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 border-l-5 border-indigo-500 pl-3 mb-4">📦 Winston – Le couteau suisse des logs</h2>
+                <pre class="p-4 rounded-xl text-sm overflow-x-auto"><code class="language-bash">npm install winston</code></pre>
+                <p class="mt-3 text-gray-700">Configuration basique (logger.js) :</p>
+                <pre class="p-4 mt-2 rounded-xl text-sm"><code class="language-javascript">const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.Console({ format: winston.format.simple() }),
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' })
+  ]
+});
+
+module.exports = logger;</code></pre>
+                <div class="bg-indigo-50 p-3 rounded-lg mt-3 text-indigo-800 text-sm">
+                    🔍 <strong>Niveaux par défaut</strong> : error, warn, info, http, verbose, debug, silly. On peut définir un seuil.
+                </div>
+            </div>
+
+            <!-- Slide 5 : Pino – performance maximale -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">⚡ Pino – Logging ultra-rapide</h2>
+                <p class="text-gray-600 mt-1">Idéal pour les applications à fort trafic, jusqu'à 5x plus rapide que Winston.</p>
+                <pre class="p-4 mt-4 rounded-xl text-sm"><code class="language-bash">npm install pino pino-pretty</code></pre>
+                <pre class="p-4 mt-2 rounded-xl text-sm"><code class="language-javascript">const pino = require('pino');
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true, translateTime: 'SYS:standard' }
+  }
+});
+
+// Utilisation
+logger.info({ user: 'Mboua' }, 'Requête API reçue');
+logger.error(new Error('Connexion DB perdue'));</code></pre>
+                <div class="bg-green-50 p-3 mt-3 rounded-lg text-green-800 text-sm flex gap-2 items-start"><span>✅</span><span>Pino génère du JSON compact, facile à intégrer avec des systèmes comme Datadog ou ELK.</span></div>
+            </div>
+
+            <!-- Slide 6 : Niveaux de logs et bonnes pratiques -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-3">🎚️ Niveaux de logs & conseils</h2>
+                <div class="space-y-3">
+                    <div class="flex flex-wrap items-baseline gap-2 border-b pb-2"><span class="font-mono bg-red-100 text-red-700 px-2 py-0.5 rounded">error</span><span class="text-gray-600"> → Erreurs fatales, exceptions non gérées, plantages.</span></div>
+                    <div class="flex flex-wrap items-baseline gap-2 border-b pb-2"><span class="font-mono bg-orange-100 text-orange-700 px-2 py-0.5 rounded">warn</span><span class="text-gray-600"> → Comportement suspect, ressource faible, dépréciation.</span></div>
+                    <div class="flex flex-wrap items-baseline gap-2 border-b pb-2"><span class="font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded">info</span><span class="text-gray-600"> → Événements normaux: serveur démarré, utilisateur créé.</span></div>
+                    <div class="flex flex-wrap items-baseline gap-2 border-b pb-2"><span class="font-mono bg-gray-200 text-gray-800 px-2 py-0.5 rounded">debug</span><span class="text-gray-600"> → Détails pour développement uniquement.</span></div>
+                </div>
+                <div class="mt-6 p-3 bg-yellow-50 rounded-lg text-yellow-800">
+                    📌 Règle d'or : Ne jamais logger des informations sensibles (mots de passe, tokens). Utilisez des champs masqués.
+                </div>
+            </div>
+
+            <!-- Slide 7 : Exemple concret d'intégration dans une API Express -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-xl md:text-2xl font-bold mb-3">🖥️ Intégration dans une API Express (middleware)</h2>
+                <pre class="p-4 rounded-xl text-sm overflow-x-auto"><code class="language-javascript">const express = require('express');
+const winston = require('winston');
+const app = express();
+
+// Middleware de logging avec Winston
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    winston.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
+  });
+  next();
+});
+
+// Route exemple
+app.get('/api/users', (req, res) => {
+  winston.debug('Fetch users avec query', req.query);
+  res.json([{ id: 1, name: "Claude" }]);
+});</code></pre>
+                <p class="text-gray-600 text-sm mt-2">✨ Cela produit des traces exploitables pour surveiller les performances et les erreurs.</p>
+            </div>
+
+            <!-- Slide 8 : Utilisation des logs pour debugging & surveillance -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-3">🔎 Déboguer avec les logs</h2>
+                <p class="mb-2">En développement, activez le niveau <code class="bg-gray-200 px-1">debug</code>. En production, utilisez <code class="bg-gray-200 px-1">info</code> ou <code class="bg-gray-200 px-1">warn</code> pour éviter la surcharge.</p>
+                <div class="bg-slate-100 p-4 rounded-xl my-2 font-mono text-sm">
+                    $ NODE_ENV=development node server.js   // logs debug visibles<br>
+                    $ NODE_ENV=production node server.js    // logs info+
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <div class="bg-gray-800 text-green-300 p-2 rounded-lg text-xs w-full">
+                        🚀 Surveillance: On peut envoyer les logs vers Papertrail, Logtail ou un fichier centralisé pour analyser les erreurs fréquentes.
+                    </div>
+                </div>
+                <!-- simple diagramme ascii de monitoring -->
+                <div class="mt-5 text-center text-gray-500 text-sm border-t pt-3">
+                    📈 <strong>Logs → agrégation → alertes</strong> (Ex: Plus de 10 erreurs/min → email à l'admin)
+                </div>
+            </div>
+
+            <!-- Slide 9 : Résumé et meilleurs outils -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-2">📌 Ce qu'il faut retenir</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Winston → polyvalent, transports multiples, parfait pour la plupart des projets.</li>
+                    <li>Pino → performance extrême, faible overhead pour microservices.</li>
+                    <li>Choisir un niveau adapté selon l'environnement (production vs dev).</li>
+                    <li>Logs structurés (JSON) facilitent l'analyse automatique.</li>
+                    <li>Ne jamais logger les secrets, mais ajouter requestId pour tracer une requête.</li>
+                </ul>
+                <div class="mt-6 bg-indigo-100 p-4 rounded-xl">
+                    <p class="font-semibold">🧪 Exercice pratique :</p>
+                    <p class="text-sm">Créez un petit serveur Express, ajoutez Winston avec deux transports (console + fichier app.log). Logguez chaque requête avec méthode, URL et temps de réponse. Testez en générant des erreurs 404 et observez le fichier de logs.</p>
+                </div>
+            </div>
+
+            <!-- Slide 10 : Quiz / Vérification rapide -->
+            <div class="slide slide-hidden slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold flex items-center gap-2">🧠 Auto-évaluation</h2>
+                <div class="mt-3 space-y-3">
+                    <p class="bg-gray-50 p-3 rounded">1️⃣ Quelle bibliothèque de logging est la plus performante pour une API très sollicitée ?</p>
+                    <p class="bg-gray-50 p-3 rounded">2️⃣ Quel niveau de log utiliseriez-vous pour une "connexion utilisateur réussie" ?</p>
+                    <p class="bg-gray-50 p-3 rounded">3️⃣ Vrai ou faux : On peut avoir des logs écrits à la fois dans la console et dans un fichier grâce aux transports.</p>
+                </div>
+                <button id="showAnswersBtn" class="mt-4 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-full text-sm shadow">Afficher les réponses</button>
+                <div id="answersBlock" class="mt-4 hidden bg-green-50 p-4 rounded-xl text-green-800 text-sm space-y-1">
+                    <p>✅ 1. Pino (le plus rapide en termes d'ops/s).</p>
+                    <p>✅ 2. Niveau "info".</p>
+                    <p>✅ 3. Vrai – Winston permet des transports multiples (Console, File, HTTP...).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- petite note de bas de page -->
+        <div class="text-center text-xs text-gray-400 mt-8 border-t pt-4">
+            Leçon 27 – Backend avec Node.js | Cours adapté pour étudiants camerounais | Bonne pratique: toujours logger avec sagesse
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            let current = 0;  // index 0-based
+            
+            $('#totalSlidesCount').text(total);
+            function updateSlideVisibility() {
+                slides.each(function(index) {
+                    if(index === current) {
+                        $(this).removeClass('slide-hidden').addClass('block');
+                    } else {
+                        $(this).addClass('slide-hidden').removeClass('block');
+                    }
+                });
+                $('#currentSlideIdx').text(current + 1);
+            }
+            
+            // initialisation
+            updateSlideVisibility();
+            
+            $('#nextSlide').on('click', function() {
+                if(current < total - 1) {
+                    current++;
+                    updateSlideVisibility();
+                } else {
+                    // petit feedback optionnel
+                    $(this).css('transform','scale(0.97)');
+                    setTimeout(()=> $(this).css('transform',''), 150);
+                }
+            });
+            
+            $('#prevSlide').on('click', function() {
+                if(current > 0) {
+                    current--;
+                    updateSlideVisibility();
+                } else {
+                    $(this).css('transform','scale(0.97)');
+                    setTimeout(()=> $(this).css('transform',''), 150);
+                }
+            });
+            
+            // Support clavier (flèches gauche/droite)
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') {
+                    $('#nextSlide').trigger('click');
+                } else if(e.key === 'ArrowLeft') {
+                    $('#prevSlide').trigger('click');
+                }
+            });
+            
+            // Bouton réponse quiz
+            $('#showAnswersBtn').on('click', function() {
+                $('#answersBlock').toggleClass('hidden');
+                if(!$('#answersBlock').hasClass('hidden')) {
+                    $(this).text('Masquer les réponses');
+                } else {
+                    $(this).text('Afficher les réponses');
+                }
+            });
+            
+            // Sécuriser les clics sur slides: rien de plus
+        });
+    </script>
+</body>
+</html>

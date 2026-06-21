@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 22 : Mise à jour et gestion des correctifs | Cybersécurité</title>
+  <!-- Tailwind CSS + Font Awesome (icons utiles) + jQuery -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules mathématiques si nécessaire) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Ajustements personnalisés pour slides + lecture confortable */
+    body {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+      font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+    }
+    .slide-container {
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .slide {
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(2px);
+      border-radius: 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s;
+    }
+    .nav-btn {
+      transition: all 0.2s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .nav-btn:hover {
+      transform: scale(1.05);
+      background-color: #1e3a8a;
+    }
+    .progress-bar {
+      transition: width 0.25s ease-out;
+    }
+    @media (max-width: 640px) {
+      .slide {
+        border-radius: 1.5rem;
+        padding: 1.5rem !important;
+      }
+      h1 {
+        font-size: 1.8rem !important;
+      }
+      h2 {
+        font-size: 1.4rem !important;
+      }
+    }
+    /* Éviter texte trop petit sur mobile */
+    p, li {
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .badge-chap {
+      background-color: #2c3e66;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur principal slides -->
+    <div class="relative">
+      <!-- Slide courant affiché -->
+      <div id="slides-wrapper" class="relative min-h-[65vh]">
+        <!-- les slides seront injectées ici dynamiquement -->
+      </div>
+
+      <!-- Navigation + progression -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+        <div class="flex gap-3">
+          <button id="prevBtn" class="nav-btn bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+            ← Précédent
+          </button>
+          <button id="nextBtn" class="nav-btn bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-6 rounded-full shadow-md transition flex items-center gap-1">
+            Suivant →
+          </button>
+        </div>
+        <div class="text-sm text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
+          Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+        </div>
+      </div>
+
+      <!-- Barre de progression -->
+      <div class="mt-5 w-full bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner">
+        <div id="progressFill" class="progress-bar bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+      </div>
+
+      <!-- petit rappel matière -->
+      <div class="text-center text-xs text-gray-500 mt-6">
+        📘 Matière : Initiation à la Cybersécurité | Chapitre 6 : Protéger les endpoints et les données
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Structure des slides pour la leçon 22 : Gestion des correctifs / Politique de mise à jour
+    // Titre: "Mise à jour et gestion des correctifs"
+    const slidesData = [
+      {
+        type: "title",
+        title: "Mise à jour et gestion des correctifs",
+        subtitle: "Pourquoi les mises à jour sont le bouclier invisible de votre système ?",
+        icon: "🛡️"
+      },
+      {
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        objectifs: [
+          "Comprendre l'importance des correctifs de sécurité et leur impact sur la protection des systèmes.",
+          "Mettre en place une politique de mise à jour efficace (priorisation, tests, déploiement).",
+          "Utiliser des outils de gestion des correctifs (WSUS, SCCM, Qualys) pour automatiser et contrôler."
+        ]
+      },
+      {
+        type: "content",
+        title: "🔐 Pourquoi les correctifs sont vitaux ?",
+        content: `<p class="mb-3">Les correctifs (ou <strong class="text-indigo-700">patches</strong>) sont des mises à jour logicielles qui réparent des failles de sécurité, des bugs ou améliorent la stabilité. <strong>Un système non mis à jour est une porte ouverte aux cyberattaques</strong> (ransomware, vol de données, prise de contrôle).</p>
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg mt-3">
+          <p class="text-amber-800 text-sm font-medium">💡 Exemple concret : En 2017, la faille EternalBlue (corrigée par Microsoft depuis mars 2017) a permis au ransomware WannaCry de paralyser des milliers d’ordinateurs dans le monde, faute d’application des correctifs.</p>
+        </div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-center">
+          <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold text-indigo-800">📉 60% des brèches</span><br>exploitent des vulnérabilités avec correctif disponible</div>
+          <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold text-indigo-800">⏱️ Délai critique</span><br>les attaquants ciblent les systèmes non patchés en < 48h après publication</div>
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🔄 Les phases d'une bonne politique de mise à jour",
+        content: `<p class="mb-3">Une stratégie rigoureuse suit ces étapes :</p>
+        <ol class="list-decimal list-inside space-y-2 bg-gray-50 p-4 rounded-xl">
+          <li><strong>🕵️ Inventaire</strong> : connaître tous les logiciels, OS, équipements (actifs critiques).</li>
+          <li><strong>⚠️ Priorisation</strong> : corriger d'abord les failles critiques (CVSS score élevé) et exposées publiquement.</li>
+          <li><strong>🧪 Tests en environnement non‑production</strong> : éviter les régressions métier.</li>
+          <li><strong>🚀 Déploiement progressif</strong> : d'abord sur un sous‑ensemble, puis généralisation.</li>
+          <li><strong>📋 Vérification & reporting</strong> : s'assurer que le correctif est bien appliqué.</li>
+        </ol>
+        <div class="mt-4 p-3 bg-indigo-100 rounded-lg text-indigo-900 text-sm italic">📌 Le principe <strong>"Patch Management Lifecycle"</strong> réduit la fenêtre de vulnérabilité.</div>`
+      },
+      {
+        type: "content",
+        title: "🛠️ Outils pour automatiser la gestion des correctifs",
+        content: `<p>Voici des solutions professionnelles qui aident à déployer et suivre les correctifs à grande échelle :</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div class="border border-gray-200 rounded-xl p-3 shadow-sm bg-white"><span class="font-bold text-indigo-800">🪟 WSUS</span><br><span class="text-sm">Windows Server Update Services : gratuit, centralise les mises à jour Microsoft.</span></div>
+          <div class="border border-gray-200 rounded-xl p-3 shadow-sm bg-white"><span class="font-bold text-indigo-800">📦 SCCM</span><br><span class="text-sm">System Center Config Manager : solution complète (Microsoft) avec reporting avancé.</span></div>
+          <div class="border border-gray-200 rounded-xl p-3 shadow-sm bg-white"><span class="font-bold text-indigo-800">☁️ Qualys</span><br><span class="text-sm">Cloud native : scan de vulnérabilités + patch management pour OS et applications tierces.</span></div>
+        </div>
+        <p class="mt-4 text-sm text-gray-600">D'autres outils : <strong>Ivanti, ManageEngine, Automox</strong> (pour environnements hétérogènes Linux/macOS/Windows).</p>`
+      },
+      {
+        type: "content",
+        title: "⚙️ Priorisation des correctifs : matrice de risque",
+        content: `<p>Ne pas tout appliquer en même temps. Utilisez la criticité et l'exposition :</p>
+        <div class="overflow-x-auto my-3">
+          <table class="min-w-full bg-white border border-gray-300 rounded-xl shadow text-sm">
+            <thead class="bg-gray-100"><tr><th class="border p-2">Niveau</th><th class="border p-2">Criticité (CVE)</th><th class="border p-2">Délai recommandé</th></tr></thead>
+            <tbody>
+              <tr><td class="border p-2 bg-red-50">🔴 Critique</td><td class="border p-2">Exploitation active / wormable / score ≥9.0</td><td class="border p-2">48 heures</td></tr>
+              <tr><td class="border p-2 bg-orange-50">🟠 Élevée</td><td class="border p-2">Impact fort mais pas d'attaque connue</td><td class="border p-2">1 semaine</td></tr>
+              <tr><td class="border p-2 bg-yellow-50">🟡 Moyenne</td><td class="border p-2">Impact modéré, conditions spécifiques</td><td class="border p-2">Dans le cycle mensuel</td></tr>
+              <tr><td class="border p-2 bg-green-50">🟢 Faible</td><td class="border p-2">Amélioration ou correctifs non‑sécurité</td><td class="border p-2">Prochaine fenêtre de maintenance</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="italic text-xs text-gray-500">→ Toujours tester avant déploiement de masse, surtout les correctifs de sécurité critiques.</p>`
+      },
+      {
+        type: "content",
+        title: "📋 Étapes de déploiement en conditions réelles",
+        content: `<div class="flex flex-col gap-3">
+          <div class="flex items-start gap-3"><span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">1</span><span><strong>Scann</strong> : Identifier les assets manquants via Qualys, Nessus ou WSUS reports.</span></div>
+          <div class="flex items-start gap-3"><span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">2</span><span><strong>Grouper</strong> : Appliquer aux postes pilotes (IT, test) avant généralisation.</span></div>
+          <div class="flex items-start gap-3"><span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">3</span><span><strong>Planifier</strong> : Créer une fenêtre de maintenance (hors heures ouvrables).</span></div>
+          <div class="flex items-start gap-3"><span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">4</span><span><strong>Déployer</strong> : Utiliser des outils automatisés (GPO, scripts, Ansible, SCCM).</span></div>
+          <div class="flex items-start gap-3"><span class="bg-indigo-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shrink-0 mt-0.5">5</span><span><strong>Vérifier</strong> : Supervision, alertes et recours en cas d’échec (rollback possible).</span></div>
+        </div>
+        <div class="mt-4 bg-blue-50 p-3 rounded-lg text-blue-800"><span class="font-semibold">🔁 Recommandation :</span> documenter chaque campagne de correctifs et mesurer le taux de conformité (KPI).</div>`
+      },
+      {
+        type: "content",
+        title: "🏢 Bonnes pratiques pour les entreprises (petites et grandes)",
+        content: `<ul class="list-disc pl-5 space-y-2">
+          <li>✅ Mettre en place des <strong>groupes de sécurité</strong> (ring deployment) : Canary > 10% > 50% > 100%.</li>
+          <li>✅ <strong>Automatiser les mises à jour de sécurité</strong> pour les systèmes non critiques (mais avec supervision).</li>
+          <li>✅ Pour les serveurs critiques (bases de données, AD) : planifier des tests systématiques sur une copie de préproduction.</li>
+          <li>✅ Utiliser des solutions comme <strong>Qualys Patch Management</strong> ou <strong>Windows Autopatch</strong> pour délester les équipes.</li>
+          <li>✅ Former les utilisateurs à accepter les redémarrages programmés (éviter les reports infinis).</li>
+        </ul>
+        <div class="mt-3 p-2 border border-dashed border-indigo-300 rounded-lg text-center text-indigo-700 text-sm">🎓 En entreprise, un patch missing sur une application vulnérable = un risque d’incident majeur.</div>`
+      },
+      {
+        type: "content",
+        title: "🧪 Exercice pratique (mise en situation)",
+        content: `<p class="font-semibold">🔍 Cas d'étude : Votre entreprise utilise un serveur web Apache avec une faille critique répertoriée (CVE-2023-25690).</p>
+        <div class="bg-gray-100 p-4 rounded-lg mt-2">
+          <p><strong>Questions :</strong></p>
+          <ol class="list-decimal list-inside space-y-1 mt-1">
+            <li>Quelle serait votre première action ?</li>
+            <li>Comment priorisez-vous ce correctif par rapport à une mise à jour mineure du système d'exploitation ?</li>
+            <li>Quels outils utiliseriez-vous pour déployer le patch sur 50 serveurs web ?</li>
+          </ol>
+        </div>
+        <p class="mt-3 text-sm text-gray-700">💡 <strong>Éléments de réponse :</strong> 1. Consulter l’avis du CERT/éditeur, tester en labo. 2. Priorité haute (exploitation possible). 3. Ansible, Puppet, ou WSUS tiers. Les correctifs manuels augmentent le risque d’erreur.</p>`
+      },
+      {
+        type: "recap",
+        title: "📌 Récapitulatif essentiel",
+        points: [
+          "Les correctifs de sécurité comblent des brèches connues ; les négliger expose aux ransomwares et APT.",
+          "Une politique de mise à jour se structure : inventaire → priorisation (criticité) → tests → déploiement → vérification.",
+          "Des outils comme WSUS, SCCM, Qualys permettent d’automatiser et de suivre le cycle.",
+          "Les délais de correction dépendent de la sévérité (critique = 48h).",
+          "La sensibilisation des équipes et la documentation des procédures est primordiale."
+        ]
+      },
+      {
+        type: "conclusion",
+        title: "✅ Conclusion & à retenir",
+        content: `<p class="text-lg font-medium">La gestion des correctifs n’est pas une option, c’est une <span class="text-indigo-700">fondation de la cybersécurité</span>.</p>
+        <p class="mt-2">En tant qu'administrateur ou développeur, intégrez le <strong>patch management</strong> dans votre routine de gouvernance. Même le meilleur antivirus échoue si le système contient des failles ouvertes.</p>
+        <div class="mt-6 flex justify-center">
+          <div class="bg-indigo-100 rounded-2xl p-4 w-full text-center text-indigo-800 shadow-inner">
+            🧠 "Un correctif aujourd'hui évite une crise demain"
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-6 text-center">📖 Leçon 22 - Module Cybersécurité | Enseignant : promotion de la cyber-hygiène</p>`
+      }
+    ];
+
+    let currentSlide = 0;
+    let total = slidesData.length;
+
+    // Fonction pour générer le HTML d'un slide selon son type
+    function renderSlide(slide, index) {
+      const { type, title, subtitle, icon, objectifs, content, points } = slide;
+      let innerHtml = "";
+      if (type === "title") {
+        innerHtml = `
+          <div class="text-center py-6 md:py-10">
+            <div class="text-6xl mb-4">${icon || "🛡️"}</div>
+            <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-800 to-blue-700 bg-clip-text text-transparent">${title}</h1>
+            <p class="text-gray-600 text-lg mt-3 max-w-md mx-auto">${subtitle || "Pilier de la défense numérique"}</p>
+            <div class="mt-8 inline-block bg-indigo-100 px-6 py-2 rounded-full text-indigo-800 text-sm font-medium">Leçon 22 / Gestion des correctifs</div>
+          </div>
+        `;
+      } 
+      else if (type === "objectifs") {
+        innerHtml = `
+          <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-5">${title}</h2>
+            <div class="space-y-4">
+              ${objectifs.map((obj, idx) => `
+                <div class="flex items-start gap-3 bg-white/70 p-3 rounded-xl shadow-sm">
+                  <span class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-7 h-7 flex items-center justify-center shrink-0">${idx+1}</span>
+                  <p class="text-gray-800">${obj}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      else if (type === "content") {
+        innerHtml = `
+          <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-5 border-indigo-500 pl-4 mb-4">${title}</h2>
+            <div class="prose max-w-none text-gray-700">${content}</div>
+          </div>
+        `;
+      }
+      else if (type === "recap") {
+        innerHtml = `
+          <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-5 flex items-center gap-2">📌 ${title}</h2>
+            <ul class="space-y-3">
+              ${points.map(p => `<li class="flex items-start gap-2"><span class="text-indigo-600 text-xl leading-5">•</span><span class="text-gray-800">${p}</span></li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+      else if (type === "conclusion") {
+        innerHtml = `
+          <div>
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-4">${title}</h2>
+            <div class="text-gray-700 leading-relaxed">${content}</div>
+          </div>
+        `;
+      }
+      else {
+        innerHtml = `<div>Contenu non disponible</div>`;
+      }
+
+      return `
+        <div class="slide p-6 md:p-8 transition-all duration-300" data-slide-index="${index}">
+          ${innerHtml}
+          <div class="mt-8 text-right text-xs text-gray-400 opacity-70">slide ${index+1}/${total}</div>
+        </div>
+      `;
+    }
+
+    function updateDisplay() {
+      const wrapper = $("#slides-wrapper");
+      if(!wrapper.length) return;
+      // animation simple : on efface et on insert le slide courant
+      const slideHtml = renderSlide(slidesData[currentSlide], currentSlide);
+      wrapper.fadeOut(150, function(){
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      
+      $("#currentSlideIdx").text(currentSlide+1);
+      $("#totalSlides").text(total);
+      const percent = ((currentSlide+1) / total) * 100;
+      $("#progressFill").css("width", `${percent}%`);
+      
+      // gérer état disabled boutons
+      $("#prevBtn").prop("disabled", currentSlide === 0);
+      $("#nextBtn").prop("disabled", currentSlide === total-1);
+      if(currentSlide === 0) $("#prevBtn").addClass("opacity-50 cursor-not-allowed"); else $("#prevBtn").removeClass("opacity-50 cursor-not-allowed");
+      if(currentSlide === total-1) $("#nextBtn").addClass("opacity-50 cursor-not-allowed"); else $("#nextBtn").removeClass("opacity-50 cursor-not-allowed");
+      
+      // scroll en haut pour lisibilité
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function nextSlide() {
+      if(currentSlide < total-1) {
+        currentSlide++;
+        updateDisplay();
+      }
+    }
+    function prevSlide() {
+      if(currentSlide > 0) {
+        currentSlide--;
+        updateDisplay();
+      }
+    }
+    
+    // Chargement initial
+    $(document).ready(function(){
+      updateDisplay();
+      $("#nextBtn").on("click", nextSlide);
+      $("#prevBtn").on("click", prevSlide);
+      // Navigation clavier droite/gauche
+      $(document).keydown(function(e){
+        if(e.key === "ArrowRight") {
+          nextSlide();
+          e.preventDefault();
+        } else if(e.key === "ArrowLeft") {
+          prevSlide();
+          e.preventDefault();
+        }
+      });
+      
+      // Ajout d'un léger support tactile pour swipe (optionnel mais bonus)
+      let touchstartX = 0;
+      let touchendX = 0;
+      const wrapperDiv = document.getElementById("slides-wrapper");
+      if(wrapperDiv) {
+        wrapperDiv.addEventListener("touchstart", (e) => { touchstartX = e.changedTouches[0].screenX; });
+        wrapperDiv.addEventListener("touchend", (e) => { 
+          touchendX = e.changedTouches[0].screenX;
+          if(touchendX < touchstartX - 50) nextSlide();
+          if(touchendX > touchstartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

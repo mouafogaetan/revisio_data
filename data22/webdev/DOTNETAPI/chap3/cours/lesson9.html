@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 9 : Injection de Dépendances Avancée - ASP.NET Core</title>
+    <!-- Tailwind CSS + Font Awesome (icônes discrètes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules mathématiques au cas où, mais peu nécessaire ici, présent par consigne) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* personnalisation du scroll et des couleurs */
+        body {
+            background: #f8fafc;
+        }
+        .card-code {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .btn-slide:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        /* améliorations mobiles */
+        @media (max-width: 640px) {
+            .prose-sm {
+                font-size: 0.9rem;
+            }
+            .card-code {
+                font-size: 0.75rem;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased font-sans bg-gradient-to-br from-slate-50 to-blue-50">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+            
+            <!-- Header: titre de la matière & progression -->
+            <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-5 py-4 text-white flex flex-wrap justify-between items-center">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide">API .NET (ASP.NET Core) – Cameroun</p>
+                    <h1 class="text-xl md:text-2xl font-bold">Injection de dépendances avancée</h1>
+                </div>
+                <div class="bg-white/20 rounded-full px-3 py-1 text-sm font-mono">
+                    <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+                </div>
+            </div>
+            
+            <!-- Zone dynamique des slides -->
+            <div id="slidesContainer" class="relative min-h-[500px] p-5 md:p-8">
+                <!-- les slides seront injectées ici via jQuery -->
+                <div class="text-center py-20 text-gray-400">Chargement des slides...</div>
+            </div>
+
+            <!-- Navigation buttons + indicateur -->
+            <div class="border-t border-gray-200 px-5 py-4 bg-gray-50 flex justify-between items-center flex-wrap gap-3">
+                <button id="prevBtn" class="btn-slide bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                    ◀ Précédent
+                </button>
+                <div class="flex gap-1 flex-wrap justify-center" id="dotsIndicator"></div>
+                <button id="nextBtn" class="btn-slide bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm flex items-center gap-1">
+                    Suivant ▶
+                </button>
+            </div>
+        </div>
+        
+        <!-- Petit pied de page pédagogique -->
+        <p class="text-center text-xs text-gray-500 mt-6">📘 Cours basé sur le programme officiel - Leçon 9 : Enregistrement & injection des services (Transient, Scoped, Singleton)</p>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 9 (contenu conforme aux objectifs de la lesson9)
+        // Objectifs de la lesson9 d'après le JSON:
+        // - Enregistrer des services avec AddTransient, AddScoped, AddSingleton
+        // - Injecter des services dans les constructeurs des contrôleurs
+        // - Utiliser l'interface IServiceProvider pour une résolution manuelle
+        const slidesData = [
+            {
+                type: "title",
+                title: "🎯 Injection de dépendances avancée",
+                subtitle: "ASP.NET Core - Le cœur d'une application modulaire",
+                content: `<div class="text-center mt-6 space-y-4">
+                            <div class="bg-indigo-50 p-4 rounded-2xl inline-block">
+                                <span class="text-5xl">🧩</span>
+                            </div>
+                            <p class="text-gray-700 text-lg max-w-md mx-auto">Comprendre comment enregistrer et maîtriser les services avec leurs durées de vie.</p>
+                            <div class="mt-4 flex justify-center gap-3 text-sm font-mono bg-gray-100 p-2 rounded-full w-fit mx-auto">
+                                <span class="bg-indigo-100 px-3 py-1 rounded-full">Transient</span>
+                                <span class="bg-green-100 px-3 py-1 rounded-full">Scoped</span>
+                                <span class="bg-amber-100 px-3 py-1 rounded-full">Singleton</span>
+                            </div>
+                          </div>`
+            },
+            {
+                type: "objectifs",
+                title: "📌 Objectifs de la leçon",
+                content: `<ul class="list-disc pl-5 space-y-3 text-gray-800 text-lg">
+                            <li>✔ Enregistrer des services avec <code class="bg-gray-200 px-1 rounded">AddTransient</code>, <code class="bg-gray-200 px-1 rounded">AddScoped</code> et <code class="bg-gray-200 px-1 rounded">AddSingleton</code>.</li>
+                            <li>✔ Injecter des services dans les constructeurs des contrôleurs (et autres classes).</li>
+                            <li>✔ Utiliser <code class="bg-gray-200 px-1 rounded">IServiceProvider</code> pour une résolution manuelle avancée.</li>
+                            <li>✔ Comprendre quand choisir chaque durée de vie dans un projet réel.</li>
+                          </ul>
+                          <div class="mt-5 bg-blue-50 p-3 rounded-xl text-sm text-blue-800">
+                            💡 <strong>Pourquoi c'est important ?</strong> Le couplage faible, testabilité et optimisation mémoire.
+                          </div>`
+            },
+            {
+                type: "content",
+                title: "🔧 1. Les trois durées de vie",
+                content: `<div class="space-y-4">
+                            <p>Dans ASP.NET Core, chaque service enregistré possède une durée de vie qui définit comment l'instance est créée et partagée.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                                <div class="border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg">
+                                    <h3 class="font-bold text-blue-800">Transient</h3>
+                                    <p class="text-sm">Créée à chaque demande. Idéal pour les services légers et sans état.</p>
+                                    <code class="block text-xs bg-white p-1 mt-1">services.AddTransient&lt;IEmail, EmailService&gt;();</code>
+                                </div>
+                                <div class="border-l-4 border-green-500 bg-green-50 p-3 rounded-r-lg">
+                                    <h3 class="font-bold text-green-800">Scoped</h3>
+                                    <p class="text-sm">Une instance unique par requête HTTP. Parfait pour DbContext.</p>
+                                    <code class="block text-xs bg-white p-1 mt-1">services.AddScoped&lt;IRepo, ProductRepo&gt;();</code>
+                                </div>
+                                <div class="border-l-4 border-amber-500 bg-amber-50 p-3 rounded-r-lg">
+                                    <h3 class="font-bold text-amber-800">Singleton</h3>
+                                    <p class="text-sm">Une instance unique pour toute l'application. Attention aux accès concurrents !</p>
+                                    <code class="block text-xs bg-white p-1 mt-1">services.AddSingleton&lt;ICache, MemoryCache&gt;();</code>
+                                </div>
+                            </div>
+                            <div class="mt-3 bg-gray-100 p-3 rounded-lg">
+                                <p class="font-semibold">🎓 Règle d'or :</p>
+                                <p>✔ <strong>Transient</strong> : service sans état, petite opération.<br>
+                                ✔ <strong>Scoped</strong> : partage dans la requête (repositories, UoW).<br>
+                                ✔ <strong>Singleton</strong> : configuration, cache, logging (thread-safe).</p>
+                            </div>
+                          </div>`
+            },
+            {
+                type: "content",
+                title: "⚙️ 2. Enregistrement pratique dans Program.cs",
+                content: `<div class="space-y-3">
+                            <p>Voici un extrait typique du fichier <code class="bg-gray-200 px-1">Program.cs</code> (ou Startup.cs selon la version) :</p>
+                            <div class="card-code p-4 overflow-x-auto">
+                                <pre class="text-sm"><code>// Exemple d'enregistrements
+var builder = WebApplication.CreateBuilder(args);
+
+// Ajout des services avec différentes durées de vie
+builder.Services.AddTransient&lt;IProductService, ProductService&gt;();
+builder.Services.AddScoped&lt;IOrderRepository, OrderRepository&gt;();
+builder.Services.AddSingleton&lt;ILoggerService, LoggerService&gt;();
+
+builder.Services.AddControllers();
+var app = builder.Build();
+app.MapControllers();
+app.Run();</code></pre>
+                            </div>
+                            <p class="text-gray-700">⚠️ <strong>Attention :</strong> Un service <strong>Singleton</strong> ne doit pas dépendre d’un service <strong>Scoped</strong> (risque de fuite mémoire/état obsolète).</p>
+                            <div class="bg-yellow-50 p-2 rounded-md text-yellow-800 text-sm">
+                                💡 Conseil : utilisez <strong>AddScoped</strong> pour vos repositories EF Core, et <strong>AddTransient</strong> pour les services utilitaires.
+                            </div>
+                          </div>`
+            },
+            {
+                type: "content",
+                title: "💉 3. Injecter dans un contrôleur",
+                content: `<div class="space-y-3">
+                            <p>L'injection par constructeur est la méthode la plus propre et recommandée. ASP.NET Core fournit automatiquement les dépendances.</p>
+                            <div class="card-code p-4 overflow-x-auto">
+                                <pre class="text-sm"><code>[ApiController]
+[Route("api/products")]
+public class ProductsController : ControllerBase
+{
+    private readonly IProductService _productService;
+    private readonly ILogger&lt;ProductsController&gt; _logger;
+
+    // Injection via le constructeur
+    public ProductsController(IProductService productService, 
+                              ILogger&lt;ProductsController&gt; logger)
+    {
+        _productService = productService;
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public IActionResult Get() => Ok(_productService.GetAll());
+}</code></pre>
+                            </div>
+                            <p class="text-gray-700">✅ <strong>Bonnes pratiques :</strong> Utilisez des interfaces pour découpler, et évitez les résolutions manuelles sauf cas spécifique.</p>
+                        </div>`
+            },
+            {
+                type: "content",
+                title: "🛠️ 4. Résolution manuelle avec IServiceProvider",
+                content: `<div class="space-y-4">
+                            <p>Parfois, vous devez résoudre un service dynamiquement (exemple: fabrique, résolution conditionnelle). Utilisez <code class="bg-gray-200 px-1">IServiceProvider</code>.</p>
+                            <div class="card-code p-4">
+                                <pre class="text-sm"><code>public class NotificationService
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public NotificationService(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
+    public void Send(string type)
+    {
+        if(type == "email")
+        {
+            var email = _serviceProvider.GetService&lt;IEmailSender&gt;();
+            email?.Send();
+        }
+        else
+        {
+            var sms = _serviceProvider.GetRequiredService&lt;ISmsSender&gt;();
+            sms.Send();
+        }
+    }
+}</code></pre>
+                            </div>
+                            <p class="text-gray-700">🔍 <strong>À savoir :</strong> <code>GetService&lt;T&gt;()</code> retourne null si non enregistré, <code>GetRequiredService&lt;T&gt;()</code> lève une exception. À utiliser avec parcimonie, privilégiez l'injection classique.</p>
+                        </div>`
+            },
+            {
+                type: "content",
+                title: "🧠 5. Exemple concret : Différence entre Scoped et Transient",
+                content: `<div class="space-y-4">
+                            <p>Imaginons deux services: un compteur <strong>Transient</strong> et un <strong>Scoped</strong> dans un même contrôleur.</p>
+                            <div class="bg-gray-50 p-3 rounded-md">
+                                <p class="font-mono text-sm">services.AddTransient&lt;IGuidGenerator, GuidGenerator&gt;();<br>
+                                services.AddScoped&lt;IScopedGuidGenerator, ScopedGuidGenerator&gt;();</p>
+                            </div>
+                            <p>👉 Si vous appelez le contrôleur 2 fois avec le même utilisateur (même requête), l'instance Scoped reste identique. Transient change à chaque injection.</p>
+                            <div class="flex flex-wrap gap-3 mt-2">
+                                <div class="bg-blue-100 p-3 rounded w-full md:w-auto">
+                                    <span class="font-bold">✅ Scoped</span><br>
+                                    <span class="text-xs">Partagé dans la requête → parfait pour DbContext</span>
+                                </div>
+                                <div class="bg-purple-100 p-3 rounded w-full md:w-auto">
+                                    <span class="font-bold">⚡ Transient</span><br>
+                                    <span class="text-xs">Nouvelle instance à chaque résolution → idéal pour services légers</span>
+                                </div>
+                            </div>
+                            <div class="bg-indigo-50 p-2 rounded mt-2 text-indigo-900 text-sm">
+                                💡 <strong>Exercice mental</strong> : Si vous avez un service Singleton qui utilise un service Scoped, cela peut causer des bugs. Pourquoi ? Le Singleton vit longtemps et retient une instance Scoped obsolète.
+                            </div>
+                        </div>`
+            },
+            {
+                type: "recap",
+                title: "🏁 Récapitulatif & Bonnes pratiques",
+                content: `<div class="space-y-4">
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li>✔ <strong>AddTransient</strong> : instances temporaires, sans état partagé.</li>
+                                <li>✔ <strong>AddScoped</strong> : instances par requête HTTP (indispensable pour EF Core).</li>
+                                <li>✔ <strong>AddSingleton</strong> : instances uniques globales (configuration, cache).</li>
+                                <li>✔ L'injection via constructeur rend le code testable et lisible.</li>
+                                <li>✔ Utiliser <code>IServiceProvider</code> pour les cas dynamiques ou les factories avancées.</li>
+                                <li>✔ Éviter les fuites mémoire: ne capturez pas de services Scoped dans un Singleton.</li>
+                            </ul>
+                            <div class="bg-green-100 p-3 rounded-lg border-l-4 border-green-600">
+                                <p class="font-bold">🎓 Résumé pour les devs camerounais :</p>
+                                <p>Maîtrisez le cycle de vie, vous pourrez construire des APIs robustes et évolutives. La leçon 9 est une clé essentielle du développement professionnel avec .NET.</p>
+                            </div>
+                        </div>`
+            }
+        ];
+
+        let currentSlideIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Mise à jour de l'affichage + navigation
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            
+            let html = `<div class="slide slide-visible animate-fade-in">`;
+            // En-tête dynamique selon type
+            html += `<div class="mb-4 border-b border-gray-200 pb-2 flex items-center gap-2 flex-wrap">
+                        <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-1 rounded-full uppercase">Leçon 9</span>
+                        <h2 class="text-xl md:text-2xl font-bold text-gray-800">${escapeHtml(slide.title)}</h2>
+                     </div>`;
+            html += `<div class="prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                        ${slide.content}
+                     </div>`;
+            // petits schemas dessinés à la main via CSS/svg si besoin: par souci de légèreté et mobile, on ajoute un petit dessin explicatif optionnel sur la slide 3 (durées de vie) - en SVG pur
+            if (index === 2) {
+                html += `<div class="mt-6 flex justify-center">
+                            <svg width="280" height="90" viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg" class="border rounded-lg bg-white shadow-sm p-1">
+                                <rect x="10" y="10" width="80" height="30" fill="#DBEAFE" stroke="#3B82F6" rx="6" />
+                                <text x="50" y="30" text-anchor="middle" fill="#1E3A8A" font-size="10">Transient</text>
+                                <rect x="110" y="10" width="80" height="30" fill="#DCFCE7" stroke="#22C55E" rx="6" />
+                                <text x="150" y="30" text-anchor="middle" fill="#14532D" font-size="10">Scoped</text>
+                                <rect x="210" y="10" width="80" height="30" fill="#FEF3C7" stroke="#F59E0B" rx="6" />
+                                <text x="250" y="30" text-anchor="middle" fill="#78350F" font-size="10">Singleton</text>
+                                <path d="M30 45 L30 70" stroke="#6B7280" stroke-dasharray="4" />
+                                <path d="M150 45 L150 70" stroke="#6B7280" stroke-dasharray="4" />
+                                <path d="M260 45 L260 70" stroke="#6B7280" stroke-dasharray="4" />
+                                <text x="30" y="85" text-anchor="middle" font-size="8">par demande</text>
+                                <text x="150" y="85" text-anchor="middle" font-size="8">par requête</text>
+                                <text x="260" y="85" text-anchor="middle" font-size="8">application</text>
+                            </svg>
+                          </div>`;
+            }
+            // pour la slide résolution manuelle, petit schéma d'injection container
+            if (index === 5) {
+                html += `<div class="mt-4 bg-slate-100 p-3 rounded-lg text-center text-sm italic">📦 Le conteneur DI d'ASP.NET Core gère tout le cycle de vie. IServiceProvider = votre boîte à outils.</div>`;
+            }
+            html += `</div>`;
+            $("#slidesContainer").html(html);
+            $("#slideCounter").text(index+1);
+            $("#totalSlides").text(totalSlides);
+            
+            // gestion des boutons prev/next
+            $("#prevBtn").prop("disabled", index === 0);
+            $("#nextBtn").prop("disabled", index === totalSlides-1);
+            
+            // mise à jour des dots indicateurs
+            updateDots(index);
+            
+            // réappliquer MathJax au cas où formules présentes (aucune formule lourde mais consigne respectée)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        function updateDots(activeIdx) {
+            let dotsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === activeIdx) ? "bg-indigo-600 w-6" : "bg-gray-300 w-3";
+                dotsHtml += `<button class="dot-slide h-2 rounded-full ${activeClass} transition-all mx-1 focus:outline-none" data-index="${i}"></button>`;
+            }
+            $("#dotsIndicator").html(dotsHtml);
+            // événement clic sur dots
+            $(".dot-slide").on("click", function() {
+                let idx = $(this).data("index");
+                if (typeof idx !== "undefined") {
+                    currentSlideIndex = idx;
+                    renderSlide(currentSlideIndex);
+                }
+            });
+        }
+        
+        // fonction utilitaire pour échapper le HTML dans les titres (contenu déjà safe car on injecte avec du HTML contrôlé)
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        // navigation
+        $("#prevBtn").on("click", function() {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                renderSlide(currentSlideIndex);
+            }
+        });
+        
+        $("#nextBtn").on("click", function() {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                renderSlide(currentSlideIndex);
+            }
+        });
+        
+        // initialisation
+        $(document).ready(function() {
+            renderSlide(0);
+            // ajout gestion clavier pour accessibilité
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowLeft") {
+                    $("#prevBtn").click();
+                } else if (e.key === "ArrowRight") {
+                    $("#nextBtn").click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

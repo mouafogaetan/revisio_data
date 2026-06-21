@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Dashboard commandes & facturation | E-commerce NestJS</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (prêt pour formules si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body { background: #eef2ff; }
+    .slide-card { transition: all 0.2s ease-in-out; }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      font-family: 'Courier New', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .nav-dot { transition: all 0.2s; cursor: pointer; }
+    @media (max-width: 640px) {
+      .code-block { font-size: 0.7rem; padding: 0.75rem; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+  <div id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <div class="text-center">
+        <span class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">📊 Module Commandes • Admin & Vendeur</span>
+        <h1 class="text-3xl md:text-5xl font-extrabold mt-6 text-gray-800">Dashboard des commandes<br><span class="text-indigo-600">+ suivi + factures PDF</span></h1>
+        <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Piloter les commandes, changer les statuts, générer des factures professionnelles.</p>
+        <div class="flex flex-wrap justify-center gap-3 mt-8">
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">📈 Tableau de bord</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🔄 Mise à jour statut</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🧾 Factures PDF</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-500 pl-4 text-gray-800">🎯 Objectifs de la leçon</h2>
+      <div class="grid md:grid-cols-2 gap-5 mt-8">
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Créer un <strong>dashboard admin/seller</strong> avec filtres et statistiques</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Implémenter le <strong>changement manuel du statut</strong> d'une commande</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Générer des <strong>factures PDF</strong> (librairie PDFKit / Puppeteer)</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Ajouter des <strong>autorisations</strong> (vendeur voit ses propres commandes)</span></div>
+      </div>
+      <div class="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl text-indigo-800 text-sm">
+        💡 Un dashboard efficace permet aux administrateurs et vendeurs de suivre l'activité en temps réel et de réagir rapidement.
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : Dashboard – endpoints et données -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">📋 Dashboard : endpoints & structure des données</h2>
+      <p class="text-gray-700">On propose des routes protégées par rôles :</p>
+      <div class="code-block mt-3">
+        <pre><code>// Controller (OrderController)
+@Get('dashboard/orders')
+@Roles('admin', 'seller')
+@UseGuards(JwtAuthGuard, RolesGuard)
+async getDashboardOrders(@Req() req, @Query() query: DashboardQueryDto) {
+  // admin → toutes les commandes
+  // seller → seulement celles des produits qu'il vend
+  return this.orderService.getDashboardOrders(req.user.id, req.user.roles, query);
+}</code></pre>
+      </div>
+      <p class="text-gray-700 mt-3">Données renvoyées : commandes paginées + agrégats (total CA, nombre de commandes par statut, tendances).</p>
+      <div class="code-block mt-2">
+        <pre><code>{
+  "orders": [ { id, total, status, createdAt, user: { firstName, lastName }, itemsCount } ],
+  "stats": {
+    "totalRevenue": 1250000,
+    "byStatus": { "pending": 3, "paid": 5, "shipped": 2 },
+    "avgOrderValue": 75000
+  }
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 : Changement manuel du statut (admin/seller) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🔄 Mise à jour du statut d’une commande</h2>
+      <p class="text-gray-700">Transition autorisée : <span class="font-mono bg-gray-100 px-1">pending → paid → shipped → delivered</span> (ou cancelled à tout moment si paiement non capturé).</p>
+      <div class="code-block mt-4">
+        <pre><code>// order.service.ts
+async updateOrderStatus(orderId: number, newStatus: OrderStatus, userId: number, userRoles: string[]) {
+  const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['items', 'items.product'] });
+  if (!order) throw new NotFoundException('Commande introuvable');
+
+  // Vérifier permission : admin ou seller propriétaire du produit
+  if (!userRoles.includes('admin')) {
+    const isSeller = order.items.some(item => item.product.sellerId === userId);
+    if (!isSeller) throw new ForbiddenException('Vous ne pouvez modifier que vos propres commandes');
+  }
+
+  // Logique de transition
+  const allowedTransitions = { pending: ['paid', 'cancelled'], paid: ['shipped', 'cancelled'], shipped: ['delivered', 'cancelled'] };
+  if (!allowedTransitions[order.status]?.includes(newStatus)) {
+    throw new BadRequestException(`Transition de ${order.status} à ${newStatus} impossible`);
+  }
+
+  order.status = newStatus;
+  if (newStatus === 'cancelled') await this.refundStock(order); // libérer stock
+  await this.orderRepo.save(order);
+  await this.logActivity(order, newStatus); // historique
+  return order;
+}</code></pre>
+      </div>
+      <div class="bg-yellow-50 p-3 rounded-lg mt-2 text-yellow-800 text-sm">📌 On conserve un historique des statuts (table OrderHistory) pour la traçabilité.</div>
+    </div>
+
+    <!-- SLIDE 5 : Génération de facture PDF (PDFKit) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🧾 Génération de factures PDF</h2>
+      <p class="text-gray-700">Librairies possibles : <code>pdfmake</code>, <code>PDFKit</code> ou <code>puppeteer</code>. Ici on utilise PDFKit pour un rendu serveur.</p>
+      <div class="code-block mt-4">
+        <pre><code>// invoice.service.ts
+import * as PDFDocument from 'pdfkit';
+import { Response } from 'express';
+
+async generateInvoice(order: Order, res: Response) {
+  const doc = new PDFDocument({ margin: 50 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=facture-${order.id}.pdf`);
+  doc.pipe(res);
+
+  doc.fontSize(20).text('FACTURE', { align: 'center' });
+  doc.moveDown();
+  doc.fontSize(12).text(`N° commande : ${order.id}`);
+  doc.text(`Date : ${order.createdAt.toLocaleDateString()}`);
+  doc.text(`Client : ${order.user.firstName} ${order.user.lastName}`);
+  doc.moveDown();
+  doc.text('Détails des articles :', { underline: true });
+  order.items.forEach(item => {
+    doc.text(`${item.productName} x ${item.quantity} = ${item.price * item.quantity} FCFA`);
+  });
+  doc.moveDown();
+  doc.fontSize(14).text(`Total TTC : ${order.total} FCFA`, { align: 'right' });
+  doc.end();
+}</code></pre>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">Endpoint : <code>GET /orders/:id/invoice</code> (admin/seller/acheteur).</p>
+    </div>
+
+    <!-- SLIDE 6 : Exemple de dashboard front simple (côté client) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">📊 Dashboard visuel – exemple réactif (frontend)</h2>
+      <p class="text-gray-700">Bien que le backend fournisse les données, voici un aperçu des composants attendus (React / Vue / simple HTML).</p>
+      <div class="bg-gray-100 p-4 rounded-xl mt-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white p-3 rounded shadow"><span class="font-bold">💰 Chiffre d'affaires</span><br>1 250 000 FCFA</div>
+          <div class="bg-white p-3 rounded shadow"><span class="font-bold">📦 Commandes</span><br>42</div>
+          <div class="bg-white p-3 rounded shadow"><span class="font-bold">⏳ En attente</span><br>6</div>
+        </div>
+        <table class="min-w-full mt-4 bg-white rounded-lg text-sm">
+          <thead><tr class="bg-indigo-100"><th class="p-2">ID</th><th>Client</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody><tr><td class="p-2">#101</td><td>Jean N.</td><td>45 000 CFA</td><td class="text-yellow-600">pending</td><td><button class="bg-indigo-500 text-white px-2 py-1 rounded">Modifier</button></td></tr></tbody>
+        </table>
+      </div>
+      <p class="text-gray-600 text-sm mt-3">🔁 Le backend doit fournir des endpoints de filtrage (statut, date, vendeur) et une mise à jour en temps réel via WebSocket ou polling.</p>
+    </div>
+
+    <!-- SLIDE 7 : Gestion des permissions seller vs admin -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">👥 Différence admin / seller dans le dashboard</h2>
+      <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4">
+        <li><strong>Admin</strong> : voit toutes les commandes, peut modifier n'importe quel statut, accède aux rapports globaux.</li>
+        <li><strong>Seller (vendeur)</strong> : ne voit que les commandes contenant <strong>ses propres produits</strong>. Ne peut pas voir les détails des commandes des autres vendeurs.</li>
+        <li><strong>Customer</strong> : voit seulement ses propres commandes (déjà implémenté dans lesson 21).</li>
+      </ul>
+      <div class="code-block mt-4">
+        <pre><code>// Filtrage côté repository pour seller
+if (userRoles.includes('seller') && !userRoles.includes('admin')) {
+  queryBuilder.leftJoin('order.items', 'item')
+              .leftJoin('item.product', 'product')
+              .where('product.sellerId = :sellerId', { sellerId: userId });
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 : Exercice pratique -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">✏️ Exercice : Dashboard commandes avec filtres</h2>
+      <p class="text-gray-700">Ajoutez un filtre par intervalle de dates et par statut à l'endpoint dashboard, puis testez avec un token admin et un token seller.</p>
+      <div class="code-block mt-3">
+        <pre><code>// DashboardQueryDto
+export class DashboardQueryDto {
+  @IsOptional() status?: OrderStatus;
+  @IsOptional() startDate?: string;
+  @IsOptional() endDate?: string;
+  @IsOptional() @Type(() => Number) page?: number = 1;
+}</code></pre>
+      </div>
+      <button id="revealSolution" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full transition shadow-md">🔍 Voir piste correction</button>
+      <div id="solutionPanel" class="mt-4 hidden bg-gray-100 p-4 rounded-xl border border-indigo-200">
+        <p class="font-bold text-indigo-800">✅ Indice :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto"><code>// Dans le service
+const query = this.orderRepo.createQueryBuilder('order')
+  .leftJoinAndSelect('order.user', 'user')
+  .where('1=1');
+if (status) query.andWhere('order.status = :status', { status });
+if (startDate) query.andWhere('order.createdAt >= :startDate', { startDate });
+if (endDate) query.andWhere('order.createdAt &lt;= :endDate', { endDate });
+if (isSeller) query.andWhere('...filtre vendeur...');
+return query.getManyAndCount();</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 : Bonnes pratiques & sécurité -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🛡️ Bonnes pratiques – Dashboard & Factures</h2>
+      <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4">
+        <li>✅ Toujours <strong>vérifier les droits</strong> (admin / seller / propriétaire) avant d'afficher ou modifier une commande.</li>
+        <li>✅ Ajouter un <strong>rate limiting</strong> sur les endpoints de mise à jour de statut.</li>
+        <li>✅ Générer les factures <strong>en async</strong> (queue Bull) pour ne pas bloquer la réponse API.</li>
+        <li>✅ Stocker les factures générées sur un CDN/S3 pour éviter de les regénérer à chaque demande.</li>
+        <li>✅ Inclure un <strong>numéro unique</strong> de facture et un QR code pour vérification.</li>
+      </ul>
+      <div class="mt-5 bg-green-50 p-3 rounded-lg text-green-800 text-sm">💡 Les factures doivent respecter la législation fiscale locale (Cameroun : mentions obligatoires, timbre fiscal électronique si seuil dépassé).</div>
+    </div>
+
+    <!-- SLIDE 10 : Conclusion & récapitulatif -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10">
+      <h2 class="text-2xl font-bold text-gray-800">🏁 Ce qu'il faut retenir</h2>
+      <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4">
+        <li>✔️ Dashboard admin/seller : agrégats, filtres, pagination</li>
+        <li>✔️ Mise à jour du statut : validation des transitions + permissions</li>
+        <li>✔️ Génération de facture PDF (PDFKit / Puppeteer) via endpoint sécurisé</li>
+        <li>✔️ Différence de périmètre entre admin (global) et seller (ses produits)</li>
+        <li>✔️ Traçabilité des actions (OrderHistory) pour audit</li>
+      </ul>
+      <div class="mt-6 p-4 bg-indigo-50 rounded-2xl text-center text-indigo-900">
+        <p class="font-semibold">🎯 Prochaine étape : Intégrer un système de paiement (Stripe / PayPal) et automatiser les changements de statut via webhook.</p>
+      </div>
+      <div class="mt-8 text-center text-gray-500 border-t pt-6 text-sm">
+        📘 Lesson 22 – Dashboard commandes, changement statut, factures PDF · API E-commerce NestJS (Cameroun 🇨🇲)
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation buttons & dots -->
+  <div class="flex justify-center items-center flex-wrap gap-3 mt-8">
+    <button id="prevSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow disabled:opacity-40 transition">◀ Précédent</button>
+    <div id="dotsPanel" class="flex gap-2 mx-2 flex-wrap justify-center"></div>
+    <button id="nextSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow transition">Suivant ▶</button>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    let slides = $('.slide-card');
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+    function updateSlides() {
+      slides.each(function(idx) {
+        if (idx === currentIndex) $(this).show().removeClass('hidden');
+        else $(this).hide();
+      });
+      $('#dotsPanel .dot').each(function(idx) {
+        if (idx === currentIndex) $(this).css('background', '#4f46e5').css({ width: '0.75rem', height: '0.75rem' });
+        else $(this).css('background', '#cbd5e1').css({ width: '0.6rem', height: '0.6rem' });
+      });
+      $('#prevSlideBtn').prop('disabled', currentIndex === 0);
+      $('#nextSlideBtn').prop('disabled', currentIndex === totalSlides - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderDots() {
+      const $container = $('#dotsPanel');
+      $container.empty();
+      for (let i = 0; i < totalSlides; i++) {
+        const $dot = $('<div>')
+          .addClass('dot rounded-full mx-1 transition-all')
+          .css({ width: '0.6rem', height: '0.6rem', background: '#cbd5e1', cursor: 'pointer' });
+        $dot.data('index', i);
+        $dot.on('click', function() { currentIndex = $(this).data('index'); updateSlides(); });
+        $container.append($dot);
+      }
+    }
+
+    $('#nextSlideBtn').on('click', () => { if (currentIndex < totalSlides - 1) { currentIndex++; updateSlides(); } });
+    $('#prevSlideBtn').on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+    $(document).on('keydown', (e) => {
+      if (e.key === 'ArrowRight') $('#nextSlideBtn').trigger('click');
+      if (e.key === 'ArrowLeft') $('#prevSlideBtn').trigger('click');
+    });
+
+    $('#revealSolution').on('click', function() {
+      $('#solutionPanel').toggleClass('hidden');
+      if (!$('#solutionPanel').hasClass('hidden')) {
+        $('html, body').animate({ scrollTop: $('#solutionPanel').offset().top - 20 }, 300);
+      }
+    });
+
+    renderDots();
+    updateSlides();
+  });
+</script>
+</body>
+</html>

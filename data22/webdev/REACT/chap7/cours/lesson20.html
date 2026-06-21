@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 20 : Context API - Partager des données dans React</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            display: none;
+            animation: fade 0.4s ease-in-out;
+        }
+        .active-slide {
+            display: block;
+        }
+        @keyframes fade {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+        }
+        .btn-nav:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e3a8a !important;
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge-objectif {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            padding: 0.25rem 0.85rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .card-glass {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+            pre {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active-slide" id="slide1">
+                <div class="card-glass p-6 md:p-10 text-center border border-white/30">
+                    <div class="mb-4 flex justify-center">
+                        <div class="bg-indigo-900 text-white rounded-full p-3 w-16 h-16 flex items-center justify-center shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        </div>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-800 to-purple-800">Context API</h1>
+                    <p class="text-gray-600 mt-4 text-lg">Partager des données globales sans "props drilling"</p>
+                    <div class="mt-8 flex justify-center gap-3 flex-wrap">
+                        <span class="bg-indigo-100 text-indigo-800 px-4 py-1 rounded-full text-sm">🌍 Contexte global</span>
+                        <span class="bg-purple-100 text-purple-800 px-4 py-1 rounded-full text-sm">⚛️ createContext / useContext</span>
+                    </div>
+                    <div class="mt-10 text-sm text-gray-500">➡️ Appuyez sur flèche droite pour commencer</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-900 border-l-8 border-indigo-500 pl-4 mb-6">🎯 Objectifs</h2>
+                    <ul class="space-y-4 text-gray-800">
+                        <li class="flex items-start gap-3"><span class="badge-objectif mt-0.5">1</span> Créer un contexte avec <code>createContext()</code></li>
+                        <li class="flex items-start gap-3"><span class="badge-objectif mt-0.5">2</span> Fournir une valeur à tous les descendants avec <code>Provider</code></li>
+                        <li class="flex items-start gap-3"><span class="badge-objectif mt-0.5">3</span> Consommer le contexte avec <code>useContext()</code></li>
+                        <li class="flex items-start gap-3"><span class="badge-objectif mt-0.5">4</span> Comprendre l'intérêt face au props drilling</li>
+                    </ul>
+                    <div class="mt-8 bg-indigo-50 p-4 rounded-xl italic text-indigo-800">
+                        💡 Context = téléportation de données à travers l'arborescence !
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Problème du props drilling -->
+            <div class="slide" id="slide3">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🕳️ Le problème : Props Drilling</h2>
+                    <p class="mb-3">Quand un composant profond a besoin d'une donnée, on doit la passer manuellement à travers tous les composants parents intermédiaires.</p>
+                    <div class="bg-red-50 p-3 rounded-lg mb-3">
+                        <pre><code>&lt;App user={user}&gt;
+  &lt;Layout user={user}&gt;
+    &lt;Header user={user}&gt;
+      &lt;Avatar user={user} /&gt;  ← besoin de user
+    &lt;/Header&gt;
+  &lt;/Layout&gt;
+&lt;/App&gt;</code></pre>
+                    </div>
+                    <p class="font-semibold text-red-700">Inconvénients :</p>
+                    <ul class="list-disc pl-6 mt-1">
+                        <li>Code redondant et difficile à maintenir</li>
+                        <li>Les composants intermédiaires reçoivent des props qui ne les concernent pas</li>
+                        <li>Risque d'erreurs lors du renommage ou du déplacement</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : Solution : Context API -->
+            <div class="slide" id="slide4">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">✨ Context API : la solution</h2>
+                    <p>Le contexte permet de <strong>rendre une donnée accessible à tous les composants descendants</strong> sans la passer explicitement à chaque niveau.</p>
+                    <div class="bg-green-50 p-3 rounded-lg mt-3">
+                        <pre><code>&lt;UserProvider value={user}&gt;
+  &lt;App /&gt;                 ← tout sous-arbre a accès à user
+&lt;/UserProvider&gt;</code></pre>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4 text-center text-sm">
+                        <div class="bg-indigo-100 p-2 rounded">1. createContext()</div>
+                        <div class="bg-indigo-100 p-2 rounded">2. Provider + value</div>
+                        <div class="bg-indigo-100 p-2 rounded">3. useContext()</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Étape 1 - createContext -->
+            <div class="slide" id="slide5">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">📦 createContext()</h2>
+                    <p class="mt-1">On crée un objet contexte dans un fichier dédié (ex: <code>UserContext.jsx</code>).</p>
+                    <pre><code>// UserContext.jsx
+import { createContext } from 'react';
+
+// Valeur par défaut (utilisée si pas de Provider)
+export const UserContext = createContext(null);</code></pre>
+                    <p class="mt-2 text-sm text-gray-600">La valeur par défaut sert de "fallback" quand aucun Provider n'est trouvé au-dessus.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Étape 2 - Provider -->
+            <div class="slide" id="slide6">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">🎁 Fournir la valeur : Provider</h2>
+                    <p>Tout composant qui a besoin de partager une donnée doit envelopper ses enfants avec <code>&lt;Context.Provider&gt;</code>.</p>
+                    <pre><code>import { UserContext } from './UserContext';
+
+function App() {
+  const user = { name: 'Alice', email: 'alice@example.com' };
+  return (
+    &lt;UserContext.Provider value={user}&gt;
+      &lt;Profile /&gt;
+      &lt;Dashboard /&gt;
+    &lt;/UserContext.Provider&gt;
+  );
+}</code></pre>
+                    <p class="mt-2">Tous les composants dans Profile et Dashboard pourront accéder à <code>user</code>.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Étape 3 - useContext -->
+            <div class="slide" id="slide7">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">🥤 Consommer : useContext</h2>
+                    <p>N'importe quel composant descendant peut lire la valeur avec le hook <code>useContext</code>.</p>
+                    <pre><code>import { useContext } from 'react';
+import { UserContext } from './UserContext';
+
+function Avatar() {
+  const user = useContext(UserContext);
+  return &lt;img src={user.avatar} alt={user.name} /&gt;;
+}</code></pre>
+                    <p class="mt-2 text-green-700">✅ Plus besoin de passer <code>user</code> via les props de composants intermédiaires !</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Exemple complet thème clair/sombre -->
+            <div class="slide" id="slide8">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">🎨 Exemple pratique : Thème (Dark/Light)</h2>
+                    <pre><code>// ThemeContext.jsx
+import { createContext, useState } from 'react';
+export const ThemeContext = createContext();
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light');
+  return (
+    &lt;ThemeContext.Provider value={{ theme, setTheme }}&gt;
+      {children}
+    &lt;/ThemeContext.Provider&gt;
+  );
+}
+
+// Header.jsx
+import { useContext } from 'react';
+import { ThemeContext } from './ThemeContext';
+
+function Header() {
+  const { theme, setTheme } = useContext(ThemeContext);
+  return (
+    &lt;header className={theme}&gt;
+      &lt;button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}&gt;
+        Changer thème
+      &lt;/button&gt;
+    &lt;/header&gt;
+  );
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Plusieurs contextes -->
+            <div class="slide" id="slide9">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">🔁 Combiner plusieurs contextes</h2>
+                    <p>On peut avoir autant de contextes que nécessaire : auth, thème, langue, panier…</p>
+                    <pre><code>function Root() {
+  return (
+    &lt;AuthProvider&gt;
+      &lt;ThemeProvider&gt;
+        &lt;CartProvider&gt;
+          &lt;App /&gt;
+        &lt;/CartProvider&gt;
+      &lt;/ThemeProvider&gt;
+    &lt;/AuthProvider&gt;
+  );
+}</code></pre>
+                    <p class="mt-2">Dans un composant :</p>
+                    <pre><code>const { user } = useContext(AuthContext);
+const { theme } = useContext(ThemeContext);</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : Pièges à éviter -->
+            <div class="slide" id="slide10">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">⚠️ Pièges fréquents</h2>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>Oublier le Provider</strong> : useContext renvoie la valeur par défaut (souvent null ou undefined).</li>
+                        <li><strong>Provider sans valeur</strong> : ne pas mettre d'attribut <code>value</code>.</li>
+                        <li><strong>Remplacer l'objet à chaque rendu</strong> : si value est un objet créé directement, tous les consommateurs se re-renderont à chaque rendu du Provider. Solution : utiliser <code>useMemo</code> ou <code>useState</code>.</li>
+                    </ul>
+                    <div class="bg-red-50 p-3 mt-3 rounded">
+                        ❌ Mauvais : <code>&lt;Provider value={{ user, setUser }}&gt;</code> (créé à chaque rendu)<br>
+                        ✅ Bon : <code>const value = useMemo(() => ({ user, setUser }), [user]);</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 11 : useContext vs Redux -->
+            <div class="slide" id="slide11">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">⚖️ useContext vs Redux</h2>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="border p-2 rounded">
+                            <p class="font-bold text-green-700">Context API</p>
+                            <p>✅ Natif, simple<br>✅ Léger<br>❌ Pas de devtools avancés<br>❌ Peut causer des re-rendus excessifs</p>
+                        </div>
+                        <div class="border p-2 rounded">
+                            <p class="font-bold text-blue-700">Redux</p>
+                            <p>✅ DevTools puissants<br>✅ Middleware (thunk, saga)<br>❌ Plus lourd<br>❌ Courbe d'apprentissage</p>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-sm">Astuce : Context + useReducer remplace Redux pour des applications petites/moyennes.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 12 : Exercice d'application -->
+            <div class="slide" id="slide12">
+                <div class="card-glass p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800">🧪 Mini exercice</h2>
+                    <p>Créez un contexte de <strong>langue</strong> (fr/en). L'application doit :</p>
+                    <ul class="list-decimal pl-6 mt-2 space-y-1">
+                        <li>Avoir un bouton pour basculer entre français et anglais</li>
+                        <li>Afficher un message de bienvenue dans la langue choisie (ex: "Bonjour" / "Hello")</li>
+                        <li>Le bouton et le message se trouvent dans des composants différents</li>
+                    </ul>
+                    <details class="mt-4 p-3 bg-gray-100 rounded-lg">
+                        <summary class="font-bold cursor-pointer">🔎 Voir solution</summary>
+                        <pre><code>// LanguageContext.jsx
+import { createContext, useState } from 'react';
+export const LanguageContext = createContext();
+
+export function LanguageProvider({ children }) {
+  const [lang, setLang] = useState('fr');
+  return (
+    &lt;LanguageContext.Provider value={{ lang, setLang }}&gt;
+      {children}
+    &lt;/LanguageContext.Provider&gt;
+  );
+}
+
+// ToggleButton.jsx
+function ToggleButton() {
+  const { lang, setLang } = useContext(LanguageContext);
+  return &lt;button onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}&gt;
+    {lang === 'fr' ? '🇫🇷 Français' : '🇬🇧 English'}
+  &lt;/button&gt;;
+}
+
+// Greeting.jsx
+function Greeting() {
+  const { lang } = useContext(LanguageContext);
+  return &lt;h1&gt;{lang === 'fr' ? 'Bonjour !' : 'Hello !'}&lt;/h1&gt;;
+}</code></pre>
+                    </details>
+                </div>
+            </div>
+
+            <!-- SLIDE 13 : Récapitulatif -->
+            <div class="slide" id="slide13">
+                <div class="card-glass p-6 md:p-8 text-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Récapitulons</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                        <div class="border rounded-xl p-3"><span class="font-bold">📦 createContext()</span> – Crée un contexte</div>
+                        <div class="border rounded-xl p-3"><span class="font-bold">🎁 &lt;Provider value={...}&gt;</span> – Fournit la donnée</div>
+                        <div class="border rounded-xl p-3"><span class="font-bold">🥤 useContext</span> – Consomme la donnée</div>
+                        <div class="border rounded-xl p-3"><span class="font-bold">🕳️ Props drilling</span> – Problème résolu</div>
+                    </div>
+                    <p class="mt-6 text-sm text-gray-500">Vous savez maintenant partager des données globales dans React ! 🚀</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between mt-6 gap-3">
+            <button id="prevBtn" class="btn-nav bg-gray-700 hover:bg-gray-900 text-white font-semibold py-2 px-6 rounded-full shadow-md transition disabled:opacity-40">◀ Précédent</button>
+            <button id="nextBtn" class="btn-nav bg-indigo-700 hover:bg-indigo-900 text-white font-semibold py-2 px-6 rounded-full shadow-md transition">Suivant ▶</button>
+        </div>
+        <div class="text-center mt-3 text-sm text-gray-500" id="slideCounter">Slide 1 / 13</div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 1;
+            const totalSlides = 13;
+            
+            function updateSlides() {
+                $('.slide').removeClass('active-slide');
+                $(`#slide${currentSlide}`).addClass('active-slide');
+                $('#slideCounter').text(`Slide ${currentSlide} / ${totalSlides}`);
+                
+                if (currentSlide === 1) {
+                    $('#prevBtn').prop('disabled', true).addClass('opacity-40');
+                } else {
+                    $('#prevBtn').prop('disabled', false).removeClass('opacity-40');
+                }
+                if (currentSlide === totalSlides) {
+                    $('#nextBtn').prop('disabled', true).addClass('opacity-40');
+                } else {
+                    $('#nextBtn').prop('disabled', false).removeClass('opacity-40');
+                }
+            }
+            
+            $('#nextBtn').on('click', function() {
+                if (currentSlide < totalSlides) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+            
+            $('#prevBtn').on('click', function() {
+                if (currentSlide > 1) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+            
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    if (currentSlide < totalSlides) currentSlide++;
+                    updateSlides();
+                } else if (e.key === 'ArrowLeft') {
+                    if (currentSlide > 1) currentSlide--;
+                    updateSlides();
+                }
+            });
+            
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

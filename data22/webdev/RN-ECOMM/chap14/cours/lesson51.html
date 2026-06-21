@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 51 : CI/CD pour React Native - EAS Build, GitHub Actions et OTA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f0f4f8; }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .slide-content { padding: 1rem; }
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Progress & counter -->
+        <div class="mb-4 flex justify-between items-center text-sm text-gray-500">
+            <span id="slideCounter">Slide 1 / 8</span>
+            <div class="progress-bar w-32 md:w-48">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active p-6 md:p-10 slide-content">
+                <div class="flex flex-col items-center text-center">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full mb-4">CI/CD · Expo · Stores</span>
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Automatisation des soumissions aux stores et mises à jour OTA</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl">Déployez automatiquement votre application e-commerce sur l'App Store et le Play Store, avec des mises à jour instantanées</p>
+                    <div class="mt-8 w-24 h-1 bg-blue-500 rounded-full"></div>
+                    <p class="mt-6 text-gray-500">Leçon 51 · Formation React Native e-commerce · Cameroun</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🤖 EAS Build avec GitHub Actions</span><p class="text-gray-600 mt-1">Automatiser la construction des applications iOS et Android</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">📱 Soumission automatique aux stores</span><p class="text-gray-600 mt-1">Publier sur l'App Store Connect et Google Play Console</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">📲 Mises à jour OTA (Over The Air)</span><p class="text-gray-600 mt-1">Déployer du code JavaScript sans passer par les stores</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">🔐 Gestion des secrets</span><p class="text-gray-600 mt-1">Sécuriser les tokens et clés d'API dans GitHub Actions</p></div>
+                </div>
+                <div class="mt-6 bg-blue-50 p-3 rounded-lg text-blue-800 text-sm">💡 Les mises à jour OTA permettent de corriger des bugs ou modifier l'interface en quelques minutes, sans validation Apple/Google.</div>
+            </div>
+
+            <!-- SLIDE 3 : CONFIGURATION EAS BUILD -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚙️ Configuration d'EAS Build</h2>
+                <p class="text-gray-700 mb-3">EAS Build est le service d'Expo pour compiler des applications natives dans le cloud.</p>
+                
+                <div class="code-block mb-4">
+<pre># Installation
+npm install -g eas-cli
+
+# Connexion à Expo
+eas login
+
+# Configuration du projet
+eas build:configure
+
+# Fichier eas.json généré
+{
+  "cli": { "version": ">= 3.0.0" },
+  "build": {
+    "development": { "developmentClient": true, "distribution": "internal" },
+    "preview": { "distribution": "internal" },
+    "production": { "distribution": "store" }
+  },
+  "submit": {
+    "production": { "ios": { "appleId": "votre@email.com" } }
+  }
+}</pre>
+                </div>
+                
+                <div class="code-block mt-3">
+<pre># Lancer un build manuel
+eas build --platform ios --profile production
+eas build --platform android --profile production
+
+# Soumettre manuellement aux stores
+eas submit --platform ios --profile production
+eas submit --platform android --profile production</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : WORKFLOW GITHUB ACTIONS POUR EAS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🤖 Workflow GitHub Actions</h2>
+                <p class="text-gray-700 mb-3">Automatisation complète : tests → build → soumission aux stores.</p>
+                
+                <div class="code-block mb-4">
+<pre># .github/workflows/deploy.yml
+name: Deploy to Stores
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 18 }
+      - run: npm ci
+      - run: npm test
+
+  eas-build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Build iOS
+        run: eas build --platform ios --profile production --non-interactive
+      - name: Build Android
+        run: eas build --platform android --profile production --non-interactive</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : SOUMISSION AUTOMATIQUE AUX STORES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📱 Soumission automatique aux stores</h2>
+                <p class="text-gray-700 mb-3">Après le build, soumettre automatiquement aux stores avec eas submit.</p>
+                
+                <div class="code-block mb-4">
+<pre>jobs:
+  submit:
+    needs: eas-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      
+      - name: Submit to iOS App Store
+        run: eas submit --platform ios --profile production --non-interactive
+        env:
+          EXPO_APPLE_ID: ${{ secrets.APPLE_ID }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      
+      - name: Submit to Google Play
+        run: eas submit --platform android --profile production --non-interactive
+        env:
+          EXPO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          EXPO_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}</pre>
+                </div>
+                <div class="bg-yellow-50 p-3 rounded-lg mt-3">
+                    <p class="text-yellow-800 text-sm">⚠️ Important : Les secrets doivent être configurés dans GitHub (Settings → Secrets and variables → Actions).</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : MISES À JOUR OTA (OVER THE AIR) -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📲 Mises à jour OTA avec EAS Update</h2>
+                <p class="text-gray-700 mb-3">Modifiez le code JavaScript/TS de votre application sans passer par l'approbation des stores.</p>
+                
+                <div class="code-block mb-4">
+<pre># Installation d'EAS Update
+eas update:configure
+
+# Publication d'une mise à jour
+eas update --branch production --message "Correction bug panier"
+
+# Configuration dans app.json
+{
+  "expo": {
+    "updates": {
+      "url": "https://u.expo.dev/votre-projet-id",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    }
+  }
+}
+
+# Dans le code : forcer la mise à jour
+import * as Updates from 'expo-updates';
+
+const checkForUpdates = async () => {
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync(); // Redémarre l'app
+    }
+  } catch (error) {
+    console.log('Erreur OTA:', error);
+  }
+};</pre>
+                </div>
+                
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="text-green-800 text-sm">✅ Avantage : Les mises à jour OTA sont déployées en quelques minutes, sans validation Apple/Google.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : EXERCICES PRATIQUES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Exercices d'application</h2>
+                
+                <div class="space-y-5">
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 1 (compétence – medium)</p>
+                        <p>Créez un workflow GitHub Actions complet qui :</p>
+                        <ul class="list-disc pl-6 text-gray-700 text-sm">
+                            <li>Se déclenche sur push sur la branche main</li>
+                            <li>Installe les dépendances</li>
+                            <li>Lance les tests unitaires</li>
+                            <li>Build l'application Android et iOS via EAS Build</li>
+                            <li>Soumet la version Android au Google Play (track alpha)</li>
+                        </ul>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <pre class="mt-2 text-xs"><code>name: CI/CD EAS
+on: push
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: expo/expo-github-action@v8
+        with: { token: ${{ secrets.EXPO_TOKEN }} }
+      - run: npm ci && npm test
+      - run: eas build --platform android --profile preview --non-interactive
+      - run: eas submit --platform android --profile alpha --non-interactive</code></pre>
+                        </details>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 2 (ressource – hard)</p>
+                        <p>Vous devez déployer une mise à jour OTA pour corriger un bug sur l'écran de paiement. Expliquez la procédure complète et les précautions à prendre.</p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <p class="text-gray-600 text-sm mt-2">1. Fixer le bug dans le code<br>2. Tester localement avec `expo start`<br>3. Lancer `eas update --branch production --message "Fix checkout bug"`<br>4. Vérifier sur un appareil de test via Expo Go ou build de développement<br>5. Les utilisateurs recevront la mise à jour au prochain lancement de l'application<br>6. Précaution : versionner le runtime (app.json) pour éviter les incompatibilités natives<br>7. Backup : toujours tester d'abord sur un canal 'staging' avant 'production'<br>8. Utiliser `Updates.reloadAsync()` uniquement pour les mises à jour critiques</p>
+                        </details>
+                    </div>
+                    
+                    <div class="pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 3 (compétence – easy)</p>
+                        <p>Écrivez la commande EAS pour créer un build de développement (development client) sur Android.</p>
+                        <details class="mt-2">
+                            <summary class="cursor-pointer text-green-600 font-medium text-sm">🔍 Voir corrigé</summary>
+                            <pre class="mt-2 text-xs"><code>eas build --platform android --profile development</code></pre>
+                            <p class="text-gray-600 text-sm mt-1">Le fichier eas.json doit contenir une section `"development": { "developmentClient": true }`</p>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✅ Bonnes pratiques & récapitulatif</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Utilisez des branches séparées (dev, staging, prod) avec des profils EAS différents</li>
+                    <li>Protégez tous les secrets GitHub (EXPO_TOKEN, APPLE_ID, clés de signature)</li>
+                    <li>Testez toujours les mises à jour OTA en staging avant la production</li>
+                    <li>Versionnez vos mises à jour OTA avec des tags Git</li>
+                    <li>Pour les applications critiques, combinez OTA + store updates</li>
+                    <li>Surveillez les échecs de build via les notifications GitHub</li>
+                    <li>Utilisez `expo-doctor` pour vérifier la compatibilité avant build</li>
+                </ul>
+                
+                <div class="flex flex-wrap gap-2 justify-center mt-6">
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">📘 EAS Build docs</span>
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">🤖 GitHub Actions</span>
+                    <span class="bg-gray-100 px-3 py-1 rounded-full text-xs">📲 EAS Update</span>
+                </div>
+                
+                <div class="mt-6 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg text-center text-sm text-blue-800">
+                    🎯 À retenir : L'automatisation CI/CD réduit les erreurs manuelles et accélère la livraison de votre application e-commerce.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center mt-6 gap-3">
+            <button id="prevBtn" class="nav-btn bg-white border border-gray-300 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm hover:bg-gray-50 disabled:opacity-40 transition">◀ Précédent</button>
+            <div class="flex gap-2"><span id="pageIndicator" class="text-sm text-gray-500"></span></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 text-white font-medium py-2 px-5 rounded-full shadow-md hover:bg-blue-700 transition">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentIndex = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            const $prev = $('#prevBtn');
+            const $next = $('#nextBtn');
+            const $counter = $('#slideCounter');
+            const $progressFill = $('#progressFill');
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $counter.text(`Slide ${currentIndex+1} / ${total}`);
+                const percent = ((currentIndex) / (total-1)) * 100;
+                $progressFill.css('width', percent + '%');
+                $prev.prop('disabled', currentIndex === 0);
+                $next.prop('disabled', currentIndex === total-1);
+            }
+
+            $prev.on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+            $next.on('click', () => { if (currentIndex < total-1) { currentIndex++; updateSlides(); } });
+            $(document).on('keydown', (e) => {
+                if (e.key === 'ArrowLeft') $prev.trigger('click');
+                else if (e.key === 'ArrowRight') $next.trigger('click');
+            });
+            
+            updateSlides();
+        });
+    </script>
+    <script>if(window.MathJax) MathJax.typesetPromise();</script>
+</body>
+</html>

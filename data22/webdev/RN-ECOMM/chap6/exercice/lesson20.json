@@ -1,0 +1,115 @@
+[
+  {
+    "intitule": "Configuration de Google Sign-In avec Expo",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une application e-commerce React Native avec Expo. Vous souhaitez ajouter la connexion via <strong>Google Sign-In</strong> en utilisant <code>expo-auth-session</code> et <code>expo-auth-session/providers/google</code>.</p>",
+      "images": ["Google Cloud Console OAuth 2.0 client ID creation", "Expo Go custom scheme configuration", "Google Sign-In button on mobile"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes de configuration nécessaires dans Google Cloud Console pour obtenir un `clientId` fonctionnel avec Expo.",
+        "niveau": "medium",
+        "reponse": "1. Aller sur Google Cloud Console > APIs & Services > Credentials.\n2. Créer un projet ou sélectionner un projet existant.\n3. Cliquer sur 'Create Credentials' > 'OAuth client ID'.\n4. Choisir 'iOS' comme type d'application (pour Expo Go) ou 'Web' selon le workflow.\n5. Pour Expo Go, utiliser le bundle ID : `host.exp.Exponent`.\n6. Pour standalone, utiliser le bundle ID de l'application (ex: `com.monapp.ecommerce`).\n7. Ajouter l'URI de redirection : `scheme` défini dans `app.json` (ex: `com.monapp.ecommerce:/oauthredirect`).\n8. Récupérer le `clientId` (ex: `xxx.apps.googleusercontent.com`).\n9. Stocker ce `clientId` dans les variables d'environnement (`EXPO_PUBLIC_GOOGLE_CLIENT_ID`).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer l'importance du `scheme` dans `app.json` pour l'authentification avec `expo-auth-session`.",
+            "niveau": "easy",
+            "reponse": "Le `scheme` définit un préfixe d'URL personnalisé qui permet à l'application de recevoir les redirections après authentification. Exemple : `myapp://`. Lorsque Google redirige vers `myapp://oauthredirect`, le système d'exploitation ouvre directement l'application. Sans ce schéma, la redirection échouerait."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Implémenter la fonction `signInWithGoogle` qui utilise `expo-auth-session` pour lancer le flux OAuth et récupérer les informations utilisateur.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as WebBrowser from 'expo-web-browser';\nimport { makeRedirectUri, useAuthRequest } from 'expo-auth-session';\nimport { Google } from 'expo-auth-session/providers/google';\n\nWebBrowser.maybeCompleteAuthSession();\n\nconst useGoogleAuth = () => {\n  const [request, response, promptAsync] = Google.useAuthRequest({\n    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID!,\n    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,\n    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,\n    redirectUri: makeRedirectUri({\n      scheme: 'monapp',\n      path: 'oauthredirect',\n    }),\n  });\n\n  const signInWithGoogle = async () => {\n    try {\n      const result = await promptAsync();\n      if (result?.type === 'success') {\n        const { authentication } = result;\n        const accessToken = authentication?.accessToken;\n        \n        // Récupérer les infos utilisateur avec le token\n        const userInfoResponse = await fetch(\n          'https://www.googleapis.com/userinfo/v2/me',\n          {\n            headers: { Authorization: `Bearer ${accessToken}` },\n          }\n        );\n        const userInfo = await userInfoResponse.json();\n        \n        return {\n          id: userInfo.id,\n          email: userInfo.email,\n          name: userInfo.name,\n          picture: userInfo.picture,\n          accessToken,\n        };\n      }\n      return null;\n    } catch (error) {\n      console.error('Google Sign-In error:', error);\n      throw error;\n    }\n  };\n\n  return { signInWithGoogle, request };\n};\n\nexport default useGoogleAuth;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Intégration Apple Sign-In (iOS uniquement)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'application doit supporter <strong>Apple Sign-In</strong> pour se conformer aux règles de l'App Store (obligatoire pour les applications utilisant d'autres fournisseurs OAuth). Vous devez intégrer cette fonctionnalité uniquement sur iOS.</p>",
+      "images": ["Apple Developer Console Service ID configuration", "Apple Sign-In button on iPhone", "Sign in with Apple popup modal"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les prérequis côté Apple Developer et la configuration dans `app.json` pour activer Apple Sign-In.",
+        "niveau": "medium",
+        "reponse": "**Prérequis Apple Developer :**\n- Compte développeur Apple actif.\n- Activer le 'Sign in with Apple' dans le Certificates, Identifiers & Profiles.\n- Créer un Service ID pour l'authentification web (si nécessaire).\n- Ajouter le domaine et l'URL de retour (ex: `https://monapp.com/callback`).\n\n**Configuration dans `app.json` :**\n```json\n{\n  \"expo\": {\n    \"ios\": {\n      \"usesAppleSignIn\": true,\n      \"bundleIdentifier\": \"com.monapp.ecommerce\",\n      \"config\": {\n        \"usesNonExemptEncryption\": false\n      }\n    }\n  }\n}\n```\n\n**Package à installer :**\n```bash\nnpx expo install expo-apple-authentication\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Écrire le code de la fonction `signInWithApple` utilisant `expo-apple-authentication`.",
+            "niveau": "hard",
+            "reponse": "```typescript\nimport * as AppleAuthentication from 'expo-apple-authentication';\n\nasync function signInWithApple() {\n  try {\n    const credential = await AppleAuthentication.signInAsync({\n      requestedScopes: [\n        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,\n        AppleAuthentication.AppleAuthenticationScope.EMAIL,\n      ],\n    });\n\n    // credential contient :\n    // - user (identifiant unique Apple)\n    // - email (si partagé)\n    // - fullName (prénom, nom)\n    // - identityToken (JWT à envoyer au backend)\n    // - authorizationCode\n    // - realUserStatus\n\n    const { user, email, fullName, identityToken } = credential;\n    \n    // Envoyer identityToken au backend pour vérification\n    const response = await fetch('https://api.monapp.com/auth/apple', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ identityToken, user, email, name: fullName?.givenName }),\n    });\n    \n    const data = await response.json();\n    return data;\n  } catch (error) {\n    if (error.code === 'ERR_CANCELED') {\n      // L'utilisateur a annulé\n      return null;\n    }\n    throw error;\n  }\n}\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des callbacks et création de compte utilisateur",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Après une authentification sociale réussie (Google ou Apple), l'application reçoit un token et des informations utilisateur. Vous devez gérer les cas suivants :</p><ul><li>Utilisateur existant → connexion directe</li><li>Nouvel utilisateur → création de compte</li><li>Email déjà utilisé avec un autre fournisseur → fusion de comptes</li></ul>",
+      "images": ["OAuth callback handling sequence diagram", "account linking confirmation dialog", "JWT token storage with SecureStore"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Développer une fonction `handleSocialLogin` qui reçoit le token du fournisseur, interroge le backend, et gère les différents cas de figure.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport * as SecureStore from 'expo-secure-store';\nimport useAuthStore from '../store/authStore';\n\ninterface SocialLoginResponse {\n  user: User;\n  token: string;\n  isNewUser: boolean;\n  needsLinking?: boolean;\n  existingProvider?: string;\n}\n\nasync function handleSocialLogin(provider: 'google' | 'apple', providerToken: string, userInfo: any) {\n  try {\n    // 1. Appeler le backend avec le token\n    const response = await fetch('https://api.monapp.com/auth/social', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        provider,\n        providerToken,\n        email: userInfo.email,\n        name: userInfo.name || userInfo.fullName?.givenName,\n        picture: userInfo.picture,\n      }),\n    });\n\n    const data: SocialLoginResponse = await response.json();\n\n    // 2. Cas où un compte existe déjà avec un autre fournisseur\n    if (data.needsLinking) {\n      return { \n        needsLinking: true, \n        existingProvider: data.existingProvider,\n        email: userInfo.email \n      };\n    }\n\n    // 3. Stockage sécurisé du token\n    await SecureStore.setItemAsync('access_token', data.token);\n    \n    // 4. Mise à jour du store Zustand\n    useAuthStore.getState().setUser(data.user);\n    useAuthStore.getState().setToken(data.token);\n    \n    // 5. Notification utilisateur\n    if (data.isNewUser) {\n      Toast.show(`Bienvenue ${data.user.name} ! Votre compte a été créé.`);\n    } else {\n      Toast.show(`Bon retour ${data.user.name} !`);\n    }\n    \n    return { success: true, isNewUser: data.isNewUser };\n  } catch (error) {\n    console.error('Social login error:', error);\n    throw error;\n  }\n}\n\n// Fonction de liaison de comptes\nasync function linkAccount(provider: 'google' | 'apple', providerToken: string, email: string) {\n  const currentToken = await SecureStore.getItemAsync('access_token');\n  const response = await fetch('https://api.monapp.com/auth/link', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${currentToken}`,\n    },\n    body: JSON.stringify({ provider, providerToken, email }),\n  });\n  \n  return response.json();\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer comment vérifier côté frontend si un utilisateur a déjà utilisé Apple Sign-In avec un email privé (relay Apple).",
+            "niveau": "hard",
+            "reponse": "Apple peut générer un email relais unique (ex: `t3g7h@privaterelay.appleid.com`) si l'utilisateur choisit de masquer son email. Il faut :\n1. Stocker cet email relais comme identifiant unique.\n2. Permettre à l'utilisateur d'ajouter un email personnel plus tard dans son profil.\n3. Pour la liaison de comptes, utiliser l'identifiant `user` (sub) plutôt que l'email, car l'email relais ne permet pas de faire le lien avec un compte existant sur un autre fournisseur."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposer une stratégie pour gérer l'état de chargement et les erreurs lors de l'authentification sociale.",
+            "niveau": "medium",
+            "reponse": "```typescript\nconst [isLoading, setIsLoading] = useState(false);\nconst [error, setError] = useState<string | null>(null);\n\nconst handleSocialPress = async (provider: string) => {\n  setIsLoading(true);\n  setError(null);\n  \n  try {\n    const result = await signInWithProvider(provider);\n    if (result?.needsLinking) {\n      // Afficher un modal de liaison\n      showLinkingModal(result.existingProvider, result.email);\n    } else if (result?.success) {\n      navigation.replace('Home');\n    }\n  } catch (err) {\n    setError(err.message);\n  } finally {\n    setIsLoading(false);\n  }\n};\n```\nAfficher un indicateur de chargement sur le bouton social et désactiver les interactions pendant l'opération."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Sécurité et stockage des tokens sociaux",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Après authentification sociale, l'application reçoit un token d'accès (Google) ou un identityToken (Apple). Vous devez stocker ces informations de manière sécurisée et les utiliser pour les appels API.</p>",
+      "images": ["SecureStore encryption diagram", "JWT token validation flow", "refresh token mechanism"]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer les méthodes de stockage des tokens entre `AsyncStorage`, `SecureStore` et `expo-auth-session`.",
+        "niveau": "medium",
+        "reponse": "| Méthode | Sécurité | Usage recommandé |\n|---------|----------|------------------|\n| AsyncStorage | ❌ Non chiffré (stockage en clair) | Données non sensibles (préférences, thème) |\n| SecureStore | ✅ Chiffrement matériel (Keychain iOS, Keystore Android) | Tokens JWT, identifiants, données sensibles |\n| expo-auth-session | ✅ Gère automatiquement le refresh token via `tokenResponse` | Flux OAuth complet avec rafraîchissement automatique |\n\n**Recommandation :** Utiliser `SecureStore` pour stocker le token d'accès, et `expo-auth-session` avec `useAuthRequest` qui gère nativement la persistance du refresh token.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Décrire comment implémenter un mécanisme de rafraîchissement automatique du token d'accès Google/Apple.",
+            "niveau": "hard",
+            "reponse": "```typescript\nimport { useAutoRefresh } from 'expo-auth-session';\n\n// Dans le composant utilisant Google.useAuthRequest\nconst [request, response, promptAsync] = Google.useAuthRequest({\n  clientId: GOOGLE_CLIENT_ID,\n  redirectUri,\n  // Activer le refresh automatique\n  usePKCE: true,\n});\n\nuseEffect(() => {\n  if (response?.type === 'success') {\n    const { authentication } = response;\n    // authentication.refreshToken est disponible\n    // authentication.accessToken expire après 1h\n    \n    // Stocker le refresh token dans SecureStore\n    SecureStore.setItemAsync('google_refresh_token', authentication.refreshToken);\n  }\n}, [response]);\n\n// Rafraîchissement automatique via un intercepteur Axios\napi.interceptors.response.use(\n  response => response,\n  async error => {\n    if (error.response?.status === 401) {\n      const refreshToken = await SecureStore.getItemAsync('google_refresh_token');\n      const newTokens = await refreshGoogleToken(refreshToken);\n      await SecureStore.setItemAsync('access_token', newTokens.accessToken);\n      error.config.headers.Authorization = `Bearer ${newTokens.accessToken}`;\n      return api(error.config);\n    }\n    return Promise.reject(error);\n  }\n);\n```"
+          }
+        ]
+      }
+    ]
+  }
+]

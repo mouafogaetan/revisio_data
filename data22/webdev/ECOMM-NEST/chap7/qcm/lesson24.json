@@ -1,0 +1,110 @@
+[
+  {
+    "questionText": "Dans l'intégration de PayPal avec NestJS, quelle est la première étape à réaliser côté serveur pour initier un paiement ?",
+    "options": [
+      "Capturer directement le paiement avec l'ID de transaction",
+      "Créer un 'order' PayPal en appelant l'API Orders avec le montant et la devise",
+      "Rediriger l'utilisateur vers PayPal sans aucune configuration préalable",
+      "Générer un token OAuth côté client"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La première étape consiste à créer un 'order' (commande) via l'API PayPal Orders. On y spécifie le montant, la devise, l'URL de retour (success_url) et l'URL d'annulation (cancel_url). PayPal retourne un orderID qui servira à rediriger le client vers la page de paiement."
+  },
+  {
+    "questionText": "Quelle est la différence entre la clé 'Client ID' et la clé 'Secret' dans l'intégration PayPal ?",
+    "options": [
+      "Client ID est utilisé côté serveur, Secret côté frontend",
+      "Client ID identifie l'application et peut être exposé publiquement ; Secret est confidentiel et utilisé pour obtenir les tokens d'accès",
+      "Les deux sont strictement identiques et interchangeables",
+      "Client ID est utilisé pour les tests, Secret pour la production"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Le **Client ID** est public et utilisé côté frontend pour initialiser le SDK PayPal. Le **Secret** est confidentiel (jamais exposé) et utilisé côté serveur pour obtenir des tokens d'accès via OAuth 2.0, permettant d'appeler les APIs PayPal sécurisées (création, capture, remboursement)."
+  },
+  {
+    "questionText": "Observez ce code de création d'un order PayPal :\n```typescript\nasync createOrder(amount: number, currency: string, returnUrl: string, cancelUrl: string) {\n  const accessToken = await this.getAccessToken();\n  const response = await axios.post(\n    'https://api-m.sandbox.paypal.com/v2/checkout/orders',\n    {\n      intent: 'CAPTURE',\n      purchase_units: [{ amount: { currency_code: currency, value: amount.toString() } }],\n      application_context: { return_url: returnUrl, cancel_url: cancelUrl },\n    },\n    { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }\n  );\n  return response.data.id;\n}\n```\nQue signifie l'option `intent: 'CAPTURE'` ?",
+    "options": [
+      "Le paiement sera autorisé mais capturé plus tard manuellement",
+      "Le paiement sera automatiquement capturé (débité) immédiatement après l'approbation du client",
+      "Le paiement est annulé automatiquement",
+      "Le paiement sera traité en plusieurs fois"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "`intent: 'CAPTURE'` indique à PayPal que le paiement doit être automatiquement capturé (débité) dès que le client approuve l'ordre. L'alternative `intent: 'AUTHORIZE'` autorise le paiement sans débiter immédiatement (capture différée, utile pour les commandes à expédier plus tard)."
+  },
+  {
+    "questionText": "Après que l'utilisateur a approuvé le paiement sur PayPal, quelle est la procédure correcte côté serveur pour finaliser la transaction ?",
+    "options": [
+      "Renvoyer simplement une page de succès sans appel à l'API PayPal",
+      "Appeler l'API de capture (POST /v2/checkout/orders/{order_id}/capture) avec l'orderID récupéré",
+      "Demander à l'utilisateur de ressaisir ses coordonnées bancaires",
+      "Stocker l'orderID et attendre un webhook PayPal"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Après approval, PayPal renvoie un `orderID` (dans l'URL de retour ou via le SDK). Le serveur doit impérativement appeler l'API de capture pour débiter l'utilisateur. Sans cette étape, le paiement n'est pas réellement effectué. Le webhook est une sécurité complémentaire, mais la capture synchrone est la méthode standard."
+  },
+  {
+    "questionText": "Quel paramètre d'environnement est essentiel pour tester PayPal en mode bac à sable (sandbox) avant la mise en production ?",
+    "options": [
+      "PAYPAL_MODE = 'live'",
+      "PAYPAL_CLIENT_ID et PAYPAL_CLIENT_SECRET des comptes sandbox",
+      "PAYPAL_WEBHOOK_ID uniquement",
+      "Aucun paramètre, PayPal fonctionne directement en production"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Pour tester, on crée des comptes développeur sandbox sur developer.paypal.com. On récupère les identifiants (Client ID / Secret) associés à ces comptes factices. L'API sandbox (api-m.sandbox.paypal.com) permet de simuler des paiements sans argent réel. En production, on utilise des identifiants live et l'URL api-m.paypal.com."
+  },
+  {
+    "questionText": "Comment PayPal distingue-t-il une redirection de succès d'une redirection d'annulation après le paiement ?",
+    "options": [
+      "Par le code HTTP (200 vs 400)",
+      "Par la présence d'un paramètre `token` dans l'URL pour le succès, et `cancel` pour l'annulation",
+      "Par le paramètre `PayerID` : s'il est présent, le paiement a été approuvé ; s'il est absent ou que `cancel=true`, c'est une annulation",
+      "PayPal ne redirige jamais vers l'annulation"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "Lorsque l'utilisateur approuve, PayPal redirige vers l'`return_url` avec les paramètres `token` (orderID) et `PayerID`. La présence de `PayerID` indique une approval. En cas d'annulation, PayPal redirige vers le `cancel_url` avec le paramètre `token` mais sans `PayerID`. On peut aussi avoir un paramètre `cancel` explicite selon la configuration."
+  },
+  {
+    "questionText": "Quelle est l'utilité des webhooks PayPal dans une architecture e-commerce ?",
+    "options": [
+      "Ils remplacent totalement l'appel de capture synchrone",
+      "Ils permettent de recevoir des notifications asynchrones pour des événements (paiement complété, remboursement, litige) même si l'utilisateur ferme son navigateur",
+      "Ils servent uniquement à décorer l'interface utilisateur",
+      "Ils sont obligatoires pour les paiements inférieurs à 10€"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Les webhooks PayPal envoient des événements à une URL de votre serveur. Cela permet de traiter des paiements asynchrones (ex: paiements différés, e-check), de gérer les litiges, ou de confirmer une commande même si l'utilisateur ferme la page avant la redirection. Ils sont une couche de sécurité redondante."
+  },
+  {
+    "questionText": "Dans un flux PayPal standard, que retourne l'API de capture lorsqu'elle réussit ?",
+    "options": [
+      "Rien, seulement un code HTTP 204",
+      "Un objet contenant l'ID de capture, le statut 'COMPLETED', et les détails du paiement",
+      "Un simple message 'OK'",
+      "Une redirection vers la page d'accueil du site"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La réponse de l'API de capture contient des informations structurées : `id` (capture ID), `status` (COMPLETED, DECLINED, etc.), `amount`, `payer`, `transaction_fee`, etc. On enregistre ces données dans notre base (transaction ID, frais) pour le suivi et les éventuels remboursements."
+  },
+  {
+    "questionText": "Pourquoi faut-il implémenter un mécanisme d'idempotence lors des appels à l'API PayPal (ex: `PayPal-Request-Id`) ?",
+    "options": [
+      "Pour améliorer la vitesse des requêtes",
+      "Pour éviter de capturer deux fois le même paiement en cas de nouvelle tentative suite à une erreur réseau",
+      "Pour cacher les identifiants PayPal",
+      "Pour convertir automatiquement les devises"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "L'idempotence garantit qu'une même requête (avec un identifiant unique) ne sera exécutée qu'une fois. Si le réseau échoue et que le client réessaie, PayPal reconnaît le même `PayPal-Request-Id` et ne crée/capture pas une deuxième fois l'order. Cela évite les doubles débits accidentels."
+  }
+]

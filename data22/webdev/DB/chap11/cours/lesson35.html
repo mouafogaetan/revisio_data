@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 35 : Création de tables et insertion de données | Base de données</title>
+    <!-- Tailwind CSS CDN + base interprétation -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (optionnel mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour le confort de lecture et slides -->
+    <style>
+        /* animation douce et scroll fluide */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            background: #f8fafc;
+        }
+        /* personnalisation pour que les slides aient une hauteur min agréable */
+        .slide-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .slide-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.1);
+        }
+        /* navigation active */
+        .nav-dot {
+            transition: all 0.2s;
+        }
+        .nav-dot.active {
+            background-color: #1e3a8a;
+            transform: scale(1.2);
+        }
+        /* pour le tableau responsive */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1rem;
+            }
+            h1, h2, h3 {
+                word-break: break-word;
+            }
+        }
+        /* mise en valeur code */
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.85rem;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .inline-code {
+            background: #e2e8f0;
+            color: #0f172a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative">
+            <!-- les slides seront injectées via jQuery -->
+        </div>
+
+        <!-- Navigation et indicateurs -->
+        <div class="flex justify-center items-center gap-3 mt-8 mb-6 flex-wrap">
+            <button id="prevSlide" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed font-medium flex items-center gap-1">
+                ← Précédent
+            </button>
+            <div id="dotsNav" class="flex gap-2 mx-2"></div>
+            <button id="nextSlide" class="bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed font-medium flex items-center gap-1">
+                Suivant →
+            </button>
+        </div>
+        <div class="text-center text-sm text-gray-500 mt-2">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 35
+        // Conforme aux objectifs : Créer les tables et relations avec DDL, insérer des données de test, écrire des requêtes complexes.
+        // Cours accessible, couleurs douces, avec exemples SQL, diagrammes simples en ASCII (pas d'image externe).
+        
+        const slidesData = [
+            {
+                type: "title",
+                title: "🗄️ Leçon 35 : Implémentation d'une base de données",
+                subtitle: "Création de tables, insertion de données de test et requêtes complexes",
+                badge: "Développement Web | Base de données",
+                icon: "📀"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Créer des tables et leurs relations avec le langage DDL (CREATE TABLE, clés primaires/étrangères).",
+                    "✅ Insérer des données de test réalistes à l'aide de INSERT INTO.",
+                    "✅ Écrire des requêtes SQL complexes : jointures, sous-requêtes, agrégations et filtres avancés.",
+                    "✅ Appliquer ces notions sur un mini-projet cohérent : bibliothèque / e-commerce."
+                ]
+            },
+            {
+                type: "content",
+                title: "📌 Rappel : Du modèle conceptuel au physique",
+                content: `
+                    <p class="mb-3">Avant de créer les tables, nous avons défini un <strong>diagramme entité-association (DER)</strong> et normalisé les données. Passons au <strong>langage de définition de données (DDL)</strong> pour matérialiser le schéma relationnel.</p>
+                    <div class="bg-indigo-50 p-4 rounded-xl border-l-8 border-indigo-400 my-4">
+                        <p class="font-semibold">💡 Exemple de domaine : Gestion d'une bibliothèque</p>
+                        <p>Entités : <span class="inline-code">Livre</span>, <span class="inline-code">Auteur</span>, <span class="inline-code">Emprunt</span>, <span class="inline-code">Membre</span>.<br>
+                        Un livre est écrit par un ou plusieurs auteurs (relation many-to-many). Un membre peut emprunter plusieurs livres (relation one-to-many).</p>
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🏗️ 1. Création des tables avec contraintes (DDL)",
+                content: `
+                    <p>Voici les instructions <span class="inline-code">CREATE TABLE</span> pour notre bibliothèque. On utilise les <strong>clés primaires</strong> (<code>PRIMARY KEY</code>), les <strong>clés étrangères</strong> (<code>FOREIGN KEY</code>) et les types adaptés.</p>
+                    <pre><code>-- Table Auteur
+CREATE TABLE Auteur (
+    id_auteur INT PRIMARY KEY AUTO_INCREMENT,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100),
+    nationalite VARCHAR(50)
+);
+
+-- Table Livre
+CREATE TABLE Livre (
+    id_livre INT PRIMARY KEY AUTO_INCREMENT,
+    titre VARCHAR(200) NOT NULL,
+    annee_publication INT,
+    isbn VARCHAR(20) UNIQUE
+);
+
+-- Table de jointure Livre_Auteur (relation N:N)
+CREATE TABLE Livre_Auteur (
+    id_livre INT,
+    id_auteur INT,
+    PRIMARY KEY (id_livre, id_auteur),
+    FOREIGN KEY (id_livre) REFERENCES Livre(id_livre) ON DELETE CASCADE,
+    FOREIGN KEY (id_auteur) REFERENCES Auteur(id_auteur) ON DELETE CASCADE
+);
+
+-- Table Membre
+CREATE TABLE Membre (
+    id_membre INT PRIMARY KEY AUTO_INCREMENT,
+    nom_complet VARCHAR(150) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    date_inscription DATE DEFAULT CURRENT_DATE
+);
+
+-- Table Emprunt
+CREATE TABLE Emprunt (
+    id_emprunt INT PRIMARY KEY AUTO_INCREMENT,
+    id_membre INT NOT NULL,
+    id_livre INT NOT NULL,
+    date_emprunt DATE NOT NULL,
+    date_retour_prevue DATE NOT NULL,
+    date_retour_reelle DATE,
+    FOREIGN KEY (id_membre) REFERENCES Membre(id_membre),
+    FOREIGN KEY (id_livre) REFERENCES Livre(id_livre)
+);</code></pre>
+                    <p class="text-sm text-gray-600 mt-2">🔑 Les clés étrangères assurent l'intégrité référentielle. <code>AUTO_INCREMENT</code> facilite l'identifiant unique.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "💾 2. Insertion de données de test (INSERT)",
+                content: `
+                    <p>Pour tester nos requêtes, insérons quelques enregistrements cohérents.</p>
+                    <pre><code>-- Ajout d'auteurs
+INSERT INTO Auteur (nom, prenom, nationalite) VALUES
+('Hugo', 'Victor', 'Française'),
+('Orwell', 'George', 'Britannique'),
+('Austen', 'Jane', 'Britannique');
+
+-- Ajout de livres
+INSERT INTO Livre (titre, annee_publication, isbn) VALUES
+('Les Misérables', 1862, '978-2-07-040926-4'),
+('1984', 1949, '978-0-452-28423-4'),
+('Orgueil et Préjugés', 1813, '978-0-14-143951-8');
+
+-- Association livres-auteurs
+INSERT INTO Livre_Auteur (id_livre, id_auteur) VALUES
+(1, 1),  -- Les Misérables -> Victor Hugo
+(2, 2),  -- 1984 -> George Orwell
+(3, 3);  -- Orgueil et Préjugés -> Jane Austen
+
+-- Membres
+INSERT INTO Membre (nom_complet, email) VALUES
+('Alice Tchinda', 'alice@example.com'),
+('Brice Nkodo', 'brice@example.com'),
+('Carine Mbarga', 'carine@example.com');
+
+-- Emprunts (certains rendus, d'autres non)
+INSERT INTO Emprunt (id_membre, id_livre, date_emprunt, date_retour_prevue, date_retour_reelle) VALUES
+(1, 1, '2025-02-01', '2025-02-15', '2025-02-14'),
+(1, 2, '2025-03-01', '2025-03-15', NULL),
+(2, 3, '2025-02-20', '2025-03-06', '2025-03-05'),
+(3, 1, '2025-03-10', '2025-03-24', NULL);</code></pre>
+                    <p class="mt-2">📚 Les données sont volontairement variées pour permettre des requêtes enrichissantes.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔎 3. Requêtes complexes : Jointures & Agrégations",
+                content: `
+                    <p>Exemple 1 : <strong>Lister tous les livres avec leur(s) auteur(s)</strong> (jointure many-to-many).</p>
+                    <pre><code>SELECT L.titre, A.nom, A.prenom
+FROM Livre L
+JOIN Livre_Auteur LA ON L.id_livre = LA.id_livre
+JOIN Auteur A ON LA.id_auteur = A.id_auteur;</code></pre>
+                    <p>Exemple 2 : <strong>Nombre d'emprunts par membre</strong> (agrégation avec GROUP BY).</p>
+                    <pre><code>SELECT M.nom_complet, COUNT(E.id_emprunt) AS total_emprunts
+FROM Membre M
+LEFT JOIN Emprunt E ON M.id_membre = E.id_membre
+GROUP BY M.id_membre;</code></pre>
+                    <p>Exemple 3 : <strong>Livres actuellement empruntés (non retournés)</strong> avec filtre.</p>
+                    <pre><code>SELECT L.titre, M.nom_complet, E.date_retour_prevue
+FROM Emprunt E
+JOIN Livre L ON E.id_livre = L.id_livre
+JOIN Membre M ON E.id_membre = M.id_membre
+WHERE E.date_retour_reelle IS NULL;</code></pre>
+                    <div class="bg-yellow-50 p-3 rounded-lg mt-3">
+                        ⚡ <span class="font-medium">Analyse :</span> Les jointures <code>INNER JOIN</code> et <code>LEFT JOIN</code> permettent d'exploiter les relations. Les sous-requêtes viennent enrichir les filtres.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🧩 4. Sous-requêtes et requêtes imbriquées",
+                content: `
+                    <p>Trouver les membres qui ont emprunté le livre "1984" :</p>
+                    <pre><code>SELECT nom_complet FROM Membre
+WHERE id_membre IN (
+    SELECT id_membre FROM Emprunt
+    WHERE id_livre = (SELECT id_livre FROM Livre WHERE titre = '1984')
+);</code></pre>
+                    <p>Ou encore : Calculer la moyenne des emprunts par membre (sous-requête dans SELECT).</p>
+                    <pre><code>SELECT nom_complet,
+    (SELECT COUNT(*) FROM Emprunt E WHERE E.id_membre = M.id_membre) AS nb_emprunts
+FROM Membre M;</code></pre>
+                    <p class="mt-2">📐 Les sous-requêtes peuvent être <strong>corrélées</strong> ou non. Elles sont puissantes pour affiner l'analyse.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "⚙️ 5. Bonnes pratiques & Optimisation",
+                content: `
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>Indexer</strong> les colonnes utilisées dans les <code>WHERE</code>, <code>JOIN</code> et <code>ORDER BY</code> (ex: index sur <code>id_membre</code>, <code>id_livre</code>).</li>
+                        <li><strong>Utiliser des transactions</strong> pour garantir l'intégrité lors d'insertions multiples (<code>BEGIN; ... COMMIT;</code>).</li>
+                        <li><strong>Éviter SELECT *</strong> : ne sélectionner que les colonnes nécessaires.</li>
+                        <li><strong>Analyser les requêtes</strong> avec <code>EXPLAIN</code> pour détecter les goulots d'étranglement.</li>
+                    </ul>
+                    <div class="mt-4 p-3 bg-green-50 border-l-4 border-green-600 rounded">
+                        💡 <strong>Exercice suggéré :</strong> Écrire une requête qui affiche les livres les plus empruntés (ordre décroissant) avec le nombre d'emprunts.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🏁 Mise en pratique - Mini projet",
+                content: `
+                    <p>Vous êtes formateur pour une boutique en ligne. À partir du script ci-dessous, réalisez les étapes :</p>
+                    <ol class="list-decimal pl-6 space-y-2 mt-2">
+                        <li>Créer les tables : <strong>Client</strong>, <strong>Produit</strong>, <strong>Commande</strong>, <strong>LigneCommande</strong>.</li>
+                        <li>Insérer des clients, produits et commandes de test (au moins 5 enregistrements).</li>
+                        <li>Écrire une requête qui affiche le montant total de chaque commande (prix * quantité).</li>
+                        <li>Joindre les tables pour obtenir le détail client + total commandes trié par montant descendant.</li>
+                    </ol>
+                    <pre><code>-- Structure suggérée : 
+CREATE TABLE Client (id_client INT PRIMARY KEY AUTO_INCREMENT, nom VARCHAR(100), email VARCHAR(100));
+CREATE TABLE Produit (id_produit INT PRIMARY KEY AUTO_INCREMENT, libelle VARCHAR(100), prix DECIMAL(10,2));
+CREATE TABLE Commande (id_commande INT PRIMARY KEY AUTO_INCREMENT, id_client INT, date_cmd DATE, FOREIGN KEY (id_client) REFERENCES Client(id_client));
+CREATE TABLE LigneCommande (id_commande INT, id_produit INT, quantite INT, PRIMARY KEY(id_commande, id_produit));</code></pre>
+                    <p class="italic text-gray-600 mt-2">Cette implémentation vous permettra de maîtriser les fondements SQL en contexte réel.</p>
+                `
+            },
+            {
+                type: "conclusion",
+                title: "✨ Récapitulatif de la leçon 35",
+                summary: [
+                    "Nous avons créé des tables relationnelles complètes avec clés primaires/étrangères.",
+                    "Inséré des données de test réalistes pour simuler une base fonctionnelle.",
+                    "Manipulé des requêtes SQL complexes : jointures multiples, agrégations, sous-requêtes.",
+                    "Appréhendé les bonnes pratiques d'optimisation et d'intégrité.",
+                    "Maintenant capables de développer une base de données fonctionnelle de A à Z."
+                ],
+                call: "Poursuivez avec l'évaluation et le projet final 💪🏾"
+            }
+        ];
+        
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+        
+        // Fonction pour générer chaque slide (HTML)
+        function renderSlide(slide, idx) {
+            let contentHtml = '';
+            const baseCardClass = "bg-white rounded-2xl shadow-xl overflow-hidden slide-card transition-all duration-300 border border-gray-100";
+            
+            if (slide.type === 'title') {
+                contentHtml = `
+                    <div class="${baseCardClass} p-6 md:p-10 text-center bg-gradient-to-br from-blue-50 to-indigo-50">
+                        <div class="text-6xl mb-4">${slide.icon || '📘'}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h1>
+                        <p class="text-lg text-gray-600 mt-4">${slide.subtitle}</p>
+                        <div class="mt-6 inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">${slide.badge}</div>
+                        <div class="mt-8 text-blue-600 text-sm">⬇️ Utilisez les boutons pour naviguer ⬇️</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectives') {
+                contentHtml = `
+                    <div class="${baseCardClass} p-6 md:p-8">
+                        <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+                        <div class="grid gap-3">
+                            ${slide.objectives.map(obj => `<div class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl"><span class="text-green-600 text-xl">✓</span><span class="text-gray-700">${obj}</span></div>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                contentHtml = `
+                    <div class="${baseCardClass} p-6 md:p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-blue-200 pb-2 mb-5">${slide.title}</h2>
+                        <div class="prose max-w-none text-gray-700 leading-relaxed">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'conclusion') {
+                contentHtml = `
+                    <div class="${baseCardClass} p-6 md:p-8 bg-gradient-to-tr from-gray-50 to-blue-50">
+                        <h2 class="text-2xl font-bold text-blue-900 mb-4">${slide.title}</h2>
+                        <ul class="space-y-2 mb-6">
+                            ${slide.summary.map(item => `<li class="flex items-start gap-2"><span class="text-blue-600">📌</span><span class="text-gray-700">${item}</span></li>`).join('')}
+                        </ul>
+                        <div class="bg-blue-100 p-4 rounded-xl text-center font-medium text-blue-800">${slide.call}</div>
+                    </div>
+                `;
+            }
+            
+            return `<div class="slide mb-6" data-slide-index="${idx}">${contentHtml}</div>`;
+        }
+        
+        function renderAllSlides() {
+            const container = $('#slides-container');
+            container.empty();
+            slidesData.forEach((slide, i) => {
+                const slideHtml = renderSlide(slide, i);
+                container.append(slideHtml);
+            });
+            $('#totalSlidesCount').text(totalSlides);
+            updateVisibility();
+            generateDots();
+            updateActiveDot();
+            updateButtons();
+        }
+        
+        function updateVisibility() {
+            // Masquer tous les slides et afficher uniquement l'index courant
+            $('.slide').each(function(idx) {
+                if (idx === currentIndex) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+            $('#currentSlideIdx').text(currentIndex + 1);
+        }
+        
+        function generateDots() {
+            const dotsContainer = $('#dotsNav');
+            dotsContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = $('<button>', {
+                    class: `nav-dot w-3 h-3 rounded-full ${i === currentIndex ? 'active bg-blue-800' : 'bg-gray-300'} focus:outline-none`,
+                    'data-index': i
+                });
+                dot.on('click', function() {
+                    currentIndex = parseInt($(this).data('index'));
+                    updateVisibility();
+                    updateActiveDot();
+                    updateButtons();
+                });
+                dotsContainer.append(dot);
+            }
+        }
+        
+        function updateActiveDot() {
+            $('.nav-dot').each(function(idx) {
+                if (idx === currentIndex) {
+                    $(this).removeClass('bg-gray-300').addClass('active bg-blue-800');
+                } else {
+                    $(this).removeClass('active bg-blue-800').addClass('bg-gray-300');
+                }
+            });
+        }
+        
+        function updateButtons() {
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+        }
+        
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateVisibility();
+                updateActiveDot();
+                updateButtons();
+                // scroll doux vers le haut
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateVisibility();
+                updateActiveDot();
+                updateButtons();
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 20 }, 200);
+            }
+        }
+        
+        $(document).ready(function() {
+            renderAllSlides();
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            // navigation clavier (flèches)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                }
+            });
+            // Ajuster mathjax au cas où
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

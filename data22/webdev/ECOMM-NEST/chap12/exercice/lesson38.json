@@ -1,0 +1,150 @@
+[
+  {
+    "intitule": "Prévention des injections SQL avec TypeORM",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une API NestJS utilisant TypeORM, un développeur a écrit le code suivant pour récupérer un utilisateur par email :</p><pre><code>const user = await this.userRepo.query(`SELECT * FROM user WHERE email = '${email}'`);</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez pourquoi ce code est vulnérable et quel type d'attaque est possible.",
+        "niveau": "easy",
+        "reponse": "Ce code est vulnérable aux injections SQL. Un attaquant pourrait fournir une chaîne comme `' OR '1'='1` pour modifier la requête et contourner l'authentification ou accéder à des données non autorisées.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Réécrivez ce code de manière sécurisée en utilisant les fonctionnalités de TypeORM (QueryBuilder ou Repository) avec des paramètres préparés.",
+        "niveau": "medium",
+        "reponse": "```typescript\nconst user = await this.userRepo.findOne({ where: { email } });\n// ou avec QueryBuilder\nconst user = await this.userRepo.createQueryBuilder('user')\n  .where('user.email = :email', { email })\n  .getOne();\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sanitization des entrées utilisateur avec class-sanitizer",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un utilisateur envoie un formulaire contenant un champ `comment` avec du code HTML malveillant : <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code>. Vous souhaitez nettoyer cette entrée avant de la stocker.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quel package NestJS permet de sanitizer automatiquement les DTOs ? Décrivez son utilisation.",
+        "niveau": "medium",
+        "reponse": "Le package `class-sanitizer` (ou `class-transformer` avec des décorateurs comme `@Transform()`). On peut utiliser `@Trim()`, `@Sanitize('html')`, ou `@Transform(({ value }) => sanitizeHtml(value))`. Il faut appliquer le `ValidationPipe` avec `transform: true`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez un DTO `CreateCommentDto` avec un champ `content` qui est automatiquement trimé et dont les balises HTML sont échappées/supprimées.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { Trim } from 'class-sanitizer';\nimport { Transform } from 'class-transformer';\nimport * as sanitizeHtml from 'sanitize-html';\n\nexport class CreateCommentDto {\n  @Trim()\n  @Transform(({ value }) => sanitizeHtml(value, {\n    allowedTags: [], // supprime toutes les balises HTML\n    allowedAttributes: {},\n  }))\n  content: string;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration de Helmet pour sécuriser les en-têtes HTTP",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Votre API e-commerce a été analysée et certains en-têtes HTTP de sécurité sont manquants. Vous décidez d'utiliser Helmet avec NestJS.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez au moins quatre en-têtes HTTP que Helmet configure par défaut et expliquez brièvement leur rôle.",
+        "niveau": "easy",
+        "reponse": "1. `X-DNS-Prefetch-Control` : contrôle la prélecture DNS. 2. `X-Frame-Options` : empêche le clickjacking (interdit l'iframe). 3. `X-Content-Type-Options` : empêche le MIME type sniffing. 4. `X-XSS-Protection` : active la protection XSS des navigateurs anciens. 5. `Strict-Transport-Security` : force HTTPS.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la configuration pour activer Helmet dans une application NestJS (dans `main.ts`).",
+        "niveau": "easy",
+        "reponse": "```typescript\nimport { NestFactory } from '@nestjs/core';\nimport { AppModule } from './app.module';\nimport helmet from 'helmet';\n\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule);\n  app.use(helmet());\n  await app.listen(3000);\n}\nbootstrap();\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquez pourquoi désactiver complètement Helmet pourrait être dangereux, et proposez une alternative si certaines options entrent en conflit avec votre frontend.",
+        "niveau": "hard",
+        "reponse": "Désactiver Helmet supprime des protections essentielles (CSRF partielle, clickjacking, sniffing). Si une option bloque une fonctionnalité légitime (ex: `X-Frame-Options` empêche l'intégration dans un iframe pour un dashboard), on peut configurer Helmet en mode personnalisé : `helmet({ frameguard: { action: 'sameorigin' } })` ou désactiver sélectivement une option.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Protection contre les attaques XSS",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un commentaire laissé par un utilisateur malveillant contient : <code>&lt;img src=x onerror=alert('XSS')&gt;</code>. Ce commentaire est affiché sur la page produit d'autres utilisateurs.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quel type d'attaque se cache derrière cet exemple ? Expliquez son mécanisme.",
+        "niveau": "easy",
+        "reponse": "Il s'agit d'une attaque XSS (Cross-Site Scripting) réfléchie ou stockée. Le code malveillant s'exécute dans le navigateur de la victime, permettant potentiellement le vol de cookies, de sessions, ou la redirection vers des sites frauduleux.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrivez trois stratégies de prévention contre les XSS dans une API NestJS (côté serveur) et côté frontend.",
+        "niveau": "hard",
+        "reponse": "Côté serveur : 1. Sanitizer les entrées utilisateur avec `sanitize-html` ou `class-sanitizer`. 2. Définir l'en-tête `Content-Security-Policy` (ex: `default-src 'self'`). 3. Encoder les sorties (ne pas exposer de HTML non échappé). Côté frontend : utiliser des frameworks qui échappent par défaut (React, Angular), éviter `innerHTML`, utiliser `textContent`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez une politique CSP minimale pour votre API (en-tête) qui interdit les scripts inline et les chargements depuis des domaines non autorisés.",
+        "niveau": "very hard",
+        "reponse": "```http\nContent-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'? (à éviter); img-src 'self' data:; style-src 'self' 'unsafe-inline';\n```\nMais la version la plus stricte : `script-src 'self';` (pas de inline). On peut utiliser Helmet avec `helmet.contentSecurityPolicy({ directives: { defaultSrc: [\"'self'\"], scriptSrc: [\"'self'\"], styleSrc: [\"'self'\"] } })`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse de sécurité d'une API e-commerce",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un consultant en sécurité a audité votre API NestJS et a trouvé les vulnérabilités suivantes :</p><ul><li>Endpoint GET /products/search?q=value vulnérable aux XSS réfléchis</li><li>Endpoint POST /users/update accepte des champs non définis dans le DTO (mass assignment)</li><li>Pas de limite de taille sur les requêtes POST</li><li>Les logs contiennent des données sensibles (email, token JWT en clair)</li></ul>",
+      "images": [
+        "schéma des couches de sécurité d'une API e-commerce (Helmet, validation, sanitization, rate limiting)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une correction pour chaque vulnérabilité, en utilisant les outils NestJS appropriés.",
+        "niveau": "very hard",
+        "reponse": "1. XSS réfléchi : utiliser `helmet()` + échappement des sorties, ou mieux, éviter de renvoyer du HTML brut depuis l'API (retourner du JSON et laisser le frontend échapper). 2. Mass assignment : utiliser des DTOs stricts avec `@Exclude()` et `whitelist: true` dans ValidationPipe. 3. Taille des requêtes : utiliser `bodyParser.json({ limit: '1mb' })` dans `main.ts`. 4. Logs sensibles : utiliser un intercepteur qui filtre les champs sensibles (password, token) avant log, ou utiliser Winston avec des niveaux et redaction.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment configurer le ValidationPipe global pour rejeter automatiquement les propriétés non définies dans les DTOs.",
+        "niveau": "hard",
+        "reponse": "```typescript\napp.useGlobalPipes(new ValidationPipe({\n  whitelist: true, // supprime les propriétés non définies dans le DTO\n  forbidNonWhitelisted: true, // rejette la requête si des propriétés non autorisées sont présentes\n  transform: true,\n}));\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Pour le endpoint de recherche, quelle autre mesure de sécurité pourrait-on ajouter pour éviter les attaques par déni de service (recherches très longues) ?",
+        "niveau": "hard",
+        "reponse": "On peut ajouter une limitation de longueur de la requête (max caractères pour `q`), un timeout sur la requête SQL, un rate limiting sur cet endpoint, et un cache des résultats fréquents. On peut aussi utiliser un index full-text en base de données pour optimiser les recherches.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

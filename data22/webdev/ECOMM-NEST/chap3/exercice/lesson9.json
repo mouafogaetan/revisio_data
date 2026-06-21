@@ -1,0 +1,109 @@
+[
+  {
+    "intitule": "CRUD des utilisateurs : endpoints administrateur",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une API e-commerce avec NestJS. Seuls les administrateurs peuvent gérer tous les utilisateurs. Vous devez implémenter les endpoints suivants dans le module <code>UsersController</code> :</p>\n<ul>\n  <li><code>GET /users</code> : lister tous les utilisateurs (admin uniquement)</li>\n  <li><code>GET /users/:id</code> : récupérer un utilisateur par son ID</li>\n  <li><code>PUT /users/:id</code> : modifier un utilisateur (admin uniquement)</li>\n  <li><code>DELETE /users/:id</code> : supprimer un utilisateur (admin uniquement)</li>\n</ul>\n<p>L'entité <code>User</code> possède : <code>id</code>, <code>email</code>, <code>password</code> (hashé), <code>firstName</code>, <code>lastName</code>, <code>phone</code>, <code>roles</code> (tableau de chaînes), <code>isActive</code> (boolean), <code>createdAt</code>, <code>updatedAt</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez le <code>UsersController</code> avec les endpoints listés ci-dessus, en utilisant les guards <code>JwtAuthGuard</code> et <code>RolesGuard</code> avec le décorateur <code>@Roles('admin')</code>.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// users/users.controller.ts\nimport { Controller, Get, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';\nimport { UsersService } from './users.service';\nimport { UpdateUserDto } from './dto/update-user.dto';\nimport { JwtAuthGuard } from '../common/guards/jwt-auth.guard';\nimport { RolesGuard } from '../common/guards/roles.guard';\nimport { Roles } from '../common/decorators/roles.decorator';\nimport { CurrentUser } from '../common/decorators/current-user.decorator';\nimport { User } from './entities/user.entity';\n\n@Controller('users')\n@UseGuards(JwtAuthGuard, RolesGuard)\nexport class UsersController {\n  constructor(private readonly usersService: UsersService) {}\n\n  @Get()\n  @Roles('admin')\n  async findAll() {\n    return this.usersService.findAll();\n  }\n\n  @Get(':id')\n  @Roles('admin')\n  async findOne(@Param('id') id: string) {\n    return this.usersService.findOne(+id);\n  }\n\n  @Put(':id')\n  @Roles('admin')\n  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {\n    return this.usersService.update(+id, updateUserDto);\n  }\n\n  @Delete(':id')\n  @Roles('admin')\n  async remove(@Param('id') id: string) {\n    return this.usersService.remove(+id);\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez le <code>UsersService</code> correspondant avec les méthodes <code>findAll()</code>, <code>findOne()</code>, <code>update()</code>, <code>remove()</code>. Utilisez le repository TypeORM et gérez les exceptions (ex: utilisateur non trouvé).",
+        "niveau": "medium",
+        "reponse": "```typescript\n// users/users.service.ts\nimport { Injectable, NotFoundException } from '@nestjs/common';\nimport { InjectRepository } from '@nestjs/typeorm';\nimport { Repository } from 'typeorm';\nimport { User } from './entities/user.entity';\nimport { UpdateUserDto } from './dto/update-user.dto';\n\n@Injectable()\nexport class UsersService {\n  constructor(\n    @InjectRepository(User)\n    private usersRepository: Repository<User>,\n  ) {}\n\n  async findAll(): Promise<User[]> {\n    return this.usersRepository.find({\n      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'roles', 'isActive', 'createdAt', 'updatedAt'],\n      // Exclure le mot de passe par défaut\n    });\n  }\n\n  async findOne(id: number): Promise<User> {\n    const user = await this.usersRepository.findOne({\n      where: { id },\n      select: ['id', 'email', 'firstName', 'lastName', 'phone', 'roles', 'isActive', 'createdAt', 'updatedAt'],\n    });\n    if (!user) {\n      throw new NotFoundException(`Utilisateur avec l'ID ${id} non trouvé`);\n    }\n    return user;\n  }\n\n  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {\n    const user = await this.usersRepository.findOne({ where: { id } });\n    if (!user) {\n      throw new NotFoundException(`Utilisateur avec l'ID ${id} non trouvé`);\n    }\n    // Ne pas permettre la modification du mot de passe via ce DTO\n    const { password, ...safeUpdate } = updateUserDto as any;\n    Object.assign(user, safeUpdate);\n    return this.usersRepository.save(user);\n  }\n\n  async remove(id: number): Promise<void> {\n    const result = await this.usersRepository.delete(id);\n    if (result.affected === 0) {\n      throw new NotFoundException(`Utilisateur avec l'ID ${id} non trouvé`);\n    }\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise à jour du profil utilisateur",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un utilisateur connecté doit pouvoir modifier ses propres informations (profil) sans avoir les droits administrateur. Les champs modifiables sont : <code>firstName</code>, <code>lastName</code>, <code>phone</code>, <code>password</code> (avec ancien mot de passe pour validation).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez le DTO <code>UpdateProfileDto</code> avec validation (class-validator) et les champs optionnels correspondants.",
+        "niveau": "easy",
+        "reponse": "```typescript\n// users/dto/update-profile.dto.ts\nimport { ApiProperty } from '@nestjs/swagger';\nimport { IsString, IsOptional, MinLength, IsEmail, Matches } from 'class-validator';\n\nexport class UpdateProfileDto {\n  @ApiProperty({ required: false })\n  @IsString()\n  @IsOptional()\n  @MinLength(2)\n  firstName?: string;\n\n  @ApiProperty({ required: false })\n  @IsString()\n  @IsOptional()\n  @MinLength(2)\n  lastName?: string;\n\n  @ApiProperty({ required: false })\n  @IsString()\n  @IsOptional()\n  @Matches(/^[0-9+]{8,15}$/, { message: 'Numéro de téléphone invalide' })\n  phone?: string;\n\n  @ApiProperty({ required: false })\n  @IsString()\n  @IsOptional()\n  @MinLength(8)\n  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)/, {\n    message: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre',\n  })\n  newPassword?: string;\n\n  @ApiProperty()\n  @IsString()\n  currentPassword: string; // Obligatoire pour toute modification sensible\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez dans <code>UsersController</code> l'endpoint <code>PATCH /users/profile</code> permettant à l'utilisateur connecté de modifier son profil. Utilisez un décorateur <code>@CurrentUser()</code> pour récupérer l'utilisateur authentifié.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// users/users.controller.ts (ajout)\n@Patch('profile')\n@UseGuards(JwtAuthGuard)\nasync updateProfile(\n  @CurrentUser() user: User,\n  @Body() updateProfileDto: UpdateProfileDto,\n) {\n  return this.usersService.updateProfile(user.id, updateProfileDto);\n}\n\n// common/decorators/current-user.decorator.ts\nimport { createParamDecorator, ExecutionContext } from '@nestjs/common';\nexport const CurrentUser = createParamDecorator(\n  (data: unknown, ctx: ExecutionContext) => {\n    const request = ctx.switchToHttp().getRequest();\n    return request.user;\n  },\n);\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Implémentez dans <code>UsersService</code> la méthode <code>updateProfile(userId: number, dto: UpdateProfileDto)</code> qui vérifie le mot de passe actuel avant toute mise à jour sensible, hache le nouveau mot de passe si fourni, et met à jour l'utilisateur.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// users/users.service.ts\nimport { Injectable, UnauthorizedException } from '@nestjs/common';\nimport * as bcrypt from 'bcrypt';\n\nasync updateProfile(userId: number, updateProfileDto: UpdateProfileDto): Promise<User> {\n  const user = await this.usersRepository.findOne({ where: { id: userId } });\n  if (!user) {\n    throw new NotFoundException('Utilisateur non trouvé');\n  }\n\n  // Vérification du mot de passe actuel si une modification est demandée\n  const hasSensitiveChange = updateProfileDto.newPassword || \n                              updateProfileDto.email || \n                              updateProfileDto.phone;\n  \n  if (hasSensitiveChange && updateProfileDto.currentPassword) {\n    const isPasswordValid = await bcrypt.compare(updateProfileDto.currentPassword, user.password);\n    if (!isPasswordValid) {\n      throw new UnauthorizedException('Mot de passe actuel incorrect');\n    }\n  } else if (hasSensitiveChange && !updateProfileDto.currentPassword) {\n    throw new UnauthorizedException('Le mot de passe actuel est requis pour cette modification');\n  }\n\n  // Mise à jour des champs\n  if (updateProfileDto.firstName) user.firstName = updateProfileDto.firstName;\n  if (updateProfileDto.lastName) user.lastName = updateProfileDto.lastName;\n  if (updateProfileDto.phone) user.phone = updateProfileDto.phone;\n  if (updateProfileDto.newPassword) {\n    user.password = await bcrypt.hash(updateProfileDto.newPassword, 10);\n  }\n\n  return this.usersRepository.save(user);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des adresses de livraison",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un utilisateur peut avoir plusieurs adresses de livraison. Chaque adresse est caractérisée par : <code>id</code>, <code>alias</code> (ex: \"Maison\", \"Bureau\"), <code>firstName</code>, <code>lastName</code>, <code>address</code>, <code>city</code>, <code>postalCode</code>, <code>country</code>, <code>phone</code>, <code>isDefault</code> (boolean).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez l'entité TypeORM <code>Address</code> avec les relations ManyToOne vers <code>User</code>. Ajoutez les décorateurs appropriés.",
+        "niveau": "easy",
+        "reponse": "```typescript\n// users/entities/address.entity.ts\nimport { Entity, Column, PrimaryGeneratedColumn, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';\nimport { User } from './user.entity';\n\n@Entity('addresses')\nexport class Address {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column()\n  alias: string;\n\n  @Column()\n  firstName: string;\n\n  @Column()\n  lastName: string;\n\n  @Column()\n  address: string;\n\n  @Column()\n  city: string;\n\n  @Column()\n  postalCode: string;\n\n  @Column()\n  country: string;\n\n  @Column()\n  phone: string;\n\n  @Column({ default: false })\n  isDefault: boolean;\n\n  @ManyToOne(() => User, (user) => user.addresses, { onDelete: 'CASCADE' })\n  user: User;\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```\nDans l'entité User :\n```typescript\n@OneToMany(() => Address, (address) => address.user, { cascade: true })\naddresses: Address[];\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez le CRUD complet des adresses dans un <code>AddressesController</code> dédié (imbriqué sous <code>/users/addresses</code>) :\n- <code>POST /users/addresses</code> : ajouter une adresse\n- <code>GET /users/addresses</code> : lister les adresses de l'utilisateur\n- <code>PUT /users/addresses/:id</code> : modifier une adresse\n- <code>DELETE /users/addresses/:id</code> : supprimer une adresse\n- <code>PATCH /users/addresses/:id/default</code> : définir une adresse comme par défaut (et désactiver les autres)",
+        "niveau": "hard",
+        "reponse": "```typescript\n// users/addresses.controller.ts\nimport { Controller, Post, Get, Put, Delete, Body, Param, Patch, UseGuards } from '@nestjs/common';\nimport { AddressesService } from './addresses.service';\nimport { CreateAddressDto } from './dto/create-address.dto';\nimport { UpdateAddressDto } from './dto/update-address.dto';\nimport { JwtAuthGuard } from '../common/guards/jwt-auth.guard';\nimport { CurrentUser } from '../common/decorators/current-user.decorator';\nimport { User } from './entities/user.entity';\n\n@Controller('users/addresses')\n@UseGuards(JwtAuthGuard)\nexport class AddressesController {\n  constructor(private readonly addressesService: AddressesService) {}\n\n  @Post()\n  create(@CurrentUser() user: User, @Body() createAddressDto: CreateAddressDto) {\n    return this.addressesService.create(user.id, createAddressDto);\n  }\n\n  @Get()\n  findAll(@CurrentUser() user: User) {\n    return this.addressesService.findAll(user.id);\n  }\n\n  @Get(':id')\n  findOne(@CurrentUser() user: User, @Param('id') id: string) {\n    return this.addressesService.findOne(user.id, +id);\n  }\n\n  @Put(':id')\n  update(\n    @CurrentUser() user: User,\n    @Param('id') id: string,\n    @Body() updateAddressDto: UpdateAddressDto,\n  ) {\n    return this.addressesService.update(user.id, +id, updateAddressDto);\n  }\n\n  @Delete(':id')\n  remove(@CurrentUser() user: User, @Param('id') id: string) {\n    return this.addressesService.remove(user.id, +id);\n  }\n\n  @Patch(':id/default')\n  setDefault(@CurrentUser() user: User, @Param('id') id: string) {\n    return this.addressesService.setDefault(user.id, +id);\n  }\n}\n```\n\nLe service correspondant (extrait) :\n```typescript\nasync setDefault(userId: number, addressId: number): Promise<Address> {\n  // Désactiver toutes les adresses par défaut de l'utilisateur\n  await this.addressesRepository.update(\n    { user: { id: userId }, isDefault: true },\n    { isDefault: false }\n  );\n  // Activer la nouvelle adresse par défaut\n  await this.addressesRepository.update(\n    { id: addressId, user: { id: userId } },\n    { isDefault: true }\n  );\n  return this.findOne(userId, addressId);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sécurité et validation des entrées utilisateur",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un module utilisateur, plusieurs mesures de sécurité doivent être prises : validation des emails, vérification de l'unicité, prévention des injections SQL, protection contre les mots de passe faibles.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez un validateur personnalisé avec class-validator pour vérifier qu'un email n'existe pas déjà en base lors de la création/modification d'un utilisateur.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// common/validators/is-unique-email.validator.ts\nimport { Injectable } from '@nestjs/common';\nimport { ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';\nimport { UsersService } from '../../users/users.service';\n\n@Injectable()\n@ValidatorConstraint({ name: 'IsUniqueEmail', async: true })\nexport class IsUniqueEmailValidator implements ValidatorConstraintInterface {\n  constructor(private usersService: UsersService) {}\n\n  async validate(email: string, args: ValidationArguments): Promise<boolean> {\n    const userId = (args.object as any).id; // Pour les mises à jour\n    const user = await this.usersService.findByEmail(email);\n    if (!user) return true;\n    // Si c'est une mise à jour et que l'utilisateur trouvé est le même, c'est valide\n    if (userId && user.id === userId) return true;\n    return false;\n  }\n\n  defaultMessage(args: ValidationArguments): string {\n    return 'Cet email est déjà utilisé';\n  }\n}\n\n// Utilisation dans un DTO\nexport class CreateUserDto {\n  @IsEmail()\n  @Validate(IsUniqueEmailValidator)\n  email: string;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment TypeORM protège contre les injections SQL et pourquoi l'utilisation du Query Builder ou du Repository est préférable aux requêtes raw.",
+        "niveau": "easy",
+        "reponse": "TypeORM utilise des **paramètres préparés** (prepared statements) via ses méthodes comme `find()`, `createQueryBuilder()`, `save()`. Les valeurs sont automatiquement échappées et ne peuvent pas être interprétées comme du SQL.\n\n**Bonnes pratiques :**\n- Toujours utiliser `find` avec un objet `where` : `usersRepository.find({ where: { email } })`\n- Pour des requêtes dynamiques, utiliser le Query Builder : `createQueryBuilder('user').where('user.email = :email', { email })`\n- Éviter `query()` avec des chaînes concaténées.\n\n**Risque (à ne PAS faire) :**\n```typescript\n// DANGER: injection SQL possible\nawait this.connection.query(`SELECT * FROM users WHERE email = '${email}'`);\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

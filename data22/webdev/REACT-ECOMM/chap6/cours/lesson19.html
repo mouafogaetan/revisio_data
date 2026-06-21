@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 19 - Gestion des tokens JWT (access & refresh) | React E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%); }
+        .slide {
+            display: none;
+            animation: fadeIn 0.45s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        .slide.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(18px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        .badge-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #eef2ff;
+            padding: 4px 14px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .token-badge {
+            background: #1e293b;
+            color: #facc15;
+            font-family: monospace;
+            font-size: 0.7rem;
+            border-radius: 12px;
+            padding: 2px 10px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- En-tête sticky -->
+        <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-gray-200 p-3 mb-5 flex justify-between items-center sticky top-2 z-10">
+            <div class="flex items-center gap-2">
+                <i class="fab fa-react text-blue-500 text-xl"></i>
+                <span class="font-semibold text-gray-700 text-sm">React E-commerce · Lesson 19</span>
+            </div>
+            <div class="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+            </div>
+        </div>
+
+        <!-- Conteneur principal des slides -->
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" data-index="0">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-blue-700 px-6 py-10 text-center">
+                        <i class="fas fa-key text-white text-5xl mb-3"></i>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-white">🔐 Gestion des tokens JWT</h1>
+                        <p class="text-indigo-100 mt-2 text-lg">Access token · Refresh token · Rafraîchissement automatique</p>
+                    </div>
+                    <div class="p-6 text-center">
+                        <div class="flex justify-center gap-3 flex-wrap">
+                            <span class="badge-icon"><i class="fas fa-database"></i> localStorage / sessionStorage</span>
+                            <span class="badge-icon"><i class="fas fa-sync-alt"></i> Refresh automatique</span>
+                            <span class="badge-icon"><i class="fas fa-sign-out-alt"></i> Déconnexion propre</span>
+                        </div>
+                        <p class="mt-5 text-gray-600">Une leçon pour sécuriser votre e-commerce et offrir une expérience utilisateur fluide.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" data-index="1">
+                <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border-l-8 border-indigo-500">
+                    <div class="flex items-center gap-3 mb-5">
+                        <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+                        <h2 class="text-2xl md:text-3xl font-bold">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4 text-gray-700">
+                        <li class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-1"></i> <span><strong>Stocker correctement</strong> les tokens (access & refresh) après connexion.</span></li>
+                        <li class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-1"></i> <span><strong>Implémenter le rafraîchissement automatique</strong> du token avant expiration (sans intervention utilisateur).</span></li>
+                        <li class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-1"></i> <span><strong>Nettoyer les données sensibles</strong> lors de la déconnexion.</span></li>
+                        <li class="flex gap-3"><i class="fas fa-check-circle text-green-500 mt-1"></i> <span><strong>Comprendre la différence</strong> entre access token (court) et refresh token (long).</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-50 p-4 rounded-xl">
+                        <p class="italic text-indigo-800"><i class="fas fa-lightbulb"></i> À la fin, votre application saura gérer des sessions utilisateur robustes, même après plusieurs heures d'inactivité.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Tokens : access vs refresh -->
+            <div class="slide" data-index="2">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-exchange-alt text-purple-500"></i> Access token vs Refresh token</h2>
+                    <div class="grid md:grid-cols-2 gap-5 mt-5">
+                        <div class="border rounded-xl p-4 bg-gray-50">
+                            <div class="font-bold text-lg text-blue-700">🔑 Access token</div>
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-sm">
+                                <li>Durée de vie courte (15 min – 1 heure)</li>
+                                <li>Contient les claims (userId, rôles)</li>
+                                <li>Envoyé dans chaque requête API (header Authorization)</li>
+                                <li>Stockage : <span class="font-mono text-xs">localStorage</span> ou <span class="font-mono">sessionStorage</span></li>
+                            </ul>
+                        </div>
+                        <div class="border rounded-xl p-4 bg-gray-50">
+                            <div class="font-bold text-lg text-green-700">🔄 Refresh token</div>
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-sm">
+                                <li>Durée de vie longue (7 jours – 1 mois)</li>
+                                <li>Utilisé uniquement pour obtenir un nouveau access token</li>
+                                <li>Ne circule pas sur chaque requête</li>
+                                <li>Stockage : <span class="font-mono">localStorage</span> (moins sécurisé) ou <span class="font-mono">httpOnly cookie</span> (recommandé)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mt-5 bg-yellow-50 p-3 rounded text-sm">
+                        <i class="fas fa-shield-alt text-yellow-700"></i> <strong>Note de sécurité</strong> : En environnement de production, préférez stocker le refresh token dans un cookie <code>httpOnly</code> pour éviter les attaques XSS. Pour ce cours (contexte pédagogique), nous utiliserons localStorage.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : Stockage des tokens après login -->
+            <div class="slide" data-index="3">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold"><i class="fas fa-save text-amber-600"></i> Stocker les tokens après connexion</h2>
+                    <p class="mt-2">Exemple d'action <code>login</code> dans un store Zustand :</p>
+                    <div class="code-block mt-3">
+                        <span class="text-green-400">// authStore.js (Zustand + persist)</span><br>
+                        const useAuthStore = create(<br>
+                        &nbsp;&nbsp;persist(<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(set) => ({<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user: null,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;accessToken: null,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;refreshToken: null,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;login: async (email, password) => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const res = await api.post('/auth/login', { email, password });<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;set({<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user: res.data.user,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;accessToken: res.data.accessToken,<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;refreshToken: res.data.refreshToken<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Stockage manuel (le middleware persist le fait déjà)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logout: () => set({ user: null, accessToken: null, refreshToken: null })<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;}),<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;{ name: 'auth-storage' }<br>
+                        &nbsp;&nbsp;)<br>
+                        );
+                    </div>
+                    <p class="mt-3 text-sm">📦 Le middleware <code>persist</code> synchronise automatiquement avec localStorage. On peut également utiliser <code>sessionStorage</code> pour une session fermée à l'onglet.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Interceptor Axios pour ajouter le token -->
+            <div class="slide" data-index="4">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold"><i class="fas fa-bolt text-blue-500"></i> Interceptor Axios : Ajout automatique du token</h2>
+                    <div class="code-block mt-3">
+                        import axios from 'axios';<br>
+                        import { useAuthStore } from '@/stores/authStore';<br><br>
+                        const api = axios.create({ baseURL: import.meta.env.VITE_API_URL });<br><br>
+                        // Interceptor request : ajouter le token<br>
+                        api.interceptors.request.use((config) => {<br>
+                        &nbsp;&nbsp;const { accessToken } = useAuthStore.getState();<br>
+                        &nbsp;&nbsp;if (accessToken) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;config.headers.Authorization = `Bearer ${accessToken}`;<br>
+                        &nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;return config;<br>
+                        });
+                    </div>
+                    <p class="mt-3 text-gray-600">✅ Ainsi, chaque requête sortante inclut le token sans répétition de code.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Rafraîchissement automatique (refresh token) -->
+            <div class="slide" data-index="5">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold"><i class="fas fa-sync-alt text-green-600"></i> Refresh automatique du token</h2>
+                    <p class="mb-2">Intercepteur de réponse : si le serveur retourne <code>401 Unauthorized</code> → tenter un refresh.</p>
+                    <div class="code-block text-xs">
+                        let isRefreshing = false;<br>
+                        let failedQueue = [];<br><br>
+                        api.interceptors.response.use(<br>
+                        &nbsp;&nbsp;(response) => response,<br>
+                        &nbsp;&nbsp;async (error) => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;const originalRequest = error.config;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;if (error.response?.status === 401 && !originalRequest._retry) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (isRefreshing) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return new Promise((resolve) => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;failedQueue.push(resolve);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;originalRequest._retry = true;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;isRefreshing = true;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const { refreshToken } = useAuthStore.getState();<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const res = await api.post('/auth/refresh', { refreshToken });<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const { accessToken: newToken, refreshToken: newRefresh } = res.data;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;useAuthStore.setState({ accessToken: newToken, refreshToken: newRefresh });<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Rejouer les requêtes en attente<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;failedQueue.forEach(cb => cb());<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;failedQueue = [];<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return api(originalRequest);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} catch (refreshError) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;useAuthStore.getState().logout();<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;window.location.href = '/login';<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} finally { isRefreshing = false; }<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;return Promise.reject(error);<br>
+                        &nbsp;&nbsp;}<br>
+                        );
+                    </div>
+                    <p class="mt-3 text-sm bg-gray-100 p-2 rounded">✨ Ce pattern évite plusieurs appels de refresh simultanés et garantit que les requêtes échouées soient rejouées après l'obtention du nouveau token.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Déconnexion propre -->
+            <div class="slide" data-index="6">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold"><i class="fas fa-sign-out-alt text-red-500"></i> Déconnexion et nettoyage</h2>
+                    <div class="code-block mt-3">
+                        logout: () => {<br>
+                        &nbsp;&nbsp;// 1. Appel au backend pour révoquer le refresh token (optionnel)<br>
+                        &nbsp;&nbsp;api.post('/auth/logout', { refreshToken: get().refreshToken })<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;.catch(err => console.warn);<br>
+                        &nbsp;&nbsp;// 2. Réinitialiser le store<br>
+                        &nbsp;&nbsp;set({ user: null, accessToken: null, refreshToken: null });<br>
+                        &nbsp;&nbsp;// 3. Nettoyer le cache React Query (si utilisé)<br>
+                        &nbsp;&nbsp;queryClient.clear();<br>
+                        &nbsp;&nbsp;// 4. Redirection vers login<br>
+                        &nbsp;&nbsp;window.location.href = '/login';<br>
+                        }
+                    </div>
+                    <div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                        <i class="fas fa-trash-alt text-red-600"></i> <strong>Bonnes pratiques :</strong> vider aussi les données du panier local, les favoris temporaires, et toute autre donnée privée.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Exercice pratique & mise en situation -->
+            <div class="slide" data-index="7">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold"><i class="fas fa-pen-fancy text-teal-600"></i> Exercice : Mise en place complète</h2>
+                    <div class="bg-teal-50 p-4 rounded-xl mt-3">
+                        <p class="font-semibold">🎯 À réaliser :</p>
+                        <ol class="list-decimal pl-5 mt-2 space-y-2">
+                            <li>Créer un store Zustand <code>useAuthStore</code> avec <code>persist</code> (localStorage).</li>
+                            <li>Ajouter les champs : <code>accessToken</code>, <code>refreshToken</code>, <code>user</code>, et les actions <code>login</code>, <code>logout</code>, <code>refreshAccessToken</code>.</li>
+                            <li>Configurer un intercepteur Axios pour insérer le token dans le header <code>Authorization</code>.</li>
+                            <li>Implémenter l'intercepteur de réponse pour rafraîchir automatiquement en cas de 401.</li>
+                            <li>Tester le comportement : après expiration du token, une requête doit récupérer un nouveau token sans que l'utilisateur se reconnecte.</li>
+                        </ol>
+                    </div>
+                    <div class="mt-5 flex items-center gap-2 text-sm text-gray-500">
+                        <i class="fas fa-question-circle"></i> Pour aller plus loin : que se passe-t-il si le refresh token a aussi expiré ? (Redirection vers login)
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Résumé / cheatsheet -->
+            <div class="slide" data-index="8">
+                <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                    <i class="fas fa-clipboard-list text-4xl text-indigo-400 mb-3"></i>
+                    <h2 class="text-2xl font-bold">📌 Synthèse : bonnes pratiques</h2>
+                    <div class="grid md:grid-cols-2 gap-4 mt-5 text-left">
+                        <div class="border p-3 rounded-lg bg-gray-50">
+                            <p class="font-bold">✔️ Access token</p>
+                            <p class="text-sm">Durée courte (15 min), stocké en mémoire/localStorage, inclus dans chaque requête.</p>
+                        </div>
+                        <div class="border p-3 rounded-lg bg-gray-50">
+                            <p class="font-bold">✔️ Refresh token</p>
+                            <p class="text-sm">Durée longue, utilisé uniquement pour renouveler l'access token.</p>
+                        </div>
+                        <div class="border p-3 rounded-lg bg-gray-50">
+                            <p class="font-bold">✔️ Intercepteurs Axios</p>
+                            <p class="text-sm">Ajout automatique du token + gestion 401 + file d'attente des requêtes.</p>
+                        </div>
+                        <div class="border p-3 rounded-lg bg-gray-50">
+                            <p class="font-bold">✔️ Déconnexion</p>
+                            <p class="text-sm">Nettoyer store, localStorage, cache et rediriger.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation + progression -->
+        <div class="mt-8 flex justify-between items-center">
+            <button id="prevSlide" class="nav-btn bg-white border border-gray-300 px-5 py-2 rounded-xl shadow-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" disabled><i class="fas fa-chevron-left"></i> Précédent</button>
+            <div class="w-1/3 mx-2">
+                <div class="progress-bar w-full"><div id="progressFill" class="progress-fill"></div></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-indigo-700">Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="text-center text-xs text-gray-400 mt-8">
+            <i class="far fa-copyright"></i> Cours React E-commerce - Enseignement au Cameroun | Lesson 19 : Tokens JWT & session persistante
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            $('#totalSlides').text(total);
+            let currentIdx = 0;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIdx]).addClass('active');
+                $('#currentSlideIdx').text(currentIdx+1);
+                $('#prevSlide').prop('disabled', currentIdx === 0);
+                $('#nextSlide').prop('disabled', currentIdx === total-1);
+                let progressPercent = (currentIdx / (total-1)) * 100;
+                $('#progressFill').css('width', progressPercent + '%');
+            }
+
+            $('#nextSlide').on('click', function() {
+                if (currentIdx < total-1) {
+                    currentIdx++;
+                    updateSlides();
+                }
+            });
+            $('#prevSlide').on('click', function() {
+                if (currentIdx > 0) {
+                    currentIdx--;
+                    updateSlides();
+                }
+            });
+
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    if (currentIdx < total-1) { currentIdx++; updateSlides(); }
+                } else if (e.key === 'ArrowLeft') {
+                    if (currentIdx > 0) { currentIdx--; updateSlides(); }
+                }
+            });
+            updateSlides();
+        });
+    </script>
+</body>
+</html>

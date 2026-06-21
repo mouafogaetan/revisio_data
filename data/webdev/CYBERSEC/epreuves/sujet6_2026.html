@@ -1,331 +1,713 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Leçon 10 : Git avancé (Hooks, Submodules, Versioning) | DevOps</title>
-  <!-- Tailwind CSS + jQuery + MathJax (pour formules si besoin) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-  <style>
-    body {
-      background: #f1f5f9;
-      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Épreuve</title>
+
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            svg: { fontCache: 'global' },
+            options: {
+                skipHtmlTypes: 'script',
+                ignoreHtmlClass: 'no-mathjax'
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+    crossorigin="anonymous">
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
     }
-    .slide {
-      transition: all 0.3s ease;
-      scroll-margin-top: 1rem;
+
+    html, body {
+        height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background: #f0f4f8;
+        color: #1e293b;
+        overflow: hidden;
+        touch-action: manipulation;
     }
-    .nav-btn {
-      transition: background 0.2s, transform 0.1s;
+
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        max-width: 600px;
+        margin: 0 auto;
+        background: #ffffff;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,0,0,0.08);
     }
-    .nav-btn:active {
-      transform: scale(0.97);
+
+    /* ===== HEADER ===== */
+    .slide-header {
+        flex-shrink: 0;
+        padding: 14px 16px 10px 16px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+        z-index: 10;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 4px;
     }
-    .progress-bar {
-      transition: width 0.3s ease;
+
+    .slide-header h1 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1.3;
+        padding: 0 4px;
+        word-break: break-word;
     }
-    @media (max-width: 640px) {
-      .container-pad {
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-      }
-      .slide-content {
-        padding: 1rem;
-      }
+
+    .header-sub {
+        font-size: 0.75rem;
+        color: #64748b;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
     }
-  </style>
+
+    .header-sub span {
+        background: rgba(0,0,0,0.04);
+        padding: 2px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    /* ===== CORPS ===== */
+    .slide-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 16px 18px 20px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+
+    .slide-body::-webkit-scrollbar {
+        width: 4px;
+    }
+    .slide-body::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.04);
+    }
+    .slide-body::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    /* ===== EXERCICE ===== */
+    .exercise-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 16px 16px 12px 16px;
+        flex-shrink: 0;
+    }
+
+    .exercise-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .exercise-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #1e40af;
+    }
+
+    .exercise-points {
+        font-size: 0.75rem;
+        color: #64748b;
+        background: rgba(0,0,0,0.04);
+        padding: 2px 12px;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .exercise-statement {
+        color: #1e293b;
+        line-height: 1.7;
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+        padding: 0 4px;
+    }
+
+    .exercise-statement .math {
+        color: #1e40af;
+    }
+
+    /* ===== QUESTIONS ===== */
+    .question-block {
+        background: rgba(0,0,0,0.02);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-top: 8px;
+        border-left: 3px solid #e2e8f0;
+        transition: border-color 0.3s ease;
+    }
+
+    .question-block.revealed {
+        border-left-color: #059669;
+    }
+
+    .question-text {
+        font-size: 0.92rem;
+        color: #1e293b;
+        line-height: 1.6;
+        margin-bottom: 8px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .question-label {
+        font-weight: 600;
+        color: #2563eb;
+        flex-shrink: 0;
+    }
+
+    .question-answer {
+        background: rgba(5, 150, 105, 0.06);
+        border: 1px solid rgba(5, 150, 105, 0.15);
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 8px;
+        display: none;
+        font-size: 0.9rem;
+        color: #065f46;
+        line-height: 1.6;
+        transition: all 0.3s ease;
+    }
+
+    .question-answer.visible {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .question-answer .math {
+        color: #065f46;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn-reveal {
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(37, 99, 235, 0.15);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #2563eb;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+        margin-top: 4px;
+    }
+
+    .btn-reveal:active {
+        transform: scale(0.94);
+        background: rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-reveal.revealed {
+        background: rgba(5, 150, 105, 0.1);
+        border-color: rgba(5, 150, 105, 0.2);
+        color: #059669;
+    }
+
+    /* ===== FOOTER ===== */
+    .slide-footer {
+        flex-shrink: 0;
+        padding: 12px 14px 16px 14px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(0,0,0,0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+    }
+
+    .footer-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 4px;
+    }
+
+    .footer-actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        background: rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 40px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 40px;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+        flex: 0 1 auto;
+    }
+
+    .btn:active {
+        transform: scale(0.94);
+        background: rgba(0,0,0,0.08);
+    }
+
+    .btn-secondary {
+        background: rgba(0,0,0,0.03);
+        border-color: rgba(0,0,0,0.06);
+    }
+
+    .btn-icon {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    .btn-primary {
+        background: rgba(37, 99, 235, 0.08);
+        border-color: rgba(37, 99, 235, 0.12);
+        color: #2563eb;
+    }
+    .btn-primary:active {
+        background: rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-success {
+        background: rgba(5, 150, 105, 0.08);
+        border-color: rgba(5, 150, 105, 0.12);
+        color: #059669;
+    }
+    .btn-success:active {
+        background: rgba(5, 150, 105, 0.15);
+    }
+
+    .btn-warning {
+        background: rgba(217, 119, 6, 0.08);
+        border-color: rgba(217, 119, 6, 0.12);
+        color: #d97706;
+    }
+    .btn-warning:active {
+        background: rgba(217, 119, 6, 0.15);
+    }
+
+    .counter {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #64748b;
+        background: rgba(0,0,0,0.04);
+        padding: 4px 14px;
+        border-radius: 30px;
+        letter-spacing: 0.5px;
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 400px) {
+        .slide-header h1 {
+            font-size: 1.1rem;
+        }
+        .header-sub {
+            font-size: 0.65rem;
+            gap: 6px;
+        }
+        .exercise-title {
+            font-size: 1rem;
+        }
+        .exercise-statement {
+            font-size: 0.85rem;
+        }
+        .question-text {
+            font-size: 0.82rem;
+        }
+        .btn {
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            min-height: 34px;
+        }
+        .footer-actions {
+            gap: 5px;
+        }
+        .slide-body {
+            padding: 12px 12px 16px 12px;
+        }
+    }
+
+    @media (min-width: 700px) {
+        .app-container {
+            max-width: 600px;
+            border-radius: 32px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            height: 90vh;
+            height: 90dvh;
+        }
+    }
+</style>
 </head>
-<body class="text-gray-800">
+<body>
 
-<div class="max-w-4xl mx-auto px-4 py-6 md:py-8 container-pad">
-  
-  <!-- Barre de progression fixe -->
-  <div class="fixed top-0 left-0 w-full h-1 bg-gray-200 z-50 hidden md:block">
-    <div id="progressFill" class="progress-bar h-full bg-indigo-600 w-0"></div>
-  </div>
+<div class="app-container">
 
-  <!-- SLIDE 1 : TITRE -->
-  <section id="slide1" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-    <div class="bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-6 md:p-8 text-center">
-      <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-3">Chapitre 3 • Leçon 10</span>
-      <h1 class="text-3xl md:text-4xl font-extrabold">Git pour le travail collaboratif avancé</h1>
-      <p class="text-indigo-100 mt-4 max-w-xl mx-auto">Hooks, sous-modules, versioning sémantique et stratégies d’intégration continue</p>
-      <div class="mt-6 flex flex-wrap justify-center gap-3 text-sm">
-        <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Niveau : Intermédiaire</span>
-        <span class="bg-white/20 px-3 py-1 rounded-full">⏱️ Durée : 45 min</span>
-        <span class="bg-white/20 px-3 py-1 rounded-full">🐙 Git avancé</span>
-      </div>
-    </div>
-    <div class="p-6 text-center text-gray-500 border-t">
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full font-medium shadow transition">Commencer la leçon →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
-  <section id="slide2" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
-      <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2"><span class="text-3xl">📌</span> Objectifs d'apprentissage</h2>
-    </div>
-    <div class="p-6 space-y-4">
-      <p class="text-gray-700">À la fin de cette leçon, vous serez capable de :</p>
-      <ul class="space-y-3">
-        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Utiliser les Git Hooks</strong> pour automatiser des vérifications (pre-commit, pre-push).</span></li>
-        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Gérer des sous-modules</strong> (git submodule) pour réutiliser du code.</span></li>
-        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Appliquer le versioning sémantique</strong> (SemVer) avec les tags Git.</span></li>
-        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Choisir une stratégie de branchement</strong> adaptée à votre équipe (Git Flow vs GitHub Flow).</span></li>
-      </ul>
-      <div class="bg-blue-50 p-4 rounded-xl mt-2">
-        <p class="text-sm text-blue-800"><span class="font-semibold">💡 Pourquoi c'est important ?</span> Ces techniques permettent d’automatiser la qualité du code, de mieux organiser les dépendances et de livrer des versions fiables.</p>
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 3 : GIT HOOKS - AUTOMATISATION -->
-  <section id="slide3" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">⚙️ Git Hooks : automatisez vos workflows</h2>
-    </div>
-    <div class="p-6 space-y-4">
-      <p>Les <strong>Git Hooks</strong> sont des scripts exécutés automatiquement avant ou après certaines actions Git (commit, push, etc.). Ils permettent d’appliquer des contrôles qualité, d’exécuter des tests ou de formater le code.</p>
-      <div class="bg-gray-50 p-4 rounded-lg">
-        <p class="font-mono text-sm">📁 Emplacement : <code>.git/hooks/</code> (exemples : pre-commit.sample, pre-push.sample)</p>
-        <p class="mt-2">Pour activer un hook, il suffit de créer un fichier sans extension (ex: <code>pre-commit</code>) et de le rendre exécutable (<code>chmod +x</code>).</p>
-      </div>
-      <div class="grid md:grid-cols-2 gap-3">
-        <div class="border rounded-lg p-3 bg-white">
-          <span class="font-bold text-indigo-700">🔹 pre-commit</span>
-          <p class="text-sm mt-1">Se déclenche avant de créer un commit. Idéal pour linter le code, vérifier les espaces, exécuter des tests rapides.</p>
+    <!-- HEADER -->
+    <header class="slide-header">
+        <h1 id="examTitle">Épreuve</h1>
+        <div class="header-sub" id="examInfo">
+            <span id="subjectInfo">Matière</span>
+            <span id="classInfo">Classe</span>
+            <span id="sequenceInfo">Séquence</span>
+            <span id="yearInfo">Année</span>
         </div>
-        <div class="border rounded-lg p-3 bg-white">
-          <span class="font-bold text-indigo-700">🔹 pre-push</span>
-          <p class="text-sm mt-1">Se déclenche avant un <code>git push</code>. Permet d'exécuter la suite complète de tests ou de rejeter un push si des règles ne sont pas respectées.</p>
+    </header>
+
+    <!-- BODY -->
+    <main class="slide-body" id="slideBody"></main>
+
+    <!-- FOOTER -->
+    <footer class="slide-footer">
+        <div class="footer-top">
+            <span class="counter" id="exerciseCounter">Exercice 1 / 3</span>
+            <span class="counter" id="questionCounter">Q: 0 / 0</span>
         </div>
-      </div>
-      <div class="bg-amber-50 p-3 rounded-lg">
-        <p class="font-medium">✏️ Exemple de hook pre-commit (bash) :</p>
-        <pre class="bg-gray-800 text-white p-2 rounded text-xs mt-1 overflow-x-auto">#!/bin/sh
-# Vérifier les erreurs de syntaxe Python
-flake8 .
-if [ $? -ne 0 ]; then
-    echo "❌ Erreur de linting, commit annulé"
-    exit 1
-fi</pre>
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
 
-  <!-- SLIDE 4 : SOUS-MODULES GIT (SUBMODULES) -->
-  <section id="slide4" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">📦 Git Submodules : réutiliser des dépôts externes</h2>
-    </div>
-    <div class="p-6 space-y-4">
-      <p>Un sous-module Git permet d’inclure un autre dépôt Git dans votre projet tout en conservant son historique indépendant. Utile pour partager des bibliothèques communes ou des configurations.</p>
-      <div class="bg-gray-50 p-3 rounded-md">
-        <p class="font-mono text-sm"># Ajouter un sous-module<br>git submodule add https://github.com/example/librairie.git libs/librairie<br><br># Cloner un projet avec ses sous-modules<br>git clone --recursive https://github.com/monprojet.git<br><br># Mettre à jour tous les sous-modules<br>git submodule update --remote</p>
-      </div>
-      <div class="grid md:grid-cols-2 gap-3 mt-2">
-        <div class="border-l-4 border-green-500 pl-3">
-          <p class="font-semibold">✅ Avantages</p>
-          <ul class="text-sm list-disc pl-5">
-            <li>Isolation des versions</li>
-            <li>Réutilisation propre</li>
-            <li>Suivi de commits précis</li>
-          </ul>
+        <div class="footer-actions">
+            <button class="btn btn-secondary" id="prevBtn">
+                <span class="btn-icon">◀</span> <span class="btn-label">Préc.</span>
+            </button>
+            <button class="btn btn-secondary" id="nextBtn">
+                <span class="btn-label">Suiv.</span> <span class="btn-icon">▶</span>
+            </button>
+            <button class="btn btn-primary" id="revealAllBtn">
+                <span class="btn-icon">👁️</span> <span class="btn-label">Tout voir</span>
+            </button>
+            <button class="btn btn-warning" id="hideAllBtn">
+                <span class="btn-icon">🙈</span> <span class="btn-label">Tout cacher</span>
+            </button>
         </div>
-        <div class="border-l-4 border-amber-500 pl-3">
-          <p class="font-semibold">⚠️ Précautions</p>
-          <ul class="text-sm list-disc pl-5">
-            <li>Complexité supplémentaire</li>
-            <li>Attention aux références détachées</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 5 : VERSIONING SÉMANTIQUE (SEMVER) ET TAGS -->
-  <section id="slide5" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">🏷️ Versioning sémantique (SemVer) et tags Git</h2>
-    </div>
-    <div class="p-6 space-y-4">
-      <p>Le versioning sémantique (<strong>SemVer</strong>) est un standard de nommage des versions : <code>MAJEUR.MINEUR.CORRECTIF</code></p>
-      <ul class="list-disc pl-6 space-y-1">
-        <li><strong>MAJEUR</strong> : changement incompatible (breaking change)</li>
-        <li><strong>MINEUR</strong> : ajout fonctionnel rétrocompatible</li>
-        <li><strong>CORRECTIF</strong> : correction de bug rétrocompatible</li>
-      </ul>
-      <div class="bg-indigo-50 p-3 rounded-lg">
-        <p class="font-mono">git tag -a v1.2.0 -m "Version 1.2.0"   # créer un tag annoté<br>git push origin --tags                    # pousser les tags</p>
-      </div>
-      <p>On peut utiliser <code>git describe</code> pour obtenir la dernière version à partir d’un tag. Exemple : <code>v1.2.0-3-g1a2b3c4</code> (3 commits après le tag).</p>
-      <div class="bg-green-50 p-3 rounded-lg text-sm">
-        💡 <span class="font-medium">Astuce DevOps :</span> Dans un pipeline CI/CD, on peut automatiquement générer un numéro de version basé sur les tags pour les artefacts.
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 6 : STRATÉGIES DE BRANCHES (GIT FLOW VS GITHUB FLOW) -->
-  <section id="slide6" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">🌿 Stratégies de branchement : Git Flow vs GitHub Flow</h2>
-    </div>
-    <div class="p-6 space-y-5">
-      <div class="border-l-4 border-blue-500 pl-4">
-        <h3 class="font-bold text-lg">📘 Git Flow (modèle classique)</h3>
-        <p>Branches principales : <code>main</code> (production) et <code>develop</code> (intégration). Branches support : <code>feature/*</code>, <code>release/*</code>, <code>hotfix/*</code>.</p>
-        <p class="text-sm text-gray-600 mt-1">Idéal pour les projets avec cycles de release planifiés.</p>
-        <!-- Petit dessin texte -->
-        <div class="bg-gray-100 p-2 rounded text-xs font-mono mt-2">
-          main     ●----------------------●<br>
-          develop  ●---●---●---●---●---●<br>
-          feature       ●---●
-        </div>
-      </div>
-      <div class="border-l-4 border-green-500 pl-4">
-        <h3 class="font-bold text-lg">🚀 GitHub Flow (simplifié)</h3>
-        <p>Une seule branche principale <code>main</code>. Les fonctionnalités sont développées dans des branches <code>feature/</code> et mergées via Pull Request. On déploie depuis <code>main</code>.</p>
-        <p class="text-sm text-gray-600 mt-1">Idéal pour la livraison continue (CI/CD) et les petites équipes agiles.</p>
-        <div class="bg-gray-100 p-2 rounded text-xs font-mono mt-2">
-          main      ●---●---●---●---●<br>
-          feature       ●---●<br>
-          PR: review → merge
-        </div>
-      </div>
-      <div class="bg-yellow-50 p-3 rounded-lg">
-        <p class="font-medium">🤔 Comment choisir ?</p>
-        <p class="text-sm">Git Flow est plus lourd mais adapté aux applications avec versions multiples. GitHub Flow est plus simple et efficace pour les déploiements fréquents.</p>
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 7 : BONNES PRATIQUES ET OUTILS -->
-  <section id="slide7" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">🛠️ Bonnes pratiques et outils complémentaires</h2>
-    </div>
-    <div class="p-6 space-y-4">
-      <ul class="list-disc pl-6 space-y-2">
-        <li><strong>Conventional Commits</strong> : standardiser les messages de commit (feat:, fix:, docs:) pour générer automatiquement des changelogs.</li>
-        <li><strong>Git Hooks partagés</strong> : utiliser <code>husky</code> (Node.js) ou <code>pre-commit</code> (framework Python) pour partager les hooks avec toute l'équipe.</li>
-        <li><strong>CI/CD avec tags</strong> : déclencher un déploiement automatiquement lorsqu'un tag est poussé.</li>
-        <li><strong>Gestion des dépendances internes</strong> : préférer les sous-modules ou les packages managers (npm, pip) avec registre privé.</li>
-      </ul>
-      <div class="bg-gray-50 p-3 rounded-lg text-center text-sm">
-        <span class="font-medium">🔗 Ressource :</span> <a href="#" class="text-indigo-600">SemVer.org</a> | <a href="#" class="text-indigo-600">Documentation officielle Git Submodule</a>
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Suivant →</button>
-    </div>
-  </section>
-
-  <!-- SLIDE 8 : EXERCICE PRATIQUE / AUTO-ÉVALUATION -->
-  <section id="slide8" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
-    <div class="bg-gray-100 px-6 py-4 border-b">
-      <h2 class="text-2xl font-bold text-gray-800">📝 Mise en pratique & auto-évaluation</h2>
-    </div>
-    <div class="p-6 space-y-5">
-      <p>Testez vos connaissances avec ces questions.</p>
-      <div class="bg-gray-50 p-3 rounded-lg">
-        <p class="font-semibold">1️⃣ Quel hook utiliseriez-vous pour exécuter des tests unitaires avant d’envoyer le code sur le dépôt distant ?</p>
-        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="Réponse : pre-push"></textarea>
-      </div>
-      <div class="bg-gray-50 p-3 rounded-lg">
-        <p class="font-semibold">2️⃣ Quelle commande permet d’ajouter un dépôt externe comme sous-module ?</p>
-        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="git submodule add <url>"></textarea>
-      </div>
-      <div class="bg-gray-50 p-3 rounded-lg">
-        <p class="font-semibold">3️⃣ Si vous corrigez une faille de sécurité mineure (rétrocompatible), comment incrémenter la version SemVer ?</p>
-        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="CORRECTIF (patch), ex: 1.2.3 -> 1.2.4"></textarea>
-      </div>
-      <button id="correctionBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">🔍 Voir les corrigés</button>
-      <div id="correctionBlock" class="hidden mt-3 p-3 bg-gray-100 rounded-lg text-sm">
-        <strong>Corrigés :</strong><br>
-        1️⃣ pre-push (ou pre-commit pour des tests rapides mais pre-push est plus adapté pour les tests longs).<br>
-        2️⃣ <code>git submodule add https://github.com/user/repo.git</code><br>
-        3️⃣ Incrémenter le numéro de CORRECTIF (ex: 1.2.3 → 1.2.4).
-      </div>
-    </div>
-    <div class="flex justify-between p-5 border-t bg-gray-50">
-      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
-      <button id="completeCourse" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full">Terminer la leçon ✨</button>
-    </div>
-  </section>
-
-  <!-- Message de félicitations -->
-  <div id="congratsMsg" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-700 text-white px-5 py-3 rounded-full shadow-lg text-center z-50 hidden">
-    ✅ Félicitations ! Vous avez terminé la leçon sur Git avancé. Continuez à pratiquer avec des hooks et sous-modules.
-  </div>
-
+    </footer>
 </div>
 
 <script>
-  $(function() {
-    let currentSlide = 1;
-    const totalSlides = 8;
-    
-    function updateProgress() {
-      let percent = ((currentSlide - 1) / (totalSlides - 1)) * 100;
-      $('#progressFill').css('width', percent + '%');
+$(function() {
+
+    // ================================================================
+    // DONNÉES DE L'ÉPREUVE - MODIFIEZ ICI
+    // ================================================================
+    const examData = {
+  "matiere": "Initiation à la Cybersécurité",
+  "classe": "Développement Web",
+  "sequence": "Séquence 6",
+  "anneeScolaire": "2025-2026",
+  "exercices": [
+    {
+      "titre": "Exercice 1 : Comprendre les fondamentaux de l'attaque",
+      "points": "8 pts",
+      "enonce": "<p>Ce premier exercice porte sur les concepts fondamentaux des techniques d'attaque éthique vus en cours, notamment les types de tests d'intrusion et les phases d'une attaque.</p>",
+      "questions": [
+        {
+          "question": "1.1) Expliquez la différence entre un test en \"boîte noire\", \"boîte grise\" et \"boîte blanche\". Pour chaque type, donnez un exemple de situation où il serait le plus approprié dans le contexte d'une entreprise camerounaise. (3 pts)",
+          "reponse": "Le test en boîte noire est effectué sans connaissance préalable du système, simulant une attaque externe. Il est idéal pour évaluer la sécurité périmétrique. Le test en boîte grise se fait avec des connaissances partielles (ex: accès en tant qu'utilisateur standard) pour simuler un initié ou un attaquant ayant déjà compromis un compte. Le test en boîte blanche est réalisé en connaissance complète du système (code source, architecture), permettant une analyse approfondie, par exemple pour un audit de sécurité complet d'une application métier."
+        },
+        {
+          "question": "1.2) Décrivez les cinq phases principales d'un test d'intrusion (pentest) et expliquez brièvement l'objectif de chacune. (3 pts)",
+          "reponse": "1. Reconnaissance : Récupération d'informations sur la cible (passive/active). 2. Scanning : Découverte des services et vulnérabilités potentielles avec des outils comme Nmap. 3. Exploitation : Tentative de compromission du système en utilisant les vulnérabilités trouvées. 4. Post-exploitation : Maintien de l'accès et exploration du réseau pour évaluer l'étendue de la compromission. 5. Reporting : Documentation des vulnérabilités, des preuves de compromission et recommandations."
+        },
+        {
+          "question": "1.3) Pourquoi est-il crucial d'obtenir une autorisation écrite avant de réaliser un pentest ? Citez deux risques juridiques ou éthiques liés à la réalisation d'un test sans autorisation. (2 pts)",
+          "reponse": "L'autorisation écrite définit le périmètre légal du test et protège le pentesteur. Sans autorisation, l'acte peut être qualifié de pénétration illégale dans un système informatique (cyberattaque). Cela peut entraîner des poursuites judiciaires, la perte de la confiance des clients, et des dommages à la réputation de l'entreprise ou du prestataire."
+        }
+      ]
+    },
+    {
+      "titre": "Exercice 2 : Maîtrise des outils du pentest",
+      "points": "7 pts",
+      "enonce": "<p>Cet exercice vise à évaluer votre connaissance des outils présentés en cours, notamment Nmap, Burp Suite et Hydra. Vous devez proposer une démarche méthodique pour un scénario donné.</p>",
+      "questions": [
+        {
+          "question": "2.1) Un client vous demande de réaliser un audit de sécurité sur son site web e-commerce (https://www.ma-boutique-cm.com). Décrivez comment vous utiliseriez les outils Burp Suite ou OWASP ZAP dans un premier temps pour évaluer la surface d'attaque de cette application web. (2.5 pts)",
+          "reponse": "La première étape est de configurer Burp Suite (ou ZAP) en tant que proxy pour intercepter et analyser tout le trafic HTTP/HTTPS entre le navigateur et le site cible. Ensuite, on utilise le Spider pour explorer automatiquement l'application et cartographier toutes les pages et paramètres. On peut ensuite activer le scanner actif pour détecter automatiquement les vulnérabilités courantes comme les injections SQL ou les XSS."
+        },
+        {
+          "question": "2.2) Vous suspectez qu'un serveur de l'infrastructure client (IP : 192.168.1.10) pourrait avoir des ports ouverts non sécurisés. Rédigez une commande Nmap pour effectuer un scan des ports les plus courants sur cette machine et expliquez brièvement ce que la réponse \"open\" signifie pour un port. (2.5 pts)",
+          "reponse": "Une commande appropriée est : `nmap -sS -sV -p- 192.168.1.10` ou plus simplement pour un scan des ports les plus courants : `nmap -sV 192.168.1.10`. L'option `-sV` permet de détecter la version des services. Un port marqué comme \"open\" signifie qu'un service est actif et écoute sur ce port (ex: port 80 pour HTTP, 443 pour HTTPS, 22 pour SSH), ce qui représente potentiellement une porte d'entrée pour un attaquant."
+        },
+        {
+          "question": "2.3) Lors de votre test, vous pensez qu'un formulaire d'authentification sur le site web pourrait être vulnérable à une attaque par force brute. Quel outil pourrait être utilisé pour automatiser cette attaque ? Expliquez son principe. (2 pts)",
+          "reponse": "Hydra est un outil conçu pour le cassage de mots de passe par force brute sur des services réseau (SSH, FTP, HTTP, etc.). Son principe est d'essayer systématiquement une liste de mots de passe (dictionnaire) avec un nom d'utilisateur ou une liste d'utilisateurs jusqu'à trouver la bonne combinaison, ce qui peut révéler des identifiants faibles."
+        }
+      ]
+    },
+    {
+      "titre": "Exercice 3 : Mise en situation pratique",
+      "points": "5 pts",
+      "enonce": "<p>Exercice final pour démontrer votre capacité à appliquer les connaissances sur l'ingénierie sociale et les outils de test.</p>",
+      "questions": [
+        {
+          "question": "3.1) Imaginez que vous êtes un pentesteur. Vous devez convaincre la direction d'une PME camerounaise de l'importance de la sensibilisation des employés à l'ingénierie sociale. Expliquez une technique d'ingénierie sociale courante (ex: phishing) et proposez un plan de sensibilisation pour cette entreprise. (3 pts)",
+          "reponse": "Une technique courante est le phishing par email, où un attaquant envoie un email semblant provenir d'une source légitime (ex: banque, fournisseur) pour inciter la victime à cliquer sur un lien malveillant ou à fournir des informations sensibles. Un plan de sensibilisation pourrait inclure : 1. Des sessions de formation pour apprendre à reconnaître les emails suspects. 2. Des simulations de phishing (avec un outil comme GoPhish) pour tester et renforcer la vigilance des employés. 3. La mise en place d'une procédure claire pour signaler les emails suspects au service informatique."
+        },
+        {
+          "question": "3.2) Décrivez brièvement le rôle du framework Metasploit dans un test d'intrusion. À quoi sert un \"payload\" dans ce contexte ? (2 pts)",
+          "reponse": "Metasploit est un framework d'exploitation de vulnérabilités. Il fournit une bibliothèque d'exploits et d'outils pour simuler des attaques. Un \"payload\" est le code qui est exécuté sur la machine cible après une exploitation réussie. Il peut s'agir, par exemple, d'ouvrir un shell (Meterpreter) pour prendre le contrôle de la machine, ou d'installer une porte dérobée. Cela permet de simuler l'impact réel d'une compromission."
+        }
+      ]
     }
-    
-    function showSlide(index) {
-      $('.slide').addClass('hidden');
-      $(`#slide${index}`).removeClass('hidden');
-      currentSlide = index;
-      updateProgress();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  ]
+};
+    // ================================================================
+    // ÉTAT
+    // ================================================================
+    let currentExerciseIndex = 0;
+    let revealedAnswers = {};
+
+    const totalExercises = examData.exercices.length;
+
+    // Références jQuery
+    const $title = $('#examTitle');
+    const $subjectInfo = $('#subjectInfo');
+    const $classInfo = $('#classInfo');
+    const $sequenceInfo = $('#sequenceInfo');
+    const $yearInfo = $('#yearInfo');
+    const $body = $('#slideBody');
+    const $exerciseCounter = $('#exerciseCounter');
+    const $questionCounter = $('#questionCounter');
+    const $prev = $('#prevBtn');
+    const $next = $('#nextBtn');
+    const $revealAll = $('#revealAllBtn');
+    const $hideAll = $('#hideAllBtn');
+
+    // ================================================================
+    // FONCTIONS
+    // ================================================================
+    function renderExercise(index) {
+        const exercise = examData.exercices[index];
+        const totalQuestions = exercise.questions.length;
+
+        // Mettre à jour le header
+        $title.text(examData.matiere + ' - Épreuve');
+        $subjectInfo.text('📚 ' + examData.matiere);
+        $classInfo.text('🏫 ' + examData.classe);
+        $sequenceInfo.text('📖 ' + examData.sequence);
+        $yearInfo.text('📅 ' + examData.anneeScolaire);
+
+        // Construire le contenu
+        let html = '';
+
+        // En-tête de l'exercice
+        html += `
+            <div class="exercise-card">
+                <div class="exercise-header">
+                    <span class="exercise-title">${exercise.titre}</span>
+                    <span class="exercise-points">${exercise.points}</span>
+                </div>
+                <div class="exercise-statement">
+                    ${exercise.enonce}
+                </div>
+        `;
+
+        // Questions
+        exercise.questions.forEach((q, qIndex) => {
+            const isRevealed = revealedAnswers[index] && revealedAnswers[index][qIndex] || false;
+            const questionId = `q-${index}-${qIndex}`;
+
+            html += `
+                <div class="question-block ${isRevealed ? 'revealed' : ''}" id="block-${questionId}">
+                    <div class="question-text">
+                        <span class="question-label">${qIndex + 1}.</span>
+                        <span>${q.question}</span>
+                    </div>
+                    <button class="btn-reveal ${isRevealed ? 'revealed' : ''}" 
+                            data-exercise="${index}" 
+                            data-question="${qIndex}"
+                            id="btn-${questionId}">
+                        ${isRevealed ? '🙈 Masquer' : '👁️ Voir réponse'}
+                    </button>
+                    <div class="question-answer ${isRevealed ? 'visible' : ''}" id="answer-${questionId}">
+                        ${q.reponse}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+
+        $body.html(html);
+
+        // Mettre à jour les compteurs
+        $exerciseCounter.text(`Exercice ${index + 1} / ${totalExercises}`);
+        $questionCounter.text(`Q: ${totalQuestions} question${totalQuestions > 1 ? 's' : ''}`);
+
+        // Rafraîchir MathJax
+        if (window.MathJax && MathJax.typesetPromise) {
+            setTimeout(() => {
+                MathJax.typesetPromise().catch(err => console.warn('MathJax error:', err));
+            }, 100);
+        }
+
+        // Attacher les événements aux boutons de révélation
+        $('.btn-reveal').on('click', function() {
+            const exIndex = parseInt($(this).data('exercise'));
+            const qIndex = parseInt($(this).data('question'));
+            toggleAnswer(exIndex, qIndex);
+        });
     }
-    
-    // Navigations
-    $('.next-slide').on('click', function() {
-      if (currentSlide < totalSlides) showSlide(currentSlide + 1);
-    });
-    $('.prev-slide').on('click', function() {
-      if (currentSlide > 1) showSlide(currentSlide - 1);
-    });
-    
-    // Terminer le cours
-    $('#completeCourse').on('click', function() {
-      $('#congratsMsg').removeClass('hidden').fadeIn();
-      setTimeout(function() {
-        $('#congratsMsg').fadeOut(500);
-      }, 4000);
-    });
-    
-    // Correction exercices
-    $('#correctionBtn').on('click', function() {
-      $('#correctionBlock').toggleClass('hidden');
-    });
-    
-    // Démarrer depuis slide1
-    showSlide(1);
-  });
+
+    function toggleAnswer(exIndex, qIndex) {
+        if (!revealedAnswers[exIndex]) {
+            revealedAnswers[exIndex] = {};
+        }
+
+        const isRevealed = revealedAnswers[exIndex][qIndex] || false;
+        revealedAnswers[exIndex][qIndex] = !isRevealed;
+
+        const questionId = `q-${exIndex}-${qIndex}`;
+        const $block = $(`#block-${questionId}`);
+        const $btn = $(`#btn-${questionId}`);
+        const $answer = $(`#answer-${questionId}`);
+
+        if (revealedAnswers[exIndex][qIndex]) {
+            $block.addClass('revealed');
+            $btn.addClass('revealed');
+            $btn.html('🙈 Masquer');
+            $answer.addClass('visible');
+        } else {
+            $block.removeClass('revealed');
+            $btn.removeClass('revealed');
+            $btn.html('👁️ Voir réponse');
+            $answer.removeClass('visible');
+        }
+    }
+
+    function goToExercise(index) {
+        if (index < 0) index = 0;
+        if (index >= totalExercises) index = totalExercises - 1;
+        currentExerciseIndex = index;
+        renderExercise(index);
+    }
+
+    function goToNext() {
+        if (currentExerciseIndex + 1 < totalExercises) {
+            goToExercise(currentExerciseIndex + 1);
+        }
+    }
+
+    function goToPrev() {
+        if (currentExerciseIndex - 1 >= 0) {
+            goToExercise(currentExerciseIndex - 1);
+        }
+    }
+
+    function revealAll() {
+        const exercise = examData.exercices[currentExerciseIndex];
+        exercise.questions.forEach((_, qIndex) => {
+            if (!revealedAnswers[currentExerciseIndex]) {
+                revealedAnswers[currentExerciseIndex] = {};
+            }
+            revealedAnswers[currentExerciseIndex][qIndex] = true;
+        });
+        renderExercise(currentExerciseIndex);
+    }
+
+    function hideAll() {
+        if (revealedAnswers[currentExerciseIndex]) {
+            revealedAnswers[currentExerciseIndex] = {};
+        }
+        renderExercise(currentExerciseIndex);
+    }
+
+    // ================================================================
+    // INIT
+    // ================================================================
+    function init() {
+        // Initialiser l'état des réponses
+        examData.exercices.forEach((_, index) => {
+            revealedAnswers[index] = {};
+        });
+
+        // Afficher le premier exercice
+        renderExercise(0);
+
+        // Événements
+        $prev.on('click', goToPrev);
+        $next.on('click', goToNext);
+        $revealAll.on('click', revealAll);
+        $hideAll.on('click', hideAll);
+
+        // Support du clavier
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                goToNext();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                goToPrev();
+            } else if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                revealAll();
+            } else if (e.key === 'h' || e.key === 'H') {
+                e.preventDefault();
+                hideAll();
+            }
+        });
+    }
+
+    init();
+});
 </script>
 
 </body>

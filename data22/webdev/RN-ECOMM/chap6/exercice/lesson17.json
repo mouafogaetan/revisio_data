@@ -1,0 +1,85 @@
+[
+  {
+    "intitule": "Exercice 1 : Créer un formulaire d'inscription avec validation (Compétence)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez un écran d'inscription pour une application e-commerce. Le formulaire doit collecter :</p><ul><li><strong>Nom complet</strong> (minimum 3 caractères)</li><li><strong>Email</strong> (format valide)</li><li><strong>Mot de passe</strong> (minimum 8 caractères, au moins une majuscule, un chiffre et un caractère spécial)</li><li><strong>Confirmation du mot de passe</strong> (doit correspondre au mot de passe)</li></ul><p>Vous utilisez React Native avec <code>react-hook-form</code> et <code>zod</code> pour la validation.</p>",
+      "images": [
+        "interface mobile de formulaire d'inscription avec champs et messages d'erreur"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définissez le schéma Zod complet pour ce formulaire d'inscription. Justifiez chaque règle de validation.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { z } from 'zod';\n\nexport const registerSchema = z.object({\n  name: z.string().min(3, 'Le nom doit contenir au moins 3 caractères'),\n  email: z.string().email('Adresse email invalide'),\n  password: z.string()\n    .min(8, 'Le mot de passe doit contenir au moins 8 caractères')\n    .regex(/[A-Z]/, 'Doit contenir une majuscule')\n    .regex(/[0-9]/, 'Doit contenir un chiffre')\n    .regex(/[^A-Za-z0-9]/, 'Doit contenir un caractère spécial'),\n  confirmPassword: z.string(),\n}).refine(data => data.password === data.confirmPassword, {\n  message: 'Les mots de passe ne correspondent pas',\n  path: ['confirmPassword'],\n});\n\nexport type RegisterFormData = z.infer<typeof registerSchema>;\n```\nJustification : nom suffisamment long pour éviter les saisies trop courtes ; email valide pour la communication ; mot de passe sécurisé contre les attaques ; confirmation pour éviter les erreurs de frappe.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez comment intégrer ce schéma avec <code>react-hook-form</code> dans un composant React Native. Écrivez le code du formulaire avec gestion des erreurs et affichage des messages.",
+            "niveau": "medium",
+            "reponse": "```tsx\nimport { useForm, Controller } from 'react-hook-form';\nimport { zodResolver } from '@hookform/resolvers/zod';\nimport { View, TextInput, Text, TouchableOpacity } from 'react-native';\n\nexport default function RegisterForm() {\n  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({\n    resolver: zodResolver(registerSchema),\n  });\n\n  const onSubmit = async (data: RegisterFormData) => {\n    // Appel API d'inscription\n    console.log(data);\n  };\n\n  return (\n    <View>\n      <Controller\n        control={control}\n        name=\"name\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Nom complet\" value={value} onChangeText={onChange} />\n        )}\n      />\n      {errors.name && <Text style={{ color: 'red' }}>{errors.name.message}</Text>}\n\n      <Controller\n        control={control}\n        name=\"email\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Email\" value={value} onChangeText={onChange} keyboardType=\"email-address\" />\n        )}\n      />\n      {errors.email && <Text style={{ color: 'red' }}>{errors.email.message}</Text>}\n\n      <Controller\n        control={control}\n        name=\"password\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Mot de passe\" value={value} onChangeText={onChange} secureTextEntry />\n        )}\n      />\n      {errors.password && <Text style={{ color: 'red' }}>{errors.password.message}</Text>}\n\n      <Controller\n        control={control}\n        name=\"confirmPassword\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Confirmer mot de passe\" value={value} onChangeText={onChange} secureTextEntry />\n        )}\n      />\n      {errors.confirmPassword && <Text style={{ color: 'red' }}>{errors.confirmPassword.message}</Text>}\n\n      <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={isSubmitting}>\n        <Text>S'inscrire</Text>\n      </TouchableOpacity>\n    </View>\n  );\n}\n```",
+            "niveau": "medium"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Distinguez les avantages de l'utilisation de <code>zod</code> par rapport à une validation manuelle avec des <code>if</code> dans le <code>onSubmit</code>.",
+            "niveau": "easy",
+            "reponse": "Les avantages sont : (1) déclaratif : les règles sont définies dans un schéma lisible ; (2) réutilisable : le même schéma peut être utilisé côté client et côté serveur (API) ; (3) typage automatique : <code>z.infer<typeof schema></code> génère les types TypeScript ; (4) messages d'erreur centralisés ; (5) validation de champs croisés (ex: confirmation mot de passe) plus propre ; (6) réduction du code boilerplate."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Analysez l'impact d'une mauvaise validation des formulaires sur l'expérience utilisateur d'un site e-commerce. Proposez des améliorations pour rendre la validation plus ergonomique.",
+        "niveau": "medium",
+        "reponse": "Une mauvaise validation (messages peu clairs, validation uniquement à la soumission, perte des données saisies) frustre l'utilisateur et augmente le taux d'abandon du panier ou d'inscription. Améliorations : validation en temps réel (onChange) avec debounce, messages d'erreur spécifiques sous chaque champ, mise en évidence visuelle des champs invalides, conservation des données saisies, indicateur de force du mot de passe, autocomplétion automatique, et mise en œuvre d'une validation côté serveur pour les cas critiques.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Exercice 2 : Gestion des erreurs et chargement asynchrone (Ressource)",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le formulaire de connexion de l'application doit envoyer les identifiants à une API REST. L'API peut retourner des erreurs (ex: 401 - identifiants invalides, 429 - trop de tentatives).</p><p>Vous devez gérer :</p><ul><li>L'état de chargement (<code>isSubmitting</code>) pour désactiver le bouton</li><li>Les erreurs globales (affichage d'un toast ou message)</li><li>La réinitialisation du formulaire après succès</li></ul>",
+      "images": [
+        "écran de connexion avec bouton de chargement (spinner) et message d'erreur"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez un composant <code>LoginForm</code> complet utilisant <code>react-hook-form</code>, <code>zod</code> pour la validation, et une mutation <code>useLogin</code> (avec <code>@tanstack/react-query</code>). Gérez l'état de chargement et les erreurs globales.",
+        "niveau": "very hard",
+        "reponse": "```tsx\nimport { useForm } from 'react-hook-form';\nimport { zodResolver } from '@hookform/resolvers/zod';\nimport { z } from 'zod';\nimport { useMutation } from '@tanstack/react-query';\nimport { View, TextInput, Text, TouchableOpacity, ActivityIndicator } from 'react-native';\nimport Toast from 'react-native-toast-message';\n\nconst loginSchema = z.object({\n  email: z.string().email('Email invalide'),\n  password: z.string().min(1, 'Mot de passe requis'),\n});\n\ntype LoginFormData = z.infer<typeof loginSchema>;\n\nasync function loginApi(data: LoginFormData) {\n  const response = await fetch('https://api.example.com/auth/login', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify(data),\n  });\n  if (!response.ok) {\n    const error = await response.json();\n    throw new Error(error.message || 'Erreur de connexion');\n  }\n  return response.json();\n}\n\nexport function LoginForm() {\n  const { control, handleSubmit, reset, formState: { errors } } = useForm<LoginFormData>({\n    resolver: zodResolver(loginSchema),\n  });\n\n  const mutation = useMutation({\n    mutationFn: loginApi,\n    onSuccess: (data) => {\n      Toast.show({ type: 'success', text1: 'Connexion réussie' });\n      reset();\n      // Stocker le token et rediriger\n    },\n    onError: (error: Error) => {\n      Toast.show({ type: 'error', text1: 'Erreur', text2: error.message });\n    },\n  });\n\n  const onSubmit = (data: LoginFormData) => {\n    mutation.mutate(data);\n  };\n\n  return (\n    <View>\n      <Controller\n        control={control}\n        name=\"email\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Email\" value={value} onChangeText={onChange} />\n        )}\n      />\n      {errors.email && <Text style={{ color: 'red' }}>{errors.email.message}</Text>}\n\n      <Controller\n        control={control}\n        name=\"password\"\n        render={({ field: { onChange, value } }) => (\n          <TextInput placeholder=\"Mot de passe\" value={value} onChangeText={onChange} secureTextEntry />\n        )}\n      />\n      {errors.password && <Text style={{ color: 'red' }}>{errors.password.message}</Text>}\n\n      <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={mutation.isPending}>\n        {mutation.isPending ? <ActivityIndicator /> : <Text>Se connecter</Text>}\n      </TouchableOpacity>\n    </View>\n  );\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez comment implémenter un debounce sur la validation des champs pour éviter de valider à chaque frappe (optimisation des performances).",
+            "niveau": "hard",
+            "reponse": "Avec <code>react-hook-form</code>, on peut configurer le mode de validation : <code>mode: 'onChange'</code> valide en temps réel. Pour du debounce, on peut utiliser <code>useEffect</code> avec <code>setTimeout</code> sur la valeur du champ, ou utiliser une bibliothèque comme <code>use-debounce</code>. Exemple : <code>const debouncedEmail = useDebounce(email, 300);</code> puis valider uniquement quand <code>debouncedEmail</code> change. Cela réduit le nombre de re-rendus et d'appels de validation.",
+            "niveau": "hard"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Évaluez les risques de sécurité liés à la validation uniquement côté client. Que faut-il ajouter côté serveur ?",
+            "niveau": "medium",
+            "reponse": "La validation côté client peut être contournée (modification du code JavaScript, requêtes directes à l'API). Risques : injection de données malveillantes, bypass des règles de format, attaques par force brute. Côté serveur, il faut : (1) appliquer exactement les mêmes règles de validation (Zod peut être réutilisé), (2) échapper les entrées pour éviter XSS/SQLi, (3) limiter le taux de tentatives (rate limiting), (4) vérifier l'intégrité des données (ex: email non déjà utilisé).",
+            "niveau": "medium"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Comparez les approches de gestion des erreurs de formulaire : <code>formState.errors</code> de react-hook-form vs une gestion manuelle avec un state <code>errorMessage</code>. Quels sont les avantages de la première ?",
+        "niveau": "easy",
+        "reponse": "Avec <code>formState.errors</code> : (1) intégration native avec Zod pour les messages d'erreur, (2) gestion automatique de l'affichage des erreurs par champ, (3) typage TypeScript automatique, (4) moins de code boilerplate, (5) cohérence avec le schéma de validation. La gestion manuelle nécessite de maintenir des états séparés, de synchroniser les erreurs avec les champs, et de dupliquer la logique de validation.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

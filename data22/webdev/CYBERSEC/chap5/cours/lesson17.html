@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 17 : Authentification Multi-facteurs (MFA) - Cybersécurité</title>
+    <!-- Tailwind CSS + Google Fonts pour une meilleure lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Personnalisation Tailwind pour couleurs douces -->
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        /* Transition douce pour les slides */
+        .slide-transition {
+            transition: opacity 0.4s ease-in-out, transform 0.3s ease;
+        }
+        /* Style personnalisé pour les puces et les encadrés */
+        .bullet-icon {
+            background-color: #2c7da0;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* boutons de navigation */
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* progression bar */
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #2c7da0;
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.25rem;
+            }
+        }
+    </style>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (utile si formules, mais peu de besoin ici, on l'inclut par précaution) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen flex flex-col items-center justify-center p-3 md:p-6">
+
+    <!-- Conteneur principal du diaporama -->
+    <div class="max-w-4xl w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-blue-100">
+        
+        <!-- En-tête fixe avec titre de la matière & progression -->
+        <div class="bg-[#1e3a5f] text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wide">Initiation à la Cybersécurité</span>
+                <h1 class="text-lg md:text-xl font-bold leading-tight">Leçon 17 · Authentification multi-facteurs (MFA)</h1>
+            </div>
+            <div class="bg-white/20 rounded-full px-3 py-1 text-sm font-mono">
+                <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+            </div>
+        </div>
+
+        <!-- Barre de progression -->
+        <div class="progress-bar mx-5 mt-3">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+
+        <!-- Zone slide dynamique -->
+        <div id="slideContainer" class="slide-content p-6 md:p-8 min-h-[480px] flex flex-col justify-between transition-all">
+            <!-- Le contenu sera injecté par jQuery -->
+        </div>
+
+        <!-- Pied de page avec navigation -->
+        <div class="bg-gray-50 px-5 py-4 flex justify-between items-center border-t border-blue-100">
+            <button id="prevBtn" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-xl shadow-sm flex items-center gap-2 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Précédent
+            </button>
+            <div class="flex gap-2">
+                <button id="slide1Btn" class="dot-nav w-2.5 h-2.5 rounded-full bg-gray-300 transition-all"></button>
+                <button id="slide2Btn" class="dot-nav w-2.5 h-2.5 rounded-full bg-gray-300 transition-all"></button>
+                <button id="slide3Btn" class="dot-nav w-2.5 h-2.5 rounded-full bg-gray-300 transition-all"></button>
+                <button id="slide4Btn" class="dot-nav w-2.5 h-2.5 rounded-full bg-gray-300 transition-all"></button>
+                <button id="slide5Btn" class="dot-nav w-2.5 h-2.5 rounded-full bg-gray-300 transition-all"></button>
+            </div>
+            <button id="nextBtn" class="nav-btn bg-[#2c7da0] hover:bg-[#1f5e7a] text-white font-medium py-2 px-5 rounded-xl shadow-sm flex items-center gap-2 transition">
+                Suivant
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <footer class="text-xs text-center text-gray-500 mt-6 max-w-4xl">
+        📘 Cours conçu pour les élèves du Cameroun - Approche simple & accessible
+    </footer>
+
+    <script>
+        // Définition des slides (titre, objectifs, contenu détaillé)
+        // Slide 1: Titre de la leçon
+        // Slide 2: Objectifs d'apprentissage (conformes aux objectifsLesson de la leçon 17)
+        // Slides 3,4,5 : contenu expliquant les trois grands thèmes (3 facteurs, MFA/2FA et normes TOTP/U2F/WebAuthn)
+
+        const slides = [
+            {   // slide 0 : titre
+                type: "title",
+                title: "🔐 Authentification multi-facteurs (MFA)",
+                subtitle: "Renforcer la sécurité des comptes et des accès",
+                description: "Pourquoi un simple mot de passe ne suffit plus ? Découvrons ensemble comment la double authentification protège vos données.",
+                icon: "🛡️"
+            },
+            {   // slide 1 : objectifs de la leçon (basé sur lesson17)
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Comprendre les 3 facteurs d'authentification : connaissance, possession, inhérence",
+                    "Mettre en place la double authentification (2FA) et l'authentification multi-facteurs (MFA)",
+                    "Découvrir les normes modernes : TOTP, U2F, WebAuthn et les passkeys"
+                ]
+            },
+            {   // slide 2 : Les trois facteurs d'authentification
+                type: "content",
+                title: "🔑 Les trois types de facteurs",
+                contentBlocks: [
+                    { 
+                        icon: "🧠", 
+                        title: "Facteur de connaissance", 
+                        desc: "Quelque chose que VOUS savez : mot de passe, code PIN, réponse à une question secrète. C'est le plus courant, mais aussi le plus vulnérable (vol, phishing)."
+                    },
+                    { 
+                        icon: "📱", 
+                        title: "Facteur de possession", 
+                        desc: "Quelque chose que VOUS possédez : téléphone (application authenticator), clé USB de sécurité (YubiKey), carte à puce, ou un token matériel."
+                    },
+                    { 
+                        icon: "👆", 
+                        title: "Facteur d'inhérence", 
+                        desc: "Quelque chose que VOUS ÊTES : empreinte digitale, reconnaissance faciale, scan de l'iris, reconnaissance vocale (biométrie)."
+                    }
+                ],
+                note: "L'authentification multi-facteurs combine au moins DEUX de ces catégories différentes. Exemple : mot de passe (connaissance) + code reçu par SMS (possession)."
+            },
+            {   // slide 3 : Mise en place de 2FA / MFA
+                type: "content",
+                title: "⚙️ Double authentification (2FA & MFA) - Comment ça marche ?",
+                contentBlocks: [
+                    { 
+                        icon: "🔄", 
+                        title: "Principe de base", 
+                        desc: "Après avoir saisi votre mot de passe, le système demande un second code temporaire (généré par une appli, envoyé par SMS ou via une notification push)."
+                    },
+                    { 
+                        icon: "📲", 
+                        title: "Applications authentificatrices", 
+                        desc: "Google Authenticator, Microsoft Authenticator, Authy, FreeOTP. Elles génèrent des codes à 6 chiffres qui changent toutes les 30 secondes (norme TOTP)."
+                    },
+                    { 
+                        icon: "🔒", 
+                        title: "Sécurité renforcée", 
+                        desc: "Même si un pirate vole votre mot de passe, il lui faudra aussi votre téléphone ou votre clé physique. Le risque de piratage diminue de 99,9% selon des études."
+                    }
+                ],
+                note: "💡 Astuce : préférez les applications authenticatrices aux SMS (moins sécurisés, car vulnérables aux attaques de 'SIM swapping')."
+            },
+            {   // slide 4 : Normes modernes (U2F, WebAuthn, passkeys)
+                type: "content",
+                title: "🚀 Normes modernes : U2F, WebAuthn & passkeys",
+                contentBlocks: [
+                    { 
+                        icon: "🔑", 
+                        title: "U2F (Universal 2nd Factor)", 
+                        desc: "Standard utilisant une clé physique USB ou NFC. Fonctionne sans code à taper : il suffit d'appuyer sur la clé après le mot de passe. Résistant au phishing."
+                    },
+                    { 
+                        icon: "🌐", 
+                        title: "WebAuthn (Web Authentication)", 
+                        desc: "API web moderne supportée par tous les navigateurs. Permet d'utiliser des biométries (FaceID, Windows Hello) ou des clés de sécurité pour s'authentifier sans mot de passe (ou en second facteur)."
+                    },
+                    { 
+                        icon: "📱🔐", 
+                        title: "Passkeys (clés d’accès)", 
+                        desc: "Successeur des mots de passe. Basé sur la cryptographie à clé publique : votre appareil (téléphone, ordinateur) stocke une clé privée, le site garde la clé publique. Déverrouillage par biométrie ou code PIN."
+                    }
+                ],
+                note: "🌟 Bonne pratique : Activez la 2FA sur tous vos comptes importants (email, réseaux sociaux, banque). Utilisez un gestionnaire de mots de passe + 2FA."
+            }
+        ];
+
+        let currentIndex = 0;
+        const total = slides.length;
+        $("#totalSlides").text(total);
+
+        // Mise à jour de l'affichage slide et de la progression
+        function renderSlide(index) {
+            const slide = slides[index];
+            let html = "";
+            
+            if (slide.type === "title") {
+                html = `
+                    <div class="flex flex-col items-center text-center space-y-5 animate-fade-in">
+                        <div class="text-6xl md:text-7xl bg-blue-100 w-24 h-24 rounded-full flex items-center justify-center shadow-inner">${slide.icon}</div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">${slide.title}</h2>
+                        <p class="text-xl text-[#2c7da0] font-medium">${slide.subtitle}</p>
+                        <p class="text-gray-600 max-w-lg mx-auto">${slide.description}</p>
+                        <div class="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-200 w-full">
+                            <p class="text-sm text-gray-700">🔐 Cette leçon vous apprendra à protéger vos comptes comme un expert cybersécurité.</p>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                html = `
+                    <div class="space-y-6">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-[#2c7da0] pl-4">${slide.title}</h2>
+                        <div class="grid gap-4 md:grid-cols-1">
+                            ${slide.objectives.map((obj, idx) => `
+                                <div class="flex items-start gap-3 bg-white rounded-xl shadow-sm p-4 border border-gray-200 card-hover">
+                                    <div class="bg-[#e2f0f5] p-2 rounded-full"><span class="text-[#1e5a7a] font-bold text-lg">${idx+1}</span></div>
+                                    <p class="text-gray-700 text-base md:text-lg">${obj}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-4 text-sm italic text-gray-500 bg-gray-100 p-3 rounded-lg">
+                            📌 À la fin de cette leçon, vous saurez renforcer la sécurité de vos connexions en ligne.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                // pour les slides de contenu avec blocks
+                html = `
+                    <div class="space-y-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-[#2c7da0] pb-2">${slide.title}</h2>
+                        <div class="grid gap-5 md:grid-cols-1 lg:grid-cols-1">
+                            ${slide.contentBlocks.map(block => `
+                                <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-[#2c7da0] card-hover transition">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="text-3xl">${block.icon}</span>
+                                        <h3 class="font-bold text-xl text-gray-800">${block.title}</h3>
+                                    </div>
+                                    <p class="text-gray-700 leading-relaxed">${block.desc}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${slide.note ? `<div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 text-sm flex gap-2 mt-4"><span>💡</span> ${slide.note}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Animation de fondu
+            $("#slideContainer").fadeOut(150, function() {
+                $(this).html(html);
+                // MathJax si besoin (rappel, mais pas de formules complexes)
+                if (window.MathJax) {
+                    MathJax.typesetPromise && MathJax.typesetPromise();
+                }
+                $(this).fadeIn(200);
+            });
+            
+            // Mettre à jour l'affichage du numéro slide
+            $("#currentSlideIdx").text(index+1);
+            
+            // Mise à jour barre progression
+            const progressPercent = ((index) / (total-1)) * 100;
+            $("#progressFill").css("width", progressPercent + "%");
+            
+            // Gestion des points indicateurs (dot-nav)
+            $(".dot-nav").each(function(i) {
+                if(i === index) {
+                    $(this).removeClass("bg-gray-300").addClass("bg-[#2c7da0] scale-110");
+                } else {
+                    $(this).removeClass("bg-[#2c7da0] scale-110").addClass("bg-gray-300");
+                }
+            });
+            
+            // Désactiver boutons aux limites
+            if(index === 0) {
+                $("#prevBtn").prop("disabled", true);
+            } else {
+                $("#prevBtn").prop("disabled", false);
+            }
+            if(index === total-1) {
+                $("#nextBtn").prop("disabled", true);
+            } else {
+                $("#nextBtn").prop("disabled", false);
+            }
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if(currentIndex < total-1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        function prevSlide() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        function goToSlide(slideNum) {
+            if(slideNum >=0 && slideNum < total) {
+                currentIndex = slideNum;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        // Evenements
+        $("#nextBtn").on("click", nextSlide);
+        $("#prevBtn").on("click", prevSlide);
+        
+        // Gestion des points de navigation dynamiques
+        $("#slide1Btn").on("click", () => goToSlide(0));
+        $("#slide2Btn").on("click", () => goToSlide(1));
+        $("#slide3Btn").on("click", () => goToSlide(2));
+        $("#slide4Btn").on("click", () => goToSlide(3));
+        $("#slide5Btn").on("click", () => goToSlide(4));
+        
+        // Navigation au clavier (flèches droite / gauche)
+        $(document).on("keydown", function(e) {
+            if(e.key === "ArrowRight") {
+                nextSlide();
+            } else if(e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+        
+        // Initialisation
+        renderSlide(0);
+        
+        // Petit dessin d'illustration pour expliquer les facteurs sur la slide 3 (si besoin) - mais pour ne pas surcharger,
+        // nous ajoutons un petit canvas optionnel pour représenter les trois piliers directement via un SVG simple dans la slide "contenu".
+        // Cependant on peut améliorer slide 3 en ajoutant un schéma léger en SVG. Mais l'énoncé précise si nécessaire et simple.
+        // Allons-y: sur le slide d'index 2 (les trois facteurs) nous allons intégrer après rendu un petit graphique vectoriel pour illustrer.
+        // Pour ne pas surcharger et respecter, on ajoute en plus une amélioration dynamique après le render si la slide est celle des facteurs.
+        function addCustomGraphicIfNeeded() {
+            // on injecte après rendu pour la slide 2 (index 2) un petit schéma représentant les 3 facteurs
+            if(currentIndex === 2) {
+                // on vérifie si l'élément SVG n'existe pas déjà pour éviter du double
+                if($("#schema-facteurs").length === 0) {
+                    const schemaHtml = `
+                        <div id="schema-facteurs" class="mt-6 bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                            <p class="font-semibold text-center text-gray-700 mb-3">📊 Illustration : Les 3 piliers de l'authentification MFA</p>
+                            <div class="flex flex-col md:flex-row justify-around items-center gap-4 text-center">
+                                <div class="bg-red-50 p-3 rounded-lg w-full md:w-1/3">
+                                    <div class="text-3xl">🧠</div>
+                                    <div class="font-bold">Connaissance</div>
+                                    <div class="text-xs text-gray-600">mot de passe, PIN</div>
+                                </div>
+                                <div class="text-2xl text-gray-400 hidden md:block">+</div>
+                                <div class="bg-green-50 p-3 rounded-lg w-full md:w-1/3">
+                                    <div class="text-3xl">📱</div>
+                                    <div class="font-bold">Possession</div>
+                                    <div class="text-xs text-gray-600">téléphone, clé</div>
+                                </div>
+                                <div class="text-2xl text-gray-400 hidden md:block">+</div>
+                                <div class="bg-blue-50 p-3 rounded-lg w-full md:w-1/3">
+                                    <div class="text-3xl">👆</div>
+                                    <div class="font-bold">Inhérence</div>
+                                    <div class="text-xs text-gray-600">biométrie</div>
+                                </div>
+                            </div>
+                            <p class="text-center text-sm text-gray-500 mt-3">Combiner 2 facteurs = authentification multi-facteurs sécurisée</p>
+                        </div>
+                    `;
+                    // Après le contenu principal, insérer ce petit schéma
+                    const container = $("#slideContainer");
+                    container.append(schemaHtml);
+                }
+            } else {
+                // supprimer s'il existe et qu'on n'est pas sur cette slide
+                $("#schema-facteurs").remove();
+            }
+        }
+        
+        // Overrider renderSlide pour ajouter après chaque rendu la fonction graphique
+        const originalRender = renderSlide;
+        window.renderSlide = function(index) {
+            originalRender(index);
+            setTimeout(() => {
+                addCustomGraphicIfNeeded();
+                // Sur la slide des normes modernes (index 4) on peut aussi ajouter un petit encart "exemple pratique"
+                if(currentIndex === 4) {
+                    if($("#normes-practice").length === 0) {
+                        const practiceCard = `
+                            <div id="normes-practice" class="mt-5 bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-xl border border-indigo-200">
+                                <p class="font-semibold flex items-center gap-2"><span>🔧</span> Exemple concret :</p>
+                                <p class="text-sm">Activez la 2FA sur votre compte Google : allez dans <strong>Gestion du compte Google → Sécurité → Vérification en deux étapes</strong>. Vous pouvez ajouter une application authenticatrice ou une clé de sécurité.</p>
+                                <p class="text-xs mt-2 text-gray-600">Les passkeys sont déjà disponibles sur des sites comme GitHub, Amazon, ou Apple ID.</p>
+                            </div>
+                        `;
+                        $("#slideContainer").append(practiceCard);
+                    }
+                } else {
+                    $("#normes-practice").remove();
+                }
+                // Pour slide objectifs, pas de modif particulière
+                if(currentIndex === 1) {
+                    // Ajouter un petit rappel simple de la leçon
+                    if($("#objectif-extra").length === 0) {
+                        const extra = `<div id="objectif-extra" class="mt-3 text-xs text-blue-800 bg-blue-50 p-2 rounded text-center">📖 Ces objectifs sont essentiels pour protéger vos comptes sur internet.</div>`;
+                        $("#slideContainer").append(extra);
+                    }
+                } else {
+                    $("#objectif-extra").remove();
+                }
+            }, 20);
+        };
+        
+        // reassign bindings 
+        renderSlide(currentIndex);
+        
+        // Patch pour que les fonctions appelées via les listeners utilisent le nouveau render
+        window.nextSlide = nextSlide;
+        window.prevSlide = prevSlide;
+        // Remplacer les gestionnaires pour qu'ils utilisent la version modifiée
+        $("#nextBtn").off("click").on("click", nextSlide);
+        $("#prevBtn").off("click").on("click", prevSlide);
+        $(".dot-nav").off("click");
+        $("#slide1Btn").on("click", () => goToSlide(0));
+        $("#slide2Btn").on("click", () => goToSlide(1));
+        $("#slide3Btn").on("click", () => goToSlide(2));
+        $("#slide4Btn").on("click", () => goToSlide(3));
+        $("#slide5Btn").on("click", () => goToSlide(4));
+    </script>
+</body>
+</html>

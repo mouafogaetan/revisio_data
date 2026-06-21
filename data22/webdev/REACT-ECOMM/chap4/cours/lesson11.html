@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cours React E-commerce | Lesson 11 : Panier d'achat avec Zustand</title>
+  <!-- Tailwind CSS CDN + Google Fonts + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #f8fafc; }
+    /* Slide container */
+    .slide {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .slide.active {
+      display: block;
+      opacity: 1;
+    }
+    /* navigation dots */
+    .dot {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .dot.active {
+      background-color: #3b82f6 !important;
+      transform: scale(1.2);
+    }
+    /* card hover */
+    .code-block {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1rem;
+      overflow-x: auto;
+      color: #e2e8f0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    @media (max-width: 640px) {
+      .code-block { font-size: 0.7rem; padding: 0.75rem; }
+      h2 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <!-- SLIDES -->
+    <div id="slidesContainer">
+      
+      <!-- SLIDE 1 : TITRE -->
+      <div class="slide active" id="slide1">
+        <div class="min-h-[70vh] flex flex-col justify-center items-center text-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-6 md:p-12 shadow-sm">
+          <div class="mb-6 inline-block bg-blue-100 text-blue-800 text-sm font-semibold px-4 py-1 rounded-full">REACT E-COMMERCE • CHAPITRE 4</div>
+          <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent mb-4">Gestion du panier d'achat</h1>
+          <p class="text-xl md:text-2xl text-gray-600 max-w-2xl">Créer un store Zustand performant pour gérer les articles, les quantités et synchroniser avec l'API</p>
+          <div class="mt-10 flex gap-3 text-sm text-gray-500">
+            <span>⚡ Zustand</span> • <span>🛒 Panier temps réel</span> • <span>💾 localStorage</span>
+          </div>
+          <button class="nextSlide mt-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full transition shadow-md">Commencer le cours →</button>
+        </div>
+      </div>
+
+      <!-- SLIDE 2 : OBJECTIFS -->
+      <div class="slide" id="slide2">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-10 border border-gray-100">
+          <h2 class="text-3xl font-bold text-gray-800 border-l-5 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+          <div class="grid md:grid-cols-2 gap-5">
+            <div class="bg-gray-50 p-5 rounded-xl"><span class="font-bold text-blue-700">①</span> Créer un store cart (Zustand) avec items, quantité, total.</div>
+            <div class="bg-gray-50 p-5 rounded-xl"><span class="font-bold text-blue-700">②</span> Implémenter les actions : addToCart, removeFromCart, updateQuantity.</div>
+            <div class="bg-gray-50 p-5 rounded-xl"><span class="font-bold text-blue-700">③</span> Synchroniser le panier avec le backend après connexion.</div>
+            <div class="bg-gray-50 p-5 rounded-xl"><span class="font-bold text-blue-700">④</span> Persister le panier (localStorage) et gérer le total TTC.</div>
+          </div>
+          <div class="mt-8 text-center text-gray-500 text-sm">✨ À la fin, vous saurez créer un panier fluide et réactif pour votre e-commerce</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 3 : Pourquoi Zustand pour le panier ? -->
+      <div class="slide" id="slide3">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📦 Pourquoi utiliser Zustand pour le panier ?</h2>
+          <p class="mt-3 text-gray-700">Zustand est une librairie d'état global minimaliste. Pour un panier e-commerce, on a besoin de :</p>
+          <ul class="list-disc list-inside mt-3 space-y-2 text-gray-700 ml-2">
+            <li>Accéder au panier depuis n'importe quel composant (header, page produit, page panier).</li>
+            <li>Mettre à jour les quantités sans re-rendus inutiles.</li>
+            <li>Persister les données même après un rafraîchissement (localStorage).</li>
+            <li>Calcul automatique du total, taxes, etc.</li>
+          </ul>
+          <div class="bg-blue-50 p-4 rounded-xl mt-5 text-blue-800 text-sm"><strong>💡 Avantage</strong> : Zustand est plus léger que Redux et plus simple que Context API pour ce genre de logique métier.</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4 : Structure du store cart (code) -->
+      <div class="slide" id="slide4">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🛠️ Création du store cart (Zustand)</h2>
+          <p class="mt-2 text-gray-600">Voici la structure de base : items, quantités, total et les actions essentielles.</p>
+          <div class="code-block mt-4">
+            <pre class="text-sm"><code>// stores/cartStore.js
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export const useCartStore = create(
+  persist(
+    (set, get) => ({
+      items: [],           // { id, name, price, quantity, image }
+      total: 0,
+      
+      addToCart: (product) => set((state) => {
+        const existing = state.items.find(item => item.id === product.id);
+        let newItems;
+        if (existing) {
+          newItems = state.items.map(item =>
+            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          );
+        } else {
+          newItems = [...state.items, { ...product, quantity: 1 }];
+        }
+        const newTotal = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        return { items: newItems, total: newTotal };
+      }),
+
+      removeFromCart: (id) => set((state) => {
+        const newItems = state.items.filter(item => item.id !== id);
+        const newTotal = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        return { items: newItems, total: newTotal };
+      }),
+
+      updateQuantity: (id, quantity) => set((state) => {
+        if (quantity <= 0) return { items: state.items.filter(i => i.id !== id) };
+        const newItems = state.items.map(item =>
+          item.id === id ? { ...item, quantity } : item
+        );
+        const newTotal = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        return { items: newItems, total: newTotal };
+      }),
+
+      clearCart: () => set({ items: [], total: 0 }),
+    }),
+    { name: 'cart-storage' } // sauvegarde localStorage
+  )
+);</code></pre>
+          </div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5 : Utilité de persist + calcul total -->
+      <div class="slide" id="slide5">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">💾 Persistance du panier & calcul automatique</h2>
+          <p class="mt-2 text-gray-700">Avec le middleware <code class="bg-gray-100 px-1 rounded">persist</code>, le panier reste même après fermeture du navigateur. Idéal pour les utilisateurs non connectés.</p>
+          <div class="mt-4 p-4 bg-gray-100 rounded-xl">
+            <p class="font-mono text-sm">💰 <strong>Formule du total HT :</strong> \( \text{total} = \sum_{i=1}^{n} (prix_i \times quantité_i) \)</p>
+            <p class="font-mono text-sm mt-1">🇨🇲 Avec TVA (19.25%) : \( \text{total TTC} = \text{total} \times 1.1925 \)</p>
+          </div>
+          <p class="mt-4 text-gray-700">Zustand recalcule le total à chaque modification (add/remove/update). Aucune logique supplémentaire n'est nécessaire dans les composants.</p>
+          <div class="bg-yellow-50 p-3 rounded-lg text-yellow-800 text-sm mt-3">⚠️ Important : synchroniser avec le backend après login – nous verrons cela avec Axios.</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6 : Utilisation dans un composant (ex: ProductCard) -->
+      <div class="slide" id="slide6">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">➕ Ajouter un produit au panier</h2>
+          <p class="text-gray-600">Dans n’importe quel composant, on appelle <code class="bg-gray-100 px-1 rounded">addToCart</code> du store.</p>
+          <div class="code-block mt-4">
+            <pre><code>// components/ProductCard.jsx
+import { useCartStore } from '../stores/cartStore';
+
+const ProductCard = ({ product }) => {
+  const addToCart = useCartStore((state) => state.addToCart);
+  
+  return (
+    &lt;div&gt;
+      &lt;h3&gt;{product.name}&lt;/h3&gt;
+      &lt;p&gt;{product.price} €&lt;/p&gt;
+      &lt;button onClick={() => addToCart(product)}&gt;Ajouter au panier&lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</code></pre>
+          </div>
+          <div class="bg-green-50 p-3 rounded-lg mt-4 text-green-800 text-sm">✅ Le store met à jour la quantité si le produit existe déjà (incrémentation).</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 7 : Affichage du panier / Header avec badge -->
+      <div class="slide" id="slide7">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🛒 Afficher le nombre d’articles (badge)</h2>
+          <p class="mb-3">Dans le Header, on peut facilement afficher le compteur d’articles :</p>
+          <div class="code-block">
+            <pre><code>// components/Header.jsx
+import { useCartStore } from '../stores/cartStore';
+
+const Header = () => {
+  const itemCount = useCartStore((state) => 
+    state.items.reduce((acc, item) => acc + item.quantity, 0)
+  );
+  
+  return (
+    &lt;header&gt;
+      &lt;span&gt;🛒 Panier ({itemCount})&lt;/span&gt;
+    &lt;/header&gt;
+  );
+};</code></pre>
+          </div>
+          <div class="mt-5 flex items-center justify-center p-3 border border-dashed border-blue-300 rounded-xl bg-blue-50 text-blue-700 text-center">🔁 Grâce à l’abonnement sélectif de Zustand, seul le badge se re-rend quand le panier change → performances optimisées.</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 8 : synchronisation backend après login -->
+      <div class="slide" id="slide8">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🔄 Synchronisation avec le backend après connexion</h2>
+          <p class="text-gray-700">Quand l’utilisateur se connecte, il faut :</p>
+          <ol class="list-decimal list-inside space-y-2 mt-2 text-gray-700">
+            <li>Récupérer son panier depuis l’API (GET /cart).</li>
+            <li>Fusionner avec le panier local actuel (Zustand).</li>
+            <li>Envoyer le panier fusionné vers le backend (PUT /cart/merge).</li>
+          </ol>
+          <div class="code-block mt-4">
+            <pre><code>// Dans AuthStore après login
+const login = async (email, password) => {
+  const res = await authApi.login({ email, password });
+  const remoteCart = await cartApi.getCart();    // panier distant
+  const localCart = useCartStore.getState().items;
+  
+  // Fusion simple : on concatène et on agrège les quantités
+  const merged = mergeCarts(localCart, remoteCart);
+  useCartStore.setState({ items: merged, total: computeTotal(merged) });
+  
+  // Mise à jour backend
+  await cartApi.syncCart(merged);
+};</code></pre>
+          </div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+      </div>
+
+      <!-- SLIDE 9 : Exercice pratique / résumé -->
+      <div class="slide" id="slide9">
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">✍️ Exercice pratique</h2>
+          <p class="mb-3">À partir du store donné, implémentez une fonction <strong>applyDiscount(couponCode)</strong> qui applique une réduction de 10% si le code = "SAVE10". Mettez à jour le total.</p>
+          <div class="code-block mt-2">
+            <pre><code>applyDiscount: (code) => set((state) => {
+  if (code === "SAVE10") {
+    const discountedTotal = state.total * 0.9;
+    return { total: discountedTotal, appliedCoupon: "SAVE10" };
+  }
+  return state;
+})</code></pre>
+          </div>
+          <div class="bg-indigo-50 p-4 rounded-xl mt-5 text-indigo-900"><strong>🧠 Rappel taxonomie de Bloom :</strong> Vous serez capable de <strong>créer</strong> un panier complet, <strong>analyser</strong> la persistance et <strong>appliquer</strong> des réductions.</div>
+          <div class="flex justify-between mt-8"><button class="prevSlide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="nextSlide bg-blue-600 text-white px-5 py-2 rounded-full">Terminer</button></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Navigation dots (pagination) -->
+    <div class="flex justify-center gap-2 mt-8 flex-wrap" id="dotsContainer"></div>
+  </div>
+
+  <script>
+    $(document).ready(function(){
+      let slides = $('.slide');
+      let currentIndex = 0;
+      let totalSlides = slides.length;
+
+      // Générer les dots
+      for(let i = 0; i < totalSlides; i++) {
+        let dotClass = (i === 0) ? "bg-blue-600 w-2.5 h-2.5" : "bg-gray-400 w-2.5 h-2.5";
+        let dot = $('<div>').addClass(`dot ${dotClass} rounded-full mx-1 transition-all`).attr('data-index', i);
+        $('#dotsContainer').append(dot);
+      }
+      $('.dot').css({ width: '10px', height: '10px' });
+      
+      function updateSlides(index) {
+        slides.removeClass('active');
+        $(slides[index]).addClass('active');
+        $('.dot').removeClass('active bg-blue-600').addClass('bg-gray-400');
+        $($('.dot')[index]).removeClass('bg-gray-400').addClass('bg-blue-600 active');
+        currentIndex = index;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // Next / Prev buttons
+      $('.nextSlide').on('click', function() {
+        if(currentIndex < totalSlides - 1) updateSlides(currentIndex + 1);
+      });
+      $('.prevSlide').on('click', function() {
+        if(currentIndex > 0) updateSlides(currentIndex - 1);
+      });
+      $('.dot').on('click', function() {
+        let idx = parseInt($(this).data('index'));
+        updateSlides(idx);
+      });
+
+      // Gestion du responsive / swipe simplifié (pour mobile)
+      let touchStartX = 0;
+      $('body').on('touchstart', function(e) { touchStartX = e.originalEvent.touches[0].clientX; });
+      $('body').on('touchend', function(e) {
+        let diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+        if(Math.abs(diff) > 50) {
+          if(diff > 0 && currentIndex > 0) updateSlides(currentIndex - 1);
+          else if(diff < 0 && currentIndex < totalSlides-1) updateSlides(currentIndex + 1);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

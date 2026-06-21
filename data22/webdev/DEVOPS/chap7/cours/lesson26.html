@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 26 : Provisionner avec Terraform (AWS, Azure, Modules)</title>
+    <!-- Tailwind CSS + Font Awesome (icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transitions douces pour slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.2s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Couleurs personnalisées pour la lisibilité (fond clair, texte foncé) */
+        body {
+            background: #f8fafc;
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* Code blocks visuellement agréables */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .badge-terraform {
+            background: #7b3fe4;
+            color: white;
+            font-weight: 600;
+        }
+        h3 {
+            font-weight: 700;
+            border-left: 5px solid #3b82f6;
+            padding-left: 0.75rem;
+            margin: 1.2rem 0 0.8rem 0;
+        }
+        .slide-content li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide -->
+        <div id="slidesContainer" class="relative">
+            <!-- Slide 1 : Titre de la leçon -->
+            <div class="slide slide-visible" data-slide="0">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-8 md:py-12">
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">🌍 Leçon 26</h1>
+                        <p class="text-indigo-100 text-lg mt-2 font-medium">Initiation au DevOps · Module Infrastructure as Code</p>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="flex flex-col items-center text-center space-y-5">
+                            <div class="bg-indigo-100 rounded-full p-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.25-2.405-.703-3.48m-2.185 6.148A7.953 7.953 0 0112 20.25c-1.892 0-3.63-.66-4.997-1.758m12.14-12.14a9 9 0 00-7.143-2.352M5.25 12c0-1.232.25-2.405.703-3.48m2.185 6.148A7.953 7.953 0 0012 20.25c1.892 0 3.63-.66 4.997-1.758M4.277 4.277l15.446 15.446" />
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl md:text-4xl font-bold text-gray-800">Provisionner des ressources cloud <br>avec Terraform</h2>
+                            <div class="flex flex-wrap justify-center gap-3 mt-2">
+                                <span class="bg-gray-200 px-3 py-1 rounded-full text-sm font-semibold text-gray-700">AWS EC2 / S3</span>
+                                <span class="bg-gray-200 px-3 py-1 rounded-full text-sm font-semibold text-gray-700">Azure VM</span>
+                                <span class="bg-gray-200 px-3 py-1 rounded-full text-sm font-semibold text-gray-700">Modules Terraform</span>
+                            </div>
+                            <div class="pt-6 text-gray-500 italic">📘 DevOps · Cours sur l'infrastructure reproductible</div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-end border-t">
+                        <button class="next-slide bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow transition">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques -->
+            <div class="slide slide-hidden" data-slide="1">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-emerald-700 px-6 py-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <ul class="space-y-4 text-gray-700 text-lg">
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✓</span> <strong>Provisionner des ressources AWS</strong> (EC2, S3, VPC) avec Terraform</li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✓</span> <strong>Créer des ressources sur Azure</strong> (VM, Stockage, Réseau) en quelques lignes de code</li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✓</span> <strong>Utiliser les modules Terraform</strong> pour réutiliser et organiser son infrastructure</li>
+                            <li class="flex items-start gap-3"><span class="text-emerald-600 text-xl">✓</span> Comprendre le workflow <code class="bg-gray-100 px-2 py-0.5 rounded">init, plan, apply, destroy</code> sur le cloud</li>
+                        </ul>
+                        <div class="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                            <p class="text-amber-800 text-sm">💡 Résultat : À la fin, vous saurez déployer des serveurs et du stockage sur AWS & Azure comme un vrai Cloud Engineer !</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full transition">← Précédent</button>
+                        <button class="next-slide bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-5 rounded-full shadow transition">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 3 : Terraform sur AWS (EC2, S3, VPC) -->
+            <div class="slide slide-hidden" data-slide="2">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-blue-800 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">☁️ 1. Provisionner AWS avec Terraform</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="mb-4 text-gray-700">Terraform utilise des <strong>providers</strong> comme <code class="bg-gray-100 px-1">aws</code> pour communiquer avec l'API Amazon. Exemple de ressources classiques :</p>
+                        <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                            <li><span class="font-mono font-bold">aws_instance</span> → créer une machine virtuelle EC2</li>
+                            <li><span class="font-mono font-bold">aws_s3_bucket</span> → stockage objet</li>
+                            <li><span class="font-mono font-bold">aws_vpc</span> → réseau virtuel isolé</li>
+                        </ul>
+                        <h3>📄 Exemple de fichier <code>main.tf</code> (AWS)</h3>
+                        <pre><code># configurer le provider AWS
+provider "aws" {
+  region = "eu-west-3"  # Paris
+}
+
+# créer un bucket S3
+resource "aws_s3_bucket" "mon_bucket" {
+  bucket = "mon-site-devops-2026"
+  tags = {
+    Environnement = "Cours"
+  }
+}
+
+# lancer une instance EC2 (Ubuntu)
+resource "aws_instance" "web" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  tags = {
+    Name = "MonServeur-DevOps"
+  }
+}</code></pre>
+                        <p class="text-sm text-gray-500 mt-2">✨ Après <code>terraform apply</code>, AWS crée ces ressources automatiquement !</p>
+                        <!-- dessin simple d'architecture AWS avec SVG -->
+                        <div class="my-5 flex justify-center">
+                            <svg width="280" height="110" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" class="border rounded-lg p-2 bg-gray-50">
+                                <rect x="10" y="20" width="80" height="50" fill="#FF9900" rx="8" />
+                                <text x="30" y="48" fill="white" font-size="12">EC2</text>
+                                <rect x="130" y="20" width="80" height="50" fill="#FF9900" rx="8" />
+                                <text x="145" y="48" fill="white" font-size="12">S3</text>
+                                <rect x="260" y="20" width="80" height="50" fill="#FF9900" rx="8" />
+                                <text x="272" y="48" fill="white" font-size="12">VPC</text>
+                                <text x="150" y="95" fill="#4a5568" font-size="13" text-anchor="middle">Ressources AWS gérées par Terraform</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full shadow">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 4 : Azure (VM, Storage, Network) -->
+            <div class="slide slide-hidden" data-slide="3">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-sky-700 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🟦 2. Terraform sur Azure</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="mb-3">Le provider <code class="bg-gray-100 px-1">azurerm</code> permet de gérer l'infrastructure Microsoft Azure. Voici des ressources typiques :</p>
+                        <ul class="list-disc pl-6 space-y-1">
+                            <li><strong>azurerm_resource_group</strong> → groupe de ressources</li>
+                            <li><strong>azurerm_virtual_machine</strong> → VM Linux/Windows</li>
+                            <li><strong>azurerm_storage_account</strong> → Blob Storage / fichiers</li>
+                        </ul>
+                        <h3>📄 Exemple de configuration Azure</h3>
+                        <pre><code>provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "rg-devops-cameroun"
+  location = "France Central"
+}
+
+resource "azurerm_virtual_network" "vnet" {
+  name                = "vnet-cours"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  address_space       = ["10.0.0.0/16"]
+}
+
+resource "azurerm_storage_account" "storage" {
+  name                     = "devopsstoragecameroun"
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}</code></pre>
+                        <div class="bg-indigo-50 p-3 rounded-lg mt-4">
+                            <p class="text-indigo-800 text-sm">💡 <strong>Bon à savoir</strong> : Azure CLI doit être authentifié. Terraform exécute les appels API de façon sécurisée.</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-sky-600 hover:bg-sky-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 5 : Modules Terraform (réutilisabilité) -->
+            <div class="slide slide-hidden" data-slide="4">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-violet-800 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">🧩 3. Modules Terraform : la puissance de la réutilisation</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p>Les modules permettent d'encapsuler des ressources réutilisables. C'est comme des <strong>bibliothèques</strong> pour votre infrastructure.</p>
+                        <h3>🔧 Structure d'un module</h3>
+                        <pre><code>modules/nginx-server/
+  ├── main.tf      (définit instance, security group)
+  ├── variables.tf (inputs: nom, instance_type)
+  └── outputs.tf   (IP publique par exemple)</code></pre>
+                        <h3>📦 Appeler un module dans votre configuration</h3>
+                        <pre><code>module "mon_serveur_web" {
+  source = "./modules/nginx-server"
+  server_name = "web-prod"
+  instance_type = "t3.small"
+}
+
+# Afficher l'IP du module
+output "ip_du_serveur" {
+  value = module.mon_serveur_web.public_ip
+}</code></pre>
+                        <p class="mt-3">✅ Les modules officiels (Terraform Registry) existent pour AWS, Azure, GCP : gagnez un temps fou !</p>
+                        <!-- petit schéma SVG module -->
+                        <div class="mt-4 flex justify-center">
+                            <svg width="300" height="90" viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="20" width="100" height="45" fill="#c084fc" rx="8" />
+                                <text x="35" y="47" fill="white" font-size="12">Module</text>
+                                <text x="30" y="62" fill="white" font-size="9">nginx</text>
+                                <path d="M120 42 L150 42" stroke="#4b5563" stroke-width="2" marker-end="url(#arrow)"/>
+                                <rect x="160" y="20" width="100" height="45" fill="#3b82f6" rx="8" />
+                                <text x="180" y="47" fill="white" font-size="12">AWS EC2</text>
+                                <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#4b5563"/></marker></defs>
+                            </svg>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg mt-4 border-l-4 border-green-500">
+                            <p class="text-green-800">📌 <strong>Pratique recommandée</strong> : Utilisez des modules pour le réseau, les bases de données, les clusters Kubernetes.</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-violet-600 hover:bg-violet-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 6 : workflow avancé + meilleures pratiques -->
+            <div class="slide slide-hidden" data-slide="5">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-800 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-white">⚙️ Workflow Terraform & Bonnes Pratiques</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <div class="grid md:grid-cols-2 gap-5">
+                            <div>
+                                <h3>📌 Étapes essentielles</h3>
+                                <ul class="list-decimal pl-5 space-y-1">
+                                    <li><code>terraform init</code> → initialise providers/modules</li>
+                                    <li><code>terraform plan</code> → montre les changements</li>
+                                    <li><code>terraform apply</code> → applique l'infra</li>
+                                    <li><code>terraform destroy</code> → supprime tout proprement</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3>🔐 Sécurité et état</h3>
+                                <ul class="list-disc pl-5 space-y-1">
+                                    <li>Ne pas versionner <code>terraform.tfstate</code> (contient des secrets)</li>
+                                    <li>Utiliser un backend distant (S3, Azure Storage)</li>
+                                    <li>Isoler les environnements (dev/staging/prod) avec des workspaces</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-gray-100 p-4 rounded-xl">
+                            <p class="font-semibold">💻 Exercice pratique (à réaliser à la maison) :</p>
+                            <p class="text-gray-700">Créez un bucket S3 + une petite instance EC2 avec Terraform. Modifiez la taille de l'instance et observez le <code>plan</code>. Ajoutez une tag "Cours=DevOps".</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-amber-600 hover:bg-amber-700 text-white py-2 px-5 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 7 : Récapitulatif & défi final -->
+            <div class="slide slide-hidden" data-slide="6">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-gradient-to-r from-green-700 to-teal-700 px-6 py-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white">🏁 Récapitulatif : leçon 26</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="grid sm:grid-cols-2 gap-5 mb-6">
+                            <div class="border rounded-xl p-4 shadow-sm">
+                                <div class="font-bold text-indigo-600 text-xl">✔ AWS</div>
+                                <p>Providers, ressources EC2, S3, VPC. Infrastructure scalable.</p>
+                            </div>
+                            <div class="border rounded-xl p-4 shadow-sm">
+                                <div class="font-bold text-sky-600 text-xl">✔ Azure</div>
+                                <p>Resource Group, VM, Storage Account. Multi-cloud possible.</p>
+                            </div>
+                            <div class="border rounded-xl p-4 shadow-sm">
+                                <div class="font-bold text-purple-600 text-xl">✔ Modules</div>
+                                <p>Réutiliser du code, Registry public, DRY (Don't Repeat Yourself).</p>
+                            </div>
+                            <div class="border rounded-xl p-4 shadow-sm">
+                                <div class="font-bold text-amber-600 text-xl">✔ Bonnes pratiques</div>
+                                <p>Backend distant, versioning, isolation des environnements.</p>
+                            </div>
+                        </div>
+                        <div class="text-center bg-teal-50 p-5 rounded-2xl">
+                            <p class="text-teal-800">🎓 Félicitations ! Vous savez maintenant écrire du code Terraform pour provisionner des ressources sur AWS et Azure, et organiser votre infrastructure avec des modules. Prochaine étape : intégrez Terraform dans votre pipeline CI/CD ! 🚀</p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-between">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <span class="text-sm text-gray-400 self-center">Fin de la leçon</span>
+                        <button class="restart-slides bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-medium py-2 px-5 rounded-full transition">⟳ Revoir depuis début</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- Indicateur de slide (progress) -->
+        <div class="flex justify-center gap-2 mt-6" id="slideDots"></div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('.slide');
+            let currentIndex = 0;
+            const totalSlides = slides.length;
+
+            function updateSlidesVisibility() {
+                slides.each(function(idx) {
+                    if(idx === currentIndex) {
+                        $(this).removeClass('slide-hidden').addClass('slide-visible');
+                    } else {
+                        $(this).removeClass('slide-visible').addClass('slide-hidden');
+                    }
+                });
+                updateDots();
+            }
+
+            function updateDots() {
+                let dotsHtml = '';
+                for(let i=0; i<totalSlides; i++) {
+                    let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-6' : 'bg-gray-300 w-3';
+                    dotsHtml += `<div class="h-2 rounded-full ${activeClass} transition-all duration-300 mx-1"></div>`;
+                }
+                $('#slideDots').html(dotsHtml);
+            }
+
+            function nextSlide() {
+                if(currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlidesVisibility();
+                } else {
+                    // déjà à la fin, on peut boucler ou non, ici on ne fait rien
+                }
+            }
+
+            function prevSlide() {
+                if(currentIndex > 0) {
+                    currentIndex--;
+                    updateSlidesVisibility();
+                }
+            }
+
+            function restartSlides() {
+                currentIndex = 0;
+                updateSlidesVisibility();
+            }
+
+            // Événements boutons (next / prev) avec delegation sur container pour boutons dynamiques
+            $(document).on('click', '.next-slide', function(e){
+                nextSlide();
+            });
+            $(document).on('click', '.prev-slide', function(e){
+                prevSlide();
+            });
+            $(document).on('click', '.restart-slides', function(){
+                restartSlides();
+            });
+
+            // Ajouter aussi navigation par swipe simple? Optionnel mais améliore mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('body').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('body').on('touchend', function(e) {
+                touchEndX = e.changedTouches[0].clientX;
+                if(touchStartX - touchEndX > 60) nextSlide();
+                if(touchEndX - touchStartX > 60) prevSlide();
+            });
+
+            // initialisation
+            updateSlidesVisibility();
+
+            // scroll to top si navigation manuelle
+            $(document).on('click', '.next-slide, .prev-slide, .restart-slides', function(){
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            });
+        });
+    </script>
+</body>
+</html>

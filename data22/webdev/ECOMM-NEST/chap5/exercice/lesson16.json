@@ -1,0 +1,167 @@
+[
+  {
+    "intitule": "Ajout d'un produit avec variation au panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un client souhaite ajouter un produit à son panier. Le produit possède des variations (taille S, couleur rouge). Écrivez la fonction TypeScript/NestJS qui :</p><ul><li>Vérifie si le produit existe avec la variation demandée</li><li>Si l'item existe déjà, incrémente la quantité, sinon crée un nouvel item</li><li>Retourne le panier mis à jour</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez la méthode <code>addToCart(userId: number, productId: number, variationId: number, quantity: number)</code> dans le <code>CartService</code>.",
+        "niveau": "easy",
+        "reponse": "```typescript\nasync addToCart(userId: number, productId: number, variationId: number, quantity: number) {\n  let cart = await this.cartRepo.findOne({ where: { user: { id: userId } }, relations: ['items', 'items.productVariation'] });\n  if (!cart) {\n    cart = this.cartRepo.create({ user: { id: userId }, items: [] });\n  }\n  const existingItem = cart.items.find(item => item.productVariation.id === variationId);\n  if (existingItem) {\n    existingItem.quantity += quantity;\n  } else {\n    const variation = await this.variationRepo.findOneBy({ id: variationId });\n    cart.items.push(this.cartItemRepo.create({ cart, productVariation: variation, quantity }));\n  }\n  return this.cartRepo.save(cart);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise à jour de la quantité dans le panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un utilisateur modifie la quantité d'un produit dans son panier. Écrivez la méthode qui met à jour la quantité d'un item spécifique.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez <code>updateCartItemQuantity(userId: number, itemId: number, newQuantity: number)</code>.",
+        "niveau": "easy",
+        "reponse": "```typescript\nasync updateCartItemQuantity(userId: number, itemId: number, newQuantity: number) {\n  const cart = await this.cartRepo.findOne({ where: { user: { id: userId } }, relations: ['items'] });\n  if (!cart) throw new NotFoundException('Panier non trouvé');\n  const item = cart.items.find(i => i.id === itemId);\n  if (!item) throw new NotFoundException('Item non trouvé');\n  if (newQuantity <= 0) {\n    cart.items = cart.items.filter(i => i.id !== itemId);\n  } else {\n    item.quantity = newQuantity;\n  }\n  await this.cartRepo.save(cart);\n  return this.getCart(userId);\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Que se passe-t-il si <code>newQuantity</code> est égal à 0 ?",
+            "niveau": "easy",
+            "reponse": "Si la nouvelle quantité est 0, l'item doit être supprimé du panier (comportement standard dans la plupart des e-commerces)."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Suppression d'un item et vidage du panier",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Deux opérations sont nécessaires : supprimer un item spécifique et vider complètement le panier. Implémentez ces deux méthodes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez <code>removeCartItem(userId: number, itemId: number)</code> et <code>clearCart(userId: number)</code>.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync removeCartItem(userId: number, itemId: number) {\n  const cart = await this.cartRepo.findOne({ where: { user: { id: userId } }, relations: ['items'] });\n  cart.items = cart.items.filter(item => item.id !== itemId);\n  await this.cartRepo.save(cart);\n}\n\nasync clearCart(userId: number) {\n  const cart = await this.cartRepo.findOne({ where: { user: { id: userId } }, relations: ['items'] });\n  cart.items = [];\n  await this.cartRepo.save(cart);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Fusion de panier anonyme (visiteur) avec panier connecté",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un visiteur (non connecté) a ajouté des produits à son panier (stocké via session localStorage ou avec un visitorId). Il se connecte ensuite. Implémentez la fusion des deux paniers pour éviter la perte de données.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Développez la méthode <code>mergeCarts(userId: number, anonymousCartItems: CartItemDto[])</code> qui fusionne les items du panier anonyme avec le panier existant de l'utilisateur connecté.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync mergeCarts(userId: number, anonymousCartItems: CartItemDto[]) {\n  let userCart = await this.cartRepo.findOne({ where: { user: { id: userId } }, relations: ['items', 'items.productVariation'] });\n  if (!userCart) {\n    userCart = this.cartRepo.create({ user: { id: userId }, items: [] });\n  }\n  for (const anonItem of anonymousCartItems) {\n    const existing = userCart.items.find(item => item.productVariation.id === anonItem.variationId);\n    if (existing) {\n      existing.quantity += anonItem.quantity;\n    } else {\n      const variation = await this.variationRepo.findOneBy({ id: anonItem.variationId });\n      userCart.items.push(this.cartItemRepo.create({ cart: userCart, productVariation: variation, quantity: anonItem.quantity }));\n    }\n  }\n  await this.cartRepo.save(userCart);\n  return userCart;\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Analysez pourquoi il est important de vérifier les stocks pendant la fusion.",
+            "niveau": "hard",
+            "reponse": "Pendant la fusion, il faut vérifier que les quantités fusionnées ne dépassent pas le stock disponible. Si un produit n'est plus disponible, on peut soit limiter la quantité au stock restant, soit notifier l'utilisateur."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des quantités et validation stock",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Avant d'ajouter un produit au panier, il est impératif de vérifier la disponibilité en stock. Implémentez une validation qui empêche l'ajout si la quantité demandée dépasse le stock disponible.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Modifiez la méthode <code>addToCart</code> pour qu'elle lève une exception si la quantité demandée n'est pas disponible.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync addToCart(userId: number, variationId: number, quantity: number) {\n  const variation = await this.variationRepo.findOne({ where: { id: variationId }, relations: ['product'] });\n  if (!variation) throw new NotFoundException('Variation non trouvée');\n  if (variation.stock < quantity) {\n    throw new BadRequestException(`Stock insuffisant. Disponible: ${variation.stock}`);\n  }\n  // ... suite de l'ajout\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul du sous-total du panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Chaque item du panier a un prix unitaire (celui du produit avec variation) et une quantité. Écrivez une fonction qui calcule le montant total du panier.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez <code>calculateCartTotal(cart: Cart)</code> qui retourne la somme de <code>prix * quantité</code> pour chaque item.",
+        "niveau": "easy",
+        "reponse": "```typescript\ncalculateCartTotal(cart: Cart): number {\n  return cart.items.reduce((total, item) => {\n    return total + (item.productVariation.price * item.quantity);\n  }, 0);\n}\n```\n\nAvec le typage :\n```typescript\ncart.items.forEach(item => {\n  const itemTotal = item.productVariation.price * item.quantity;\n  total += itemTotal;\n});\nreturn total;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation des endpoints API NestJS",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client doit pouvoir interagir avec son panier via des endpoints REST. Créez un contrôleur <code>CartController</code> avec les routes suivantes :<br><code>POST /cart/items</code> (ajouter), <code>PATCH /cart/items/:id</code> (modifier quantité), <code>DELETE /cart/items/:id</code> (supprimer un item), <code>DELETE /cart</code> (vider le panier), <code>GET /cart</code> (consulter le panier).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez le contrôleur complet en utilisant les décorateurs NestJS appropriés.",
+        "niveau": "hard",
+        "reponse": "```typescript\n@Controller('cart')\n@UseGuards(JwtAuthGuard)\nexport class CartController {\n  constructor(private cartService: CartService) {}\n\n  @Get()\n  getCart(@Req() req: RequestWithUser) {\n    return this.cartService.getCart(req.user.id);\n  }\n\n  @Post('items')\n  addItem(@Req() req: RequestWithUser, @Body() addItemDto: AddItemDto) {\n    return this.cartService.addToCart(req.user.id, addItemDto.variationId, addItemDto.quantity);\n  }\n\n  @Patch('items/:id')\n  updateQuantity(@Req() req: RequestWithUser, @Param('id') itemId: number, @Body('quantity') quantity: number) {\n    return this.cartService.updateCartItemQuantity(req.user.id, itemId, quantity);\n  }\n\n  @Delete('items/:id')\n  removeItem(@Req() req: RequestWithUser, @Param('id') itemId: number) {\n    return this.cartService.removeCartItem(req.user.id, itemId);\n  }\n\n  @Delete()\n  clearCart(@Req() req: RequestWithUser) {\n    return this.cartService.clearCart(req.user.id);\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion de la fusion après connexion (flux complet)",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Lorsqu'un utilisateur se connecte, l'application stocke son panier anonyme (dans le localStorage). Le backend doit recevoir ce panier anonyme et le fusionner avec l'éventuel panier existant en base. Écrivez la logique dans le service d'authentification.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez la méthode <code>loginWithCartMerge</code> qui : authentifie l'utilisateur, reçoit le panier anonyme, le fusionne, puis retourne le token JWT et le panier fusionné.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync loginWithCartMerge(loginDto: LoginDto, anonymousCart: CartItemDto[]) {\n  const user = await this.validateUser(loginDto.email, loginDto.password);\n  const token = this.jwtService.sign({ sub: user.id, roles: user.roles });\n  \n  if (anonymousCart && anonymousCart.length > 0) {\n    await this.cartService.mergeCarts(user.id, anonymousCart);\n  }\n  \n  const updatedCart = await this.cartService.getCart(user.id);\n  return { accessToken: token, cart: updatedCart };\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez comment gérer le cas où le panier anonyme et le panier connecté contiennent le même produit avec des variations identiques.",
+            "niveau": "hard",
+            "reponse": "Il faut sommer les quantités : <code>existingItem.quantity += anonymousItem.quantity</code>. Il est également recommandé de vérifier que la quantité totale ne dépasse pas le stock disponible."
+          }
+        ]
+      }
+    ]
+  }
+]

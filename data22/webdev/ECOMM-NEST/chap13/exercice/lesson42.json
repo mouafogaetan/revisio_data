@@ -1,0 +1,151 @@
+[
+  {
+    "intitule": "Mock des dépendances dans un service NestJS",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, vous avez le service <code>OrderService</code> qui dépend de <code>ProductService</code> (pour vérifier les stocks) et <code>PaymentService</code> (pour traiter le paiement). Voici un extrait :</p><pre>// order.service.ts\n@Injectable()\nexport class OrderService {\n  constructor(\n    private productService: ProductService,\n    private paymentService: PaymentService,\n  ) {}\n\n  async createOrder(userId: string, items: CartItemDto[]) {\n    for (const item of items) {\n      const stock = await this.productService.checkStock(item.productId);\n      if (stock < item.quantity) {\n        throw new InsufficientStockException(item.productId);\n      }\n    }\n    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);\n    const payment = await this.paymentService.processPayment(userId, total);\n    return { orderId: uuid(), paymentId: payment.id, status: 'confirmed' };\n  }\n}</pre><p>Expliquez comment tester unitairement la méthode <code>createOrder</code> en utilisant des mocks pour isoler les dépendances.</p>",
+      "images": [
+        "Diagramme des dépendances entre OrderService, ProductService et PaymentService"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier les dépendances externes de OrderService qui doivent être mockées dans un test unitaire. Justifier pourquoi chacune doit être mockée.",
+        "niveau": "easy",
+        "reponse": "Les dépendances sont ProductService et PaymentService. Elles doivent être mockées car : 1) ProductService effectue des appels à la base de données (lenteurs, environnement dépendant). 2) PaymentService appelle une API externe (Stripe/PayPal) coûteuse et non fiable en test. Les mocks permettent de contrôler les retours et de tester uniquement la logique de OrderService.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la procédure pour créer un mock de ProductService avec Jest. Donner un exemple de code où la méthode checkStock retourne une promesse résolue avec une valeur de stock suffisante (10) pour un produit 'prod-123'.",
+        "niveau": "medium",
+        "reponse": "On utilise jest.fn() pour créer une fonction mock. const mockProductService = { checkStock: jest.fn().mockResolvedValue(10) }; Dans le module de test, on fournit ce mock via les providers de NestJS Testing. Exemple : const module = await Test.createTestingModule({ providers: [ OrderService, { provide: ProductService, useValue: mockProductService }, { provide: PaymentService, useValue: mockPaymentService } ] }).compile();",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Analyser le scénario où productService.checkStock retourne une valeur insuffisante (2) pour une quantité demandée de 5. Quelle assertion doit-on écrire pour vérifier que l'exception appropriée est levée ?",
+        "niveau": "medium",
+        "reponse": "Dans Jest, on utilise expect(service.createOrder(userId, items)).rejects.toThrow(InsufficientStockException); Il faut aussi vérifier que paymentService.processPayment n'a pas été appelé (car la commande n'aurait pas dû arriver jusqu'au paiement) : expect(mockPaymentService.processPayment).not.toHaveBeenCalled();",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Atteindre 80% de couverture de code",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous exécutez <code>npm run test:cov</code> sur votre projet NestJS et voici le rapport :</p><pre>--------------------|---------|----------|---------|---------|\nFile                | % Stmts | % Branch | % Funcs | % Lines |\n--------------------|---------|----------|---------|---------|\nAll files           |   62.5  |    45.8  |   70.0  |   63.2  |\n auth.service.ts    |   85.7  |    66.6  |  100.0  |   85.7  |\n cart.service.ts    |   45.0  |    25.0  |   50.0  |   47.3  |\n payment.service.ts |   70.0  |    50.0  |   75.0  |   70.0  |\n--------------------|---------|----------|---------|---------|</pre><p>Interprétez ces métriques et proposez une stratégie pour atteindre 80% de couverture globale.</p>",
+      "images": [
+        "Exemple de rapport Jest --coverage avec colonnes Statements, Branches, Functions, Lines"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier le fichier le plus critique à améliorer et justifier pourquoi (utiliser les métriques).",
+        "niveau": "easy",
+        "reponse": "cart.service.ts est le plus critique : seulement 45% de couverture des instructions, 25% des branches et 50% des fonctions. C'est le plus bas de tous. Les branches à 25% indiquent que les conditions (if/else, switch) sont très peu testées, ce qui peut cacher des bugs logiques.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Calculer la couverture moyenne actuelle des branches pour l'ensemble du projet (tous fichiers). Vérifier si l'objectif de 80% est atteint pour les branches.",
+        "niveau": "hard",
+        "reponse": "La moyenne des branches est déjà donnée : 45,8% pour l'ensemble. L'objectif 80% n'est pas atteint. Aucun calcul supplémentaire nécessaire. Pour l'atteindre, il faut prioriser les tests des branches manquantes dans cart.service.ts (conditions de panier vide, application de coupon, seuils de stock).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer un plan d'action concret (3 étapes) pour améliorer la couverture de cart.service.ts de 45% à 85%, en citant des exemples de cas à tester.",
+        "niveau": "hard",
+        "reponse": "1) Tester les conditions limites : panier vide, ajout d'un produit avec quantité zéro, suppression d'un item inexistant. 2) Tester les branches de calcul : remise selon montant total (ex: si total > 100€ alors -10€), frais de port offerts si total > 50€. 3) Tester les cas d'erreur : stock insuffisant, coupon expiré, utilisateur non authentifié pour le panier fusionné. Pour chaque branche, écrire un test unitaire isolé avec mocks.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation d'un test pour un contrôleur isolé",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez tester le contrôleur <code>AuthController</code> qui a deux méthodes : <code>login</code> et <code>register</code>. Le contrôleur dépend d'un <code>AuthService</code> avec des méthodes <code>validateUser(email, password)</code> et <code>createUser(dto)</code>. Écrivez un test Jest complet pour <code>AuthController.login</code> qui vérifie :</p><ul><li>En cas de succès, la réponse HTTP 200 et un token JWT sont retournés.</li><li>En cas d'échec (identifiants invalides), la réponse HTTP 401 est renvoyée.</li></ul><p>Fournissez le code du test avec les mocks appropriés.</p>",
+      "images": [
+        "Schéma d'un test unitaire isolant le contrôleur des services externes"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code complet du test pour AuthController.login en utilisant le module de test NestJS et Jest. Inclure la création des mocks, l'injection et les assertions.",
+        "niveau": "very hard",
+        "reponse": "```typescript\ndescribe('AuthController', () => {\n  let controller: AuthController;\n  let authService: AuthService;\n\n  beforeEach(async () => {\n    const mockAuthService = {\n      validateUser: jest.fn(),\n      login: jest.fn().mockResolvedValue({ access_token: 'fake-jwt' }),\n    };\n\n    const module = await Test.createTestingModule({\n      controllers: [AuthController],\n      providers: [{ provide: AuthService, useValue: mockAuthService }],\n    }).compile();\n\n    controller = module.get<AuthController>(AuthController);\n    authService = module.get<AuthService>(AuthService);\n  });\n\n  it('doit retourner 200 et un token si identifiants valides', async () => {\n    const dto = { email: 'test@test.com', password: '123456' };\n    authService.validateUser.mockResolvedValue({ id: 1, email: dto.email });\n    \n    const result = await controller.login(dto);\n    expect(result).toEqual({ access_token: 'fake-jwt' });\n    expect(authService.validateUser).toHaveBeenCalledWith(dto.email, dto.password);\n  });\n\n  it('doit lever une exception 401 si identifiants invalides', async () => {\n    const dto = { email: 'wrong@test.com', password: 'wrong' };\n    authService.validateUser.mockResolvedValue(null);\n    \n    await expect(controller.login(dto)).rejects.toThrow(UnauthorizedException);\n  });\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": "1.a",
+        "texte": "Expliquer pourquoi on utilise `jest.fn().mockResolvedValue(...)` plutôt qu'un mock manuel avec `mockImplementation`.",
+        "niveau": "medium",
+        "reponse": "mockResolvedValue est une méthode utilitaire de Jest qui crée une fonction asynchrone retournant une promesse résolue immédiatement. C'est plus concis que mockImplementation(() => Promise.resolve(...)). Cela améliore la lisibilité du test et réduit le boilerplate.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Diagnostic et correction d'un test défaillant",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un collègue a écrit le test suivant pour le service <code>CartService.calculateTotal</code>. Mais le test échoue. Analysez le code et corrigez les erreurs.</p><pre>// cart.service.ts\nexport class CartService {\n  calculateTotal(items: CartItem[], coupon?: Coupon): number {\n    let subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);\n    if (coupon && coupon.type === 'percent') {\n      subtotal = subtotal * (1 - coupon.value / 100);\n    } else if (coupon && coupon.type === 'fixed') {\n      subtotal = Math.max(0, subtotal - coupon.value);\n    }\n    return subtotal;\n  }\n}\n\n// test (faux)\nit('devrait appliquer une réduction de 20% quand le coupon est percent', () => {\n  const service = new CartService();\n  const items = [{ price: 100, quantity: 2 }];\n  const coupon = { type: 'percent', value: 20 };\n  const total = service.calculateTotal(items, coupon);\n  expect(total).toBe(160); // 200 - 20% = 160\n});</pre><p>Le test passe correctement mais le collègue oublie un cas important. Identifiez le cas manquant (limite) et ajoutez un test pour ce cas.</p>",
+      "images": [
+        "Exemple d'erreur de test avec valeur négative après coupon fixed"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier la faille dans la fonction calculateTotal : que se passe-t-il si coupon.type = 'fixed' et la valeur du coupon dépasse le sous-total ? Proposer un test pour ce scénario.",
+        "niveau": "medium",
+        "reponse": "Actuellement, avec Math.max(0, subtotal - coupon.value), le total ne devient pas négatif (on obtient 0). C'est correct. Mais le collègue n'a pas testé ce cas. Ajouter : it('ne doit pas permettre un total négatif avec coupon fixed', () => { const service = new CartService(); const items = [{ price: 50, quantity: 1 }]; const coupon = { type: 'fixed', value: 100 }; const total = service.calculateTotal(items, coupon); expect(total).toBe(0); });",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Améliorer la couverture des branches : ajouter un test pour le cas où aucun coupon n'est fourni (coupon = undefined).",
+        "niveau": "easy",
+        "reponse": "it('doit retourner le sous-total si aucun coupon', () => { const service = new CartService(); const items = [{ price: 100, quantity: 3 }]; expect(service.calculateTotal(items)).toBe(300); });",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mock de repository TypeORM pour tester un service",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans un service NestJS utilisant TypeORM, vous devez tester <code>UserService.findAllActive()</code> qui retourne les utilisateurs actifs. La méthode utilise le repository <code>@InjectRepository(User)</code>. Voici le code :</p><pre>async findAllActive(): Promise&lt;User[]&gt; {\n  return this.userRepository.find({ where: { isActive: true } });\n}</pre><p>Créez un test unitaire qui mocke le repository et vérifie que la méthode appelle bien <code>find</code> avec le bon filtre.</p>",
+      "images": [
+        "Mock de repository TypeORM avec jest.fn()"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code du test en utilisant getRepositoryToken de NestJS et un mock personnalisé du repository.",
+        "niveau": "hard",
+        "reponse": "```typescript\ndescribe('UserService', () => {\n  let service: UserService;\n  let mockUserRepository: jest.Mocked<Repository<User>>;\n\n  beforeEach(async () => {\n    mockUserRepository = {\n      find: jest.fn(),\n    } as any;\n\n    const module = await Test.createTestingModule({\n      providers: [\n        UserService,\n        { provide: getRepositoryToken(User), useValue: mockUserRepository },\n      ],\n    }).compile();\n\n    service = module.get<UserService>(UserService);\n  });\n\n  it('doit retourner les utilisateurs actifs', async () => {\n    const expectedUsers = [{ id: 1, email: 'test@test.com', isActive: true }];\n    mockUserRepository.find.mockResolvedValue(expectedUsers);\n\n    const result = await service.findAllActive();\n    expect(result).toEqual(expectedUsers);\n    expect(mockUserRepository.find).toHaveBeenCalledWith({ where: { isActive: true } });\n  });\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": "1.a",
+        "texte": "Justifier l'utilisation de `as any` pour le mock du repository. Quelles sont les alternatives plus type-safe ?",
+        "niveau": "medium",
+        "reponse": "`as any` permet de contourner le typage strict de TypeScript pour le mock partiel. Une alternative plus type-safe : créer un objet implémentant l'interface Repository<T> partiellement, ou utiliser `jest.createMockFromModule` ou `Partial<Record<keyof Repository<User>, jest.Mock>>`. En pratique, on utilise souvent `as any` par simplicité dans les tests, mais pour les gros projets, on préfère `jest.Mocked<Repository<User>>` et un casting explicite.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

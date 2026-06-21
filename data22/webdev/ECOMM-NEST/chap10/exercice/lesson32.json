@@ -1,0 +1,119 @@
+[
+  {
+    "intitule": "Identifier la structure de l'entité Coupon et ses types",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, les coupons de réduction sont essentiels pour les campagnes marketing.</p><p><strong>Question :</strong> Décrivez les propriétés minimales que doit contenir une entité <code>Coupon</code> et expliquez la différence entre un coupon de type <code>percent</code> et un coupon de type <code>fixed</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les champs essentiels d'une entité Coupon et précisez la signification des deux types de réduction.",
+        "niveau": "easy",
+        "reponse": "Une entité Coupon doit contenir au minimum :\n- `code` (string unique) : le code promo saisi par l'utilisateur\n- `type` (enum: 'percent' ou 'fixed') : type de réduction\n- `value` (number) : la valeur de la réduction (pourcentage ou montant fixe)\n- `validFrom` et `validUntil` (dates) : période de validité\n- `maxUses` (number) : nombre maximum d'utilisations totales\n- `usedCount` (number) : compteur d'utilisations\n- `minOrderAmount` (number, optionnel) : montant minimum de commande\n- `isActive` (boolean) : activation/désactivation manuelle\n\n**Différence entre les types :**\n- **percent** : réduction en pourcentage (ex: 20% de réduction). Le montant économisé dépend du total de la commande.\n- **fixed** : réduction d'un montant fixe (ex: 5000 FCFA de réduction). Indépendant du total de la commande (soumis au montant minimum).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Distinguer les conditions d'application d'un coupon",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un coupon peut avoir plusieurs conditions restrictives pour éviter les abus.</p><p><strong>Consigne :</strong> Comparez les différents types de conditions (montant minimum, produits spécifiques, utilisateurs spécifiques, nombre d'utilisations) en expliquant leur utilité.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citez quatre types de conditions que l'on peut appliquer à un coupon et expliquez à quoi chacune sert.",
+        "niveau": "medium",
+        "reponse": "1. **Montant minimum (`minOrderAmount`)** : Évite les trop petites commandes. Ex: coupon de 5000 FCFA valable uniquement pour une commande > 50000 FCFA.\n2. **Produits spécifiques (`applicableProductIds`)** : Réduction uniquement sur certaines catégories ou produits. Ex: 10% sur l'électronique.\n3. **Utilisateurs spécifiques (`applicableUserIds`)** : Coupon personnalisé pour certains clients (fidélité, parrainage).\n4. **Nombre d'utilisations** :\n   - `maxUses` : limite globale (ex: 100 utilisations totales)\n   - `maxUsesPerUser` : limite par utilisateur (ex: 1 fois par client)\n5. **Première commande (`firstOrderOnly`)** : Pour attirer les nouveaux clients.\n6. **Combinaison (`allowCombination`)** : Permet ou non de cumuler avec d'autres offres.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Corriger une entité Coupon mal définie",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici une entité TypeORM pour les coupons qui contient des erreurs :</p>\n<pre><code>@Entity()\nexport class Coupon {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column()\n  code: string;\n\n  @Column()\n  type: string;\n\n  @Column()\n  value: number;\n\n  @Column()\n  validUntil: Date;\n\n  @Column()\n  maxUses: number;\n\n  @Column()\n  usedCount: number;\n}\n</code></pre>\n<p><strong>Consigne :</strong> Identifiez les problèmes dans cette entité et proposez une version corrigée avec les bonnes pratiques TypeORM.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Corrigez l'entité Coupon en ajoutant les validations et contraintes nécessaires.",
+        "niveau": "medium",
+        "reponse": "Problèmes identifiés :\n1) `code` doit être unique.\n2) `type` doit être un enum (`percent` ou `fixed`).\n3) `value` doit être positif.\n4) `validUntil` sans `validFrom` : il faut une date de début.\n5) `usedCount` doit avoir une valeur par défaut (0).\n6) Manque `minOrderAmount`, `maxUsesPerUser`, `isActive`.\n7) Manque `createdAt`/`updatedAt` pour l'audit.\n\nVersion corrigée :\n```typescript\n@Entity()\nexport class Coupon {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column({ unique: true })\n  @IsNotEmpty()\n  code: string;\n\n  @Column({ type: 'enum', enum: ['percent', 'fixed'] })\n  type: 'percent' | 'fixed';\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  @Min(0)\n  value: number;\n\n  @Column({ type: 'timestamp', nullable: true })\n  validFrom?: Date;\n\n  @Column({ type: 'timestamp' })\n  validUntil: Date;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })\n  minOrderAmount: number;\n\n  @Column({ default: 0 })\n  maxUses: number;\n\n  @Column({ default: 0 })\n  maxUsesPerUser: number;\n\n  @Column({ default: 0 })\n  usedCount: number;\n\n  @Column({ default: true })\n  isActive: boolean;\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "id": "exo4",
+    "intitule": "Implémenter la validation d'un coupon avant application",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client souhaite appliquer un code promo à son panier. L'API doit valider que le coupon existe, n'a pas expiré, n'a pas dépassé ses limites d'utilisation, et que le panier remplit les conditions (montant minimum, etc.).</p>\n<p><strong>Consigne :</strong> Écrivez la méthode <code>validateCoupon</code> du service <code>CouponService</code> qui vérifie toutes ces conditions et retourne le montant de la réduction calculée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code TypeScript pour la méthode <code>validateCoupon</code>.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync validateCoupon(\n  code: string,\n  cartTotal: number,\n  userId?: number,\n): Promise<{ valid: boolean; discountAmount: number; message?: string }> {\n  // 1. Récupérer le coupon\n  const coupon = await this.couponRepository.findOne({ where: { code, isActive: true } });\n  if (!coupon) {\n    return { valid: false, discountAmount: 0, message: 'Code promo invalide.' };\n  }\n\n  // 2. Vérifier la période de validité\n  const now = new Date();\n  if (coupon.validFrom && now < coupon.validFrom) {\n    return { valid: false, discountAmount: 0, message: 'Ce code promo n\\'est pas encore actif.' };\n  }\n  if (now > coupon.validUntil) {\n    return { valid: false, discountAmount: 0, message: 'Ce code promo a expiré.' };\n  }\n\n  // 3. Vérifier le nombre d'utilisations globales\n  if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {\n    return { valid: false, discountAmount: 0, message: 'Ce code promo a atteint sa limite d\\'utilisations.' };\n  }\n\n  // 4. Vérifier le montant minimum de commande\n  if (cartTotal < coupon.minOrderAmount) {\n    return {\n      valid: false,\n      discountAmount: 0,\n      message: `Montant minimum requis : ${coupon.minOrderAmount} FCFA.`,\n    };\n  }\n\n  // 5. Vérifier la limite par utilisateur (si userId fourni)\n  if (userId && coupon.maxUsesPerUser > 0) {\n    const userUsageCount = await this.couponUsageRepository.count({\n      where: { couponId: coupon.id, userId },\n    });\n    if (userUsageCount >= coupon.maxUsesPerUser) {\n      return {\n        valid: false,\n        discountAmount: 0,\n        message: 'Vous avez déjà utilisé ce code promo le nombre maximum de fois.',\n      };\n    }\n  }\n\n  // 6. Calculer la réduction\n  let discountAmount = 0;\n  if (coupon.type === 'percent') {\n    discountAmount = (cartTotal * coupon.value) / 100;\n  } else {\n    discountAmount = Math.min(coupon.value, cartTotal);\n  }\n\n  return { valid: true, discountAmount };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir la génération de coupons uniques pour campagne email",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Une campagne marketing nécessite la génération de 500 coupons uniques (codes personnalisés) pour des clients ciblés. Chaque coupon doit être rattaché à un utilisateur spécifique et ne peut être utilisé qu'une seule fois.</p>\n<p><strong>Consigne :</strong> Répondez aux questions suivantes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une méthode pour générer des codes uniques aléatoires non devinables.",
+        "niveau": "hard",
+        "reponse": "On peut utiliser `crypto.randomBytes()` pour générer une chaîne aléatoire sécurisée :\n```typescript\nimport { randomBytes } from 'crypto';\n\nfunction generateCouponCode(length: number = 12): string {\n  return randomBytes(length).toString('base64url').substring(0, length).toUpperCase();\n}\n```\nPour garantir l'unicité, on vérifie en base et on régénère en cas de collision. On peut également ajouter un préfixe identifiable (ex: `CAMPAGNE_NOEL_${randomCode}`).",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quelle structure de base de données permet d'associer un coupon à un utilisateur spécifique ?",
+            "niveau": "medium",
+            "reponse": "Deux approches possibles :\n1. **Colonne `userId` dans l'entité Coupon** : relation ManyToOne. Un coupon peut être lié à un seul utilisateur ou être public (userId = NULL).\n2. **Table de liaison `CouponUser`** : si un coupon peut être associé à plusieurs utilisateurs (ex: offre parrainage).\n\nPour une campagne email personnalisée, on utilise la première approche :\n```typescript\n@ManyToOne(() => User, { nullable: true })\n@JoinColumn({ name: 'userId' })\nuser?: User;\n\n@Column({ nullable: true })\nuserId?: number;\n```\nLors de la validation, on vérifie que le coupon appartient bien à l'utilisateur connecté (ou que `userId` est NULL pour les coupons publics).",
+            "reponse": "Deux approches possibles :\n1. **Colonne `userId` dans l'entité Coupon** : relation ManyToOne. Un coupon peut être lié à un seul utilisateur ou être public (userId = NULL).\n2. **Table de liaison `CouponUser`** : si un coupon peut être associé à plusieurs utilisateurs (ex: offre parrainage).\n\nPour une campagne email personnalisée, on utilise la première approche :\n```typescript\n@ManyToOne(() => User, { nullable: true })\n@JoinColumn({ name: 'userId' })\nuser?: User;\n\n@Column({ nullable: true })\nuserId?: number;\n```\nLors de la validation, on vérifie que le coupon appartient bien à l'utilisateur connecté (ou que `userId` est NULL pour les coupons publics)."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir l'enregistrement des utilisations de coupons et la prévention des fraudes",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Pour tracer les utilisations des coupons et prévenir les fraudes (ex: un même utilisateur utilisant un coupon plusieurs fois si la limite est 1), on doit enregistrer chaque tentative d'application dans une table <code>CouponUsage</code>.</p>\n<p><strong>Consigne :</strong> Écrivez le code pour :</p>\n<ol>\n  <li>L'entité <code>CouponUsage</code></li>\n  <li>La méthode <code>applyCouponToOrder</code> qui applique un coupon à une commande et enregistre l'utilisation dans une transaction</li>\n</ol>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez l'entité CouponUsage et la méthode d'application avec transaction.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// Entité CouponUsage\n@Entity()\nexport class CouponUsage {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @ManyToOne(() => Coupon)\n  @JoinColumn({ name: 'couponId' })\n  coupon: Coupon;\n\n  @Column()\n  couponId: number;\n\n  @ManyToOne(() => User)\n  @JoinColumn({ name: 'userId' })\n  user: User;\n\n  @Column()\n  userId: number;\n\n  @ManyToOne(() => Order)\n  @JoinColumn({ name: 'orderId' })\n  order: Order;\n\n  @Column({ nullable: true })\n  orderId: number;\n\n  @Column({ type: 'decimal', precision: 10, scale: 2 })\n  discountAmount: number;\n\n  @CreateDateColumn()\n  usedAt: Date;\n}\n\n// Service\n@Injectable()\nexport class CouponService {\n  async applyCouponToOrder(\n    code: string,\n    orderId: number,\n    userId: number,\n    cartTotal: number,\n  ): Promise<Order> {\n    const queryRunner = this.connection.createQueryRunner();\n    await queryRunner.connect();\n    await queryRunner.startTransaction();\n\n    try {\n      // 1. Valider le coupon (reprend la logique de l'exercice 4)\n      const validation = await this.validateCoupon(code, cartTotal, userId);\n      if (!validation.valid) {\n        throw new BadRequestException(validation.message);\n      }\n\n      // 2. Verrouiller le coupon pour éviter les utilisations concurrentes (pessimistic lock)\n      const coupon = await queryRunner.manager.findOne(Coupon, {\n        where: { code },\n        lock: { mode: 'pessimistic_write' },\n      });\n\n      // 3. Mettre à jour le compteur d'utilisations\n      coupon.usedCount += 1;\n      await queryRunner.manager.save(coupon);\n\n      // 4. Enregistrer l'utilisation\n      const usage = this.couponUsageRepository.create({\n        couponId: coupon.id,\n        userId,\n        orderId,\n        discountAmount: validation.discountAmount,\n      });\n      await queryRunner.manager.save(usage);\n\n      // 5. Mettre à jour la commande avec la réduction\n      const order = await queryRunner.manager.findOne(Order, { where: { id: orderId } });\n      order.discountAmount = validation.discountAmount;\n      order.finalTotal = cartTotal - validation.discountAmount;\n      order.couponCode = code;\n      await queryRunner.manager.save(order);\n\n      await queryRunner.commitTransaction();\n\n      return order;\n    } catch (error) {\n      await queryRunner.rollbackTransaction();\n      throw error;\n    } finally {\n      await queryRunner.release();\n    }\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

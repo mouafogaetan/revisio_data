@@ -1,0 +1,118 @@
+[
+  {
+    "intitule": "Identifier la structure de l'entité Review et ses relations",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, les clients peuvent laisser des avis sur les produits qu'ils ont achetés.</p><p><strong>Question :</strong> Décrivez les propriétés minimales que doit contenir une entité <code>Review</code> (avis) et expliquez ses relations avec les entités <code>User</code> et <code>Product</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les champs essentiels d'une entité Review et précisez le type de relation avec User et Product.",
+        "niveau": "easy",
+        "reponse": "Une entité Review doit contenir au minimum :\n- `id` (clé primaire)\n- `rating` (nombre entier, généralement 1 à 5 étoiles)\n- `comment` (texte de l'avis)\n- `images` (optionnel, tableau de chaînes ou relation OneToMany avec une entité ReviewImage)\n- `createdAt` et `updatedAt`\n\nLes relations :\n- **ManyToOne** avec `User` : un utilisateur peut avoir plusieurs avis, chaque avis appartient à un seul utilisateur.\n- **ManyToOne** avec `Product` : un produit peut avoir plusieurs avis, chaque avis concerne un seul produit.\n\nOn peut également ajouter une relation `OneToMany` avec `ReviewImage` pour permettre plusieurs images par avis.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Distinguer les conditions de création d'un avis",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour garantir la fiabilité des avis, une plateforme e-commerce doit s'assurer que seuls les clients ayant réellement acheté un produit peuvent laisser un avis.</p><p><strong>Consigne :</strong> Comparez deux stratégies possibles pour vérifier qu'un utilisateur a bien acheté un produit avant de lui permettre d'écrire un avis. Listez les avantages et inconvénients de chacune.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Citez deux approches pour vérifier l'éligibilité d'un utilisateur à laisser un avis, et donnez un exemple de mise en œuvre pour chacune.",
+        "niveau": "medium",
+        "reponse": "**Approche 1 : Vérification à la création (requête SQL)**\n- Principe : Dans le service de création d'avis, on vérifie l'existence d'une commande payée contenant le produit pour cet utilisateur.\n- Avantage : Garantit que l'utilisateur a acheté le produit.\n- Inconvénient : Requête potentiellement lourde ; l'utilisateur pourrait avoir acheté puis retourné le produit.\n\n**Approche 2 : Vérification via une entité 'Eligibility'**\n- Principe : Après chaque commande payée, on crée un enregistrement `PurchaseEligibility` (userId, productId). L'avis vérifie l'existence de cet enregistrement.\n- Avantage : Plus rapide (index), permet de gérer les délais de rétractation.\n- Inconvénient : Nécessite un processus asynchrone supplémentaire.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Corriger une entité Review mal définie",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Voici une entité TypeORM pour les avis qui contient des erreurs :</p>\n<pre><code>@Entity()\nexport class Review {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column()\n  rating: number;\n\n  @Column()\n  comment: string;\n\n  @ManyToOne(() => User)\n  user: User;\n\n  @ManyToOne(() => Product)\n  product: Product;\n\n  @Column('simple-array')\n  images: string[];\n}\n</code></pre>\n<p><strong>Consigne :</strong> Identifiez les trois problèmes dans cette entité et proposez une version corrigée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Corrigez l'entité Review en respectant les bonnes pratiques TypeORM.",
+        "niveau": "medium",
+        "reponse": "Problèmes identifiés :\n1) Aucune validation sur `rating` (devrait être entre 1 et 5).\n2) `comment` est obligatoire alors qu'un avis pourrait n'avoir que des étoiles sans texte.\n3) Pas de colonnes `createdAt` / `updatedAt` (audit trail).\n4) Les relations n'ont pas de clés étrangères explicites ni de cascade définie.\n\nVersion corrigée :\n```typescript\n@Entity()\nexport class Review {\n  @PrimaryGeneratedColumn()\n  id: number;\n\n  @Column({ type: 'int' })\n  @Min(1)\n  @Max(5)\n  rating: number;\n\n  @Column({ nullable: true, type: 'text' })\n  comment?: string;\n\n  @Column('simple-array', { nullable: true })\n  images?: string[];\n\n  @ManyToOne(() => User, (user) => user.reviews, { onDelete: 'CASCADE' })\n  @JoinColumn({ name: 'userId' })\n  user: User;\n\n  @Column()\n  userId: number;\n\n  @ManyToOne(() => Product, (product) => product.reviews, { onDelete: 'CASCADE' })\n  @JoinColumn({ name: 'productId' })\n  product: Product;\n\n  @Column()\n  productId: number;\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter la vérification d'achat avant création d'un avis",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client souhaite laisser un avis sur un produit qu'il a commandé. L'API doit vérifier que l'utilisateur a bien acheté ce produit (commande avec statut 'delivered' ou 'paid') avant de créer l'avis.</p>\n<p><strong>Consigne :</strong> Écrivez la méthode du service <code>ReviewService</code> qui crée un avis après vérification. Utilisez les entités <code>Order</code> et <code>OrderItem</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code TypeScript pour la méthode <code>createReview</code> avec la vérification d'achat.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync createReview(userId: number, createReviewDto: CreateReviewDto): Promise<Review> {\n  const { productId, rating, comment, images } = createReviewDto;\n\n  // 1. Vérifier que l'utilisateur a acheté ce produit\n  const hasPurchased = await this.orderRepository\n    .createQueryBuilder('order')\n    .innerJoin('order.items', 'item')\n    .where('order.userId = :userId', { userId })\n    .andWhere('item.productId = :productId', { productId })\n    .andWhere('order.status IN (:...statuses)', { statuses: ['paid', 'delivered'] })\n    .getExists();\n\n  if (!hasPurchased) {\n    throw new ForbiddenException(\n      `Vous ne pouvez laisser un avis que sur un produit que vous avez acheté.`\n    );\n  }\n\n  // 2. Vérifier que l'utilisateur n'a pas déjà laissé un avis sur ce produit\n  const existingReview = await this.reviewRepository.findOne({\n    where: { userId, productId },\n  });\n\n  if (existingReview) {\n    throw new ConflictException('Vous avez déjà laissé un avis sur ce produit.');\n  }\n\n  // 3. Créer l'avis\n  const review = this.reviewRepository.create({\n    userId,\n    productId,\n    rating,\n    comment,\n    images,\n  });\n\n  return this.reviewRepository.save(review);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir le système de notation moyenne avec mise à jour automatique",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Chaque produit doit afficher sa note moyenne (basée sur tous les avis) et le nombre total d'avis. Pour des performances optimales, on souhaite mettre à jour ces statistiques automatiquement lorsqu'un avis est créé, modifié ou supprimé.</p>\n<p><strong>Consigne :</strong> Répondez aux questions suivantes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une méthode pour maintenir la note moyenne d'un produit à jour sans recalculer tous les avis à chaque requête.",
+        "niveau": "hard",
+        "reponse": "Deux approches possibles :\n\n**Approche 1 : Trigger PostgreSQL**\n- Créer une fonction PL/pgSQL qui recalcule la moyenne après chaque insertion/modification/suppression sur `reviews`.\n- Avantages : Atomicité, pas de code supplémentaire.\n- Inconvénients : Moins portable, logique hors du code applicatif.\n\n**Approche 2 : Mise à jour dans le service**\n- À chaque création/modification/suppression d'avis, recalculer la moyenne et mettre à jour le champ `averageRating` dans l'entité `Product`.\n- Utiliser une transaction pour garantir la cohérence.\n\nExemple avec mise à jour dans le service :\n```typescript\nasync updateProductAverageRating(productId: number) {\n  const result = await this.reviewRepository\n    .createQueryBuilder('review')\n    .select('AVG(review.rating)', 'avg')\n    .addSelect('COUNT(review.id)', 'count')\n    .where('review.productId = :productId', { productId })\n    .getRawOne();\n\n  await this.productRepository.update(productId, {\n    averageRating: parseFloat(result.avg) || 0,\n    reviewCount: parseInt(result.count) || 0,\n  });\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Où appeler cette méthode de mise à jour ?",
+            "niveau": "medium",
+            "reponse": "La méthode doit être appelée après chaque opération modifiant les avis :\n- Après `createReview` (création)\n- Après `updateReview` (modification de la note)\n- Après `deleteReview` (suppression)\n\nIl est recommandé d'utiliser les **event listeners** TypeORM (`@AfterInsert`, `@AfterUpdate`, `@AfterRemove`) sur l'entité Review pour déclencher automatiquement la mise à jour, ou d'utiliser un service dédié appelé manuellement dans chaque méthode du ReviewService.",
+            "reponse": "La méthode doit être appelée après chaque opération modifiant les avis :\n- Après `createReview` (création)\n- Après `updateReview` (modification de la note)\n- Après `deleteReview` (suppression)\n\nIl est recommandé d'utiliser les **event listeners** TypeORM (`@AfterInsert`, `@AfterUpdate`, `@AfterRemove`) sur l'entité Review pour déclencher automatiquement la mise à jour, ou d'utiliser un service dédié appelé manuellement dans chaque méthode du ReviewService."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Concevoir l'endpoint de création d'avis avec upload d'images",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un client peut laisser un avis avec une note, un commentaire et jusqu'à 3 images. Les images doivent être validées (format, taille) et stockées sur Cloudinary.</p>\n<p><strong>Consigne :</strong> Écrivez le DTO, le service et le contrôleur NestJS pour cette fonctionnalité. Utilisez `@nestjs/mapped-types` ou `class-validator` pour la validation.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Produisez le code complet (DTO, Service, Controller) pour la création d'un avis avec images.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// DTO\nexport class CreateReviewDto {\n  @IsNumber()\n  @Min(1)\n  @Max(5)\n  rating: number;\n\n  @IsOptional()\n  @IsString()\n  @MaxLength(1000)\n  comment?: string;\n\n  @IsOptional()\n  @ArrayMaxSize(3)\n  @IsArray()\n  images?: string[]; // URLs après upload\n}\n\n// Service\n@Injectable()\nexport class ReviewService {\n  constructor(\n    @InjectRepository(Review)\n    private reviewRepository: Repository<Review>,\n    @InjectRepository(Order)\n    private orderRepository: Repository<Order>,\n    private cloudinaryService: CloudinaryService,\n  ) {}\n\n  async createReview(\n    userId: number,\n    productId: number,\n    createReviewDto: CreateReviewDto,\n    files: Array<Express.Multer.File>,\n  ): Promise<Review> {\n    // Vérification d'achat (voir exercice précédent)\n    const hasPurchased = await this.verifyPurchase(userId, productId);\n    if (!hasPurchased) {\n      throw new ForbiddenException('Vous devez avoir acheté ce produit pour laisser un avis.');\n    }\n\n    // Upload des images vers Cloudinary\n    const imageUrls: string[] = [];\n    if (files && files.length > 0) {\n      for (const file of files) {\n        const result = await this.cloudinaryService.uploadImage(file, 'reviews');\n        imageUrls.push(result.secure_url);\n      }\n    }\n\n    const review = this.reviewRepository.create({\n      userId,\n      productId,\n      rating: createReviewDto.rating,\n      comment: createReviewDto.comment,\n      images: imageUrls,\n    });\n\n    const savedReview = await this.reviewRepository.save(review);\n\n    // Mettre à jour la note moyenne du produit\n    await this.updateProductAverageRating(productId);\n\n    return savedReview;\n  }\n\n  private async verifyPurchase(userId: number, productId: number): Promise<boolean> {\n    const order = await this.orderRepository.findOne({\n      where: {\n        userId,\n        status: In(['paid', 'delivered']),\n        items: { productId },\n      },\n      relations: ['items'],\n    });\n    return !!order;\n  }\n}\n\n// Controller\n@Controller('reviews')\n@UseGuards(JwtAuthGuard)\nexport class ReviewController {\n  constructor(private reviewService: ReviewService) {}\n\n  @Post('product/:productId')\n  @UseInterceptors(FileInterceptor('images', { limits: { files: 3 } }))\n  async createReview(\n    @Param('productId', ParseIntPipe) productId: number,\n    @CurrentUser() user: User,\n    @Body() createReviewDto: CreateReviewDto,\n    @UploadedFiles() files?: Array<Express.Multer.File>,\n  ) {\n    return this.reviewService.createReview(user.id, productId, createReviewDto, files);\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

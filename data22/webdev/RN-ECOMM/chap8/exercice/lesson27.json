@@ -1,0 +1,139 @@
+[
+  {
+    "intitule": "Analyse et configuration de Stripe PaymentSheet",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce mobile, on souhaite intégrer Stripe pour accepter les paiements par carte bancaire. L'équipe a choisi d'utiliser <code>@stripe/stripe-react-native</code> avec PaymentSheet. Le backend expose deux endpoints :</p><ul><li><code>POST /create-payment-intent</code> : retourne <code>{ clientSecret, publishableKey }</code></li><li><code>POST /webhook</code> : reçoit les événements Stripe (payment_intent.succeeded, etc.)</li></ul><p>La configuration doit fonctionner à la fois sur iOS et Android.</p>",
+      "images": [
+        "schéma d'architecture : mobile (React Native) ↔ backend (Node.js) ↔ Stripe API",
+        "capture d'écran de la configuration du projet dans le Stripe Dashboard (clés API)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes nécessaires pour initialiser Stripe dans l'application mobile avant de présenter le PaymentSheet.",
+        "niveau": "medium",
+        "reponse": "1. Installer le package avec `expo install @stripe/stripe-react-native` (ou npm).\n2. Envelopper l'application (ou l'écran de paiement) avec le composant `<StripeProvider publishableKey={clé}>`.\n3. Utiliser le hook `useStripe()` pour accéder aux méthodes `initPaymentSheet` et `presentPaymentSheet`.\n4. Appeler `initPaymentSheet` avec le `clientSecret` récupéré depuis le backend.\n5. Présenter le PaymentSheet avec `presentPaymentSheet`.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Justifier pourquoi le `clientSecret` doit être généré côté backend et non directement dans l'application mobile.",
+            "niveau": "medium",
+            "reponse": "Le `clientSecret` est lié à un PaymentIntent créé côté serveur. Il contient des informations sensibles (montant, devise) et ne doit pas être généré côté client pour éviter les falsifications. Le backend applique les règles métier (vérification du panier, calcul du total, gestion des stocks) avant de créer l'intention de paiement."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer le rôle du webhook Stripe dans le processus de validation d'une commande.",
+        "niveau": "medium",
+        "reponse": "Le webhook écoute l'événement `payment_intent.succeeded` envoyé par Stripe. Une fois reçu, le backend peut : valider définitivement la commande, marquer le paiement comme réussi, décrémenter les stocks, envoyer un email de confirmation et déclencher une notification push. Cela fonctionne même si l'utilisateur ferme l'application avant la fin du traitement.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation complète du paiement avec gestion des erreurs",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous devez implémenter la fonction de paiement dans l'écran de validation de commande. Le panier contient des articles avec un prix unitaire $p_i$ et une quantité $q_i$. Le total est $T = \\sum_{i=1}^{n} p_i \\times q_i$. Les frais de livraison sont fixes à $f = 1500$ FCFA (uniquement si $T \\geq 5000$). Le total final est $T_{final} = T + f$ (si condition remplie).</p><p>L'utilisateur peut cliquer sur \"Payer\" ; un indicateur de chargement doit apparaître ; en cas d'erreur (carte refusée, serveur indisponible), un message clair doit être affiché.</p>",
+      "images": [
+        "schéma de séquence entre mobile, backend et Stripe (création PaymentIntent → initialisation → présentation → confirmation webhook)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la fonction JavaScript/React Native qui calcule $T_{final}$ à partir du panier, selon la condition donnée.",
+        "niveau": "easy",
+        "reponse": "```javascript\nfunction calculateTotal(cartItems) {\n  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);\n  const deliveryFee = subtotal >= 5000 ? 1500 : 0;\n  return subtotal + deliveryFee;\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Rédiger le code du composant React Native qui gère le paiement : appel backend pour créer le PaymentIntent, initialisation du PaymentSheet, présentation et gestion des erreurs.",
+        "niveau": "very hard",
+        "reponse": "```jsx\nimport { useStripe } from '@stripe/stripe-react-native';\nimport { useState } from 'react';\n\nexport default function CheckoutScreen({ cartItems }) {\n  const { initPaymentSheet, presentPaymentSheet } = useStripe();\n  const [loading, setLoading] = useState(false);\n\n  const handleCheckout = async () => {\n    setLoading(true);\n    try {\n      // 1. Appel backend pour créer PaymentIntent\n      const response = await fetch('https://api.example.com/create-payment-intent', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ items: cartItems })\n      });\n      const { clientSecret, publishableKey } = await response.json();\n\n      // 2. Initialiser PaymentSheet\n      const { error: initError } = await initPaymentSheet({\n        paymentIntentClientSecret: clientSecret,\n        merchantDisplayName: 'Ma Boutique',\n      });\n      if (initError) throw new Error(initError.message);\n\n      // 3. Présenter le PaymentSheet\n      const { error: presentError } = await presentPaymentSheet();\n      if (presentError) throw new Error(presentError.message);\n\n      alert('✅ Paiement réussi ! Commande confirmée.');\n    } catch (error) {\n      alert(`Erreur: ${error.message}`);\n    } finally {\n      setLoading(false);\n    }\n  };\n\n  return (\n    <Button title=\"Payer\" onPress={handleCheckout} disabled={loading} />\n  );\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Proposer une amélioration pour gérer le cas où le backend renvoie une erreur (ex: panier vide, montant invalide).",
+            "niveau": "medium",
+            "reponse": "On peut vérifier le statut HTTP de la réponse. Si `!response.ok`, on parse le message d'erreur renvoyé par le backend (ex: `{ error: \"Panier vide\" }`) et on l'affiche à l'utilisateur. On évite ainsi d'appeler `initPaymentSheet` avec un `clientSecret` invalide."
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Discuter des différences de configuration requises entre iOS et Android pour Stripe PaymentSheet.",
+        "niveau": "hard",
+        "reponse": "iOS : besoin d'ajouter une `merchantIdentifier` dans `app.json` (Apple Pay) et de configurer le fichier `GoogleService-Info.plist` si on utilise Apple Pay. Android : nécessite d'ajouter la permission Internet et de configurer le `return URL` pour le webhook (dans `AndroidManifest.xml`). Aucune différence majeure au niveau du code JS, mais les builds nécessitent des étapes spécifiques (Expo EAS).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sécurisation et conformité PCI",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'équipe de sécurité rappelle que toute manipulation directe des données de carte bancaire côté mobile est interdite (normes PCI DSS). Stripe PaymentSheet résout ce problème en affichant un formulaire de paiement hébergé par Stripe.</p><p>Le backend doit envoyer le montant exact en centimes (ou en unité minimale de la devise) à Stripe. Par exemple, 1500 FCFA correspond à 1500 (pas de décimales).</p>",
+      "images": [
+        "schéma comparatif entre intégration directe (non conforme) et PaymentSheet (conforme)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi PaymentSheet est plus sécurisé qu'un formulaire de carte bancaire fait maison avec des <TextInput>.",
+        "niveau": "medium",
+        "reponse": "PaymentSheet affiche un WebView ou une interface native hébergée par Stripe. Les données de carte (numéro, CVV, expiration) ne transitent jamais par le code de l'application mobile ni par le backend du commerçant. Elles sont envoyées directement aux serveurs Stripe, qui retournent un token. Le commerçant n'a donc pas à stocker ni à manipuler des données sensibles, ce qui simplifie la conformité PCI.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Convertir un montant de 12500 FCFA en unité minimale (centimes) pour Stripe. Quelle est l'erreur courante à éviter ?",
+        "niveau": "easy",
+        "reponse": "Pour Stripe, le montant doit être en centimes (ou plus petite unité monétaire). Le FCFA n'a pas de centime ; on envoie donc l'entier 12500. L'erreur courante est d'envoyer 12500*100 = 1 250 000 centimes, ce qui multiplierait le montant par 100. Il faut connaître la devise : pour EUR/USD on multiplie par 100 ; pour JPY, MAD, FCFA (XAF) on envoie l'entier tel quel.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des webhooks et mise à jour du statut commande",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Après un paiement réussi, Stripe envoie un événement <code>payment_intent.succeeded</code> à votre webhook. Cependant, le réseau peut être instable et Stripe peut réessayer l'envoi plusieurs fois.</p><p>Votre backend doit être <strong>idempotent</strong> : si le même événement est reçu deux fois, la commande ne doit pas être validée deux fois.</p>",
+      "images": [
+        "diagramme séquentiel des tentatives de webhook avec idempotence (stripe-signature, stockage des eventId)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire une stratégie pour garantir l'idempotence lors du traitement du webhook Stripe.",
+        "niveau": "hard",
+        "reponse": "1. Chaque événement Stripe possède un identifiant unique (`id` ou `event_id`).\n2. Dans le backend, stocker les IDs des événements déjà traités dans une table `processed_events` (avec un index unique).\n3. À la réception du webhook, vérifier si l'événement a déjà été traité ; si oui, retourner un statut 200 sans rien faire.\n4. Si non, traiter la commande (valider, mettre à jour le stock, envoyer email) puis enregistrer l'ID.\n5. Utiliser une transaction SQL pour éviter les conditions de concurrence.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Pourquoi est-il important de retourner un statut 200 même pour un événement déjà traité ?",
+            "niveau": "easy",
+            "reponse": "Stripe interprète tout code autre que 2xx comme un échec et réessaie l'envoi. Si on retourne une erreur alors que l'événement est déjà traité, Stripe continuera à renvoyer le même webhook, créant une boucle inutile et polluant les logs."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire un extrait de code Node.js/Express qui vérifie la signature du webhook Stripe avant tout traitement.",
+        "niveau": "hard",
+        "reponse": "```javascript\nconst express = require('express');\nconst stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);\n\napp.post('/webhook', express.raw({type: 'application/json'}), (req, res) => {\n  const sig = req.headers['stripe-signature'];\n  let event;\n  try {\n    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);\n  } catch (err) {\n    return res.status(400).send(`Webhook Error: ${err.message}`);\n  }\n  \n  if (event.type === 'payment_intent.succeeded') {\n    // Traitement idempotent ici\n  }\n  res.json({received: true});\n});\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

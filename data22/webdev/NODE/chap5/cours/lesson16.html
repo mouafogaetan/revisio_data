@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 16 : Relations avec Mongoose (Embedding vs Référencement)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation Tailwind + styles supplémentaires -->
+    <style>
+        /* Styles doux pour les yeux et transitions fluides */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f2f5 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide-container {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e3a8a;
+            color: white;
+        }
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        .badge-module {
+            background: #0f3b2c;
+            color: #e0f2e9;
+        }
+        /* code mock simple */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .highlight {
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                padding: 1.25rem !important;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slidesWrapper" class="relative">
+            <!-- Slide actif -->
+            <div id="slideActive" class="slide-container overflow-hidden">
+                <!-- Le contenu sera injecté dynamiquement avec jQuery -->
+            </div>
+
+            <!-- Navigation + indicateurs -->
+            <div class="flex flex-wrap justify-between items-center mt-6 gap-3">
+                <button id="prevSlide" class="nav-btn bg-white text-blue-800 font-semibold py-2 px-5 rounded-full shadow-md border border-blue-200 disabled:opacity-40">← Précédent</button>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+                <button id="nextSlide" class="nav-btn bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md hover:bg-blue-800">Suivant →</button>
+            </div>
+            <!-- Barre de progression -->
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-5 overflow-hidden">
+                <div id="progressBar" class="progress-bar bg-blue-600 h-2 rounded-full" style="width: 0%;"></div>
+            </div>
+            <p class="text-center text-sm text-gray-500 mt-3">Leçon 16 · Backend Node.js / MongoDB avec Mongoose</p>
+        </div>
+    </div>
+
+    <script>
+        // Données de la leçon 16 (basées sur le programme JSON: chap5, lesson16)
+        // Titre: Relations entre collections (références), populate(), embedding vs referencing
+        const lessonData = {
+            title: "📘 Relations entre collections avec Mongoose",
+            objectives: [
+                "🎯 Créer des relations entre collections (références d'objets ObjectId)",
+                "🔗 Utiliser la méthode `.populate()` pour peupler automatiquement les documents liés",
+                "🧠 Comprendre la différence entre **Embedding** (documents imbriqués) et **Referencing** (références)",
+                "🛠️ Choisir la bonne approche selon le cas d'usage (performance, taille, cohérence)"
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "📌 Pourquoi gérer des relations ?",
+                    content: `
+                        <p class="text-gray-700 mb-3">En développement web, les données sont souvent liées : un utilisateur <strong>possède</strong> plusieurs articles, un article <strong>appartient à</strong> une catégorie. MongoDB étant une base NoSQL, il n'y a pas de "jointures" classiques comme en SQL. Mais Mongoose nous offre deux stratégies puissantes :</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                                <h3 class="font-bold text-indigo-800 text-lg">📦 Embedding (intégration)</h3>
+                                <p class="text-sm">Les sous-documents sont stockés <span class="font-mono">directement à l'intérieur</span> du document parent.</p>
+                                <div class="code-block text-xs mt-2">{
+  nom: "Classe A",
+  etudiants: [{ prenom: "Alice" }, { prenom: "Bob" }]
+}</div>
+                            </div>
+                            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                <h3 class="font-bold text-emerald-800 text-lg">🔗 Referencing (référence)</h3>
+                                <p class="text-sm">On stocke seulement l'<span class="font-mono">_id</span> de l'autre collection, puis on utilise <strong>populate()</strong>.</p>
+                                <div class="code-block text-xs mt-2">{
+  titre: "Article",
+  auteurId: ObjectId("64abc...")
+}</div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔗 1. Définir une référence (Referencing)",
+                    content: `
+                        <p class="mb-2">Pour créer une relation entre deux collections (ex: <strong>Auteur</strong> et <strong>Livre</strong>), on utilise le type <code class="bg-gray-200 px-1 rounded">Schema.Types.ObjectId</code> avec l'attribut <code>ref</code>.</p>
+                        <div class="code-block">
+// Modèle Author.js
+const authorSchema = new Schema({
+  name: String,
+  birthYear: Number
+});
+
+// Modèle Book.js (référence vers Author)
+const bookSchema = new Schema({
+  title: String,
+  author: { type: Schema.Types.ObjectId, ref: 'Author' } // référence
+});
+                        </div>
+                        <div class="highlight mt-3">
+                            <p class="font-semibold">✅ Avantage :</p>
+                            <p class="text-sm">Chaque document reste petit, flexible, évite la duplication. Idéal pour les relations "plusieurs-à-plusieurs" ou quand les données liées sont volumineuses et changent souvent.</p>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "✨ .populate() : le pouvoir des références",
+                    content: `
+                        <p>Lorsque vous récupérez un document avec référence, Mongoose ne remplit pas automatiquement le champ lié. Il faut utiliser <code class="bg-gray-200 px-1 rounded">.populate()</code> pour faire la "jointure" côté application.</p>
+                        <div class="code-block">
+// Exemple : trouver un livre et charger l'auteur correspondant
+const book = await Book.findById(bookId).populate('author');
+console.log(book.author.name); // affiche le nom de l'auteur
+
+// Population multiple ou champs spécifiques
+Book.find().populate('author', 'name birthYear').exec();
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">💡 <strong>Populate</strong> remplace l'ObjectId par le document complet de la collection référencée, en une seule requête supplémentaire (optimisé).</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🧩 2. Embedding (documents imbriqués)",
+                    content: `
+                        <p>L'embedding consiste à intégrer des sous-documents directement dans un tableau ou un objet. Cela correspond à la philosophie "document" de MongoDB.</p>
+                        <div class="code-block">
+// Schéma d'un blog avec des commentaires intégrés
+const blogSchema = new Schema({
+  title: String,
+  content: String,
+  comments: [{
+    text: String,
+    author: String,
+    date: Date
+  }]
+});
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
+                            <span class="font-bold">📌 Quand utiliser l'embedding ?</span>
+                            <ul class="list-disc ml-5 mt-1 text-sm">
+                                <li>Les données sont toujours affichées ensemble (parent + enfant).</li>
+                                <li>Relation "un-à-plusieurs" avec cardinalité faible (ex: quelques commentaires).</li>
+                                <li>Besoins d'atomicité : pas besoin de références séparées.</li>
+                            </ul>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚖️ Tableau comparatif : Embedding vs Referencing",
+                    content: `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
+                                <thead class="bg-gray-100">
+                                    <tr><th class="p-3 border-b">Critère</th><th class="p-3 border-b">📦 Embedding</th><th class="p-3 border-b">🔗 Referencing + populate</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="p-2 font-medium">Performance lecture</td><td class="p-2">Très rapide (1 seule lecture)</td><td class="p-2">2 requêtes (mais populate optimise)</td></tr>
+                                    <tr class="border-b"><td class="p-2 font-medium">Taille document</td><td class="p-2">Peut devenir énorme (16Mo limite)</td><td class="p-2">Documents petits et évolutifs</td></tr>
+                                    <tr class="border-b"><td class="p-2 font-medium">Mise à jour enfant</td><td class="p-2">Mise à jour lourde si beaucoup d'enfants</td><td class="p-2">Facile, on update directement l'enfant</td></tr>
+                                    <tr><td class="p-2 font-medium">Cas typique</td><td class="p-2">Commentaires, adresses, produits d'une commande</td><td class="p-2">Utilisateurs / articles, catégories, relations complexes</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-3 text-blue-800 bg-blue-50 p-2 rounded">💡 <strong>Recommandation</strong> : commencez par l'embedding quand c'est naturel, passez au referencing si les données enfants sont très nombreuses ou partagées.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🛠️ Exemple pratique : API Blog avec auteurs et articles (référence)",
+                    content: `
+                        <p>Imaginons une API avec deux collections : <strong>User</strong> et <strong>Post</strong>. Chaque post appartient à un user.</p>
+                        <div class="code-block">
+// user.model.js
+const userSchema = new mongoose.Schema({ name: String, email: String });
+const User = mongoose.model('User', userSchema);
+
+// post.model.js
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+const Post = mongoose.model('Post', postSchema);
+
+// Création d'un post en liant l'auteur
+const user = await User.findOne({ email: "prof@exemple.com" });
+const newPost = new Post({ title: "Mongoose avancé", content: "...", author: user._id });
+await newPost.save();
+
+// Récupération avec populate
+const postWithAuthor = await Post.findById(newPost._id).populate('author', 'name');
+                        </div>
+                        <p>✔️ Ainsi on bénéficie de la souplesse NoSQL avec la puissance des relations.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "📝 Activité & Bonnes pratiques",
+                    content: `
+                        <div class="space-y-3">
+                            <div class="bg-white p-4 rounded-xl border">
+                                <h3 class="font-bold text-lg">🧪 À toi de pratiquer :</h3>
+                                <p>1. Crée deux modèles : <span class="font-mono">Student</span> et <span class="font-mono">Course</span>. Un cours peut avoir plusieurs étudiants, mais chaque étudiant peut suivre plusieurs cours (relation Many-to-Many). Utilise le referencing avec un tableau d'ObjectId.</p>
+                                <p>2. Écris une requête pour trouver un cours donné et peupler (<code>populate</code>) la liste des étudiants.</p>
+                                <p>3. Réfléchis : Dans un système de notes, est-ce mieux d'embedder les notes dans l'étudiant ou de faire référence ? Pourquoi ?</p>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-lg text-green-800">
+                                ⚡ Rappel : Ne pas sur-utiliser populate dans une boucle ; préférer l'agrégation ou bien restructurer.
+                            </div>
+                            <div class="text-center p-2 text-sm">
+                                📌 Prochaine étape : Mise en place de l'API complète avec authentification + relations.
+                            </div>
+                        </div>
+                    `
+                }
+            ]
+        };
+
+        // Construction des slides (titre + objectifs + 7 slides contenu)
+        let slidesArray = [];
+
+        // Slide 0 : Titre de la leçon
+        slidesArray.push({
+            type: "title",
+            html: `
+                <div class="text-center p-4 md:p-8">
+                    <div class="inline-block p-2 bg-green-100 rounded-full mb-4">🎓</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-800 to-emerald-700 bg-clip-text text-transparent">${lessonData.title}</h1>
+                    <p class="text-gray-600 mt-3 max-w-md mx-auto">Cours backend - Conception de bases de données avec Mongoose</p>
+                    <div class="mt-8 flex justify-center gap-2 flex-wrap">
+                        <span class="badge-module px-3 py-1 rounded-full text-sm">Mongoose</span>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">Relations NoSQL</span>
+                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm">Population</span>
+                    </div>
+                    <div class="mt-10 text-sm text-gray-500">👨‍🏫 Enseignant: Département Développement Web<br>🇨🇲 Cameroun</div>
+                </div>
+            `
+        });
+
+        // Slide 1 : Objectifs pédagogiques
+        let objectivesHtml = `<div class="p-2"><h2 class="text-2xl font-bold text-blue-800 mb-4 border-l-4 border-blue-600 pl-3">🎯 Objectifs de la leçon</h2><ul class="space-y-3">`;
+        lessonData.objectives.forEach(obj => {
+            objectivesHtml += `<li class="flex items-start gap-2"><span class="text-green-600 text-xl">✔️</span><span class="text-gray-700">${obj}</span></li>`;
+        });
+        objectivesHtml += `</ul><div class="mt-6 p-3 bg-gray-50 rounded-lg italic text-gray-600">"Bien choisir entre embedding et referencing améliore la performance et la clarté de ton code."</div></div>`;
+        slidesArray.push({ type: "objectives", html: objectivesHtml });
+
+        // Slides de contenu (basés sur lessonData.slides)
+        lessonData.slides.forEach(slide => {
+            slidesArray.push({
+                type: "content",
+                html: `
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 border-b border-blue-200 pb-2 mb-4">${slide.title}</h2>
+                        <div class="prose prose-lg max-w-none text-gray-700">${slide.content}</div>
+                    </div>
+                `
+            });
+        });
+
+        let currentIndex = 0;
+        const totalSlides = slidesArray.length;
+
+        // Fonction pour rendre le slide actif
+        function renderSlide(index) {
+            const slideHtml = slidesArray[index].html;
+            $("#slideActive").html(`
+                <div class="slide p-5 md:p-8 transition-all duration-200">
+                    ${slideHtml}
+                    <div class="text-xs text-right text-gray-400 mt-6">Slide ${index+1}/${totalSlides}</div>
+                </div>
+            `);
+            // Mise à jour des dots
+            updateDots(index);
+            // Mise à jour barre progression
+            const progressPercent = ((index) / (totalSlides - 1)) * 100;
+            $("#progressBar").css("width", `${progressPercent}%`);
+            // Gestion état boutons
+            $("#prevSlide").prop("disabled", index === 0);
+            $("#nextSlide").prop("disabled", index === totalSlides - 1);
+            // Scroll en haut pour meilleure expérience mobile
+            $("html, body").animate({ scrollTop: 0 }, 100);
+            // Si MathJax est présent, on peut relancer le rendu (optionnel)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function updateDots(activeIdx) {
+            let dotsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === activeIdx) ? "bg-blue-700 w-8" : "bg-gray-300 w-3";
+                dotsHtml += `<button class="dot h-3 rounded-full ${activeClass} transition-all duration-200 mx-1" data-index="${i}"></button>`;
+            }
+            $("#dotsContainer").html(dotsHtml);
+            // Attacher événement clic sur chaque dot
+            $(".dot").on("click", function() {
+                let newIndex = parseInt($(this).data("index"));
+                if (!isNaN(newIndex) && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    renderSlide(currentIndex);
+                }
+            });
+        }
+
+        // Navigation
+        $("#nextSlide").on("click", function() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        });
+        $("#prevSlide").on("click", function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        });
+
+        // Gestion clavier (flèches droite/gauche)
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                $("#nextSlide").click();
+            } else if (e.key === "ArrowLeft") {
+                $("#prevSlide").click();
+            }
+        });
+
+        // Initialisation
+        renderSlide(0);
+    </script>
+</body>
+</html>

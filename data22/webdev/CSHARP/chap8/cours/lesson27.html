@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 27 : Filtrer, projeter et agréger avec LINQ | Initiation C#</title>
+    <!-- Tailwind CSS CDN + basic interceptions -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin - peu de maths ici mais au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police et personnalisation douce -->
+    <style>
+        /* transitions smooth pour le slide */
+        .slide-container {
+            transition: all 0.2s ease-in-out;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        /* boutons réactifs */
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* code block style simple */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .badge-lang {
+            background: #0f172a;
+            color: #b9ff66;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+        }
+        /* petite ombre légère pour cartes */
+        .card-lambda {
+            background: #f8fafc;
+            border-left: 6px solid #3b82f6;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.7rem;
+                padding: 0.8rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        /* couleurs agréables */
+        body {
+            background: #f1f5f9;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #3b82f6;
+            border-radius: 4px;
+            width: 0%;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-3xl mx-auto px-4 py-6 md:py-8">
+        <!-- En-tête avec progression discrète -->
+        <div class="flex justify-between items-center mb-4 text-sm text-gray-600">
+            <div class="flex items-center gap-2">
+                <span class="badge-lang">📘 Initiation C# - LINQ</span>
+                <span class="hidden sm:inline text-gray-500">Leçon 27/39</span>
+            </div>
+            <div class="text-right font-medium">
+                <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+            </div>
+        </div>
+        <div class="progress-bar w-full mb-4">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- Container des slides -->
+        <div class="slide-container bg-white rounded-2xl shadow-lg p-5 md:p-8 mb-6 transition-all">
+            <!-- Slide 1 : Titre + infos leçon -->
+            <div class="slide" data-slide="1">
+                <div class="text-center my-4 md:my-8">
+                    <div class="inline-block bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">🎯 LINQ avancé</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 mb-4">Filtrer, projeter et agréger <br>avec LINQ</h1>
+                    <p class="text-lg text-gray-600 max-w-xl mx-auto">Maîtrisez les opérateurs <span class="font-mono bg-gray-100 px-1">Where</span>, <span class="font-mono bg-gray-100 px-1">Select</span>, <span class="font-mono bg-gray-100 px-1">SelectMany</span> et les fonctions d'agrégation (<span class="font-mono">Count, Sum, Average, Min, Max, Aggregate</span>).</p>
+                    <div class="mt-8 flex justify-center gap-2 flex-wrap">
+                        <span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full">🔍 Filtrage</span>
+                        <span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full">📐 Projection</span>
+                        <span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full">📊 Agrégation</span>
+                        <span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full">⚡ C# moderne</span>
+                    </div>
+                </div>
+                <!-- petit schéma ascii pour représenter le flux de données -->
+                <div class="bg-gray-50 rounded-xl p-4 my-4 text-center text-sm font-mono border border-gray-200 overflow-x-auto">
+                    <div class="flex justify-center items-center gap-1 flex-wrap text-gray-700">
+                        <span class="bg-white px-2 py-1 rounded shadow">Collection</span> 
+                        <span>➡️</span> 
+                        <span class="bg-blue-100 px-2 py-1 rounded">Where (filtre)</span> 
+                        <span>➡️</span> 
+                        <span class="bg-green-100 px-2 py-1 rounded">Select (projette)</span> 
+                        <span>➡️</span> 
+                        <span class="bg-amber-100 px-2 py-1 rounded">Aggrégation (Sum/Count...)</span>
+                        <span>➡️ Résultat</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 2 : Objectifs pédagogiques (issus du programme) -->
+            <div class="slide" data-slide="2">
+                <div class="flex items-center gap-2 mb-5 border-b pb-2 border-gray-200">
+                    <span class="text-2xl">🎯</span>
+                    <h2 class="text-2xl font-bold text-slate-800">Objectifs de la leçon</h2>
+                </div>
+                <ul class="space-y-4 text-gray-700">
+                    <li class="flex items-start gap-3"><span class="text-blue-600 font-bold text-xl">✓</span> <span><strong>Filtrer</strong> avec <code class="bg-gray-100 px-1 rounded">Where</code>, <code class="bg-gray-100 px-1 rounded">OfType</code> – sélectionner les éléments selon une condition.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-blue-600 font-bold text-xl">✓</span> <span><strong>Projeter</strong> avec <code class="bg-gray-100 px-1 rounded">Select</code> et <code class="bg-gray-100 px-1 rounded">SelectMany</code> – transformer chaque élément ou aplatir des collections.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-blue-600 font-bold text-xl">✓</span> <span><strong>Agréger</strong> avec <code class="bg-gray-100 px-1 rounded">Count, Sum, Average, Min, Max, Aggregate</code> – calculer des résumés statistiques.</span></li>
+                    <li class="flex items-start gap-3"><span class="text-blue-600 font-bold text-xl">✓</span> <span>Savoir combiner ces opérateurs pour écrire des requêtes puissantes et lisibles.</span></li>
+                </ul>
+                <div class="mt-8 bg-sky-50 p-4 rounded-xl text-sky-800 text-sm">
+                    💡 À la fin de cette leçon, vous serez capable de transformer des données métier (listes, tableaux) en informations exploitables en quelques lignes de code.
+                </div>
+                <!-- mini dessin illustration filtre/projection (graphique simple) -->
+                <div class="mt-6 text-center text-gray-500 text-xs">📊 Filtrage ➜ Projection ➜ Agrégation : le triptyque LINQ</div>
+            </div>
+
+            <!-- Slide 3 : Filtrer avec Where et OfType -->
+            <div class="slide" data-slide="3">
+                <div class="flex flex-wrap justify-between items-center mb-4">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-800">🔍 Filtrer : <span class="font-mono text-blue-700">Where</span> & <span class="font-mono text-blue-700">OfType</span></h2>
+                    <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">LINQ to Objects</span>
+                </div>
+                <p class="mb-3 text-gray-700"><code class="bg-gray-100 px-1">Where</code> permet de sélectionner les éléments d'une collection qui satisfont une condition (expression lambda booléenne). <code class="bg-gray-100 px-1">OfType</code> filtre selon un type précis.</p>
+                
+                <div class="card-lambda p-4 rounded-xl my-3">
+                    <p class="font-semibold mb-2">Exemple simple : nombres pairs</p>
+                    <pre><code>int[] nombres = { 5, 12, 7, 18, 3, 20 };
+var pairs = nombres.Where(n => n % 2 == 0);
+// Résultat : 12, 18, 20</code></pre>
+                </div>
+                <div class="card-lambda p-4 rounded-xl my-3">
+                    <p class="font-semibold mb-2">Avec des objets : étudiants majeurs</p>
+                    <pre><code>var majeurs = etudiants.Where(e => e.Age >= 18);
+// OfType : récupère uniquement les strings d’une liste mixte
+object[] data = { "Bonjour", 42, "C#", 3.14 };
+var chaines = data.OfType&lt;string&gt;(); // "Bonjour", "C#"</code></pre>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">✅ <strong>Bonnes pratiques</strong> : Where ne modifie pas la source, il retourne une nouvelle requête. L'exécution est différée (Deferred Execution).</p>
+            </div>
+
+            <!-- Slide 4 : Projection avec Select / SelectMany -->
+            <div class="slide" data-slide="4">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-3">📐 Projection : <span class="font-mono text-green-700">Select</span> & <span class="font-mono text-green-700">SelectMany</span></h2>
+                <p class="mb-3 text-gray-700"><code>Select</code> transforme chaque élément en un nouveau formulaire (projection). <code>SelectMany</code> aplatit des collections imbriquées en une seule séquence.</p>
+                <div class="bg-gray-50 p-4 rounded-xl my-3">
+                    <p class="font-semibold">✨ Select : calculer le carré d'une liste</p>
+                    <pre><code>int[] nombres = { 1, 2, 3, 4 };
+var carres = nombres.Select(n => n * n);
+// carres = [1, 4, 9, 16]</code></pre>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl my-3">
+                    <p class="font-semibold">✨ Projeter sur un type anonyme</p>
+                    <pre><code>var nomsMaj = personnes.Select(p => new { 
+    NomComplet = p.Prenom + " " + p.Nom,
+    AnneeNaissance = DateTime.Now.Year - p.Age 
+});</code></pre>
+                </div>
+                <div class="bg-indigo-50 p-4 rounded-xl my-3">
+                    <p class="font-semibold">🌀 SelectMany : aplatir des listes de listes</p>
+                    <pre><code>List&lt;string[]&gt; phrases = new() {
+    new[] { "Bonjour", "le", "monde" },
+    new[] { "C#", "LINQ" }
+};
+var mots = phrases.SelectMany(p => p);
+// Résultat : "Bonjour","le","monde","C#","LINQ"</code></pre>
+                </div>
+                <!-- petit dessin en ligne : représentation d'un flatten -->
+                <div class="text-center text-sm text-gray-500 mt-2 border-t pt-2">📚 SelectMany transforme [ [a,b], [c] ] → [a,b,c]</div>
+            </div>
+
+            <!-- Slide 5 : Agrégations - Count, Sum, Average, Min, Max -->
+            <div class="slide" data-slide="5">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-3">📊 Agrégations standards</h2>
+                <p class="mb-3 text-gray-700">Ces méthodes exécutent un calcul sur une séquence et retournent une valeur unique. Très pratiques pour les statistiques.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-amber-50 p-3 rounded-lg"><span class="font-mono font-bold">Count()</span> → nombre d'éléments <pre class="mt-1 text-xs"><code>int[] ages = { 18, 25, 30 };
+int total = ages.Count(); // 3</code></pre></div>
+                    <div class="bg-amber-50 p-3 rounded-lg"><span class="font-mono font-bold">Sum()</span> → somme <pre class="mt-1 text-xs"><code>double prix = { 9.99, 4.5 };
+double total = prix.Sum(); // 14.49</code></pre></div>
+                    <div class="bg-amber-50 p-3 rounded-lg"><span class="font-mono font-bold">Average()</span> → moyenne <pre class="mt-1 text-xs"><code>var notes = new List&lt;int&gt;{ 12, 15, 18 };
+double moy = notes.Average(); // 15.0</code></pre></div>
+                    <div class="bg-amber-50 p-3 rounded-lg"><span class="font-mono font-bold">Min() / Max()</span> → min/max <pre class="mt-1 text-xs"><code>var vals = new[] { 3, 9, 1, 7 };
+int min = vals.Min(); // 1
+int max = vals.Max(); // 9</code></pre></div>
+                </div>
+                <p class="mt-4 text-sm text-gray-600">💡 Ces méthodes acceptent aussi une lambda pour projeter avant calcul : <code class="bg-gray-100">eleves.Average(e => e.Note)</code>.</p>
+            </div>
+
+            <!-- Slide 6 : Agréger avec Aggregate (avancé) -->
+            <div class="slide" data-slide="6">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-2">⚙️ Aggrégation sur mesure : <span class="font-mono">Aggregate</span></h2>
+                <p class="mb-3 text-gray-700"><code>Aggregate</code> applique cumulativement une fonction d'accumulation. Très flexible pour des calculs complexes (concaténation, produit, recherche personnalisée).</p>
+                <div class="bg-slate-100 rounded-xl p-4">
+                    <p class="font-semibold">🔁 Exemple : concaténer des chaînes avec séparateur</p>
+                    <pre><code>string[] mots = { "C#", "LINQ", "est", "puissant" };
+string phrase = mots.Aggregate((acc, mot) => acc + " " + mot);
+// Résultat : "C# LINQ est puissant"</code></pre>
+                    <p class="font-semibold mt-3">🧮 Calcul factoriel avec Aggregate</p>
+                    <pre><code>int[] facteurs = { 1, 2, 3, 4, 5 };
+int factoriel5 = facteurs.Aggregate(1, (prod, val) => prod * val);
+// 120 (1*2*3*4*5)</code></pre>
+                </div>
+                <div class="mt-4 bg-blue-50 p-3 rounded-lg text-sm">
+                    ⚠️ <strong>Remarque</strong> : Aggregate nécessite que la collection ne soit pas vide (sinon exception). Une graine (seed) peut être fournie.
+                </div>
+            </div>
+
+            <!-- Slide 7 : Combinaison puissante - Exemple concret métier (filtre + projection + agrégation) -->
+            <div class="slide" data-slide="7">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-3">🚀 Exemple complet : combiner Where, Select, Sum</h2>
+                <p class="text-gray-700 mb-3">Imaginons une liste de commandes : nous voulons la somme des montants des commandes validées pour un client spécifique.</p>
+                <pre><code>class Commande {
+    public string Client { get; set; }
+    public decimal Montant { get; set; }
+    public bool EstValidee { get; set; }
+}
+
+List&lt;Commande&gt; commandes = new() {
+    new Commande { Client="Alice", Montant=150, EstValidee=true },
+    new Commande { Client="Bob", Montant=80, EstValidee=false },
+    new Commande { Client="Alice", Montant=200, EstValidee=true },
+};
+
+decimal totalAlice = commandes
+    .Where(c => c.Client == "Alice" && c.EstValidee)
+    .Select(c => c.Montant)
+    .Sum();
+
+// totalAlice = 350</code></pre>
+                <div class="bg-green-50 p-3 rounded-lg mt-3 flex gap-2 flex-wrap items-center">
+                    <span class="text-green-800 font-bold">✔ Résultat :</span> 350€ – seulement les commandes validées d'Alice.
+                </div>
+                <p class="text-sm text-gray-600 mt-3">On peut aussi utiliser <code>Average</code> sur le montant, <code>Count</code> sur les commandes validées, etc.</p>
+                <!-- dessin minimal d'un pipeline -->
+                <div class="relative mt-4 p-2 border-t border-gray-200 text-center text-xs text-gray-400">Filtre ➜ Projection ➜ Agrégation = Requête déclarative efficace</div>
+            </div>
+
+            <!-- Slide 8 : Récapitulatif et bonnes pratiques -->
+            <div class="slide" data-slide="8">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-4">📌 Récapitulatif & astuces</h2>
+                <div class="space-y-3">
+                    <div class="flex items-start gap-2"><span class="text-blue-600 text-xl">•</span> <span><strong>Where</strong> → pour filtrer selon condition booléenne.</span></div>
+                    <div class="flex items-start gap-2"><span class="text-blue-600 text-xl">•</span> <span><strong>Select</strong> → transformer / projeter des données.</span></div>
+                    <div class="flex items-start gap-2"><span class="text-blue-600 text-xl">•</span> <span><strong>SelectMany</strong> → aplatir des collections imbriquées.</span></div>
+                    <div class="flex items-start gap-2"><span class="text-blue-600 text-xl">•</span> <span><strong>Agrégations</strong> (Sum, Average, Count, Min, Max, Aggregate) → résumer des données.</span></div>
+                    <div class="bg-gray-100 p-3 rounded-lg mt-2">
+                        <p class="font-semibold">💡 Exécution différée :</p>
+                        <p class="text-sm">La plupart des opérateurs LINQ ne sont exécutés que lorsqu'on itère sur le résultat (ou appel à ToList(), Count(), etc.). Cela permet d'optimiser les performances.</p>
+                    </div>
+                    <div class="bg-yellow-50 p-3 rounded-lg mt-2">
+                        <p class="font-semibold">🧪 Exercice de réflexion :</p>
+                        <p class="text-sm">À partir d'une liste de produits (Nom, Prix, Stock), utilisez Where pour ne garder que les produits en stock, Select pour avoir le prix TTC (avec TVA 20%) et enfin Sum pour calculer le chiffre d'affaires potentiel.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 9 : Évaluation rapide (quiz / interaction) -->
+            <div class="slide" data-slide="9">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-800 mb-4">🧠 Vérifions vos acquis</h2>
+                <p class="mb-4">Petit quiz interactif (réfléchissez avant de cliquer sur "Vérifier")</p>
+                <div class="space-y-4">
+                    <div class="border rounded-xl p-3">
+                        <p class="font-medium">1️⃣ Quelle méthode LINQ utiliseriez-vous pour obtenir la somme des longueurs des chaînes d'une liste ?</p>
+                        <div class="flex gap-3 mt-2 flex-wrap">
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="1" data-ans="Select puis Sum ou Sum avec lambda">.Sum(s => s.Length)</button>
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="1" data-ans="Where">Where uniquement</button>
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="1" data-ans="Aggregate sans paramètre">Aggregate brut</button>
+                        </div>
+                        <div class="quiz-feedback text-sm text-green-700 mt-1 hidden" id="fb1"></div>
+                    </div>
+                    <div class="border rounded-xl p-3">
+                        <p class="font-medium">2️⃣ SelectMany est utile quand on a ...</p>
+                        <div class="flex gap-3 mt-2 flex-wrap">
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="2" data-ans="une collection de collections à aplatir">une collection de collections à aplatir</button>
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="2" data-ans="une simple liste de nombres">une simple liste de nombres</button>
+                            <button class="quiz-opt px-3 py-1 bg-gray-200 rounded-full text-sm" data-q="2" data-ans="filtrer rapidement">filtrer rapidement</button>
+                        </div>
+                        <div class="quiz-feedback text-sm text-green-700 mt-1 hidden" id="fb2"></div>
+                    </div>
+                </div>
+                <div class="mt-6 p-3 bg-blue-50 rounded-lg text-center text-blue-800 text-sm">
+                    👨‍🏫 Réponses : 1) .Sum(s => s.Length) - 2) une collection de collections à aplatir
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center gap-3 mt-2">
+            <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+            <span class="text-sm text-gray-500" id="slideIndicator"></span>
+            <button id="nextSlide" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-full shadow-sm transition">Suivant ▶</button>
+        </div>
+        <div class="text-center text-xs text-gray-400 mt-6">
+            Leçon 27 - Initiation au C# | .NET LINQ | Utilisation de Where, Select, SelectMany & Agrégations
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const slides = $('.slide');
+            let currentIndex = 0;
+            const total = slides.length;
+            $('#totalSlides').text(total);
+            
+            function updateSlides() {
+                slides.removeClass('active');
+                slides.each(function(index) {
+                    if(index === currentIndex) {
+                        $(this).addClass('active');
+                    }
+                });
+                $('#slideCounter').text(currentIndex+1);
+                let percent = ((currentIndex+1) / total) * 100;
+                $('#progressFill').css('width', percent + '%');
+                // gestion désactivation boutons
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === total-1);
+                // petit indicateur
+                $('#slideIndicator').text(`Diapositive ${currentIndex+1} sur ${total}`);
+            }
+            
+            function goNext() {
+                if(currentIndex < total-1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            }
+            function goPrev() {
+                if(currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            }
+            
+            $('#nextSlide').on('click', goNext);
+            $('#prevSlide').on('click', goPrev);
+            
+            // clavier (gauche/droite) pour le confort
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') {
+                    goNext();
+                    e.preventDefault();
+                } else if(e.key === 'ArrowLeft') {
+                    goPrev();
+                    e.preventDefault();
+                }
+            });
+            
+            // gestion mini quiz de la slide 9 - afficher feedback
+            $('.quiz-opt').on('click', function() {
+                const qIndex = $(this).data('q');
+                const expected = $(this).data('ans');
+                const feedbackDiv = $('#fb'+qIndex);
+                // petite vérification textuelle simple
+                let isCorrect = false;
+                if(qIndex == 1 && (expected === ".Sum(s => s.Length)" || $(this).text().includes("Sum"))) {
+                    isCorrect = true;
+                } else if(qIndex == 2 && (expected === "une collection de collections à aplatir" || $(this).text().includes("collection de collections"))) {
+                    isCorrect = true;
+                } else {
+                    if(qIndex==1 && $(this).text() === ".Sum(s => s.Length)") isCorrect = true;
+                    if(qIndex==2 && $(this).text() === "une collection de collections à aplatir") isCorrect = true;
+                }
+                if(isCorrect) {
+                    feedbackDiv.removeClass('hidden').text('✅ Bonne réponse ! ' + ($(this).text())).css('color', '#15803d');
+                } else {
+                    feedbackDiv.removeClass('hidden').text('❌ Pas tout à fait. Relisez l\'exemple!').css('color', '#b91c1c');
+                }
+                setTimeout(() => {
+                    feedbackDiv.fadeOut(500, function() { $(this).addClass('hidden').css('display',''); });
+                }, 2000);
+            });
+            
+            // initialisation premier slide actif
+            updateSlides();
+            // Appliquer MathJax sur les formules si jamais (aucune ici mais propre)
+            if(window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

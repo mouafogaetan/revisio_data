@@ -1,0 +1,69 @@
+[
+  {
+    "intitule": "Gestion des utilisateurs par l'administrateur",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans l'interface d'administration d'une API e-commerce NestJS, l'administrateur doit pouvoir gérer les comptes utilisateurs. Voici les entités simplifiées :</p><pre><code>@Entity()\nexport class User {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @Column({ unique: true })\n  email: string;\n\n  @Column()\n  firstName: string;\n\n  @Column()\n  lastName: string;\n\n  @Column({ default: true })\n  isActive: boolean;\n\n  @ManyToMany(() => Role)\n  @JoinTable()\n  roles: Role[];\n\n  @CreateDateColumn()\n  createdAt: Date;\n\n  @UpdateDateColumn()\n  updatedAt: Date;\n}\n\n@Entity()\nexport class Role {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @Column({ unique: true })\n  name: string; // 'admin', 'customer', 'seller'\n}</code></pre><p>L'administrateur doit pouvoir : lister les utilisateurs (avec filtres et pagination), modifier le rôle d'un utilisateur, activer/désactiver un compte, et consulter l'historique des commandes d'un utilisateur.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez pourquoi les endpoints d'administration doivent être protégés par un RolesGuard spécifique. Quel décorateur utiliser ?",
+        "niveau": "easy",
+        "reponse": "Les endpoints d'administration ne doivent être accessibles qu'aux utilisateurs ayant le rôle 'admin'. On utilise le décorateur `@Roles('admin')` combiné avec `@UseGuards(JwtAuthGuard, RolesGuard)` pour vérifier à la fois l'authentification JWT et l'appartenance au rôle admin.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la méthode du contrôleur <code>getUsers(filters: UserFiltersDto): Promise&lt;PaginatedResult&lt;User&gt;&gt;</code> qui permet de lister les utilisateurs avec :<br>- Pagination (page, limit)<br>- Filtre par recherche (email, firstName, lastName)<br>- Filtre par rôle<br>- Filtre par statut (isActive)",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Get()\n@Roles('admin')\n@UseGuards(JwtAuthGuard, RolesGuard)\nasync getUsers(@Query() filters: UserFiltersDto): Promise<PaginatedResult<User>> {\n  const { page = 1, limit = 10, search, role, isActive } = filters;\n  \n  const query = this.userRepository\n    .createQueryBuilder('user')\n    .leftJoinAndSelect('user.roles', 'role');\n\n  // Recherche textuelle\n  if (search) {\n    query.andWhere(\n      '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',\n      { search: `%${search}%` }\n    );\n  }\n\n  // Filtre par statut\n  if (isActive !== undefined) {\n    query.andWhere('user.isActive = :isActive', { isActive });\n  }\n\n  // Filtre par rôle\n  if (role) {\n    query.andWhere('role.name = :role', { role });\n  }\n\n  // Pagination\n  const [data, total] = await query\n    .orderBy('user.createdAt', 'DESC')\n    .skip((page - 1) * limit)\n    .take(limit)\n    .getManyAndCount();\n\n  return {\n    data,\n    meta: {\n      total,\n      page,\n      lastPage: Math.ceil(total / limit),\n      limit,\n    },\n  };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Implémentez la méthode <code>updateUserRole(userId: string, roleName: string): Promise&lt;User&gt;</code> qui permet de changer le rôle d'un utilisateur (ex: passer de 'customer' à 'seller'). Gérez les erreurs (utilisateur inexistant, rôle invalide).",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Patch(':userId/role')\n@Roles('admin')\n@UseGuards(JwtAuthGuard, RolesGuard)\nasync updateUserRole(\n  @Param('userId') userId: string,\n  @Body('roleName') roleName: string\n): Promise<User> {\n  // Vérifier que l'utilisateur existe\n  const user = await this.userRepository.findOne({\n    where: { id: userId },\n    relations: ['roles'],\n  });\n  \n  if (!user) {\n    throw new NotFoundException('Utilisateur non trouvé');\n  }\n\n  // Vérifier que le rôle existe\n  const role = await this.roleRepository.findOne({\n    where: { name: roleName },\n  });\n  \n  if (!role) {\n    throw new BadRequestException(`Rôle ${roleName} invalide`);\n  }\n\n  // Mettre à jour les rôles\n  user.roles = [role];\n  await this.userRepository.save(user);\n\n  // Logger l'action\n  await this.auditLogService.log({\n    action: 'ROLE_CHANGE',\n    targetUserId: userId,\n    newRole: roleName,\n    performedBy: this.getCurrentUserId(),\n  });\n\n  return user;\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Modération des comptes et historique des commandes - Cas AfriShop",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes développeur backend pour <strong>AfriShop</strong>, une plateforme e-commerce camerounaise. L'équipe de modération doit pouvoir :</p><ul><li><strong>Bloquer</strong> un compte utilisateur (sans le supprimer, en conservant l'historique)</li><li><strong>Débloquer</strong> un compte après vérification</li><li><strong>Consulter l'historique complet</strong> des commandes d'un utilisateur (y compris les commandes archivées)</li><li><strong>Changer le rôle</strong> d'un utilisateur (customer → seller ou seller → customer)</li><li><strong>Voir les raisons de blocage</strong> (commentaires des modérateurs)</li></ul><p>L'équipe doit également pouvoir suivre qui a effectué chaque action de modération (traçabilité).</p>",
+      "images": [
+        "diagramme de séquence du blocage/déblocage d'utilisateur avec notification email",
+        "schéma de la table UserModeration avec les champs reason, moderatedBy, moderatedAt"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez une entité <code>UserModeration</code> pour enregistrer l'historique des actions de modération sur les comptes utilisateurs. Justifiez les champs choisis.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Entity()\nexport class UserModeration {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @ManyToOne(() => User)\n  @JoinColumn({ name: 'userId' })\n  user: User;\n\n  @Column()\n  userId: string;\n\n  @Column({ type: 'enum', enum: ['BLOCK', 'UNBLOCK', 'ROLE_CHANGE', 'ACTIVATE', 'DEACTIVATE'] })\n  action: string;\n\n  @Column({ type: 'text', nullable: true })\n  reason: string; // Raison du blocage ou du changement\n\n  @Column('simple-json', { nullable: true })\n  previousState: {\n    isActive: boolean;\n    roles: string[];\n  };\n\n  @Column('simple-json', { nullable: true })\n  newState: {\n    isActive: boolean;\n    roles: string[];\n  };\n\n  @ManyToOne(() => User)\n  @JoinColumn({ name: 'moderatedById' })\n  moderatedBy: User;\n\n  @Column()\n  moderatedById: string;\n\n  @CreateDateColumn()\n  moderatedAt: Date;\n\n  @Column({ nullable: true })\n  expiresAt: Date; // Pour les blocages temporaires\n}\n```\nJustification : `previousState` et `newState` permettent de garder une trace complète des changements. `expiresAt` permet les blocages temporaires (ex: 7 jours). Le lien vers `moderatedBy` assure la traçabilité.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez la méthode <code>getUserOrderHistory(userId: string, filters: OrderFiltersDto): Promise&lt;PaginatedResult&lt;Order&gt;&gt;</code> qui permet à l'administrateur de consulter l'historique complet des commandes d'un utilisateur (commandes actives + archivées).",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync getUserOrderHistory(\n  userId: string,\n  filters: OrderFiltersDto\n): Promise<PaginatedResult<Order>> {\n  const { page = 1, limit = 20, status, startDate, endDate, minAmount, maxAmount } = filters;\n\n  // Vérifier que l'utilisateur existe\n  const user = await this.userRepository.findOne({ where: { id: userId } });\n  if (!user) {\n    throw new NotFoundException('Utilisateur non trouvé');\n  }\n\n  const query = this.orderRepository\n    .createQueryBuilder('order')\n    .leftJoinAndSelect('order.items', 'items')\n    .where('order.userId = :userId', { userId });\n\n  if (status) {\n    query.andWhere('order.status = :status', { status });\n  }\n\n  if (startDate) {\n    query.andWhere('order.createdAt >= :startDate', { startDate });\n  }\n\n  if (endDate) {\n    query.andWhere('order.createdAt <= :endDate', { endDate });\n  }\n\n  if (minAmount) {\n    query.andWhere('order.total >= :minAmount', { minAmount });\n  }\n\n  if (maxAmount) {\n    query.andWhere('order.total <= :maxAmount', { maxAmount });\n  }\n\n  const [data, total] = await query\n    .orderBy('order.createdAt', 'DESC')\n    .skip((page - 1) * limit)\n    .take(limit)\n    .getManyAndCount();\n\n  return {\n    data,\n    meta: {\n      total,\n      page,\n      lastPage: Math.ceil(total / limit),\n      limit,\n    },\n  };\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Évaluez l'impact d'un blocage de compte sur les processus métier (panier actif, commandes en cours, tokens JWT, sessions). Proposez une stratégie complète pour gérer ces états.",
+        "niveau": "very hard",
+        "reponse": "<strong>Impact d'un blocage de compte :</strong>\n\n1. **Panier actif** : L'utilisateur ne peut pas finaliser sa commande\n2. **Commandes en cours** : Les commandes en statut 'pending' doivent être annulées ou bloquées\n3. **Tokens JWT** : Les tokens existants doivent être invalidés\n4. **Sessions** : L'utilisateur doit être déconnecté immédiatement\n\n<strong>Stratégie complète :</strong>\n\n```typescript\nasync blockUser(userId: string, reason: string, moderatorId: string, durationDays?: number): Promise<void> {\n  const queryRunner = this.dataSource.createQueryRunner();\n  await queryRunner.startTransaction();\n\n  try {\n    // 1. Désactiver le compte\n    await queryRunner.manager.update(User, { id: userId }, {\n      isActive: false,\n      blockedAt: new Date(),\n      blockReason: reason,\n      blockedBy: moderatorId,\n      unblockAt: durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000) : null,\n    });\n\n    // 2. Annuler les commandes en attente\n    await queryRunner.manager.update(Order, {\n      userId,\n      status: In(['pending', 'processing']),\n    }, {\n      status: 'cancelled',\n      cancellationReason: `Compte bloqué : ${reason}`,\n    });\n\n    // 3. Vider le panier\n    await queryRunner.manager.delete(Cart, { userId });\n\n    // 4. Invalider les tokens JWT (via Redis blacklist)\n    await this.redis.setex(`user:blocked:${userId}`, 86400, 'true');\n\n    // 5. Enregistrer l'action de modération\n    await queryRunner.manager.save(UserModeration, {\n      userId,\n      action: 'BLOCK',\n      reason,\n      moderatedById: moderatorId,\n      expiresAt: durationDays ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000) : null,\n    });\n\n    // 6. Envoyer une notification à l'utilisateur\n    await this.emailQueue.add('account-blocked', { userId, reason, durationDays });\n\n    await queryRunner.commitTransaction();\n  } catch (error) {\n    await queryRunner.rollbackTransaction();\n    throw error;\n  } finally {\n    await queryRunner.release();\n  }\n}\n\n// Middleware/Guard pour vérifier le blocage\n@Injectable()\nexport class AccountBlockedGuard implements CanActivate {\n  async canActivate(context: ExecutionContext): Promise<boolean> {\n    const request = context.switchToHttp().getRequest();\n    const userId = request.user?.id;\n\n    if (!userId) return true;\n\n    const isBlocked = await this.redis.get(`user:blocked:${userId}`);\n    if (isBlocked) {\n      throw new ForbiddenException('Votre compte a été bloqué. Contactez le support.');\n    }\n\n    // Vérifier également en base (fallback)\n    const user = await this.userRepository.findOne({ where: { id: userId } });\n    if (!user.isActive) {\n      await this.redis.setex(`user:blocked:${userId}`, 86400, 'true');\n      throw new ForbiddenException('Votre compte est désactivé.');\n    }\n\n    return true;\n  }\n}\n```\n\n**Points clés :**\n- Utilisation de Redis pour une vérification rapide du statut de blocage\n- Transaction pour garantir la cohérence\n- Annulation des commandes en attente (remboursement si payées)\n- Notification par email à l'utilisateur\n- Possibilité de blocage temporaire avec `expiresAt` et job cron pour déblocage automatique",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

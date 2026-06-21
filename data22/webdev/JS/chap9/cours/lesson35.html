@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 35 · Projet final : Application complète | JavaScript (Initiation)</title>
+    <!-- Tailwind CSS + Font Awesome (utile pour l'interface de la todo list) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules mathématiques, utilisé discrètement pour la cohérence) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* ajustements personnalisés pour la lisibilité et slides */
+        body {
+            background: #f8fafc;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+        }
+        /* mini style pour la todo list interactive */
+        .todo-item {
+            transition: background 0.1s ease;
+        }
+        .todo-item.completed span {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+        .btn-todo {
+            cursor: pointer;
+        }
+        /* débordement sécurisé */
+        pre, code {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1rem;
+            }
+            .nav-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden slide-card">
+            <!-- Header avec titre du module & progression -->
+            <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-4 md:py-5 text-white">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                    <div>
+                        <p class="text-indigo-100 text-sm font-medium">Développement Web · Initiation JavaScript</p>
+                        <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Leçon 35 · Projet final</h1>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-semibold">
+                        <span id="slideCounter">1</span> / <span id="totalSlides">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone de contenu dynamique (slides) -->
+            <div id="slideContent" class="p-6 md:p-8 bg-white">
+                <!-- généré via jQuery -->
+            </div>
+
+            <!-- Navigation entre slides + indicateurs -->
+            <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center">
+                <button id="prevSlide" class="nav-btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    ← Précédent
+                </button>
+                <div class="flex gap-2">
+                    <span id="slideDotContainer" class="flex gap-1.5"></span>
+                </div>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+
+        <!-- pied de page informatif -->
+        <p class="text-center text-gray-500 text-xs mt-6">📘 Cours basé sur le programme officiel — Cameroun | Développement web interactif</p>
+    </div>
+
+    <script>
+        // Définition des slides (8 slides)
+        // Slide 1 : Titre principal + contexte
+        // Slide 2 : Objectifs pédagogiques (compétences ciblées)
+        // Slides 3 à 8 : contenu détaillé + mini démo pratique (to-do list, quiz ou API)
+        // On utilise exactement la leçon 35 : "Créer une application complète (to-do list, jeu simple ou quiz) / Manipuler DOM, événements, localStorage / fetch API externe"
+        const slidesData = [
+            { // slide 0
+                title: "🏆 Projet final : application web complète",
+                content: `
+                    <div class="flex flex-col items-center text-center space-y-6">
+                        <div class="bg-indigo-100 p-4 rounded-full">
+                            <svg class="w-16 h-16 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">Synthèse pratique</h2>
+                        <div class="max-w-2xl text-gray-600 text-lg leading-relaxed">
+                            <p>Dans cette dernière leçon, nous concrétisons toutes les notions vues précédemment : variables, fonctions, DOM, événements, stockage local, et requêtes API.</p>
+                            <p class="mt-3 font-semibold text-indigo-800">🎯 Résultat : une application fonctionnelle que vous pourrez intégrer à votre portfolio !</p>
+                        </div>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-left rounded-md mt-2">
+                            <p class="text-sm">💡 <span class="font-bold">Défi :</span> À la fin de ce cours, vous serez capable de construire une todo-list persistante, un mini jeu ou un outil utilisant une API externe. Nous allons construire ensemble une <strong>application To-do list + météo aléatoire (fetch API)</strong> pour illustrer les trois compétences clés.</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 1 : objectifs précis
+                title: "📌 Objectifs de la leçon 35",
+                content: `
+                    <div class="space-y-5">
+                        <p class="text-gray-700">À la fin de cette leçon, vous maîtriserez :</p>
+                        <ul class="list-disc pl-6 space-y-3 text-gray-800">
+                            <li><span class="font-semibold">✅ Créer une application complète</span> (type to-do list, jeu simple ou quiz).</li>
+                            <li><span class="font-semibold">✅ Manipuler le DOM</span> : ajout dynamique de tâches, suppression, modification d’interface.</li>
+                            <li><span class="font-semibold">✅ Gérer les événements utilisateur</span> (clics, soumissions de formulaire).</li>
+                            <li><span class="font-semibold">✅ Utiliser le stockage local (<code>localStorage</code>)</span> pour sauvegarder les tâches même après rechargement.</li>
+                            <li><span class="font-semibold">✅ Consommer une API externe</span> avec <code>fetch</code> et afficher des données dynamiques (ex: conseils ou citation).</li>
+                        </ul>
+                        <div class="bg-indigo-50 p-4 rounded-xl mt-2">
+                            <p class="italic text-indigo-800">⭐ Compétence finale : "Je développe une application web interactive complète avec persistance des données et appels asynchrones."</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 2 : Les étapes de création d'une appli
+                title: "🔨 Les 4 piliers pour ton projet final",
+                content: `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30">
+                            <div class="text-3xl mb-2">1️⃣</div>
+                            <h3 class="font-bold text-lg">Structure HTML/CSS</h3>
+                            <p class="text-gray-600 text-sm">Crée une maquette claire : formulaire d'ajout, liste d'éléments, zone pour API.</p>
+                        </div>
+                        <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30">
+                            <div class="text-3xl mb-2">2️⃣</div>
+                            <h3 class="font-bold text-lg">JavaScript & DOM</h3>
+                            <p class="text-gray-600 text-sm">Sélectionne les éléments, écoute les événements, modifie le DOM dynamiquement.</p>
+                        </div>
+                        <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30">
+                            <div class="text-3xl mb-2">3️⃣</div>
+                            <h3 class="font-bold text-lg">Persistance locale</h3>
+                            <p class="text-gray-600 text-sm">Sauvegarde et restaure les données via localStorage (JSON).</p>
+                        </div>
+                        <div class="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30">
+                            <div class="text-3xl mb-2">4️⃣</div>
+                            <h3 class="font-bold text-lg">Asynchrone / API</h3>
+                            <p class="text-gray-600 text-sm">Utilise fetch pour aller chercher des données (météo, blagues, citations) et les afficher.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 p-3 bg-gray-100 rounded-md text-sm">
+                        📌 Dans cette slide nous allons construire une <strong>To-do list avancée</strong> avec localStorage + une <strong>citation aléatoire</strong> via l'API "Quotable" (gratuite). Ainsi vous voyez tout en action.
+                    </div>
+                `
+            },
+            { // slide 3 : Démo interactive - To-do list et API (projet complet)
+                title: "🖥️ Démo : Application To-do + Citation API",
+                content: `
+                    <div class="space-y-5">
+                        <p class="text-gray-700">Ci-dessous, une application complète utilisant : <br> 
+                        ✔️ Ajout/suppression de tâches <br>
+                        ✔️ Sauvegarde dans <code>localStorage</code> (persistance) <br>
+                        ✔️ Marquer une tâche comme terminée <br>
+                        ✔️ Affichage d’une citation aléatoire via l’API publique (fetch) <br>
+                        ✔️ Gestion des erreurs réseau.
+                        </p>
+                        <div class="border rounded-xl overflow-hidden shadow-sm bg-white">
+                            <!-- App Demo Area -->
+                            <div id="demoAppContainer" class="p-5 bg-gray-50">
+                                <!-- Partie to-do list -->
+                                <h3 class="font-bold text-lg text-indigo-800 flex items-center gap-2"><span>📋</span> Ma liste de tâches (localStorage)</h3>
+                                <div class="flex flex-col sm:flex-row gap-2 mt-3">
+                                    <input type="text" id="taskInput" placeholder="ex: Réviser les closures" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <button id="addTaskBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg shadow transition">➕ Ajouter</button>
+                                </div>
+                                <ul id="todoList" class="mt-4 space-y-2 max-h-64 overflow-y-auto"></ul>
+                                <div class="flex justify-between mt-3 text-sm text-gray-500">
+                                    <span id="taskCount"></span>
+                                    <button id="clearStorageBtn" class="text-red-500 hover:text-red-700 text-xs underline">Effacer toutes les tâches</button>
+                                </div>
+                            </div>
+                            <!-- Partie API Citation (fetch) -->
+                            <div class="border-t p-5 bg-white">
+                                <div class="flex justify-between items-center flex-wrap gap-2">
+                                    <h3 class="font-bold text-indigo-800">✨ Inspiration API externe (fetch)</h3>
+                                    <button id="fetchQuoteBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-1.5 rounded-full shadow">🔄 Nouvelle citation</button>
+                                </div>
+                                <div id="quoteBox" class="mt-3 p-4 bg-indigo-50 rounded-xl italic text-gray-700">
+                                    Cliquez sur "Nouvelle citation" pour recevoir une phrase inspirante.
+                                </div>
+                                <p class="text-xs text-gray-400 mt-2">API : Quotable (gratuit, sans clé) — exemple de requête asynchrone.</p>
+                            </div>
+                        </div>
+                        <div class="text-sm bg-gray-100 p-3 rounded-md">
+                            💡 <strong>Analyse du code :</strong> l'application utilise jQuery pour la manipulation DOM, événements, gestion localStorage avec JSON.stringify/parse et fetch() avec then/catch. Tous les concepts de la leçon 35 sont réunis !
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 4 : Explication code - gestion des tâches
+                title: "🧠 Explication 1 : Gestion des tâches & localStorage",
+                content: `
+                    <div class="space-y-4">
+                        <div class="bg-gray-800 text-white p-3 rounded-lg overflow-x-auto">
+                            <pre class="text-sm font-mono"><code>// Stockage : clé "todoAppTasks"
+let tasks = JSON.parse(localStorage.getItem("todoAppTasks")) || [];
+
+function saveTasks() {
+  localStorage.setItem("todoAppTasks", JSON.stringify(tasks));
+}
+
+function renderTasks() {
+  // Génération du HTML via jQuery
+  $("#todoList").empty();
+  tasks.forEach((task, idx) => {
+    let li = $("\<li\>").addClass("flex justify-between items-center p-2 border-b");
+    // case à cocher + texte
+    let checkSpan = $("\<span\>").addClass("flex items-center gap-2");
+    let checkBox = $("\<input\>").attr("type","checkbox").prop("checked", task.completed);
+    checkBox.on("change", () => { toggleCompleted(idx); });
+    let taskText = $("\<span\>").text(task.text);
+    if(task.completed) taskText.css("text-decoration","line-through").css("color","#6c757d");
+    // bouton supprimer
+    let delBtn = $("\<button\>").text("🗑️").addClass("text-red-500 hover:text-red-700");
+    delBtn.on("click", () => deleteTask(idx));
+    // assemblage
+    checkSpan.append(checkBox, taskText);
+    li.append(checkSpan, delBtn);
+    $("#todoList").append(li);
+  });
+  $("#taskCount").text(\`\${tasks.length} tâche(s)\`);
+}</code></pre>
+                        </div>
+                        <p><strong>✔️ Mécanisme :</strong> chaque modification (ajout, suppression, toggle) appelle saveTasks() puis renderTasks(). La persistance permet de retrouver les tâches après rafraîchissement.</p>
+                    </div>
+                `
+            },
+            { // slide 5 : Explication code - Evenements et API fetch
+                title: "🌐 Explication 2 : Événements & API Fetch (asynchrone)",
+                content: `
+                    <div class="space-y-4">
+                        <div class="bg-gray-800 text-white p-3 rounded-lg overflow-x-auto">
+                            <pre class="text-sm font-mono"><code>// Récupération d'une citation aléatoire via fetch
+$("#fetchQuoteBtn").on("click", function() {
+  $("#quoteBox").html("⏳ Chargement d'une citation...");
+  fetch("https://api.quotable.io/random")
+    .then(response => {
+      if (!response.ok) throw new Error("Erreur réseau");
+      return response.json();
+    })
+    .then(data => {
+      let quoteText = data.content;
+      let author = data.author;
+      $("#quoteBox").html(\`“\${quoteText}” — <strong>\${author}</strong>\`);
+    })
+    .catch(error => {
+      $("#quoteBox").html("❌ Impossible de charger la citation. Vérifiez votre connexion.");
+      console.error(error);
+    });
+});
+
+// Ajout d'une tâche
+$("#addTaskBtn").on("click", function() {
+  let newTaskText = $("#taskInput").val().trim();
+  if(newTaskText === "") return alert("Veuillez écrire une tâche");
+  tasks.push({ text: newTaskText, completed: false });
+  saveTasks();
+  renderTasks();
+  $("#taskInput").val("");
+});</code></pre>
+                        </div>
+                        <p>🎯 On utilise également les fonctions <code>deleteTask</code> et <code>toggleCompleted</code>. De plus, on initialise l'interface au chargement et on écoute l’événement <code>clearStorageBtn</code> pour vider les données.</p>
+                    </div>
+                `
+            },
+            { // slide 6 : Défis / améliorations possibles
+                title: "🚀 Aller plus loin : ce que vous pouvez ajouter",
+                content: `
+                    <div class="space-y-4">
+                        <p>Le projet présenté est une base solide. Pour approfondir, voici des idées :</p>
+                        <ul class="list-disc pl-6 space-y-2">
+                            <li>📆 <strong>Ajouter une date d'échéance</strong> pour chaque tâche.</li>
+                            <li>📁 <strong>Catégoriser</strong> les tâches (travail, personnel).</li>
+                            <li>🖌️ <strong>Améliorer l'interface</strong> avec des animations Tailwind.</li>
+                            <li>🌦️ Remplacer l'API citation par une <strong>API météo réelle</strong> (nécessite clé mais formation intéressante).</li>
+                            <li>🎮 <strong>Transformer en mini-jeu</strong> : un quiz sur JavaScript avec score sauvegardé dans localStorage.</li>
+                        </ul>
+                        <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+                            <p class="font-bold">💪 Défi personnel : </p>
+                            <p>Ajoutez un mode édition pour modifier le texte d'une tâche existante. C’est un excellent exercice pour maîtriser le DOM avancé !</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 7 : Résumé et conseils finaux
+                title: "🎓 Bilan & conseils pour le projet final",
+                content: `
+                    <div class="text-center space-y-5">
+                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl">
+                            <p class="text-lg font-semibold">Vous avez maintenant toutes les cartes en main pour développer des applications web complètes.</p>
+                            <p class="mt-2 text-gray-700">N'oubliez pas :</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-left">
+                                <div class="bg-white p-3 rounded shadow-sm">✅ Lire la documentation</div>
+                                <div class="bg-white p-3 rounded shadow-sm">✅ Tester sur plusieurs navigateurs</div>
+                                <div class="bg-white p-3 rounded shadow-sm">✅ Utiliser console / debugger</div>
+                            </div>
+                        </div>
+                        <p class="text-indigo-700 font-medium">"La pratique constante transforme la théorie en compétence. Lancez-vous !"</p>
+                        <div class="inline-block bg-green-100 text-green-800 px-5 py-2 rounded-full text-sm">⭐ Félicitations, vous avez terminé la leçon 35 ⭐</div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlide = 0;
+        const total = slidesData.length;
+        $("#totalSlides").text(total);
+
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            let html = `
+                <div class="animate-fade-in">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                    <div class="prose max-w-none text-gray-700">
+                        ${slide.content}
+                    </div>
+                </div>
+            `;
+            $("#slideContent").html(html);
+            $("#slideCounter").text(index+1);
+            
+            // Mise à jour des dots
+            let dotsHtml = "";
+            for(let i=0; i<total; i++) {
+                let activeClass = (i === index) ? "bg-indigo-600 w-3 h-3" : "bg-gray-300 w-2.5 h-2.5";
+                dotsHtml += `<div class="${activeClass} rounded-full transition-all duration-200"></div>`;
+            }
+            $("#slideDotContainer").html(dotsHtml);
+            
+            // désactiver boutons si besoin
+            $("#prevSlide").prop("disabled", index === 0);
+            $("#nextSlide").prop("disabled", index === total-1);
+            
+            // Si on est sur la slide 3 (index 3) qui contient l'application demo, alors on initialise l'app demo
+            // index 3 correspond à la démo interactive (slide 3 dans notre tableau)
+            if(index === 3) {
+                initDemoApplication();
+            }
+        }
+
+        // Fonction d'initialisation de la démo (to-do + API) utilisant jQuery
+        let demoInitialized = false;
+        function initDemoApplication() {
+            if(demoInitialized) return;
+            demoInitialized = true;
+            
+            // Variables tasks
+            let tasks = [];
+            const STORAGE_KEY = "todoAppTasks";
+            
+            function loadTasksFromStorage() {
+                let stored = localStorage.getItem(STORAGE_KEY);
+                if(stored) {
+                    tasks = JSON.parse(stored);
+                } else {
+                    tasks = [
+                        { text: "✨ Ajouter une citation via API", completed: false },
+                        { text: "✅ Marquer cette tâche comme finie", completed: false }
+                    ];
+                }
+                saveTasksToStorage();
+                renderTodoList();
+            }
+            
+            function saveTasksToStorage() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+            }
+            
+            function renderTodoList() {
+                const $todoList = $("#todoList");
+                $todoList.empty();
+                if(tasks.length === 0) {
+                    $todoList.html('<li class="text-gray-400 text-center py-2">Aucune tâche. Ajoutez-en une !</li>');
+                    $("#taskCount").text("0 tâche(s)");
+                    return;
+                }
+                tasks.forEach((task, idx) => {
+                    const $li = $("<li>").addClass("flex justify-between items-center p-2 border-b border-gray-200 todo-item");
+                    const $left = $("<div>").addClass("flex items-center gap-2");
+                    const $checkbox = $("<input>").attr("type", "checkbox").addClass("rounded focus:ring-indigo-500");
+                    $checkbox.prop("checked", task.completed);
+                    $checkbox.on("change", () => {
+                        tasks[idx].completed = $checkbox.prop("checked");
+                        saveTasksToStorage();
+                        renderTodoList();
+                    });
+                    const $taskSpan = $("<span>").addClass("text-gray-800").text(task.text);
+                    if(task.completed) $taskSpan.addClass("line-through text-gray-400");
+                    $left.append($checkbox, $taskSpan);
+                    const $delBtn = $("<button>").html("🗑️").addClass("text-red-500 hover:text-red-700 text-sm font-medium bg-transparent");
+                    $delBtn.on("click", () => {
+                        tasks.splice(idx, 1);
+                        saveTasksToStorage();
+                        renderTodoList();
+                    });
+                    $li.append($left, $delBtn);
+                    $todoList.append($li);
+                });
+                $("#taskCount").text(`${tasks.length} tâche(s)`);
+            }
+            
+            // Ajout tâche
+            $("#addTaskBtn").off("click").on("click", function() {
+                const newTaskText = $("#taskInput").val().trim();
+                if(newTaskText === "") {
+                    alert("Veuillez saisir une tâche");
+                    return;
+                }
+                tasks.push({ text: newTaskText, completed: false });
+                saveTasksToStorage();
+                renderTodoList();
+                $("#taskInput").val("");
+            });
+            
+            $("#clearStorageBtn").off("click").on("click", function() {
+                if(confirm("Effacer toutes les tâches ?")) {
+                    tasks = [];
+                    saveTasksToStorage();
+                    renderTodoList();
+                }
+            });
+            
+            // Citation API fetch
+            function fetchRandomQuote() {
+                const $quoteBox = $("#quoteBox");
+                $quoteBox.html("⏳ Chargement de la citation ...");
+                $.ajax({
+                    url: "https://api.quotable.io/random",
+                    method: "GET",
+                    timeout: 8000,
+                    success: function(data) {
+                        if(data && data.content) {
+                            $quoteBox.html(`“${data.content}” — <strong>${data.author || "Anonyme"}</strong>`);
+                        } else {
+                            $quoteBox.html("❌ Citation indisponible, réessayez.");
+                        }
+                    },
+                    error: function() {
+                        $quoteBox.html("⚠️ Impossible de récupérer une citation. Vérifiez votre connexion internet.");
+                    }
+                });
+            }
+            
+            $("#fetchQuoteBtn").off("click").on("click", function(e) {
+                e.preventDefault();
+                fetchRandomQuote();
+            });
+            
+            loadTasksFromStorage();
+            fetchRandomQuote(); // chargement initial
+        }
+        
+        // Navigation
+        function goPrev() { if(currentSlide > 0) { currentSlide--; renderSlide(currentSlide); } }
+        function goNext() { if(currentSlide < total-1) { currentSlide++; renderSlide(currentSlide); } }
+        
+        $("#prevSlide").on("click", goPrev);
+        $("#nextSlide").on("click", goNext);
+        
+        // Initialisation au premier slide
+        renderSlide(0);
+    </script>
+</body>
+</html>

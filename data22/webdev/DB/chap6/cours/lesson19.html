@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours : Les index SQL - Optimisation des performances</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, peu utilisé ici mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Douceurs supplémentaires pour la lecture sur mobile */
+        body {
+            background: #f8fafc;
+        }
+        .slide {
+            transition: all 0.3s ease;
+        }
+        /* Navigation tactile améliorée */
+        button, .nav-btn {
+            touch-action: manipulation;
+        }
+        /* Personnalisation du défilement pour les longs contenus */
+        .slide-content {
+            scrollbar-width: thin;
+        }
+        /* Petite ombre douce pour les cartes */
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* Couleurs apaisantes mais lisibles */
+        .bg-soft-primary {
+            background-color: #eef2ff;
+        }
+        .highlight-code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-3xl mx-auto px-4 py-6 md:py-8">
+        <!-- Conteneur principal des slides -->
+        <div id="slidesContainer" class="relative">
+            <!-- Les slides seront générées dynamiquement avec jQuery -->
+        </div>
+
+        <!-- Indicateur de progression et navigation -->
+        <div class="mt-6 flex justify-between items-center bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-md sticky bottom-4 z-10">
+            <button id="prevSlide" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+                ← Précédent
+            </button>
+            <span id="slideCounter" class="text-sm font-medium text-gray-600">Slide 1 / ?</span>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full transition flex items-center gap-1">
+                Suivant →
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu de la leçon 19 : "Comprendre le rôle des index dans l'accélération des requêtes"
+        // + Créer des index (CREATE INDEX) et les supprimer
+        // + Distinguer index simple, unique, composite
+        // Structure en slides : 
+        // Slide1 : Titre général de la leçon
+        // Slide2 : Objectifs pédagogiques
+        // Slide3 : Introduction : Pourquoi les index ? (rôle)
+        // Slide4 : Fonctionnement analogique (bibliothèque) + schéma dessiné texte/ascii
+        // Slide5 : Types d'index : simple, unique, composite
+        // Slide6 : SQL : CREATE INDEX, DROP INDEX (exemples concrets)
+        // Slide7 : Bonnes pratiques et impact sur performances
+        // Slide8 : Résumé et exercice pratique
+        
+        const lessonData = {
+            title: "Les index SQL : accélérateurs de requêtes",
+            subtitle: "Chapitre 6 – Optimisation des performances",
+            objectives: [
+                "Comprendre le rôle fondamental des index dans l'accélération des lectures SQL.",
+                "Savoir créer et supprimer des index avec les commandes CREATE INDEX et DROP INDEX.",
+                "Distinguer les différents types d'index : simple, unique, composite.",
+                "Prendre conscience des compromis (lecture rapide vs écriture plus lente)."
+            ],
+            slidesContent: [
+                {
+                    type: "title",
+                    content: {
+                        mainTitle: "Index SQL : Rôle & Création",
+                        sub: "Accélérer vos requêtes comme un pro"
+                    }
+                },
+                {
+                    type: "objectives",
+                    content: {
+                        list: lessonData.objectives
+                    }
+                },
+                {
+                    type: "explanation",
+                    title: "🔍 Le rôle magique des index",
+                    text: "Un index en base de données fonctionne comme l'index d'un livre : au lieu de parcourir chaque page (scan complet), vous allez directement à la section qui vous intéresse. " +
+                           "Sans index, le SGBD examine chaque ligne d'une table (scan séquentiel). Avec un index, il utilise une structure arborescente (B-Tree) pour localiser instantanément les lignes correspondant à une condition WHERE, un JOIN ou un ORDER BY.",
+                    infos: "✅ Réduit le temps d'exécution des requêtes de quelques secondes à quelques millisecondes sur des millions de lignes."
+                },
+                {
+                    type: "schema",
+                    title: "📚 Analogie : Bibliothèque vs Index",
+                    schemaText: `[Table non indexée] = livres empilés sans ordre → chercher "Harry Potter" = fouiller tous les rayons (scan complet).
+[Table avec index] = un fichier classé par auteur/titre → trouver directement le livre.
+💡 Représentation d'un index B-Tree : 
+         (Racine)  [50]
+         /         \\
+      [20]         [70]
+     /    \\       /    \\
+   [10]  [30]   [60]  [80] 
+→ Recherche en log(N) étapes.`,
+                    note: "Les index accélèrent les recherches, tris et regroupements."
+                },
+                {
+                    type: "types",
+                    title: "📌 Distinguer index simple, unique & composite",
+                    typesList: [
+                        { name: "Index simple", desc: "Créé sur une seule colonne. Idéal pour les recherches fréquentes sur cette colonne (ex: WHERE nom = 'Dupont')." },
+                        { name: "Index unique", desc: "Empêche les doublons sur la ou les colonnes. Garantit l'unicité (ex: email, numéro CNI). Supporte NULL (sauf si contrainte)." },
+                        { name: "Index composite", desc: "Index sur plusieurs colonnes (ex: (pays, ville) ). Respecte l'ordre : utile pour les recherches sur les préfixes des colonnes." }
+                    ]
+                },
+                {
+                    type: "sqlCommands",
+                    title: "🛠️ Commandes SQL essentielles",
+                    commands: [
+                        { syntax: "CREATE INDEX idx_nom ON table (colonne);", desc: "Crée un index simple sur 'colonne'." },
+                        { syntax: "CREATE UNIQUE INDEX idx_unique_email ON utilisateurs (email);", desc: "Index unique empêchant les emails en double." },
+                        { syntax: "CREATE INDEX idx_composite ON commandes (client_id, date_commande);", desc: "Index composite (recherches par client ET date)." },
+                        { syntax: "DROP INDEX idx_nom ON table;", desc: "Supprime l'index. (Syntaxe MySQL : DROP INDEX idx_nom ON table; PostgreSQL: DROP INDEX idx_nom)" }
+                    ],
+                    note: "Attention: Les index ralentissent les INSERT, UPDATE, DELETE. À utiliser sur les colonnes fortement sollicitées en lecture."
+                },
+                {
+                    type: "bestPractices",
+                    title: "✨ Bonnes pratiques & compromis",
+                    tips: [
+                        "Indexez les colonnes utilisées dans WHERE, JOIN, ORDER BY et GROUP BY.",
+                        "Évitez les index sur les colonnes trop volumineuses (TEXT sans préfixe).",
+                        "Pour les index composites, placez les colonnes les plus sélectives en premier.",
+                        "Surveillez les index inutilisés (via EXPLAIN) et supprimez-les.",
+                        "Les petites tables (< 1000 lignes) n'ont pas toujours besoin d'index (scan complet plus rapide parfois)."
+                    ],
+                    performanceNote: "📈 Un bon index peut accélérer une requête de 100 à 1000 fois !"
+                },
+                {
+                    type: "summary",
+                    title: "🎯 Récapitulatif – Leçon 19",
+                    summaryPoints: [
+                        "Les index accélèrent la lecture des données en évitant les parcours complets.",
+                        "CREATE INDEX nom ON table(colonne); pour ajouter un index simple.",
+                        "UNIQUE INDEX garantit l'unicité, INDEX composite agit sur plusieurs colonnes.",
+                        "DROP INDEX supprime un index existant.",
+                        "À utiliser avec discernement : avantage en lecture, coût en écriture."
+                    ],
+                    callToAction: "🧪 Exercice: Sur une table 'clients' avec 100k lignes, créez un index sur 'email'. Comparez les performances avec EXPLAIN avant/après."
+                }
+            ]
+        };
+
+        // Construction dynamique des slides
+        let slidesHtml = '';
+        let slideIndex = 0;
+        const slidesArray = [];
+
+        // Helper: génère chaque slide à partir de son type
+        function buildSlide(slideObj, idx) {
+            let inner = '';
+            const baseClass = "bg-white rounded-2xl card-shadow p-6 md:p-8 slide mb-4";
+            switch (slideObj.type) {
+                case 'title':
+                    inner = `
+                        <div class="text-center">
+                            <div class="inline-block p-3 bg-indigo-100 rounded-full mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7h16M4 7l8-4 8 4" /></svg>
+                            </div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 tracking-tight">${lessonData.title}</h1>
+                            <p class="text-indigo-600 font-medium mt-2">${lessonData.subtitle}</p>
+                            <p class="text-gray-500 text-sm mt-6 border-t pt-4 inline-block">🎓 Cours Base de données – Niveau débutant/intermédiaire</p>
+                        </div>
+                    `;
+                    break;
+                case 'objectives':
+                    const objItems = slideObj.content.list.map(li => `<li class="flex items-start gap-3 mb-3"><span class="text-indigo-600 font-bold text-lg">✓</span><span class="text-gray-700">${li}</span></li>`).join('');
+                    inner = `
+                        <div>
+                            <div class="flex items-center gap-2 mb-5">
+                                <span class="text-2xl">🎯</span>
+                                <h2 class="text-2xl font-bold text-gray-800">Objectifs pédagogiques</h2>
+                            </div>
+                            <ul class="space-y-2">
+                                ${objItems}
+                            </ul>
+                            <div class="mt-6 bg-blue-50 p-4 rounded-xl text-sm text-blue-800">
+                                💡 À la fin de cette leçon, vous saurez optimiser vos requêtes SQL comme un administrateur bases de données.
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'explanation':
+                    inner = `
+                        <h2 class="text-2xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-4">${slideObj.title}</h2>
+                        <p class="text-gray-700 leading-relaxed mb-4">${slideObj.text}</p>
+                        <div class="bg-indigo-50 p-4 rounded-lg text-indigo-800 text-sm">${slideObj.infos}</div>
+                    `;
+                    break;
+                case 'schema':
+                    inner = `
+                        <h2 class="text-xl font-bold text-gray-800 mb-3">${slideObj.title}</h2>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 font-mono text-sm whitespace-pre-wrap overflow-x-auto">
+                            ${slideObj.schemaText.replace(/\n/g, '<br>')}
+                        </div>
+                        <p class="text-gray-600 text-sm mt-3 italic">${slideObj.note}</p>
+                    `;
+                    break;
+                case 'types':
+                    inner = `<h2 class="text-xl font-bold text-gray-800 mb-4">${slideObj.title}</h2>
+                            <div class="grid gap-4 md:grid-cols-1">`;
+                    slideObj.typesList.forEach(t => {
+                        inner += `
+                            <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-indigo-400">
+                                <h3 class="font-bold text-indigo-700 text-lg">${t.name}</h3>
+                                <p class="text-gray-600">${t.desc}</p>
+                            </div>
+                        `;
+                    });
+                    inner += `</div>`;
+                    break;
+                case 'sqlCommands':
+                    inner = `<h2 class="text-xl font-bold text-gray-800 mb-4">${slideObj.title}</h2>
+                             <div class="space-y-4">`;
+                    slideObj.commands.forEach(cmd => {
+                        inner += `
+                            <div class="bg-gray-900 rounded-xl p-3 text-white font-mono text-sm overflow-x-auto">
+                                <code>${cmd.syntax}</code>
+                            </div>
+                            <p class="text-gray-600 text-sm -mt-2 mb-3">${cmd.desc}</p>
+                        `;
+                    });
+                    inner += `<div class="bg-amber-50 p-3 rounded-lg text-amber-800 text-sm mt-2">⚠️ ${slideObj.note}</div></div>`;
+                    break;
+                case 'bestPractices':
+                    inner = `<h2 class="text-xl font-bold text-gray-800 mb-4">${slideObj.title}</h2>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-700">`;
+                    slideObj.tips.forEach(tip => {
+                        inner += `<li>${tip}</li>`;
+                    });
+                    inner += `</ul><div class="mt-5 p-3 bg-green-50 text-green-800 rounded-lg font-medium">${slideObj.performanceNote}</div>`;
+                    break;
+                case 'summary':
+                    inner = `<h2 class="text-xl font-bold text-gray-800 mb-4">${slideObj.title}</h2>
+                            <ul class="space-y-2 mb-5">`;
+                    slideObj.summaryPoints.forEach(point => {
+                        inner += `<li class="flex gap-2"><span class="text-indigo-600">📌</span><span>${point}</span></li>`;
+                    });
+                    inner += `</ul><div class="bg-indigo-100 p-4 rounded-xl text-indigo-900 font-medium">${slideObj.callToAction}</div>`;
+                    break;
+                default:
+                    inner = `<p>Contenu en cours</p>`;
+            }
+            return `<div class="${baseClass}" data-slide="${idx}" id="slide-${idx}" style="display: none;">${inner}</div>`;
+        }
+
+        // Construction des slides à partir des données
+        lessonData.slidesContent.forEach((slide, i) => {
+            const html = buildSlide(slide, i);
+            slidesHtml += html;
+            slidesArray.push(html);
+        });
+
+        // Injecter dans le container
+        $('#slidesContainer').html(slidesHtml);
+        let totalSlides = slidesArray.length;
+        $('#slideCounter').text(`Slide 1 / ${totalSlides}`);
+        
+        // Afficher la première slide
+        $(`#slide-0`).show();
+        
+        // Navigation
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            $('.slide').hide();
+            $(`#slide-${index}`).fadeIn(200);
+            slideIndex = index;
+            $('#slideCounter').text(`Slide ${slideIndex+1} / ${totalSlides}`);
+            // Gestion désactivation boutons
+            $('#prevSlide').prop('disabled', slideIndex === 0);
+            $('#nextSlide').prop('disabled', slideIndex === totalSlides-1);
+            // Scroll en haut pour une meilleure UX sur mobile
+            $('html, body').animate({ scrollTop: 0 }, 100);
+        }
+        
+        $('#prevSlide').on('click', function() {
+            if (slideIndex > 0) showSlide(slideIndex - 1);
+        });
+        $('#nextSlide').on('click', function() {
+            if (slideIndex < totalSlides - 1) showSlide(slideIndex + 1);
+        });
+        
+        // Initialisation état des boutons
+        showSlide(0);
+        
+        // Gestion des gestes tactiles simples (swipe optionnel mais pas obligatoire)
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const slidesContainerElem = document.getElementById('slidesContainer');
+        slidesContainerElem.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        slidesContainerElem.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) {
+                // swipe gauche -> next
+                if (slideIndex < totalSlides-1) showSlide(slideIndex+1);
+            } else if (touchEndX > touchStartX + 50) {
+                // swipe droite -> prev
+                if (slideIndex > 0) showSlide(slideIndex-1);
+            }
+        });
+        
+        // Rendre le contenu accessible via clavier aussi
+        $(document).keydown(function(e) {
+            if (e.key === 'ArrowLeft') {
+                $('#prevSlide').click();
+            } else if (e.key === 'ArrowRight') {
+                $('#nextSlide').click();
+            }
+        });
+    </script>
+    <!-- Addition d'un petit style pour les formules mathématiques (MathJax si besoin mais pas de formule complexe ici, mais prêt) -->
+    <script>
+        // Petite amélioration pour que les slides s'adaptent au clic sur mobile
+        $(window).on('resize', function() {
+            // rien de particulier, tailwind gère
+        });
+    </script>
+    <!-- Note: Images dessinées via ascii art / texte, pas besoin d’image externe pour cette leçon. -->
+    <!-- Conformément à la consigne, pas d’insertion d’image externe superflue. Schéma clair et propre -->
+</body>
+</html>

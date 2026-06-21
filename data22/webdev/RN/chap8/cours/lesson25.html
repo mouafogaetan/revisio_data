@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 25 : Partager l'état avec Context API (React Native)</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions et styles personnalisés pour slides */
+        body {
+            background: #f1f5f9;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            min-height: 65vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide-content {
+            flex: 1;
+            padding: 2rem 1.8rem;
+        }
+        .nav-btn {
+            cursor: pointer;
+            background: #0f172a;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            transform: scale(0.97);
+        }
+        .dot-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .dot-indicator.active {
+            background-color: #0f172a;
+            width: 24px;
+            border-radius: 12px;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 12px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 8px;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem 1rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        .list-check {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .list-check li::before {
+            content: "✓ ";
+            color: #3b82f6;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <div id="slidesWrapper" class="relative"></div>
+
+    <!-- Navigation et indicateurs -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevSlide" class="nav-btn px-5 py-2 text-sm md:text-base">← Précédent</button>
+        <div id="dotsContainer" class="flex gap-2 justify-center flex-wrap my-2"></div>
+        <button id="nextSlide" class="nav-btn px-5 py-2 text-sm md:text-base">Suivant →</button>
+    </div>
+</div>
+
+<script>
+    // Données des slides pour la leçon 25 : Contexte (createContext, Provider, useContext)
+    const slidesData = [
+        {
+            type: "title",
+            title: "📦 Contexte React Native : createContext, Provider & useContext",
+            subtitle: "Partager l’état global sans passer par les props",
+            emoji: "🌍🧩"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Créer un contexte avec createContext pour partager des données entre composants",
+                "Fournir une valeur à l’aide du composant Provider",
+                "Consommer le contexte dans n’importe quel composant grâce au hook useContext"
+            ]
+        },
+        {
+            type: "content",
+            title: "🔍 Pourquoi le Contexte ?",
+            content: `<p class="mb-3">Dans une app React Native, on passe souvent des données via les <strong class="highlight">props</strong> de parent à enfant. Mais quand on a des composants très imbriqués, c’est fastidieux (<em>“prop drilling”</em>).</p>
+            <div class="bg-indigo-50 p-4 rounded-xl mb-4">
+                <p class="font-semibold">💡 Exemple concret :</p>
+                <p>Un thème (clair/sombre) ou l’utilisateur connecté doit être accessible dans 10 écrans différents. Avec Context, on évite de passer manuellement la donnée dans chaque niveau.</p>
+            </div>
+            <p><code>React.createContext()</code> + <code>Provider</code> + <code>useContext</code> = solution élégante pour état global.</p>`
+        },
+        {
+            type: "content",
+            title: "🏗️ 1. Créer un contexte avec createContext",
+            content: `<p class="mb-2">La première étape : créer un fichier (ex: <code>ThemeContext.js</code>) et appeler <code>createContext</code>.</p>
+            <pre><code>// ThemeContext.js
+import React from 'react';
+
+export const ThemeContext = React.createContext(); // contexte vide
+</code></pre>
+            <p>On exporte le contexte pour l’utiliser dans d’autres fichiers. La valeur par défaut peut être utile pour des tests ou fallback.</p>
+            <p class="mt-2">Astuce : souvent on crée un contexte avec une valeur par défaut pertinente (ex: thème='light').</p>`
+        },
+        {
+            type: "content",
+            title: "📤 2. Fournir la valeur avec Provider",
+            content: `<p>Le composant <strong>Provider</strong> enveloppe une partie de l’arbre des composants. Tous les enfants pourront accéder à la donnée.</p>
+            <pre><code>// App.js
+import React from 'react';
+import { ThemeContext } from './ThemeContext';
+import HomeScreen from './HomeScreen';
+
+export default function App() {
+  const theme = 'dark';
+  return (
+    &lt;ThemeContext.Provider value={theme}&gt;
+      &lt;HomeScreen /&gt;
+    &lt;/ThemeContext.Provider&gt;
+  );
+}
+</code></pre>
+            <p>La prop <code>value</code> peut être un objet, un tableau, une chaîne, ou même des fonctions pour modifier l’état.</p>`
+        },
+        {
+            type: "content",
+            title: "🍽️ 3. Consommer le contexte avec useContext",
+            content: `<p>Dans n’importe quel composant enfant, utilisez le hook <code>useContext</code> pour lire la valeur.</p>
+            <pre><code>// HomeScreen.js
+import React, { useContext } from 'react';
+import { ThemeContext } from './ThemeContext';
+import { View, Text } from 'react-native';
+
+export default function HomeScreen() {
+  const theme = useContext(ThemeContext);
+  return (
+    &lt;View style={{ backgroundColor: theme === 'dark' ? '#333' : '#fff' }}&gt;
+      &lt;Text&gt;Thème actuel : {theme}&lt;/Text&gt;
+    &lt;/View&gt;
+  );
+}
+</code></pre>
+            <p>✅ <strong>Résultat :</strong> tous les composants consommateurs réagissent quand la valeur du Provider change.</p>`
+        },
+        {
+            type: "content",
+            title: "🔄 Contexte avec état dynamique (useState + Context)",
+            content: `<p>Souvent, on souhaite aussi modifier le contexte depuis un composant enfant. Il suffit de passer des fonctions dans la valeur du Provider.</p>
+            <pre><code>// App.js
+const [theme, setTheme] = useState('light');
+const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
+
+return (
+  &lt;ThemeContext.Provider value={{ theme, toggleTheme }}&gt;
+    &lt;MainApp /&gt;
+  &lt;/ThemeContext.Provider&gt;
+);
+</code></pre>
+            <p>Dans un composant enfant :</p>
+            <pre><code>const { theme, toggleTheme } = useContext(ThemeContext);
+&lt;Button title="Changer thème" onPress={toggleTheme} /&gt;
+</code></pre>`
+        },
+        {
+            type: "content",
+            title: "🧠 Bonnes pratiques et pièges",
+            content: `<ul class="list-disc pl-5 space-y-2">
+                <li>✅ <strong>Créer plusieurs contextes</strong> pour des responsabilités distinctes (AuthContext, ThemeContext, SettingsContext).</li>
+                <li>⚠️ Évitez de mettre tout l’état dans un seul contexte (re-rendus inutiles).</li>
+                <li>✅ Pensez à des hooks personnalisés pour faciliter l’utilisation : <code>useAuth()</code> qui utilise <code>useContext(AuthContext)</code>.</li>
+                <li>📌 Les composants consommateurs se re-renderont à chaque changement de <code>value</code>. Optimisez avec <code>useMemo</code> si nécessaire.</li>
+                <li>💡 Pour de très grosses applications, envisagez Redux ou Zustand, mais Context est souvent suffisant pour le partage de thème, d’authentification simple, ou de langue.</li>
+            </ul>`
+        },
+        {
+            type: "content",
+            title: "📱 Exemple complet : authentification simplifiée",
+            content: `<p><strong>AuthContext</strong> pour gérer l'utilisateur connecté :</p>
+            <pre><code>// AuthContext.js
+import React, { createContext, useState } from 'react';
+export const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const login = (userData) => setUser(userData);
+  const logout = () => setUser(null);
+  return (
+    &lt;AuthContext.Provider value={{ user, login, logout }}&gt;
+      {children}
+    &lt;/AuthContext.Provider&gt;
+  );
+};
+</code></pre>
+            <p>Dans <code>App.js</code> :</p>
+            <pre><code>import { AuthProvider } from './AuthContext';
+&lt;AuthProvider&gt;
+  &lt;Navigation /&gt;
+&lt;/AuthProvider&gt;</code></pre>
+            <p>N’importe quel écran peut appeler <code>useContext(AuthContext)</code> pour lire l’utilisateur ou se déconnecter.</p>`
+        },
+        {
+            type: "content",
+            title: "🧪 Test rapide des connaissances",
+            content: `<div class="bg-gray-50 p-4 rounded-2xl">
+                <p class="font-bold">❓ Question :</p>
+                <p>Si on a deux Providers imbriqués (ex: <code>ThemeContext</code> et <code>AuthContext</code>), comment un composant accède-t-il aux deux valeurs ?</p>
+                <p class="mt-2 font-semibold text-green-700">Réponse :</p>
+                <p>Il suffit d’appeler <code>useContext(ThemeContext)</code> et <code>useContext(AuthContext)</code> séparément dans le même composant. Chaque appel retourne la valeur fournie par le Provider le plus proche dans l’arborescence.</p>
+            </div>
+            <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                💡 Rappel : <code>createContext()</code> permet de créer un objet contexte, <code>Provider</code> enveloppe l’application, <code>useContext</code> lit la donnée.
+            </div>`
+        },
+        {
+            type: "end",
+            title: "🏁 Fin de la leçon",
+            message: "Bravo ! Vous maîtrisez maintenant le partage d’état avec la Context API. C’est un outil puissant pour éviter le prop drilling.",
+            nextAction: "Pratiquez en créant un contexte de langue ou de thème dans votre projet React Native 📱✨"
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(index) {
+        const data = slidesData[index];
+        let html = '';
+        if (data.type === 'title') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[55vh]">
+                        <div class="text-7xl mb-4">${data.emoji || '📦'}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-slate-800 to-indigo-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${data.subtitle}</p>
+                        <div class="mt-6 text-sm text-gray-400">React Native · Context API · État global</div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (data.type === 'objectifs') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-4 border-indigo-400 pb-2 inline-block">${data.title}</h2>
+                        <ul class="mt-6 space-y-3">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 text-lg"><span class="text-indigo-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 p-4 bg-indigo-50 rounded-2xl">
+                            <p class="text-indigo-800">📌 À la fin, vous serez capable de structurer l’état global d’une application mobile sans complexité excessive.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'content') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'end') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[50vh]">
+                        <div class="text-5xl mb-4">🎉</div>
+                        <h2 class="text-3xl font-bold text-slate-800">${data.title}</h2>
+                        <p class="text-xl text-gray-600 mt-3">${data.message}</p>
+                        <p class="mt-6 italic text-gray-500">💪 ${data.nextAction}</p>
+                        <div class="mt-6 text-sm bg-slate-100 px-4 py-2 rounded-full">Leçon terminée ✅</div>
+                    </div>
+                </div>
+            `;
+        }
+        $('#slidesWrapper').html(html);
+        updateDots(index);
+        if (window.MathJax) MathJax.typesetPromise();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateDots(activeIndex) {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const activeClass = i === activeIndex ? 'active' : '';
+            dotsHtml += `<div class="dot-indicator ${activeClass}" data-index="${i}"></div>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('.dot-indicator').on('click', function() {
+            const idx = parseInt($(this).data('index'));
+            if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                currentSlide = idx;
+                renderSlide(currentSlide);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            if(currentSlide === totalSlides-1){
+                $('#nextSlide').text('✔ Terminé');
+                setTimeout(()=>$('#nextSlide').text('Suivant →'), 1000);
+            }
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+            $('#nextSlide').text('Suivant →');
+        }
+    }
+
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        // navigation clavier
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        // Swipe pour mobile
+        let touchStartX = 0, touchEndX = 0;
+        const wrapper = document.getElementById('slidesWrapper');
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextSlide();
+            if (touchEndX > touchStartX + 50) prevSlide();
+        });
+    });
+</script>
+<footer class="text-center text-xs text-gray-400 border-t border-gray-200 mt-8 py-5">
+    <p>📘 Cours React Native — Leçon 25 : Context API (createContext, Provider, useContext) | Enseignant Cameroun 🇨🇲</p>
+</footer>
+</body>
+</html>

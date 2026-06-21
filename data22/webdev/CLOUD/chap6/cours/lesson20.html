@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 20 : Conteneurs Serverless | Cours Cloud Computing</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour slides + lisibilité -->
+    <style>
+        /* Styles supplémentaires pour l’expérience slide */
+        body {
+            background: #f0f9ff; /* bleu très clair, apaisant */
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover {
+            transform: scale(1.03);
+            background-color: #1e3a8a !important;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        .objectif-badge {
+            background: #e0f2fe;
+            border-left: 5px solid #0f67b3;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            .nav-btn {
+                padding: 0.6rem 1rem;
+            }
+        }
+        /* amélioration du contraste */
+        .text-muted-cloud {
+            color: #2c3e66;
+        }
+        .bg-soft-sky {
+            background: #eef5ff;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            color: #0c4a6e;
+        }
+        .serverless-draw {
+            background: #fef9e3;
+            border-radius: 1rem;
+            border: 1px solid #ffe4b5;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-sky-50 to-blue-50 p-4 md:p-6">
+
+    <div class="slide-container" id="app">
+        <!-- Dynamique : slide courant injecté via jQuery -->
+        <div id="slide-content" class="slide-card bg-white p-6 md:p-10 mb-6"></div>
+        
+        <!-- Navigation + progression -->
+        <div class="flex flex-wrap justify-between items-center gap-3 mt-2">
+            <button id="prevBtn" class="nav-btn bg-blue-800 hover:bg-blue-900 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-1">
+                ← Précédent
+            </button>
+            <div class="flex-1 max-w-xs mx-2 bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressFill" class="progress-bar bg-blue-600 h-full rounded-full" style="width: 0%;"></div>
+            </div>
+            <button id="nextBtn" class="nav-btn bg-blue-800 hover:bg-blue-900 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-1">
+                Suivant →
+            </button>
+        </div>
+        <div class="text-center text-sm text-gray-500 mt-4">
+            Slide <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 20 : "Déployer des conteneurs sur des services managés (serverless containers)"
+        // Sujets : AWS Fargate, Azure Container Instances, scaling automatique, mises à jour, cas pratiques.
+        const slides = [
+            { // Slide 0 : TITRE
+                type: "title",
+                title: "☁️ Déploiement de conteneurs serverless",
+                subtitle: "AWS Fargate · Azure Container Instances · Scaling automatique",
+                chapter: "Leçon 20 – Calcul serverless & conteneurs managés"
+            },
+            { // Slide 1 : OBJECTIFS PÉDAGOGIQUES (basés sur objectifsLesson lesson20)
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Déployer des conteneurs sur des services managés sans gérer les serveurs sous-jacents.",
+                    "Utiliser AWS Fargate ou Azure Container Instances (conteneurs serverless).",
+                    "Gérer le scaling automatique et les mises à jour sans interruption."
+                ]
+            },
+            { // Slide 2 : Introduction - Contexte serverless containers
+                type: "content",
+                title: "📦 Conteneurs serverless : pourquoi ?",
+                content: `<p class="mb-3">Les <strong>conteneurs serverless</strong> combinent la <strong>portabilité des conteneurs</strong> (Docker) avec la <strong>simplicité du serverless</strong> : plus besoin de provisionner des nœuds, de patcher l'OS ou de gérer des clusters.</p>
+                <div class="serverless-draw p-4 mt-3 flex flex-col md:flex-row items-center gap-4">
+                    <div class="text-center flex-1">
+                        <div class="bg-white rounded-xl shadow p-2 inline-block">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 8H20V16H4V8Z" stroke="#2563eb" stroke-width="1.5" fill="#DBEAFE"/>
+                                <rect x="7" y="10" width="10" height="2" fill="#3B82F6"/>
+                                <circle cx="12" cy="14" r="1.5" fill="#F97316"/>
+                                <path d="M3 5L21 5" stroke="#1E40AF" stroke-width="1.2"/>
+                                <text x="8" y="20" font-size="8" fill="#1e3a8a">Docker image</text>
+                            </svg>
+                        </div>
+                        <p class="text-sm mt-2">Image conteneur</p>
+                    </div>
+                    <div class="text-2xl text-blue-600">➡️</div>
+                    <div class="flex-1 text-center bg-blue-50 p-2 rounded-lg">
+                        <p class="font-bold">Serverless Container Platform</p>
+                        <p class="text-xs">(AWS Fargate / Azure Container Instances)</p>
+                        <div class="flex gap-1 justify-center mt-1">
+                            <span class="inline-block h-2 w-2 bg-green-500 rounded-full"></span><span class="text-xs">Auto-scaling</span>
+                            <span class="inline-block h-2 w-2 bg-green-500 rounded-full ml-2"></span><span class="text-xs">Pay-per-use</span>
+                        </div>
+                    </div>
+                    <div class="text-2xl text-blue-600">➡️</div>
+                    <div class="text-center">
+                        <span class="bg-gray-800 text-white px-3 py-1 rounded-full text-sm">✔️ Application scalable</span>
+                    </div>
+                </div>
+                <p class="mt-4 text-muted-cloud">On oublie les VMs : on lance simplement le conteneur, le cloud provider gère tout le reste (mise à l'échelle, infrastructure, sécurité).</p>`
+            },
+            { // Slide 3 : AWS Fargate - présentation
+                type: "content",
+                title: "☁️ AWS Fargate : serverless pour ECS/EKS",
+                content: `<p class="font-semibold">🔹 AWS Fargate est un moteur de calcul serverless pour conteneurs compatible avec Amazon ECS et EKS.</p>
+                <ul class="list-disc pl-6 mt-2 space-y-1">
+                    <li>Plus besoin de gérer des instances EC2 ni de dimensionner des clusters.</li>
+                    <li>On définit simplement la CPU, la mémoire, le réseau et on exécute la tâche.</li>
+                    <li>Paiement à la seconde (ou à la minute selon région) pour les ressources consommées.</li>
+                    <li>Intégration native avec IAM, Load Balancer (ALB), CloudWatch logs.</li>
+                </ul>
+                <div class="bg-gray-100 p-3 rounded-lg mt-3 font-mono text-sm">
+                    <code>aws ecs run-task --launch-type FARGATE --cluster mon-cluster ...</code>
+                </div>
+                <p class="mt-2 italic text-gray-600">Idéal pour des applications microservices, batch ou API avec des charges variables.</p>`
+            },
+            { // Slide 4 : Azure Container Instances (ACI)
+                type: "content",
+                title: "⚙️ Azure Container Instances (ACI)",
+                content: `<p><strong>Azure Container Instances</strong> : la solution serverless de Microsoft pour exécuter un conteneur isolé en quelques secondes.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                    <div class="border border-blue-100 rounded-xl p-3 bg-white shadow-sm">
+                        <span class="font-bold text-blue-700">✅ Démarrage rapide</span>
+                        <p class="text-sm">Lancement d'un conteneur Linux/Windows directement sans orchestrateur.</p>
+                    </div>
+                    <div class="border border-blue-100 rounded-xl p-3 bg-white shadow-sm">
+                        <span class="font-bold text-blue-700">✅ Facturation à la seconde</span>
+                        <p class="text-sm">Paiement uniquement pour ce que le conteneur consomme (vCPU, mémoire).</p>
+                    </div>
+                    <div class="border border-blue-100 rounded-xl p-3 bg-white shadow-sm">
+                        <span class="font-bold text-blue-700">✅ Réseau virtuel</span>
+                        <p class="text-sm">Possibilité de déployer dans un VNet, avec IP publique ou privée.</p>
+                    </div>
+                    <div class="border border-blue-100 rounded-xl p-3 bg-white shadow-sm">
+                        <span class="font-bold text-blue-700">✅ Volumes persistants</span>
+                        <p class="text-sm">Montage de Azure Files ou emptyDir.</p>
+                    </div>
+                </div>
+                <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg mt-3 text-xs overflow-x-auto"><code>az container create --resource-group myRG --name monapp --image nginx --cpu 1 --memory 1.5 --ports 80</code></pre>`
+            },
+            { // Slide 5 : Scaling automatique et mises à jour
+                type: "content",
+                title: "📈 Scaling automatique & Rolling updates",
+                content: `<p>Avec les conteneurs serverless, le scaling horizontal est simplifié :</p>
+                <ul class="list-disc pl-6 mt-2 space-y-2">
+                    <li><span class="font-semibold">AWS Fargate :</span> on utilise <strong>Application Auto Scaling</strong> (basé sur CPU, mémoire, nombre de requêtes). Possibilité de définir min/max de tâches.</li>
+                    <li><span class="font-semibold">Azure Container Instances :</span> nativement ne scale pas automatiquement, mais on peut intégrer avec <strong>ACI + KEDA</strong> ou utiliser un orchestrateur comme <strong>AKS avec virtual nodes</strong> (Fargate-like). Pour les mises à jour, Azure supporte les <strong>container groups</strong> avec révision.</li>
+                    <li><strong>Mise à jour sans downtime :</strong> déploiement progressif (rolling update) : nouvelle version de l'image, le cloud remplace les anciennes tâches progressivement.</li>
+                </ul>
+                <div class="bg-green-50 p-3 rounded-lg mt-3 text-green-800 border border-green-200">
+                    💡 Bonne pratique : associer un <strong>load balancer</strong> devant vos conteneurs serverless pour distribuer le trafic et gérer les changements de version.
+                </div>`
+            },
+            { // Slide 6 : Comparaison Fargate vs ACI (choix selon besoin)
+                type: "content",
+                title: "🔍 Comparaison rapide : quand utiliser quel service ?",
+                content: `<div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-xl text-sm">
+                        <thead class="bg-blue-100">
+                            <tr><th class="p-2 border">Fonctionnalité</th><th class="p-2 border">AWS Fargate</th><th class="p-2 border">Azure Container Instances</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-2">Orchestration</td><td class="p-2">ECS ou EKS (K8s)</td><td class="p-2">Standalone / groupes de conteneurs (pod-like)</td></tr>
+                            <tr class="border-b"><td class="p-2">Auto-scaling natif</td><td class="p-2">✅ Oui (Application Auto Scaling)</td><td class="p-2">❌ non, mais via KEDA / AKS</td></tr>
+                            <tr class="border-b"><td class="p-2">Démarrage</td><td class="p-2">~ quelques secondes à minutes</td><td class="p-2">Très rapide (~ quelques secondes)</td></tr>
+                            <tr class="border-b"><td class="p-2">Modèle tarifaire</td><td class="p-2">vCPU / mémoire à la seconde</td><td class="p-2">vCPU / mémoire à la seconde</td></tr>
+                            <tr><td class="p-2">Cas typique</td><td class="p-2">Microservices persistants, workloads K8s</td><td class="p-2">Batch, jobs, tâches simples, prototypage</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-3 text-gray-700">Chaque fournisseur offre des atouts : AWS Fargate puissant pour les architectures complexes ; ACI pour la simplicité et l'intégration Azure.</p>`
+            },
+            { // Slide 7 : Exemple de déploiement et scaling (schéma fait maison)
+                type: "content",
+                title: "🚀 Exemple pratique : API web serverless",
+                content: `<p>Imaginons une API Node.js conteneurisée. Avec <strong>Fargate</strong>, voici le workflow simplifié :</p>
+                <div class="flex flex-col md:flex-row justify-between gap-3 my-4 text-center">
+                    <div class="bg-slate-100 p-3 rounded-2xl flex-1"><span class="font-mono">1. Docker build</span><br>→ image push ECR</div>
+                    <div class="text-2xl">→</div>
+                    <div class="bg-slate-100 p-3 rounded-2xl flex-1"><span class="font-mono">2. Définition Task Def</span><br>(Fargate, CPU/RAM)</div>
+                    <div class="text-2xl">→</div>
+                    <div class="bg-slate-100 p-3 rounded-2xl flex-1"><span class="font-mono">3. Service ECS</span><br>+ Auto Scaling</div>
+                </div>
+                <p><strong>Scaling automatique :</strong> configurer une politique : "quand CPU > 60%, ajouter des tâches jusqu'à 10". En quelques minutes, l'application s'adapte aux pics de trafic.</p>
+                <div class="mt-3 serverless-draw p-3 flex justify-around items-center flex-wrap">
+                    <div class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-green-500 rounded-full"></span><span>Trafic faible → 2 tâches</span></div>
+                    <div class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-orange-400 rounded-full"></span><span>Pic de charge → 8 tâches</span></div>
+                    <div class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-blue-500 rounded-full"></span><span>Calme → redescend à 2</span></div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">Le paiement à l'usage évite de gaspiller des ressources.</p>`
+            },
+            { // Slide 8 : Bonnes pratiques & limitations
+                type: "content",
+                title: "⚠️ Limitations & bonnes pratiques",
+                content: `<div class="grid md:grid-cols-2 gap-4">
+                    <div class="border-l-4 border-yellow-400 pl-3 bg-yellow-50 p-2 rounded">
+                        <p class="font-bold">🧠 Limitations connues</p>
+                        <ul class="list-disc pl-4 text-sm">
+                            <li>Démarrage à froid (cold start) parfois perceptible (rare pour Fargate mais possible).</li>
+                            <li>Stockage éphémère par défaut (limité à 20 Go sur Fargate, 10 sur ACI).</li>
+                            <li>Certains types d'images nécessitent des optimisations (taille, dépendances).</li>
+                            <li>Pas d'accès direct à l'hôte, debug moins flexible.</li>
+                        </ul>
+                    </div>
+                    <div class="border-l-4 border-green-400 pl-3 bg-green-50 p-2 rounded">
+                        <p class="font-bold">✨ Bonnes pratiques</p>
+                        <ul class="list-disc pl-4 text-sm">
+                            <li>Utiliser des images légères (Alpine, distroless).</li>
+                            <li>Configurer des health checks pour le rolling update.</li>
+                            <li>Surveiller les métriques (CloudWatch / Azure Monitor).</li>
+                            <li>Mettre en place des budgets et alertes pour maîtriser les coûts.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-lg mt-3 text-blue-900 text-center text-sm">
+                    📌 <strong>À retenir :</strong> les conteneurs serverless sont parfaits pour les charges microservices, les traitements batch ou les API avec montée en charge imprévisible. Ils réduisent l'effort d'administration.
+                </div>`
+            },
+            { // Slide 9 : Synthèse & ressources supplémentaires
+                type: "conclusion",
+                title: "📌 Récapitulatif de la leçon 20",
+                summary: [
+                    "Les conteneurs serverless (AWS Fargate / Azure Container Instances) permettent d'exécuter des applications conteneurisées sans gérer les serveurs.",
+                    "Facturation à l'usage et auto-scaling (Fargate) ou intégration avec d'autres services pour scaling (ACI).",
+                    "Mises à jour sans interruption via rolling updates et load balancing.",
+                    "Idéal pour des applications modernes, CI/CD, jobs ponctuels."
+                ],
+                extra: "🎓 Pour aller plus loin : consulter la documentation AWS Fargate, essayer le niveau gratuit, déployer votre première tâche avec un Dockerfile."
+            }
+        ];
+
+        let currentSlide = 0;
+        const total = slides.length;
+
+        function renderSlide(index) {
+            const slide = slides[index];
+            let html = '';
+            if (slide.type === 'title') {
+                html = `
+                    <div class="text-center py-4 md:py-8">
+                        <span class="text-sm uppercase tracking-wide text-blue-600 font-semibold">${slide.chapter}</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold mt-2 bg-gradient-to-r from-blue-800 to-cyan-700 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="w-16 h-1 bg-blue-500 rounded-full"></div>
+                        </div>
+                        <p class="mt-8 text-gray-500 italic">Glissez ou cliquez sur Suivant pour démarrer</p>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectifs') {
+                html = `<div><h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-b border-blue-200 pb-2 mb-5">${slide.title}</h2>
+                        <div class="space-y-3">`;
+                slide.objectives.forEach(obj => {
+                    html += `<div class="objectif-badge p-3 rounded-xl flex items-start gap-3 shadow-sm">
+                                <span class="text-blue-700 text-xl">🎯</span>
+                                <span class="text-gray-800">${obj}</span>
+                            </div>`;
+                });
+                html += `</div><div class="mt-6 text-center text-sm text-gray-500">À la fin de cette leçon, vous serez capable de déployer des conteneurs serverless avec aisance.</div></div>`;
+            }
+            else if (slide.type === 'content') {
+                html = `<div><h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-l-8 border-blue-500 pl-3 mb-5">${slide.title}</h2>
+                        <div class="prose prose-blue max-w-none">${slide.content}</div></div>`;
+            }
+            else if (slide.type === 'conclusion') {
+                html = `<div><h2 class="text-2xl md:text-3xl font-bold text-blue-800 mb-4">${slide.title}</h2>
+                        <ul class="space-y-2 list-disc pl-5">`;
+                slide.summary.forEach(item => {
+                    html += `<li class="text-gray-700">${item}</li>`;
+                });
+                html += `</ul><div class="mt-6 p-4 bg-blue-50 rounded-xl italic">${slide.extra}</div>
+                        <div class="mt-4 text-sm text-gray-500">✨ Prochaine étape : atelier pratique sur votre compte cloud (niveau gratuit).</div></div>`;
+            }
+
+            $('#slide-content').html(html);
+            $('#slideCounter').text(index+1);
+            $('#totalSlides').text(total);
+            const progressPercent = ((index) / (total-1)) * 100;
+            $('#progressFill').css('width', progressPercent + '%');
+
+            // Recharger MathJax si besoin (contenu mathématique)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // Scroll en haut
+            $('html, body').animate({ scrollTop: 0 }, 150);
+        }
+
+        function nextSlide() {
+            if (currentSlide < total - 1) {
+                currentSlide++;
+                renderSlide(currentSlide);
+            } else {
+                // déjà à la fin
+                alert("🏁 Fin du cours ! Félicitations, vous avez terminé la leçon 20.");
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide(currentSlide);
+            } else {
+                // premier slide
+                alert("Vous êtes au début de la leçon.");
+            }
+        }
+
+        // Initialisation
+        renderSlide(0);
+        $('#nextBtn').on('click', nextSlide);
+        $('#prevBtn').on('click', prevSlide);
+        
+        // Navigation clavier (flèches)
+        $(document).keydown(function(e) {
+            if (e.key === 'ArrowRight') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+        
+        // Taille totale pour le compteur
+        $('#totalSlides').text(total);
+    </script>
+    <footer class="text-center text-xs text-gray-400 mt-8 pb-4">
+        Cours d'Initiation au Cloud Computing | Cameroun | Leçon 20 : Conteneurs serverless (AWS Fargate & Azure Container Instances)
+    </footer>
+</body>
+</html>

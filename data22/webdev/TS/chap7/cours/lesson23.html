@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 23 : Types conditionnels et inférence (infer) en TypeScript</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s;
+            overflow: hidden;
+        }
+        .nav-button {
+            transition: all 0.2s ease;
+            background-color: #1e293b;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            background-color: #0f172a;
+            transform: scale(1.02);
+        }
+        .nav-button:active {
+            transform: scale(0.98);
+        }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #8b5cf6;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+                margin: 1rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            height: 4px;
+            background: #8b5cf6;
+            border-radius: 2px;
+            width: 0%;
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .type-tag {
+            background-color: #ede9fe;
+            color: #5b21b6;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="slide-container" id="app">
+    <div id="slides-wrapper" class="relative"></div>
+    <div class="flex flex-col items-center mt-6 gap-4">
+        <div class="w-full max-w-md progress-bar">
+            <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div class="flex gap-6 justify-center flex-wrap">
+            <button id="prevBtn" class="nav-button"><span class="mr-1">◀</span> Précédent</button>
+            <span id="pageIndicator" class="text-gray-700 font-medium bg-white/60 backdrop-blur-sm px-4 py-2 rounded-full">Slide 1 / 1</span>
+            <button id="nextBtn" class="nav-button">Suivant <span class="ml-1">▶</span></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Slides pour la lesson23 : Types conditionnels et infer
+    const slides = [
+        { // Slide 0 : Titre
+            title: "Lesson 23 - Types conditionnels & infer",
+            content: `
+                <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                    <div class="bg-purple-100 text-purple-800 rounded-full px-6 py-2 text-sm font-semibold mb-4">Chapitre 7 - TypeScript Avancé</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent mb-6">Types conditionnels<br>et mot-clé <span class="bg-purple-200 px-3 py-1 rounded-xl text-purple-900">infer</span></h1>
+                    <p class="text-lg text-gray-600 max-w-2xl mx-auto">Découvrez la programmation par types : des conditions, des inférences et des types utilitaires puissants ! 🇨🇲</p>
+                    <div class="mt-8 flex flex-wrap gap-3 justify-center">
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🔍 T extends U ? X : Y</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🧠 infer R</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">📦 ReturnType<T></span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">⚙️ Parameters<T></span>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 1 : Objectifs
+            title: "Objectifs de la leçon",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl md:text-3xl font-bold text-purple-800 border-l-8 border-purple-500 pl-4 mb-6">🎯 Objectifs pédagogiques</h2>
+                    <ul class="space-y-5 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Comprendre la syntaxe <span class="type-tag">T extends U ? X : Y</span> (type conditionnel)</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Maîtriser le mot-clé <span class="type-tag">infer</span> pour capturer des types dans une condition</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Utiliser les types utilitaires <span class="type-tag">ReturnType<T></span> et <span class="type-tag">Parameters<T></span> (basés sur infer)</li>
+                        <li class="flex items-start gap-3"><span class="text-green-600 text-xl">✓</span> Créer vos propres types conditionnels pour des API flexibles</li>
+                    </ul>
+                    <div class="mt-6 bg-purple-50 rounded-2xl p-4 border border-purple-200">
+                        <p class="text-purple-800"><span class="font-bold">💡 Pourquoi c'est utile ?</span> Les types conditionnels permettent d'écrire du code générique intelligent qui adapte son typage selon la situation. On les retrouve dans les bibliothèques modernes comme Prisma, Zod ou encore dans le core de TypeScript.</p>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 2 : Syntaxe de base des types conditionnels
+            title: "1. Syntaxe : T extends U ? X : Y",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">🔀 Le conditionnel de types</h2>
+                    <p>Un type conditionnel ressemble à une condition ternaire JavaScript, mais sur les <strong>types</strong> :</p>
+                    <div class="code-block my-5">
+                        <pre>type EstNombre&lt;T&gt; = T extends number ? "Oui c'est un nombre" : "Non, ce n'est pas un nombre";
+
+type A = EstNombre&lt;42&gt;;        // "Oui c'est un nombre"
+type B = EstNombre&lt;"hello"&gt;;   // "Non, ce n'est pas un nombre"
+type C = EstNombre&lt;boolean&gt;;   // "Non, ce n'est pas un nombre"
+
+// Exemple avec condition sur les tableaux
+type EstTableau&lt;T&gt; = T extends any[] ? "Tableau détecté" : "Pas un tableau";
+
+type Test1 = EstTableau&lt;number[]&gt;;   // "Tableau détecté"
+type Test2 = EstTableau&lt;string&gt;;     // "Pas un tableau"</pre>
+                    </div>
+                    <p>📖 <span class="font-mono">T extends U ? X : Y</span> signifie : <em>"Si T est assignable à U, alors le type résultant est X, sinon Y"</em>.</p>
+                </div>
+            `
+        },
+        { // Slide 3 : Utilisation avec les génériques
+            title: "2. Types conditionnels + génériques",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">⚡ Combinaison avec les génériques</h2>
+                    <p>On peut créer des fonctions dont le type de retour dépend du type d'entrée :</p>
+                    <div class="code-block my-5">
+                        <pre>type TypeRetour&lt;T&gt; = T extends string ? string : T extends number ? number : object;
+
+function traiterValeur&lt;T&gt;(valeur: T): TypeRetour&lt;T&gt; {
+  if (typeof valeur === "string") return valeur.toUpperCase() as any;
+  if (typeof valeur === "number") return valeur * 2 as any;
+  return { original: valeur } as any;
+}
+
+const result1 = traiterValeur("cameroun"); // string (transformé en "CAMEROUN")
+const result2 = traiterValeur(100);        // number (200)
+const result3 = traiterValeur(true);       // object { original: true }</pre>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-3">⚠️ Note : L'implémentation nécessite des assertions (<span class="font-mono">as any</span>) car TypeScript ne peut pas prouver statiquement la correspondance. Mais la signature externe est parfaitement typée !</div>
+                </div>
+            `
+        },
+        { // Slide 4 : Le mot-clé infer (inférence de types)
+            title: "3. Le mot-clé <span class='bg-purple-200 px-2 rounded'>infer</span>",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">🧩 infer : capturer un type inconnu</h2>
+                    <p><span class="font-mono bg-gray-100 px-1">infer</span> permet de déclarer une variable de type temporaire dans une condition. Très utilisé pour extraire le type d'un tableau, d'une promesse, ou d'une fonction.</p>
+                    <div class="code-block my-5">
+                        <pre>// Extraire le type des éléments d'un tableau
+type TypeElement&lt;T&gt; = T extends (infer U)[] ? U : T;
+
+type A = TypeElement&lt;number[]&gt;;      // number
+type B = TypeElement&lt;string[]&gt;;      // string
+type C = TypeElement&lt;boolean&gt;;       // boolean (non-tableau)
+
+// Extraire le type d'une Promesse
+type TypePromesse&lt;T&gt; = T extends Promise&lt;infer U&gt; ? U : T;
+
+type Donnees = TypePromesse&lt;Promise&lt;string&gt;&gt;;  // string
+type Simple = TypePromesse&lt;number&gt;;            // number</pre>
+                    </div>
+                    <p>🎯 <span class="font-bold">infer</span> ne peut être utilisé que dans la clause <span class="font-mono">extends</span> d'un type conditionnel.</p>
+                </div>
+            `
+        },
+        { // Slide 5 : ReturnType<T> (décortiqué)
+            title: "4. ReturnType<T> : inférer le retour d'une fonction",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">📤 ReturnType&lt;T&gt; - utilitaire basé sur infer</h2>
+                    <p><span class="type-tag">ReturnType&lt;TypeFonction&gt;</span> est un type utilitaire intégré qui extrait le type de retour d'une fonction.</p>
+                    <div class="code-block my-5">
+                        <pre>// Implémentation simplifiée de ReturnType
+type MonReturnType&lt;T&gt; = T extends (...args: any[]) => infer R ? R : never;
+
+function direBonjour(): string {
+  return "Bonjour Cameroun !";
+}
+
+function calculerSurface(largeur: number, hauteur: number): number {
+  return largeur * hauteur;
+}
+
+type TypeRetour1 = MonReturnType&lt;typeof direBonjour&gt;;  // string
+type TypeRetour2 = MonReturnType&lt;typeof calculerSurface&gt;; // number</pre>
+                    </div>
+                    <p>🔧 <span class="font-mono">ReturnType&lt;T&gt;</span> est très utile dans les librairies de mapping ou quand on veut déduire automatiquement ce qu'une fonction renvoie.</p>
+                </div>
+            `
+        },
+        { // Slide 6 : Parameters<T> (extraire les paramètres)
+            title: "5. Parameters<T> : capturer les paramètres d'une fonction",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">📥 Parameters&lt;T&gt; - extraire un tuple de paramètres</h2>
+                    <div class="code-block my-5">
+                        <pre>// Implémentation simplifiée de Parameters
+type MesParameters&lt;T&gt; = T extends (...args: infer P) => any ? P : never;
+
+function enregistrerUtilisateur(id: number, nom: string, actif: boolean) {
+  return { id, nom, actif };
+}
+
+type Params = MesParameters&lt;typeof enregistrerUtilisateur&gt;;
+// Params = [id: number, nom: string, actif: boolean]
+
+// Exemple concret : wrapper générique
+function avecLog&lt;F extends (...args: any[]) => any&gt;(fn: F): (...args: Parameters&lt;F&gt;) => ReturnType&lt;F&gt; {
+  return (...args: Parameters&lt;F&gt;) => {
+    console.log("Appel avec :", args);
+    return fn(...args);
+  };
+}
+
+const logEnregistrement = avecLog(enregistrerUtilisateur);
+logEnregistrement(101, "Ahmadou", true); // Log + exécution</pre>
+                    </div>
+                </div>
+            `
+        },
+        { // Slide 7 : Exemple avancé : type conditionnel récursif
+            title: "6. Exemple avancé : DeepReadonly",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">🌀 Type conditionnel récursif</h2>
+                    <p>On peut combiner condition et récursivité pour traverser des structures complexes.</p>
+                    <div class="code-block my-5">
+                        <pre>// DeepReadonly : rend toutes les propriétés (même imbriquées) readonly
+type DeepReadonly&lt;T&gt; = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly&lt;T[P]&gt; : T[P];
+};
+
+interface Article {
+  titre: string;
+  auteur: { nom: string; email: string };
+  tags: string[];
+}
+
+type ArticleImmutable = DeepReadonly&lt;Article&gt;;
+
+const article: ArticleImmutable = {
+  titre: "TypeScript Avancé",
+  auteur: { nom: "M. Kamga", email: "kamga@example.com" },
+  tags: ["TS", "condition"]
+};
+
+// article.titre = "nouveau titre"; // ❌ Erreur : lecture seule
+// article.auteur.nom = "Autre";    // ❌ Erreur également</pre>
+                    </div>
+                    <p>🎓 Ce pattern est utilisé dans Redux Toolkit et Immer pour garantir l'immutabilité.</p>
+                </div>
+            `
+        },
+        { // Slide 8 : Résumé et exercice pratique
+            title: "Résumé & Exercice",
+            content: `
+                <div class="p-6 md:p-10">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">📌 Ce qu'il faut retenir</h2>
+                    <ul class="list-disc pl-6 space-y-3 text-gray-700 mb-6">
+                        <li><span class="font-mono">T extends U ? X : Y</span> : type conditionnel de base.</li>
+                        <li><span class="font-mono">infer R</span> : capturer un type dans une branche <span class="font-mono">extends</span>.</li>
+                        <li>Les utilitaires <span class="font-mono">ReturnType&lt;T&gt;</span> et <span class="font-mono">Parameters&lt;T&gt;</span> sont implémentés avec <span class="font-mono">infer</span>.</li>
+                        <li>Les types conditionnels permettent des transformations de types puissantes et récursives.</li>
+                    </ul>
+                    <div class="p-5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                        <p class="font-bold text-green-800">🧪 Mini exercice :</p>
+                        <p>Créez un type conditionnel <span class="font-mono">TypeOuNul&lt;T&gt;</span> qui retourne <span class="font-mono">null</span> si T est une chaîne, sinon retourne le type T d'origine. Testez-le avec <span class="font-mono">string</span>, <span class="font-mono">number</span> et <span class="font-mono">boolean</span>.</p>
+                        <details class="mt-3"><summary class="cursor-pointer text-purple-600 font-medium">🔍 Voir une solution</summary>
+                        <div class="code-block mt-2 text-xs">type TypeOuNul&lt;T&gt; = T extends string ? null : T;<br>type A = TypeOuNul&lt;string&gt;;  // null<br>type B = TypeOuNul&lt;number&gt;;  // number<br>type C = TypeOuNul&lt;boolean&gt;; // boolean</div>
+                        </details>
+                        <p class="mt-3 font-medium">✏️ Défi supplémentaire : Écrivez un type <span class="font-mono">TypeAwaited&lt;T&gt;</span> qui extrait le type d'une promesse (gère <span class="font-mono">Promise&lt;Promise&lt;string&gt;&gt;</span>).</p>
+                    </div>
+                </div>
+            `
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        const html = `
+            <div class="slide-card overflow-hidden">
+                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-6 py-3 border-b border-purple-200">
+                    <h3 class="font-semibold text-purple-800">${slide.title}</h3>
+                </div>
+                <div>
+                    ${slide.content}
+                </div>
+            </div>
+        `;
+        $("#slides-wrapper").html(html);
+        $("#pageIndicator").text(`Slide ${index+1} / ${totalSlides}`);
+        const progressPercent = (index / (totalSlides - 1)) * 100;
+        $("#progress-fill").css("width", `${progressPercent}%`);
+        
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            alert("🎉 Félicitations ! Vous avez terminé la leçon sur les types conditionnels.");
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+        } else {
+            alert("C'est le début de la leçon.");
+        }
+    }
+
+    renderSlide(0);
+    $("#nextBtn").on("click", nextSlide);
+    $("#prevBtn").on("click", prevSlide);
+    
+    $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+    });
+</script>
+</body>
+</html>

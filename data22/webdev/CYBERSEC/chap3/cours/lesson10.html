@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 10 : VPN - Sécuriser les communications réseau</title>
+    <!-- Tailwind CSS + Font Awesome (icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* ajustements personnalisés pour lisibilité et couleurs douces */
+        body {
+            background: #f8fafc;
+        }
+        .slide-card {
+            transition: all 0.3s ease;
+        }
+        /* navigation dots actifs */
+        .dot-active {
+            background-color: #3b82f6 !important;
+            width: 2rem !important;
+        }
+        /* améliorer le contraste des liens et boutons */
+        .btn-nav {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        /* pour rendre le texte plus lisible */
+        .prose-slide p, .prose-slide li {
+            line-height: 1.5;
+        }
+        /* optimisation mobile */
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.25rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Header : infos matière/classe -->
+        <div class="text-center mb-6 md:mb-8">
+            <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-800 px-4 py-1 rounded-full text-sm font-medium shadow-sm">
+                <span>📘 Développement Web</span>
+                <span class="w-1 h-1 bg-blue-400 rounded-full"></span>
+                <span>🛡️ Initiation à la Cybersécurité</span>
+            </div>
+            <h2 class="text-gray-500 text-sm mt-2">Chapitre 3 · Protéger l'infrastructure réseau</h2>
+        </div>
+
+        <!-- Conteneur slide actif -->
+        <div id="slideContainer" class="relative">
+            <!-- Les slides seront injectées dynamiquement par jQuery -->
+        </div>
+
+        <!-- Navigation : boutons précédent / suivant + indicateur de progression -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mt-8">
+            <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-xl shadow-sm transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                ← Précédent
+            </button>
+            <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+            <button id="nextSlide" class="btn-nav bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-xl shadow-sm transition flex items-center gap-1">
+                Suivant →
+            </button>
+        </div>
+        
+        <!-- petit rappel de progression sur mobile -->
+        <div class="text-center text-xs text-gray-400 mt-6">
+            Leçon 10/40 · Cours complet
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        // DONNÉES DE LA LEÇON 10 : "Comprendre le principe du VPN (tunnel chiffré)"
+        // D'après le programme: lesson10 fait partie du chap3, objectifs :
+        // 1. Comprendre le principe du VPN (tunnel chiffré)
+        // 2. Distinguer les protocoles (IPsec, OpenVPN, WireGuard, L2TP)
+        // 3. Configurer un VPN site-à-site et client-serveur
+        // --------------------------------------------------------------
+        const lessonData = {
+            title: "🔐 VPN : Virtual Private Network",
+            subtitle: "Sécuriser ses communications sur Internet",
+            objectives: [
+                "Comprendre le principe d'un VPN : un tunnel chiffré entre deux points.",
+                "Découvrir les protocoles principaux : IPsec, OpenVPN, WireGuard, L2TP.",
+                "Savoir configurer deux types de VPN : site-à-site et client-serveur (accès distant)."
+            ],
+            slides: [
+                {
+                    type: "content",
+                    title: "🧠 Qu'est-ce qu'un VPN ?",
+                    content: `
+                        <p class="mb-3">Un <strong class="text-blue-700">VPN (Réseau Privé Virtuel)</strong> crée une connexion sécurisée et chiffrée à travers un réseau public comme Internet. Imaginez un <strong class="text-green-600">tunnel invisible</strong> : vos données voyagent à l'intérieur, à l'abri des regards indiscrets (hackers, FAI, etc.).</p>
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg my-4">
+                            <p class="italic text-gray-700">🔒 Le VPN garantit <strong>confidentialité</strong> (chiffrement), <strong>intégrité</strong> (données non altérées) et authentification (les deux parties s'assurent de leur identité).</p>
+                        </div>
+                        <div class="flex justify-center my-5">
+                            <svg width="280" height="120" viewBox="0 0 350 120" class="max-w-full" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="40" width="60" height="30" fill="#cbd5e1" stroke="#475569" stroke-width="1.5" rx="6" />
+                                <text x="25" y="60" font-size="8" fill="#1e293b">Client</text>
+                                <rect x="280" y="40" width="60" height="30" fill="#cbd5e1" stroke="#475569" stroke-width="1.5" rx="6" />
+                                <text x="295" y="60" font-size="8" fill="#1e293b">Serveur</text>
+                                <path d="M70,55 L110,55" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4" />
+                                <rect x="110" y="30" width="130" height="50" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="12" stroke-dasharray="5,3" />
+                                <text x="135" y="58" font-size="10" fill="#1e40af" font-weight="bold">🌐 Tunnel chiffré</text>
+                                <path d="M240,55 L280,55" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4" />
+                                <path d="M180,30 L180,15" stroke="#f97316" stroke-width="1.5" />
+                                <text x="165" y="12" font-size="8" fill="#ea580c">Internet</text>
+                            </svg>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-600">Le trajet des données est encapsulé et chiffré : même si quelqu'un intercepte le paquet, il ne peut pas lire l'information.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🛡️ Pourquoi utiliser un VPN ?",
+                    content: `
+                        <ul class="list-disc pl-6 space-y-2 text-gray-800">
+                            <li><span class="font-semibold">Anonymat & vie privée :</span> masquer son adresse IP et sa localisation.</li>
+                            <li><span class="font-semibold">Sécurité sur Wi-Fi public :</span> dans un café ou aéroport, le VPN protège vos mots de passe et données.</li>
+                            <li><span class="font-semibold">Télétravail :</span> accéder aux ressources internes de l'entreprise (fichiers, applications) comme si vous étiez sur place.</li>
+                            <li><span class="font-semibold">Contournement de censure :</span> dans certains pays, le VPN permet d'accéder à des sites bloqués.</li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-amber-800 text-sm">
+                            ⚠️ Attention : un VPN ne rend pas complètement anonyme si mal configuré ou si le fournisseur conserve des logs.
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "📡 Protocoles VPN : IPsec, OpenVPN, WireGuard, L2TP",
+                    content: `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200"><span class="font-bold text-indigo-700">🔹 IPsec</span><br>Sécurise IP, souvent combiné avec L2TP. Très utilisé pour les VPN site-à-site. Robuste mais un peu complexe.</div>
+                            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200"><span class="font-bold text-indigo-700">🔹 OpenVPN</span><br>Open source, très fiable, personnalisable. Port UDP/TCP, nombreux algorithmes de chiffrement.</div>
+                            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200"><span class="font-bold text-emerald-700">🔹 WireGuard</span><br>Moderne, ultra-rapide, peu de lignes de code. Sécurisé par défaut, idéal pour mobile et IoT.</div>
+                            <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200"><span class="font-bold text-slate-700">🔹 L2TP/IPsec</span><br>Couche 2 (tunnel) + IPsec pour chiffrement. Compatible large, mais souvent filtré par certains pare-feu.</div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-3">Chaque protocole a ses forces: OpenVPN pour la flexibilité, WireGuard pour la performance, IPsec pour l’intégration entre routeurs.</p>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🏢 Configuration VPN Site-à-Site",
+                    content: `
+                        <p><strong>VPN site-à-site</strong> relie deux réseaux distants (ex: siège social et agence) via Internet, comme s'ils étaient dans le même local. Chaque routeur gère le tunnel.</p>
+                        <div class="my-4 flex justify-center">
+                            <svg width="320" height="100" viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="10" y="35" width="70" height="35" fill="#e2e8f0" stroke="#334155" rx="6" />
+                                <text x="20" y="55" font-size="9" fill="#0f172a">Réseau A</text>
+                                <text x="20" y="65" font-size="7">192.168.1.0/24</text>
+                                <rect x="310" y="35" width="70" height="35" fill="#e2e8f0" stroke="#334155" rx="6" />
+                                <text x="325" y="55" font-size="9" fill="#0f172a">Réseau B</text>
+                                <text x="328" y="65" font-size="7">10.0.0.0/24</text>
+                                <rect x="120" y="40" width="160" height="28" fill="#bbf7d0" stroke="#15803d" stroke-width="1.5" rx="14" />
+                                <text x="158" y="58" font-size="10" fill="#166534" font-weight="bold">🔗 Tunnel VPN Site-à-Site</text>
+                                <path d="M80,52 L120,52" stroke="#64748b" stroke-width="1.5" />
+                                <path d="M280,52 L310,52" stroke="#64748b" stroke-width="1.5" />
+                            </svg>
+                        </div>
+                        <ul class="list-disc pl-5 space-y-1 text-sm">
+                            <li>Utilise IPsec ou OpenVPN entre deux routeurs/pare-feu.</li>
+                            <li>Les employés des deux sites accèdent aux ressources mutualisées sans percevoir le tunnel.</li>
+                            <li>Exemple concret : PME avec bureaux à Douala et Yaoundé, partage d’un serveur de fichiers en toute sécurité.</li>
+                        </ul>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "💻 Configuration Client-Serveur (Accès distant)",
+                    content: `
+                        <p>Un utilisateur (smartphone, ordinateur portable) se connecte depuis n'importe où au réseau privé de son entreprise.</p>
+                        <div class="bg-gray-50 p-3 rounded-lg my-3 border border-gray-200">
+                            <span class="font-mono text-sm block">📌 Étapes typiques :</span>
+                            <ol class="list-decimal pl-6 mt-1 text-gray-700">
+                                <li>Installer un client VPN (ex: OpenVPN, WireGuard, ou logiciel maison).</li>
+                                <li>Importer une configuration fournie par l'administrateur (certificats, clés).</li>
+                                <li>Se connecter avec ses identifiants (et éventuelle 2FA).</li>
+                                <li>Le serveur VPN (souvent dans le réseau d'entreprise) attribue une IP interne et autorise l'accès aux ressources.</li>
+                            </ol>
+                        </div>
+                        <p>Cas d'usage : télétravail sécurisé, ou un développeur qui accède à une base de données interne depuis chez lui.</p>
+                        <div class="mt-3 flex justify-center gap-4 text-xs bg-indigo-50 p-2 rounded-xl">
+                            <span>🖥️ Client → ☁️ Internet → 🔐 Serveur VPN → 🗄️ Réseau privé</span>
+                        </div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "🔧 Exemple simplifié de configuration (OpenVPN)",
+                    content: `
+                        <p class="mb-2">Côté serveur (fichier <code class="bg-gray-200 px-1 rounded">server.conf</code>) :</p>
+                        <pre class="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto text-xs font-mono">port 1194
+proto udp
+dev tun
+ca ca.crt
+cert server.crt
+key server.key
+dh dh.pem
+server 10.8.0.0 255.255.255.0
+push "redirect-gateway def1"
+push "dhcp-option DNS 8.8.8.8"
+keepalive 10 120
+cipher AES-256-GCM
+user nobody
+group nogroup
+persist-key
+persist-tun
+status openvpn-status.log</pre>
+                        <p class="mt-3">Côté client : fichier .ovpn avec les clés et le remote <em>votre-serveur.com 1194</em>. Une fois connecté, l'utilisateur reçoit une IP du réseau VPN (10.8.0.x) et peut accéder aux ressources internes.</p>
+                        <div class="bg-green-50 p-2 rounded mt-2 text-green-800 text-xs">💡 WireGuard est plus simple : seulement quelques lignes dans wg0.conf (PrivateKey, ListenPort, Peers).</div>
+                    `
+                },
+                {
+                    type: "content",
+                    title: "⚡ Bonnes pratiques et limites",
+                    content: `
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                                <span class="font-bold text-green-700">✅ Recommandations</span>
+                                <ul class="list-disc pl-5 mt-1 text-sm space-y-1">
+                                    <li>Utiliser du chiffrement fort (AES-256, ChaCha20).</li>
+                                    <li>Mettre en place une authentification multi-facteurs.</li>
+                                    <li>Segmenter le réseau : le VPN n’accède qu’aux services nécessaires.</li>
+                                    <li>Surveiller les logs de connexion (anomalies).</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                                <span class="font-bold text-red-600">⚠️ Limites / Risques</span>
+                                <ul class="list-disc pl-5 mt-1 text-sm space-y-1">
+                                    <li>La vitesse peut baisser à cause du chiffrement.</li>
+                                    <li>Configuration incorrecte = fuite DNS ou IP.</li>
+                                    <li>Certains firewalls bloquent les protocoles VPN (OpenVPN over TCP 443 peut aider).</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <p class="text-xs text-center text-gray-500 mt-4">🧩 Un VPN n'est pas une solution magique : il complète une stratégie de défense en profondeur.</p>
+                    `
+                },
+                {
+                    type: "recap",
+                    title: "📝 Récapitulons !",
+                    content: `
+                        <div class="space-y-3 text-gray-800">
+                            <div class="flex items-start gap-3"><span class="text-blue-600 text-xl">✔️</span> <span>Un VPN crée un <strong>tunnel chiffré</strong> qui sécurise les données sur Internet.</span></div>
+                            <div class="flex items-start gap-3"><span class="text-blue-600 text-xl">✔️</span> <span>Protocoles majeurs : <strong>IPsec</strong> (robuste), <strong>OpenVPN</strong> (polyvalent), <strong>WireGuard</strong> (rapide), <strong>L2TP</strong> (compatible).</span></div>
+                            <div class="flex items-start gap-3"><span class="text-blue-600 text-xl">✔️</span> <span>VPN <strong>site-à-site</strong> : interconnecte deux réseaux entiers. VPN <strong>client-serveur</strong> : pour utilisateurs distants.</span></div>
+                            <div class="flex items-start gap-3"><span class="text-blue-600 text-xl">✔️</span> <span>La configuration se fait via des fichiers .conf ou des assistants graphiques. Toujours prioriser chiffrement fort et authentification.</span></div>
+                        </div>
+                        <div class="mt-5 p-3 bg-blue-100 rounded-xl text-center text-blue-800 text-sm font-medium">
+                            🔐 La cybersécurité passe par la maîtrise des VPN : protéger les données en transit est essentiel !
+                        </div>
+                    `
+                }
+            ]
+        };
+
+        // Construction des slides avec DOM
+        let currentIndex = 0;
+        let totalSlides = 0;
+        let $slideContainer = $("#slideContainer");
+        let $dotsContainer = $("#dotsContainer");
+
+        function buildSlides() {
+            $slideContainer.empty();
+            $dotsContainer.empty();
+            const slidesArray = [];
+            // Slide 0 : titre + présentation générale
+            slidesArray.push({
+                type: "title",
+                title: lessonData.title,
+                content: `<div class="text-center py-6">
+                            <div class="text-5xl mb-4">🛡️🌐</div>
+                            <p class="text-xl font-medium text-gray-600">${lessonData.subtitle}</p>
+                            <div class="mt-6 bg-blue-50 inline-block px-6 py-2 rounded-full text-blue-700 text-sm">Cours interactif - Initiation cybersécurité</div>
+                         </div>`
+            });
+            // Slide 1 : objectifs pédagogiques
+            let objectivesHtml = `<div><h3 class="text-2xl font-bold text-gray-800 mb-4">🎯 Objectifs d'apprentissage</h3><ul class="space-y-3">`;
+            lessonData.objectives.forEach(obj => {
+                objectivesHtml += `<li class="flex items-start gap-2"><span class="text-green-600 text-xl">✓</span> <span class="text-gray-700">${obj}</span></li>`;
+            });
+            objectivesHtml += `</ul><div class="mt-6 text-sm text-gray-500">À la fin de cette leçon, vous serez capable de comprendre et d'expliquer le rôle d'un VPN.</div></div>`;
+            slidesArray.push({ type: "objectives", title: "Objectifs", content: objectivesHtml });
+            
+            // Ajouter les slides de contenu (type content ou recap)
+            lessonData.slides.forEach(slide => {
+                slidesArray.push(slide);
+            });
+            
+            totalSlides = slidesArray.length;
+            // Générer les slides (cachées sauf la première)
+            slidesArray.forEach((slide, idx) => {
+                let bgClass = "bg-white";
+                let headerColor = "border-b border-gray-200";
+                let slideHtml = `
+                    <div class="slide-card bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-200" data-slide-index="${idx}" style="display: ${idx === 0 ? 'block' : 'none'}">
+                        <div class="p-5 md:p-7">
+                            <div class="mb-3 flex justify-between items-start">
+                                <span class="text-xs font-semibold text-blue-500 bg-blue-100 px-3 py-1 rounded-full">Leçon 10 · VPN</span>
+                                <span class="text-xs text-gray-400">Slide ${idx+1}/${totalSlides}</span>
+                            </div>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">${slide.title || (slide.type === 'title' ? lessonData.title : '')}</h2>
+                            <div class="prose-slide text-gray-700">
+                                ${slide.content}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $slideContainer.append(slideHtml);
+                // Dots
+                let dotClass = "w-2 h-2 rounded-full bg-gray-300 transition-all duration-200 cursor-pointer mx-1";
+                if (idx === 0) dotClass += " bg-blue-600 w-6";
+                $dotsContainer.append(`<div class="${dotClass}" data-dot-index="${idx}"></div>`);
+            });
+            
+            // Attacher événements dots
+            $(".slide-card").each(function(i) { $(this).attr("data-slide-index", i); });
+            $("[data-dot-index]").on("click", function() {
+                let idx = parseInt($(this).data("dot-index"));
+                if (!isNaN(idx) && idx >= 0 && idx < totalSlides) goToSlide(idx);
+            });
+        }
+        
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentIndex = index;
+            // Masquer tous les slides
+            $(".slide-card").each(function(idx, el) {
+                if (idx === currentIndex) $(el).show();
+                else $(el).hide();
+            });
+            // Mise à jour des points
+            $("[data-dot-index]").each(function(i, el) {
+                if (i === currentIndex) {
+                    $(el).removeClass("w-2 bg-gray-300").addClass("w-6 bg-blue-600");
+                } else {
+                    $(el).removeClass("w-6 bg-blue-600").addClass("w-2 bg-gray-300");
+                }
+            });
+            // gestion état boutons prev/next (désactiver aux extrémités)
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+            // faire défiler vers le haut (UX)
+            $('html, body').animate({ scrollTop: $("#slideContainer").offset().top - 20 }, 100);
+        }
+        
+        // navigation
+        function next() { if (currentIndex < totalSlides-1) goToSlide(currentIndex+1); }
+        function prev() { if (currentIndex > 0) goToSlide(currentIndex-1); }
+        
+        $(document).ready(function() {
+            buildSlides();
+            $("#nextSlide").on("click", next);
+            $("#prevSlide").on("click", prev);
+            // gestionnaires clavier (optionnel)
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowRight") next();
+                if (e.key === "ArrowLeft") prev();
+            });
+            // initialiser état boutons
+            $("#prevSlide").prop("disabled", true);
+        });
+    </script>
+</body>
+</html>

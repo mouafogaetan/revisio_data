@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS - TypeORM, PostgreSQL, Migrations & Seeds</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            scroll-behavior: smooth;
+        }
+        .slide {
+            scroll-snap-align: start;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .btn-nav {
+            background-color: #1e3a5f;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-prev {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-prev:hover {
+            background-color: #cbd5e1;
+        }
+        .btn-next:hover {
+            background-color: #0f2b44;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .slide { padding: 0.8rem; align-items: flex-start; }
+            .card { border-radius: 1.5rem; }
+            .code-block { font-size: 0.7rem; }
+        }
+        .badge-db {
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide" id="slide1">
+        <div class="card max-w-4xl w-full p-6 md:p-10 text-center bg-white">
+            <div class="inline-block bg-green-100 text-green-800 px-4 py-1 rounded-full text-sm font-semibold">🧱 Base de données · NestJS + TypeORM</div>
+            <h1 class="text-4xl md:text-6xl font-extrabold mt-6 bg-gradient-to-r from-slate-800 to-teal-700 bg-clip-text text-transparent">Configurer PostgreSQL avec TypeORM</h1>
+            <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Migrations, synchronisation, seeds et bonnes pratiques</p>
+            <div class="mt-6 flex justify-center gap-2 flex-wrap">
+                <span class="badge-db">🐘 PostgreSQL</span>
+                <span class="badge-db">📦 TypeORM</span>
+                <span class="badge-db">⚙️ Migrations</span>
+                <span class="badge-db">🌱 Seeds</span>
+            </div>
+            <div class="mt-10">
+                <div class="btn-nav btn-next mx-auto w-fit" data-next="slide2">Démarrer la leçon →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide" id="slide2">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-5">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-3 text-gray-700 text-lg">
+                <li class="flex gap-3"><span>✅</span> <strong>Configurer</strong> TypeORM avec PostgreSQL dans un projet NestJS.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Créer et exécuter</strong> des migrations pour gérer l’évolution du schéma.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Mettre en place</strong> des seeds pour peupler la base avec des données initiales.</li>
+                <li class="flex gap-3"><span>✅</span> Comprendre l’intérêt de la synchronisation (<code>synchronize</code>) en développement vs migration en production.</li>
+            </ul>
+            <div class="mt-8 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide1">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide3">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : INSTALLATION & CONFIGURATION DE BASE -->
+    <div class="slide" id="slide3">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">📦 Installation des dépendances</h2>
+            <div class="code-block mb-4">
+                npm install @nestjs/typeorm typeorm pg
+            </div>
+            <p class="mb-2"><strong>Configuration du module TypeORM</strong> (dans <code>app.module.ts</code>) :</p>
+            <div class="code-block text-sm">
+                TypeOrmModule.forRoot({<br>
+                &nbsp;&nbsp;type: 'postgres',<br>
+                &nbsp;&nbsp;host: process.env.DB_HOST,<br>
+                &nbsp;&nbsp;port: 5432,<br>
+                &nbsp;&nbsp;username: process.env.DB_USER,<br>
+                &nbsp;&nbsp;password: process.env.DB_PASSWORD,<br>
+                &nbsp;&nbsp;database: process.env.DB_NAME,<br>
+                &nbsp;&nbsp;entities: [__dirname + '/**/*.entity{.ts,.js}'],<br>
+                &nbsp;&nbsp;synchronize: false,  // ← à éviter en production !<br>
+                &nbsp;&nbsp;migrations: ['dist/migrations/*.js'],<br>
+                &nbsp;&nbsp;cli: { migrationsDir: 'src/migrations' }<br>
+                })
+            </div>
+            <p class="text-sm text-gray-500 mt-3">📌 <code>synchronize: true</code> recrée le schéma automatiquement (dangereux en prod). On préfère les migrations.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide2">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide4">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4 : CRÉER UNE ENTITÉ & RELATIONS -->
+    <div class="slide" id="slide4">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">🏷️ Exemple d’entité : <code>Product</code></h2>
+            <div class="code-block text-sm">
+                // product.entity.ts<br>
+                import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';<br>
+                import { Category } from './category.entity';<br><br>
+                @Entity()<br>
+                export class Product {<br>
+                &nbsp;&nbsp;@PrimaryGeneratedColumn() id: number;<br>
+                &nbsp;&nbsp;@Column() name: string;<br>
+                &nbsp;&nbsp;@Column('decimal') price: number;<br>
+                &nbsp;&nbsp;@Column({ default: 0 }) stock: number;<br>
+                &nbsp;&nbsp;@ManyToOne(() => Category, cat => cat.products)<br>
+                &nbsp;&nbsp;category: Category;<br>
+                }
+            </div>
+            <p class="mt-3 text-sm">💡 Les relations <code>@OneToMany</code>, <code>@ManyToMany</code> s’utilisent de la même manière. TypeORM génère les clés étrangères.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide3">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide5">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : MIGRATIONS (génération + exécution) -->
+    <div class="slide" id="slide5">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">📜 Migrations : gérer l’évolution du schéma</h2>
+            <p class="mb-2">Créer une migration après modification des entités :</p>
+            <div class="code-block text-sm">
+                npx typeorm migration:create ./src/migrations/AddPriceColumn<br>
+                # ou avec NestJS :<br>
+                npm run typeorm -- migration:generate ./src/migrations/UpdateProduct
+            </div>
+            <p class="mt-3">Exemple de migration générée (up/down) :</p>
+            <div class="code-block text-xs">
+                export class AddPriceColumn1678901234567 implements MigrationInterface {<br>
+                &nbsp;&nbsp;public async up(queryRunner: QueryRunner): Promise&lt;void&gt; {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;await queryRunner.addColumn('product', new Column({ name: 'price', type: 'decimal' }));<br>
+                &nbsp;&nbsp;}<br>
+                &nbsp;&nbsp;public async down(queryRunner: QueryRunner): Promise&lt;void&gt; {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;await queryRunner.dropColumn('product', 'price');<br>
+                &nbsp;&nbsp;}<br>
+                }
+            </div>
+            <p class="mt-2">Exécuter les migrations : <code>npx typeorm migration:run</code> ou via script npm.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide4">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide6">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : SEEDS (peupler la base) -->
+    <div class="slide" id="slide6">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">🌱 Seeds : données initiales</h2>
+            <p class="mb-2">Créer un script seed (ex: <code>src/seeds/product.seed.ts</code>) :</p>
+            <div class="code-block text-sm">
+                import { DataSource } from 'typeorm';<br>
+                import { Product } from '../products/product.entity';<br><br>
+                export async function seedProducts(dataSource: DataSource) {<br>
+                &nbsp;&nbsp;const repo = dataSource.getRepository(Product);<br>
+                &nbsp;&nbsp;await repo.save([<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;{ name: 'Sac à main', price: 15000, stock: 10 },<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;{ name: 'T-shirt traditionnel', price: 5000, stock: 25 }<br>
+                &nbsp;&nbsp;]);<br>
+                }
+            </div>
+            <p class="mt-3">Appeler les seeds via un script CLI ou dans un fichier séparé :</p>
+            <div class="code-block text-sm">
+                npx ts-node src/seeds/run.ts
+            </div>
+            <p class="text-sm italic mt-2">📌 Alternative : utiliser <code>typeorm-seeding</code> pour des seeds plus sophistiquées.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide5">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide7">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : BONNES PRATIQUES -->
+    <div class="slide" id="slide7">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">✨ Bonnes pratiques</h2>
+            <ul class="list-disc pl-6 space-y-2">
+                <li>✔️ Toujours utiliser <strong>migrations</strong> en production, jamais <code>synchronize: true</code>.</li>
+                <li>✔️ Versionner les dossiers <code>migrations</code> et <code>seeds</code> dans Git.</li>
+                <li>✔️ Tester les migrations sur une copie de la base avant de les exécuter en production.</li>
+                <li>✔️ Utiliser <code>.env</code> pour les identifiants de base de données.</li>
+                <li>✔️ Pour les seeds, prévoir une commande qui supprime/réinsère (évite les doublons).</li>
+            </ul>
+            <div class="mt-6 bg-amber-50 p-4 rounded-xl">
+                <p class="font-bold">⚠️ Attention : </p>
+                <p>Les migrations doivent être <strong>idempotentes</strong> (exécutables plusieurs fois sans erreur). Utilisez <code>IF NOT EXISTS</code> ou vérifiez les colonnes avant ajout.</p>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide6">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide8">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8 : RÉSUMÉ + EXERCICE PRATIQUE -->
+    <div class="slide" id="slide8">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-teal-600 pl-5 mb-4">📌 Récapitulons</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">🔹 <strong>TypeORM</strong> = ORM pour PostgreSQL / MySQL / etc.</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔹 <strong>Migrations</strong> = versionnement du schéma (up/down).</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔹 <strong>Seeds</strong> = données de démo ou référentiels de base.</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🔹 <strong>CLI TypeORM</strong> : generate, run, revert.</div>
+            </div>
+            <div class="mt-6 p-4 border-2 border-dashed border-teal-200 rounded-xl">
+                <p class="font-bold">🧪 Exercice (mise en situation) :</p>
+                <p class="text-sm">Vous ajoutez une colonne <code>description (text)</code> à l’entité <code>Product</code>. Décrivez la procédure complète :</p>
+                <ol class="list-decimal pl-5 text-sm space-y-1 mt-2">
+                    <li>Modifier l’entité Product.</li>
+                    <li>Générer une migration.</li>
+                    <li>Exécuter la migration.</li>
+                    <li>Écrire un seed qui insère 2 produits avec description.</li>
+                </ol>
+                <details class="mt-3 text-xs text-gray-600">
+                    <summary>🔍 Proposition de solution</summary>
+                    <p>1. Ajouter <code>@Column({ type: 'text', nullable: true }) description: string;</code><br>
+                    2. <code>npx typeorm migration:generate ./src/migrations/AddDescriptionToProduct -d src/data-source.ts</code><br>
+                    3. <code>npm run typeorm migration:run</code><br>
+                    4. Dans le script seed : <code>repository.save([{ name: 'Artisanat', description: 'Fait main', price: 7000 }])</code></p>
+                </details>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide7">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide1">⟳ Recommencer</div>
+            </div>
+            <p class="text-center text-xs text-gray-400 mt-4">Fin de la leçon — Gérez votre base comme un pro !</p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('.btn-next').on('click', function() {
+        let target = $(this).data('next');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+    $('.btn-prev').on('click', function() {
+        let target = $(this).data('prev');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Navigation au clavier (flèches)
+    $(document).on('keydown', function(e) {
+        let slides = $('.slide');
+        let current = -1;
+        for (let i = 0; i < slides.length; i++) {
+            let rect = slides[i][0].getBoundingClientRect();
+            if (rect.top >= -50 && rect.top <= window.innerHeight/2) {
+                current = i;
+                break;
+            }
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            if (current < slides.length-1) slides[current+1][0].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            if (current > 0) slides[current-1][0].scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+[
+  {
+    "intitule": "Configuration d'Axios avec baseURL et interception des requêtes",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application React Native, vous devez configurer une instance Axios pour communiquer avec une API REST dont l'URL de base est <code>https://api.ecommerce-cm.com/v1</code>. Toutes les requêtes authentifiées doivent inclure un token JWT dans l'en-tête <code>Authorization: Bearer &lt;token&gt;</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer les étapes de configuration d'une instance Axios avec baseURL.",
+        "niveau": "medium",
+        "reponse": "1. Installer Axios : <code>npm install axios</code>. 2. Créer un fichier <code>api/client.ts</code>. 3. Importer axios et créer une instance avec <code>axios.create({ baseURL: 'https://api.ecommerce-cm.com/v1' })</code>. 4. Configurer les intercepteurs pour ajouter automatiquement le token. 5. Exporter l'instance configurée pour l'utiliser dans toute l'application.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Rédiger le code TypeScript complet pour créer une instance Axios nommée <code>apiClient</code> avec la baseURL donnée.",
+            "niveau": "easy",
+            "reponse": "```typescript\n// api/client.ts\nimport axios from 'axios';\n\nconst apiClient = axios.create({\n  baseURL: 'https://api.ecommerce-cm.com/v1',\n  timeout: 10000,\n  headers: {\n    'Content-Type': 'application/json',\n  },\n});\n\nexport default apiClient;\n```"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Ajouter un intercepteur de requête pour insérer automatiquement le token JWT stocké dans <code>AsyncStorage</code> (clé <code>'authToken'</code>) dans l'en-tête <code>Authorization</code>.",
+            "niveau": "medium",
+            "reponse": "```typescript\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\napiClient.interceptors.request.use(\n  async (config) => {\n    const token = await AsyncStorage.getItem('authToken');\n    if (token) {\n      config.headers.Authorization = `Bearer ${token}`;\n    }\n    return config;\n  },\n  (error) => Promise.reject(error)\n);\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion automatique du refresh token JWT",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre application e-commerce utilise des tokens JWT avec une durée de vie limitée (15 minutes pour l'access token, 7 jours pour le refresh token). Lorsque l'access token expire, le serveur retourne une erreur HTTP <code>401 Unauthorized</code>. Vous devez implémenter un mécanisme de <strong>refresh token automatique</strong> qui :</p><ul><li>Intercepte les réponses 401</li><li>Envoie une requête de rafraîchissement vers <code>/auth/refresh</code> avec le refresh token</li><li>Récupère le nouvel access token</li><li>Rejoue la requête initiale échouée</li><li>Met à jour le token dans le stockage sécurisé</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analyser les problèmes potentiels liés à l'implémentation du refresh token (requêtes concurrentes, boucle infinie). Proposer des solutions.",
+        "niveau": "hard",
+        "reponse": "Problèmes : 1) Plusieurs requêtes simultanées peuvent déclencher de multiples appels de rafraîchissement. 2) Si le refresh token est lui-même expiré, on peut entrer dans une boucle infinie de tentatives. 3) Pendant le rafraîchissement, les requêtes en attente doivent être mises en file d'attente. Solutions : Utiliser un flag <code>isRefreshing</code> pour éviter les appels multiples, une file d'attente (<code>failedQueue</code>) pour les requêtes à rejouer, et une redirection vers l'écran de connexion si le refresh token est invalide.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Développer un intercepteur de réponse complet qui gère le refresh token automatique avec gestion des requêtes concurrentes.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\nlet isRefreshing = false;\nlet failedQueue: Array<{\n  resolve: (value: unknown) => void;\n  reject: (reason?: unknown) => void;\n  config: any;\n}> = [];\n\nconst processQueue = (error: Error | null, token: string | null = null) => {\n  failedQueue.forEach(promise => {\n    if (error) {\n      promise.reject(error);\n    } else {\n      promise.config.headers.Authorization = `Bearer ${token}`;\n      promise.resolve(apiClient(promise.config));\n    }\n  });\n  failedQueue = [];\n};\n\napiClient.interceptors.response.use(\n  (response) => response,\n  async (error) => {\n    const originalRequest = error.config;\n    \n    // Éviter la boucle infinie\n    if (error.response?.status === 401 && !originalRequest._retry) {\n      if (isRefreshing) {\n        // Mettre en file d'attente\n        return new Promise((resolve, reject) => {\n          failedQueue.push({ resolve, reject, config: originalRequest });\n        });\n      }\n      \n      originalRequest._retry = true;\n      isRefreshing = true;\n      \n      try {\n        const refreshToken = await AsyncStorage.getItem('refreshToken');\n        const response = await axios.post('/auth/refresh', { refreshToken });\n        const { accessToken, newRefreshToken } = response.data;\n        \n        await AsyncStorage.setItem('authToken', accessToken);\n        await AsyncStorage.setItem('refreshToken', newRefreshToken);\n        \n        apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;\n        processQueue(null, accessToken);\n        \n        return apiClient(originalRequest);\n      } catch (refreshError) {\n        processQueue(refreshError as Error, null);\n        // Refresh token invalide → déconnexion\n        await AsyncStorage.multiRemove(['authToken', 'refreshToken', 'user']);\n        // Rediriger vers l'écran de connexion\n        return Promise.reject(refreshError);\n      } finally {\n        isRefreshing = false;\n      }\n    }\n    \n    return Promise.reject(error);\n  }\n);\n```"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Justifier le choix d'une variable <code>_retry</code> dans <code>originalRequest</code> et expliquer le risque d'omission.",
+            "niveau": "medium",
+            "reponse": "La variable <code>_retry</code> permet d'éviter une boucle infinie : si la requête échoue à nouveau après le rafraîchissement (par exemple refresh token expiré), on ne relance pas un second refresh. Sans cette variable, l'intercepteur pourrait tourner en boucle, chaque tentative 401 déclenchant un nouveau refresh qui échoue également. C'est une protection essentielle contre les appels récursifs infinis."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Cas pratique : Panne réseau et token expiré",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un utilisateur de votre application e-commerce (basée à Douala) se trouve dans une zone avec une connexion Internet instable. Il est connecté depuis 20 minutes (l'access token expire après 15 minutes). Il tente d'ajouter un produit à son panier. La première requête échoue avec une erreur <code>401</code> car le token a expiré. Pendant l'opération de rafraîchissement, la connexion est temporairement perdue.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Discuter des stratégies de résilience pour gérer le cas où le refresh échoue pour cause de réseau.",
+        "niveau": "hard",
+        "reponse": "Stratégies : 1) Mettre en file d'attente la requête originale et attendre le retour en ligne (avec <code>react-native-netinfo</code>). 2) Implémenter un mécanisme de retry avec backoff exponentiel (réessayer le refresh 3 fois). 3) Stocker un flag 'pendingRefresh' et réessayer automatiquement dès que la connexion est rétablie. 4) Proposer à l'utilisateur de se reconnecter manuellement après un certain délai. 5) Utiliser un service worker ou une synchronisation offline-first.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposer une extension de l'intercepteur existant pour intégrer une gestion du réseau avec <code>NetInfo</code> et un mécanisme de retry.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nimport NetInfo from '@react-native-community/netinfo';\n\nconst MAX_RETRY = 3;\nconst RETRY_DELAY = 1000; // 1 seconde\n\nconst sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));\n\nconst waitForConnection = async (): Promise<boolean> => {\n  const netInfo = await NetInfo.fetch();\n  if (netInfo.isConnected && netInfo.isInternetReachable) return true;\n  \n  return new Promise((resolve) => {\n    const unsubscribe = NetInfo.addEventListener(state => {\n      if (state.isConnected && state.isInternetReachable) {\n        unsubscribe();\n        resolve(true);\n      }\n    });\n    // Timeout après 30 secondes\n    setTimeout(() => {\n      unsubscribe();\n      resolve(false);\n    }, 30000);\n  });\n};\n\napiClient.interceptors.response.use(\n  (response) => response,\n  async (error) => {\n    const originalRequest = error.config;\n    \n    if (error.response?.status === 401 && !originalRequest._retry) {\n      originalRequest._retry = true;\n      \n      // Attendre la connexion\n      const isConnected = await waitForConnection();\n      if (!isConnected) {\n        // Hors ligne : stocker l'action pour plus tard\n        await storeOfflineAction('ADD_TO_CART', originalRequest.data);\n        return Promise.reject(new Error('Hors ligne, action stockée'));\n      }\n      \n      // Tentatives de refresh avec backoff\n      for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {\n        try {\n          const refreshToken = await AsyncStorage.getItem('refreshToken');\n          const response = await axios.post('/auth/refresh', { refreshToken });\n          const { accessToken } = response.data;\n          await AsyncStorage.setItem('authToken', accessToken);\n          originalRequest.headers.Authorization = `Bearer ${accessToken}`;\n          return apiClient(originalRequest);\n        } catch (refreshError) {\n          if (attempt === MAX_RETRY) {\n            // Échec définitif → déconnexion\n            await AsyncStorage.multiRemove(['authToken', 'refreshToken']);\n            return Promise.reject(refreshError);\n          }\n          // Backoff exponentiel\n          await sleep(RETRY_DELAY * Math.pow(2, attempt - 1));\n        }\n      }\n    }\n    \n    return Promise.reject(error);\n  }\n);\n```"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Sécurisation du stockage des tokens",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application React Native (Expo), l'utilisation de <code>AsyncStorage</code> pour stocker les tokens JWT présente des risques de sécurité car les données ne sont pas chiffrées.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer les différentes solutions de stockage sécurisé disponibles dans l'écosystème Expo/React Native.",
+        "niveau": "medium",
+        "reponse": "Solutions : 1) <code>expo-secure-store</code> (recommandé pour Expo) : chiffrement basé sur le keystore système (Keychain iOS, Keystore Android). 2) <code>react-native-encrypted-storage</code> : alternative pour React Native CLI. 3) <code>redux-persist-transform-encrypt</code> + clé dérivée du mot de passe. 4) Stockage en mémoire uniquement (moins persistant, plus sécurisé). 5) Utiliser les variables d'environnement pour la clé de chiffrement.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Modifier le code du intercepteur pour utiliser <code>expo-secure-store</code> à la place de <code>AsyncStorage</code>.",
+            "niveau": "medium",
+            "reponse": "```typescript\nimport * as SecureStore from 'expo-secure-store';\n\n// Stockage\nawait SecureStore.setItemAsync('authToken', accessToken);\nawait SecureStore.setItemAsync('refreshToken', refreshToken);\n\n// Récupération\nconst token = await SecureStore.getItemAsync('authToken');\n\n// Suppression\nawait SecureStore.deleteItemAsync('authToken');\nawait SecureStore.deleteItemAsync('refreshToken');\n\n// L'intercepteur devient :\napiClient.interceptors.request.use(async (config) => {\n  const token = await SecureStore.getItemAsync('authToken');\n  if (token) {\n    config.headers.Authorization = `Bearer ${token}`;\n  }\n  return config;\n});\n```"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Discuter les limites de <code>expo-secure-store</code> sur Android (keystore non chiffré sur certains appareils rootés) et proposer une alternative.",
+            "niveau": "hard",
+            "reponse": "Limites : Sur Android, <code>SecureStore</code> utilise le Keystore système qui peut être contourné sur les appareils rootés. Certains fabricants ont des implémentations non conformes. Alternative : Ajouter une couche de chiffrement supplémentaire (AES-256-GCM) avec une clé dérivée d'un mot de passe utilisateur ou d'un secret stocké via <code>expo-crypto</code>. Pour les données ultra-sensibles, éviter le stockage persistant ou utiliser un service de tokenisation côté backend."
+          }
+        ]
+      }
+    ]
+  }
+]

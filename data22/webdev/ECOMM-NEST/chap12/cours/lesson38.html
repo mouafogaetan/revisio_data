@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS - Sécuriser l'API e-commerce (SQL, XSS, Helmet)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100vh;
+            scroll-behavior: smooth;
+        }
+        .slide {
+            scroll-snap-align: start;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .btn-nav {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-prev {
+            background-color: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-prev:hover {
+            background-color: #cbd5e1;
+        }
+        .btn-next:hover {
+            background-color: #1e2b6e;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        .badge-secure {
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+        }
+        @media (max-width: 640px) {
+            .slide { padding: 0.8rem; align-items: flex-start; }
+            .card { border-radius: 1.5rem; }
+            .code-block { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide" id="slide1">
+        <div class="card max-w-4xl w-full p-6 md:p-10 text-center bg-white">
+            <div class="inline-block bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-semibold">🛡️ Sécurité API · NestJS</div>
+            <h1 class="text-4xl md:text-6xl font-extrabold mt-6 bg-gradient-to-r from-slate-800 to-blue-700 bg-clip-text text-transparent">Protéger son API e-commerce</h1>
+            <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Injection SQL, XSS, Helmet, sanitization et bonnes pratiques</p>
+            <div class="mt-6 flex justify-center gap-2 flex-wrap">
+                <span class="badge-secure">🔒 SQL Injection</span>
+                <span class="badge-secure">🧹 Sanitization</span>
+                <span class="badge-secure">🪖 Helmet.js</span>
+                <span class="badge-secure">⚡ Paramètres préparés</span>
+            </div>
+            <div class="mt-10">
+                <div class="btn-nav btn-next mx-auto w-fit" data-next="slide2">Démarrer la leçon →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS -->
+    <div class="slide" id="slide2">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-5">🎯 Objectifs de la leçon</h2>
+            <ul class="space-y-3 text-gray-700 text-lg">
+                <li class="flex gap-3"><span>✅</span> <strong>Comprendre</strong> le risque d’injection SQL et comment l’éviter avec les paramètres préparés (TypeORM).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Sanitizer</strong> les entrées utilisateur pour prévenir les attaques XSS (Cross-Site Scripting).</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Configurer</strong> Helmet.js pour sécuriser les en-têtes HTTP.</li>
+                <li class="flex gap-3"><span>✅</span> <strong>Appliquer</strong> ces bonnes pratiques dans une API NestJS.</li>
+            </ul>
+            <div class="mt-8 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide1">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide3">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3 : INJECTION SQL & PARAMÈTRES PRÉPARÉS -->
+    <div class="slide" id="slide3">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🗄️ Éviter l’injection SQL avec TypeORM</h2>
+            <p class="mb-2"><strong>Problème :</strong> concaténer des variables directement dans une requête SQL permet à un attaquant d’exécuter du code malveillant.</p>
+            <div class="code-block text-sm">
+                // ❌ DANGEREUX - injection possible<br>
+                const product = await getConnection().query(<br>
+                &nbsp;&nbsp;`SELECT * FROM product WHERE name = '${userInput}'`<br>
+                );<br><br>
+                // ✅ SÉCURISÉ - paramètres préparés (TypeORM QueryBuilder)<br>
+                const product = await this.productRepo<br>
+                &nbsp;&nbsp;.createQueryBuilder('p')<br>
+                &nbsp;&nbsp;.where('p.name = :name', { name: userInput })<br>
+                &nbsp;&nbsp;.getOne();<br><br>
+                // ✅ findOne avec objet where (TypeORM aussi sécurisé)<br>
+                const product = await this.productRepo.findOne({<br>
+                &nbsp;&nbsp;where: { name: userInput }<br>
+                });
+            </div>
+            <p class="text-sm text-gray-600 mt-2">💡 TypeORM utilise des <strong>paramètres préparés</strong> automatiquement avec les méthodes <code>find</code>, <code>QueryBuilder</code> et <code>createQueryBuilder</code>. Évitez <code>query()</code> avec concaténation.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide2">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide4">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4 : SANITIZATION (XSS) -->
+    <div class="slide" id="slide4">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🧼 Nettoyer les entrées (XSS)</h2>
+            <p class="mb-2">Un utilisateur pourrait envoyer du code HTML/JS dans un champ (ex: avis produit). À la réaffichage, ce code s’exécute dans le navigateur des autres clients.</p>
+            <div class="code-block text-sm">
+                // 1. Installer class-sanitizer<br>
+                // npm install class-sanitizer class-transformer<br><br>
+                // 2. Utiliser @Trim() et @Sanitize() dans les DTO<br>
+                import { Trim, Sanitize } from 'class-sanitizer';<br><br>
+                export class CreateReviewDto {<br>
+                &nbsp;&nbsp;@IsString()<br>
+                &nbsp;&nbsp;@Trim()<br>
+                &nbsp;&nbsp;@Sanitize()   // supprime les balises HTML dangereuses<br>
+                &nbsp;&nbsp;comment: string;<br>
+                }<br><br>
+                // 3. Alternative : validation manuelle avec sanitize-html<br>
+                import sanitizeHtml from 'sanitize-html';<br>
+                const cleanComment = sanitizeHtml(userComment, {<br>
+                &nbsp;&nbsp;allowedTags: ['b', 'i', 'em'],<br>
+                &nbsp;&nbsp;allowedAttributes: {}<br>
+                });
+            </div>
+            <p class="text-sm italic mt-2">📌 Toujours échapper ou nettoyer les données avant de les retourner au frontend ou de les stocker.</p>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide3">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide5">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5 : HELMET.JS - SÉCURISER LES EN-TÊTES HTTP -->
+    <div class="slide" id="slide5">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🪖 Helmet.js : protection des en-têtes</h2>
+            <p class="mb-2">Helmet définit 11 en-têtes HTTP sécurisés (XSS, clickjacking, sniffing MIME, etc.).</p>
+            <div class="code-block text-sm">
+                // Installation : npm install helmet<br><br>
+                // main.ts<br>
+                import * as helmet from 'helmet';<br><br>
+                async function bootstrap() {<br>
+                &nbsp;&nbsp;const app = await NestFactory.create(AppModule);<br>
+                &nbsp;&nbsp;app.use(helmet());<br>
+                &nbsp;&nbsp;await app.listen(3000);<br>
+                }
+            </div>
+            <div class="mt-4 bg-blue-50 p-3 rounded-lg">
+                <p class="font-semibold">✨ Principaux en-têtes ajoutés :</p>
+                <ul class="list-disc pl-5 text-sm">
+                    <li><code>X-DNS-Prefetch-Control</code> : désactive le prefetch DNS</li>
+                    <li><code>X-Frame-Options</code> : empêche le clickjacking (framing)</li>
+                    <li><code>X-Content-Type-Options</code> : évite le MIME type sniffing</li>
+                    <li><code>X-XSS-Protection</code> : active le filtre XSS des navigateurs</li>
+                    <li><code>Strict-Transport-Security</code> : force HTTPS (HSTS)</li>
+                </ul>
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide4">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide6">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6 : AUTRES BONNES PRATIQUES -->
+    <div class="slide" id="slide6">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">🔐 Autres bonnes pratiques</h2>
+            <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                <li><strong>Validation stricte</strong> : utiliser <code>ValidationPipe</code> avec <code>whitelist: true</code> pour rejeter les propriétés inattendues.</li>
+                <li><strong>Rate limiting</strong> : protéger contre les attaques par force brute (module <code>@nestjs/throttler</code>).</li>
+                <li><strong>Ne jamais exposer les erreurs détaillées</strong> en production (éviter <code>stack trace</code>).</li>
+                <li><strong>Utiliser HTTPS</strong> en production (avec <code>app.enable('trust proxy')</code>).</li>
+                <li><strong>Éviter les requêtes SQL brutes</strong> : privilégier QueryBuilder ou Repository.</li>
+                <li><strong>Échapper les sorties</strong> : côté frontend, utiliser des bibliothèques comme DOMPurify.</li>
+            </ul>
+            <div class="mt-4 bg-amber-50 p-3 rounded-lg">
+                <p class="font-semibold">⚠️ À retenir :</p>
+                <p class="text-sm">La sécurité est une couche transversale : entrées (validation/sanitization) + requêtes (paramètres préparés) + sorties (échappement) + infrastructure (Helmet, HTTPS).</p>
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide5">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide7">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7 : EXEMPLE CONCRET : FORMULAIRE D’AVIS -->
+    <div class="slide" id="slide7">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">📝 Exemple : sécuriser un avis client</h2>
+            <div class="code-block text-sm">
+                // review.controller.ts<br>
+                @Post()<br>
+                @UseGuards(JwtAuthGuard)<br>
+                async create(@Body() dto: CreateReviewDto, @Req() req) {<br>
+                &nbsp;&nbsp;// ✅ le DTO applique déjà Trim, Sanitize<br>
+                &nbsp;&nbsp;// ✅ TypeORM utilise des paramètres préparés<br>
+                &nbsp;&nbsp;const review = this.reviewRepo.create({<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;...dto,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;user: req.user,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;product: { id: dto.productId }<br>
+                &nbsp;&nbsp;});<br>
+                &nbsp;&nbsp;return this.reviewRepo.save(review);<br>
+                }
+            </div>
+            <div class="mt-4 bg-green-50 p-3 rounded-lg">
+                <p class="font-semibold">✅ Résultat :</p>
+                <ul class="list-disc pl-5 text-sm">
+                    <li>Injection SQL impossible grâce aux paramètres préparés.</li>
+                    <li>Balises HTML malveillantes supprimées par <code>@Sanitize()</code>.</li>
+                    <li>Données stockées propres et sans risque.</li>
+                </ul>
+            </div>
+            <div class="mt-5 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide6">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide8">Suivant →</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8 : RÉSUMÉ + EXERCICE -->
+    <div class="slide" id="slide8">
+        <div class="card max-w-4xl w-full p-6 md:p-10 bg-white">
+            <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-blue-600 pl-5 mb-4">📌 Récapitulons</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded-lg">🔒 <strong>SQL Injection</strong> : paramètres préparés (QueryBuilder / find)</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🧹 <strong>XSS</strong> : sanitization (class-sanitizer, sanitize-html)</div>
+                <div class="bg-gray-50 p-3 rounded-lg">🪖 <strong>Helmet</strong> : en-têtes HTTP sécurisés (HSTS, X-Frame-Options…)</div>
+                <div class="bg-gray-50 p-3 rounded-lg">📋 <strong>Validation</strong> : ValidationPipe + whitelist</div>
+            </div>
+            <div class="mt-6 p-4 border-2 border-dashed border-blue-200 rounded-xl">
+                <p class="font-bold">🧪 Exercice :</p>
+                <p class="text-sm">Un utilisateur envoie le commentaire suivant : <code>"Super produit ! &lt;script&gt;alert('hack')&lt;/script&gt;"</code>. L’API NestJS reçoit ce DTO. Que doit-il se passer avant stockage ?</p>
+                <details class="mt-2 text-xs text-gray-600">
+                    <summary>🔍 Voir solution</summary>
+                    <p>Le DTO avec <code>@Sanitize()</code> supprime les balises &lt;script&gt;. On peut aussi configurer <code>sanitize-html</code> pour autoriser seulement certaines balises (b, i, etc.). Ensuite, TypeORM insère le commentaire nettoyé : <code>"Super produit ! "</code>. Pas de code exécuté.</p>
+                </details>
+            </div>
+            <div class="mt-6 flex justify-between">
+                <div class="btn-nav btn-prev" data-prev="slide7">← Précédent</div>
+                <div class="btn-nav btn-next" data-next="slide1">⟳ Recommencer</div>
+            </div>
+            <p class="text-center text-xs text-gray-400 mt-4">Fin de la leçon — Sécurisez votre API dès maintenant !</p>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('.btn-next').on('click', function() {
+        let target = $(this).data('next');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+    $('.btn-prev').on('click', function() {
+        let target = $(this).data('prev');
+        if(target) $('#' + target)[0].scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Navigation au clavier
+    $(document).on('keydown', function(e) {
+        let slides = $('.slide');
+        let current = -1;
+        for (let i = 0; i < slides.length; i++) {
+            let rect = slides[i][0].getBoundingClientRect();
+            if (rect.top >= -50 && rect.top <= window.innerHeight/2) {
+                current = i;
+                break;
+            }
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            if (current < slides.length-1) slides[current+1][0].scrollIntoView({ behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            if (current > 0) slides[current-1][0].scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
+</body>
+</html>

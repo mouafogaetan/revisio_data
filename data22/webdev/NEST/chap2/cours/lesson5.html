@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cours NestJS | Lesson 5 : Injection de dépendances et Providers</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide-container {
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      height: 100vh;
+      scroll-behavior: smooth;
+    }
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9fafb;
+    }
+    .slide-container::-webkit-scrollbar { width: 6px; }
+    .slide-container::-webkit-scrollbar-track { background: #e2e8f0; }
+    .slide-container::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+    .nav-dot { transition: all 0.2s ease; cursor: pointer; }
+    .nav-dot.active { background-color: #3b82f6; transform: scale(1.2); }
+    .card-code { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-code:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 antialiased">
+
+<div class="slide-container">
+  
+  <!-- SLIDE 1 : TITRE -->
+  <div class="slide px-4 py-12" id="slide1">
+    <div class="max-w-3xl mx-auto text-center">
+      <span class="text-sm font-semibold tracking-wider text-blue-600 uppercase bg-blue-100 px-3 py-1 rounded-full">NestJS · Lesson 5</span>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mt-6 leading-tight">
+        💉 Injection de dépendances<br><span class="text-blue-600">Providers & IoC</span>
+      </h1>
+      <div class="w-24 h-1 bg-blue-500 mx-auto my-6 rounded-full"></div>
+      <p class="text-xl text-gray-600 max-w-2xl mx-auto mt-4">
+        Comprendre le conteneur d'inversion de contrôle (IoC), injecter des services et créer des providers personnalisés.
+      </p>
+      <div class="mt-12 flex justify-center gap-4 flex-wrap">
+        <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2"><span class="text-2xl">📦</span><span class="font-medium">IoC Container</span></div>
+        <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2"><span class="text-2xl">🔗</span><span class="font-medium">@Injectable()</span></div>
+        <div class="bg-white shadow-md rounded-xl px-6 py-3 flex items-center gap-2"><span class="text-2xl">⚙️</span><span class="font-medium">Providers</span></div>
+      </div>
+      <div class="mt-16 text-gray-400 text-sm"><span class="animate-pulse inline-block">⬇️</span> Faites défiler pour découvrir</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 : OBJECTIFS -->
+  <div class="slide px-4 py-12 bg-gradient-to-br from-blue-50 to-white" id="slide2">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-3xl font-bold text-gray-800 mb-8 border-l-4 border-blue-500 pl-4">🎯 Objectifs de la leçon</h2>
+      <div class="space-y-5">
+        <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm"><div class="text-blue-500 text-xl">1️⃣</div><div>Comprendre le <span class="font-semibold">conteneur d'inversion de contrôle (IoC)</span> de NestJS.</div></div>
+        <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm"><div class="text-blue-500 text-xl">2️⃣</div><div>Injecter des services dans les <span class="font-semibold">constructeurs</span> des contrôleurs et autres services.</div></div>
+        <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm"><div class="text-blue-500 text-xl">3️⃣</div><div>Utiliser <span class="font-semibold">@Injectable()</span> pour déclarer un provider.</div></div>
+        <div class="flex items-start gap-4 bg-white p-4 rounded-xl shadow-sm"><div class="text-blue-500 text-xl">4️⃣</div><div>Créer des <span class="font-semibold">providers personnalisés</span> (useValue, useClass, useFactory).</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 : QU'EST-CE QUE L'INJECTION DE DÉPENDANCES ? -->
+  <div class="slide px-4 py-12" id="slide3">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🤔 Injection de dépendances (DI)</h2>
+      <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <p class="text-gray-700 leading-relaxed">
+          L'<strong>injection de dépendances</strong> est un patron de conception où une classe reçoit ses dépendances de l'extérieur plutôt que de les créer elle-même. 
+          NestJS possède un <strong>conteneur IoC</strong> (Inversion of Control) qui gère automatiquement la création et l'injection des instances.
+        </p>
+        <div class="mt-5 p-4 bg-gray-100 rounded-xl">
+          <p class="font-mono text-sm">🎯 Principe : "Ne cherchez pas vos dépendances, demandez-les !"</p>
+        </div>
+      </div>
+      <!-- Petit schéma texte -->
+      <div class="mt-6 flex justify-center">
+        <div class="bg-gray-100 p-3 rounded-lg text-center w-64">
+          <div class="border-b pb-2">Contrôleur</div>
+          <div class="text-sm">→ demande → <span class="font-bold text-blue-600">IoC Container</span></div>
+          <div class="border-t pt-2 mt-2">Service injecté</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 : @Injectable() ET LES SERVICES -->
+  <div class="slide px-4 py-12 bg-gray-50" id="slide4">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📦 @Injectable() : déclarer un provider</h2>
+      <p class="mb-3">Le décorateur <code class="bg-gray-200 px-1 rounded">@Injectable()</code> marque une classe comme pouvant être gérée par le conteneur IoC.</p>
+      <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto card-code">
+        <pre class="whitespace-pre-wrap"><span class="text-green-400">// users.service.ts</span>
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class UsersService {
+  private users = [];
+
+  findAll() {
+    return this.users;
+  }
+
+  create(user) {
+    this.users.push(user);
+    return user;
+  }
+}</pre>
+      </div>
+      <div class="mt-4 bg-blue-50 p-3 rounded-lg text-blue-800 text-sm">
+        💡 Un service est un <strong>provider</strong>. Il contient la logique métier et peut être injecté partout.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 : INJECTION DANS LE CONSTRUCTEUR -->
+  <div class="slide px-4 py-12" id="slide5">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">💉 Injection dans le constructeur</h2>
+      <p class="mb-3">Dans un contrôleur, on déclare la dépendance dans le constructeur. NestJS l'injecte automatiquement.</p>
+      <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+        <pre class="whitespace-pre-wrap"><span class="text-green-400">// users.controller.ts</span>
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { UsersService } from './users.service';
+
+@Controller('users')
+export class UsersController {
+  constructor(<span class="text-yellow-300">private readonly usersService: UsersService</span>) {}
+
+  @Get()
+  findAll() {
+    return this.usersService.findAll();
+  }
+
+  @Post()
+  create(@Body() user) {
+    return this.usersService.create(user);
+  }
+}</pre>
+      </div>
+      <div class="mt-4 bg-green-50 p-3 rounded-lg text-green-800 text-sm">
+        ✨ Le mot-clé <code>private readonly</code> permet de déclarer et d'initialiser la propriété en une ligne.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 : PROVIDERS PERSONNALISÉS (useValue, useClass, useFactory) -->
+  <div class="slide px-4 py-12 bg-gray-50" id="slide6">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">⚙️ Providers personnalisés</h2>
+      <p class="mb-3">Dans un module, on peut définir des providers de différentes manières :</p>
+      <div class="space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+          <span class="font-bold text-blue-700">🔹 useValue</span>
+          <pre class="bg-gray-800 text-white p-2 rounded text-xs mt-1 overflow-x-auto"><code>providers: [{ provide: 'API_URL', useValue: 'https://api.example.com' }]</code></pre>
+          <p class="text-sm mt-1">Injecter une valeur constante (chaîne, nombre, objet).</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+          <span class="font-bold text-blue-700">🔹 useClass</span>
+          <pre class="bg-gray-800 text-white p-2 rounded text-xs mt-1 overflow-x-auto"><code>providers: [{ provide: Logger, useClass: CustomLogger }]</code></pre>
+          <p class="text-sm mt-1">Utiliser une classe différente de celle demandée (polymorphisme).</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm">
+          <span class="font-bold text-blue-700">🔹 useFactory</span>
+          <pre class="bg-gray-800 text-white p-2 rounded text-xs mt-1 overflow-x-auto"><code>providers: [{
+  provide: 'CONFIG',
+  useFactory: (configService: ConfigService) => configService.get('app'),
+  inject: [ConfigService]
+}]</code></pre>
+          <p class="text-sm mt-1">Création dynamique (asynchrone possible).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 : INJECTION AVEC TOKEN PERSONNALISÉ (@Inject) -->
+  <div class="slide px-4 py-12" id="slide7">
+    <div class="max-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🏷️ Injection avec token personnalisé</h2>
+      <p class="mb-3">Lorsqu'on utilise un provider défini avec une chaîne (ou un symbole), on doit utiliser <code>@Inject()</code>.</p>
+      <div class="bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+        <pre class="whitespace-pre-wrap"><span class="text-green-400">// module</span>
+providers: [{ provide: 'API_URL', useValue: 'https://api.example.com' }]
+
+<span class="text-green-400">// service</span>
+import { Inject, Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  constructor(<span class="text-yellow-300">@Inject('API_URL') private readonly apiUrl: string</span>) {}
+
+  getUrl() {
+    return this.apiUrl;
+  }
+}</pre>
+      </div>
+      <div class="mt-4 bg-yellow-50 p-3 rounded-lg text-yellow-800 text-sm">
+        💡 Les tokens personnalisés sont utiles pour les librairies tierces ou les valeurs de configuration.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8 : PORTÉE DES PROVIDERS (SINGLETON) -->
+  <div class="slide px-4 py-12 bg-gray-50" id="slide8">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">♻️ Portée des providers (Scope)</h2>
+      <p class="mb-3">Par défaut, les providers en NestJS sont des <strong>singletons</strong> : une seule instance est partagée dans toute l'application.</p>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl shadow text-center"><span class="font-bold text-blue-600">DEFAULT</span><br>Singleton (une instance)</div>
+        <div class="bg-white p-4 rounded-xl shadow text-center"><span class="font-bold text-blue-600">REQUEST</span><br>Une instance par requête HTTP</div>
+        <div class="bg-white p-4 rounded-xl shadow text-center"><span class="font-bold text-blue-600">TRANSIENT</span><br>Une nouvelle instance à chaque injection</div>
+      </div>
+      <div class="mt-4 bg-purple-50 p-3 rounded-lg text-purple-800 text-sm">
+        🧠 Changer la portée : <code>@Injectable({ scope: Scope.REQUEST })</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9 : RÉSUMÉ -->
+  <div class="slide px-4 py-12 bg-gradient-to-tr from-blue-50 to-white" id="slide9">
+    <div class="max-w-2xl mx-auto text-center">
+      <h2 class="text-3xl font-bold text-gray-800">🏁 Récapitulatif</h2>
+      <div class="mt-6 space-y-3 text-left bg-white p-6 rounded-2xl shadow">
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> NestJS possède un <strong>conteneur IoC</strong> intégré.</div>
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> <code>@Injectable()</code> marque une classe comme <strong>provider</strong>.</div>
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> L'injection se fait dans le <strong>constructeur</strong>.</div>
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Providers personnalisés : <code>useValue</code>, <code>useClass</code>, <code>useFactory</code>.</div>
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Utiliser <code>@Inject('token')</code> pour les tokens personnalisés.</div>
+        <div class="flex items-center gap-3"><span class="text-green-600 text-xl">✅</span> Par défaut : singleton (portée globale).</div>
+      </div>
+      <p class="mt-6 text-gray-700">Prochaine leçon : Les hooks de cycle de vie (OnInit, OnDestroy, etc.).</p>
+      <div class="mt-10 w-20 h-1 bg-blue-400 mx-auto rounded-full"></div>
+      <p class="text-xs text-gray-400 mt-6">Lesson 5 — NestJS, Injection de dépendances — Cameroun</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Barre de navigation (dots) -->
+<div class="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-3 z-10 bg-white/70 p-2 rounded-full shadow-md backdrop-blur-sm">
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="0"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="1"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="2"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="3"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="4"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="5"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="6"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="7"></div>
+  <div class="nav-dot w-3 h-3 bg-gray-400 rounded-full" data-slide="8"></div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    const $slides = $('.slide');
+    const $dots = $('.nav-dot');
+    const $container = $('.slide-container');
+
+    function updateActiveDot() {
+      let scrollPos = $container.scrollTop();
+      let slideIndex = Math.round(scrollPos / window.innerHeight);
+      if (slideIndex < 0) slideIndex = 0;
+      if (slideIndex >= $slides.length) slideIndex = $slides.length - 1;
+      $dots.removeClass('active bg-blue-500').addClass('bg-gray-400');
+      $dots.eq(slideIndex).removeClass('bg-gray-400').addClass('active bg-blue-500');
+    }
+
+    $container.on('scroll', function() { updateActiveDot(); });
+    $dots.on('click', function() {
+      let idx = $(this).data('slide');
+      if (idx === undefined) idx = $dots.index(this);
+      let targetTop = idx * window.innerHeight;
+      $container.animate({ scrollTop: targetTop }, 300);
+    });
+    updateActiveDot();
+    if (window.MathJax) MathJax.typesetPromise();
+  });
+</script>
+</body>
+</html>

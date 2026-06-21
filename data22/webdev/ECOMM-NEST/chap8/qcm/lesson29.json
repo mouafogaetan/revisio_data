@@ -1,0 +1,98 @@
+[
+  {
+    "questionText": "Dans une plateforme e-commerce, pourquoi est-il préférable de stocker la note moyenne d'un produit dans la table `Product` plutôt que de la calculer à chaque requête ?",
+    "options": [
+      "Pour des raisons de sécurité des données",
+      "Pour des raisons de performances : éviter un calcul agrégé sur la table `Review` à chaque affichage de produit",
+      "Parce que la base de données ne supporte pas les fonctions d'agrégation",
+      "Pour respecter le RGPD"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Calculer la moyenne à chaque requête (avec `AVG(rating)`) nécessite de parcourir tous les avis du produit, ce qui devient coûteux pour les produits populaires avec des milliers d'avis. Stocker la note précalculée et la mettre à jour uniquement lors des modifications d'avis est beaucoup plus performant."
+  },
+  {
+    "questionText": "Quelle requête TypeORM permet de calculer la moyenne des notes et le nombre d'avis pour un produit donné ?",
+    "options": [
+      "`productRepository.findOne({ where: { id }, select: ['averageRating'] })`",
+      "`reviewRepository.createQueryBuilder('r').select('AVG(r.rating)', 'avg').addSelect('COUNT(r.id)', 'count').where('r.productId = :id', { id }).getRawOne()`",
+      "`reviewRepository.sum('rating', { productId: id })`",
+      "`productRepository.calculateAverageRating(id)`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La bonne approche utilise un QueryBuilder avec `AVG()` pour la moyenne et `COUNT()` pour le nombre total d'avis. `getRawOne()` retourne un objet avec les champs 'avg' et 'count'. Les autres options n'existent pas dans TypeORM standard."
+  },
+  {
+    "questionText": "Observez ce code de mise à jour automatique de la note moyenne :\n```typescript\n@AfterInsert()\n@AfterUpdate()\n@AfterRemove()\nasync updateProductAverageRating() {\n  const result = await this.reviewRepository\n    .createQueryBuilder('review')\n    .select('AVG(review.rating)', 'avg')\n    .where('review.productId = :productId', { productId: this.productId })\n    .getRawOne();\n\n  await this.productRepository.update(this.productId, {\n    averageRating: result.avg || 0,\n    reviewCount: result.count || 0\n  });\n}\n```\nQuel problème majeur ce code peut-il causer en production ?",
+    "options": [
+      "Aucun problème, le code est parfait",
+      "Le décorateur `@AfterRemove` n'existe pas dans TypeORM",
+      "Dans un décorateur d'entité, on ne peut pas injecter les repositories ; cela provoquera une erreur d'exécution",
+      "La requête ne filtre pas les avis supprimés"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "Les event listeners TypeORM (comme `@AfterInsert`) s'exécutent dans le contexte de l'entité, qui n'a pas accès aux repositories via injection de dépendances. Pour corriger, il faut soit déplacer cette logique dans le service, soit utiliser un `Subscriber` avec injection via le `DataSource`."
+  },
+  {
+    "questionText": "Pour calculer la distribution des étoiles (ex: \"5 étoiles : 120 avis, 4 étoiles : 45 avis...\"), quelle est la meilleure approche en termes de performance ?",
+    "options": [
+      "Effectuer 5 requêtes séparées (une par note) avec `COUNT(*) WHERE rating = N`",
+      "Une seule requête avec `GROUP BY rating` pour obtenir le nombre d'avis par note en une seule fois",
+      "Récupérer tous les avis et les compter en mémoire dans l'application",
+      "Utiliser une vue matérialisée PostgreSQL recalculée chaque nuit"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Une seule requête avec `GROUP BY rating` (ex: `SELECT rating, COUNT(*) FROM review WHERE productId = ? GROUP BY rating`) retourne toutes les distributions en une fois. C'est bien plus efficace que 5 requêtes séparées ou que le chargement de tous les avis en mémoire."
+  },
+  {
+    "questionText": "Quelle est la formule mathématique correcte pour calculer la note moyenne pondérée d'un produit si on souhaite donner plus d'importance aux avis récents ?",
+    "options": [
+      "$\\text{moyenne pondérée} = \\frac{\\sum (\\text{note} \\times \\text{poids})}{\\sum \\text{poids}}$ avec $\\text{poids} = e^{-\\lambda \\cdot \\text{jours}}$",
+      "$\\text{moyenne pondérée} = \\frac{\\sum \\text{note}}{\\text{nombre d'avis}}$",
+      "$\\text{moyenne pondérée} = \\text{médiane des notes}$",
+      "$\\text{moyenne pondérée} = \\text{note la plus fréquente}$"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "hard",
+    "explanation": "La moyenne pondérée utilise des poids décroissants avec le temps ($e^{-\\lambda \\cdot \\text{jours}}$) pour donner moins d'importance aux vieux avis. La formule classique $\\frac{\\sum (note \\times poids)}{\\sum poids}$ permet de calculer cette moyenne. Les avis récents ont un poids plus élevé, reflétant mieux la qualité actuelle du produit."
+  },
+  {
+    "questionText": "Comment implémenter le tri des produits par note moyenne décroissante (du mieux noté au moins bien noté) avec TypeORM ?",
+    "options": [
+      "`productRepository.find({ order: { averageRating: 'DESC' } })`",
+      "`productRepository.find({ order: { rating: 'DESC' } })`",
+      "`productRepository.find({ order: { reviews: { rating: 'DESC' } } })`",
+      "`productRepository.createQueryBuilder('p').leftJoin('p.reviews', 'r').groupBy('p.id').orderBy('AVG(r.rating)', 'DESC').getMany()`"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "Si la colonne `averageRating` est stockée dans la table `Product` (dénormalisation), un simple `order: { averageRating: 'DESC' }` suffit. C'est beaucoup plus performant qu'un `GROUP BY` avec `AVG` sur la table `Review`. La bonne pratique est donc de stocker la note précalculée."
+  },
+  {
+    "questionText": "Quel est le problème du 'classement de Wilson' lorsqu'on trie des produits avec peu d'avis ?",
+    "options": [
+      "Il favorise trop les produits avec beaucoup d'avis",
+      "Il n'existe pas en SQL",
+      "C'est un problème purement mathématique sans solution",
+      "Il est trop lent à calculer pour des catalogues de plus de 1000 produits"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "very hard",
+    "explanation": "Un produit avec 1 avis à 5 étoiles ne devrait pas être classé devant un produit avec 100 avis à 4,9 étoiles. Le 'score de Wilson' (ou intervalle de confiance) résout ce problème en pénalisant les produits avec peu d'avis. La formule utilisée est : $\\text{score} = \\frac{\\hat{p} + \\frac{z^2}{2n} - z\\sqrt{\\frac{\\hat{p}(1-\\hat{p}) + \\frac{z^2}{4n}}{n}}}{1 + \\frac{z^2}{n}}$ où $\\hat{p}$ est la proportion d'avis positifs."
+  },
+  {
+    "questionText": "Que mesure l'intervalle de confiance de Wilson dans le contexte des avis produits ?",
+    "options": [
+      "La probabilité qu'un avis soit un faux positif",
+      "Une estimation statistique de la 'vraie' note d'un produit, tenant compte du nombre d'avis pour éviter les biais des petits échantillons",
+      "La dispersion des notes autour de la moyenne",
+      "Le temps moyen entre deux avis"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "L'intervalle de confiance de Wilson donne une borne inférieure réaliste de la note d'un produit. Pour un produit avec peu d'avis, l'intervalle est large et la borne inférieure est basse, ce qui le désavantage dans le classement. Pour un produit avec beaucoup d'avis, l'intervalle se resserre autour de la moyenne réelle. C'est la méthode utilisée par Reddit, Amazon et IMDb."
+  }
+]

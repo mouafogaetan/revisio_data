@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 22 : Transactions ACID - Cours BDD</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation légère -->
+    <style>
+        /* transition douce pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        /* pour le style des puces et lisibilité */
+        .card-objective {
+            background: #f9fafb;
+            border-left: 6px solid #3b82f6;
+        }
+        .card-concept {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #2563eb;
+        }
+        /* pour le code simplifié */
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        .badge-acid {
+            background: #eef2ff;
+            color: #1e40af;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        <!-- Conteneur principal slides -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+            
+            <!-- En-tête avec progression -->
+            <div class="bg-indigo-700 px-5 py-3 flex justify-between items-center text-white">
+                <div class="text-sm font-medium">📘 Initiation aux Bases de données</div>
+                <div class="text-xs bg-indigo-800 px-3 py-1 rounded-full">Chapitre 7 - Leçon 22</div>
+            </div>
+
+            <!-- Zone des slides dynamiques -->
+            <div id="slides-container" class="relative min-h-[480px] md:min-h-[520px]">
+                <!-- Slide 1 : Titre -->
+                <div class="slide slide-1 p-6 md:p-8">
+                    <div class="flex flex-col items-center justify-center text-center space-y-6 py-8 md:py-12">
+                        <div class="bg-blue-100 p-4 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">Transactions <span class="text-indigo-600">ACID</span></h1>
+                        <p class="text-lg text-gray-600 max-w-md mx-auto">Gérer l'intégrité des données en environnement multi-utilisateur</p>
+                        <div class="flex flex-wrap justify-center gap-2 pt-4">
+                            <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">⚡ Atomicité</span>
+                            <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">🔗 Cohérence</span>
+                            <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">🛡️ Isolation</span>
+                            <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">💾 Durabilité</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs pédagogiques -->
+                <div class="slide slide-2 p-6 md:p-8 slide-hidden">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3">🎯 Objectifs de la leçon</h2>
+                        <p class="text-gray-600 mt-2">À la fin de ce cours, vous serez capable de :</p>
+                    </div>
+                    <div class="space-y-4 mt-6">
+                        <div class="card-objective p-4 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <span class="text-blue-600 font-bold text-xl">1.</span>
+                                <p class="text-gray-700"><strong>Comprendre le concept de transaction</strong> : une unité de travail atomique en base de données.</p>
+                            </div>
+                        </div>
+                        <div class="card-objective p-4 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <span class="text-blue-600 font-bold text-xl">2.</span>
+                                <p class="text-gray-700"><strong>Maîtriser les propriétés ACID</strong> (Atomicité, Cohérence, Isolation, Durabilité).</p>
+                            </div>
+                        </div>
+                        <div class="card-objective p-4 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <span class="text-blue-600 font-bold text-xl">3.</span>
+                                <p class="text-gray-700"><strong>Utiliser BEGIN, COMMIT, ROLLBACK</strong> pour contrôler les transactions en SQL.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 p-3 bg-indigo-50 rounded-lg text-center text-sm text-indigo-800">
+                        💡 Pourquoi c'est important ? Imaginez un virement bancaire : si une étape échoue, tout doit être annulé !
+                    </div>
+                </div>
+
+                <!-- Slide 3 : Qu'est-ce qu'une transaction ? -->
+                <div class="slide slide-3 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🧩 Qu'est-ce qu'une transaction ?</h2>
+                    <div class="bg-blue-50 p-5 rounded-xl mb-6">
+                        <p class="text-gray-800 text-lg leading-relaxed">Une <strong class="text-indigo-700">transaction</strong> est une <span class="bg-yellow-100 px-1">séquence d'opérations SQL</span> (SELECT, INSERT, UPDATE, DELETE) qui s'exécute comme une <strong class="text-indigo-700">seule unité logique de travail</strong>.</p>
+                        <div class="mt-4 p-3 bg-white rounded-md border border-blue-200">
+                            <p class="font-mono text-sm">✨ Soit TOUTES les opérations réussissent ✨<br>✨ Soit AUCUNE n'est appliquée (comme si rien ne s'était passé) ✨</p>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4 mt-2">
+                        <div class="card-concept p-4 rounded-xl">
+                            <div class="font-bold text-green-700">✅ Exemple concret</div>
+                            <p class="text-sm text-gray-600 mt-2">Virement bancaire : Débiter compte A (UPDATE) et Créditer compte B (UPDATE). Si le crédit échoue, le débit est annulé.</p>
+                        </div>
+                        <div class="card-concept p-4 rounded-xl">
+                            <div class="font-bold text-red-700">❌ Sans transaction</div>
+                            <p class="text-sm text-gray-600 mt-2">Argent débité mais jamais ajouté → perte de données. Les transactions évitent ce chaos !</p>
+                        </div>
+                    </div>
+                    <div class="mt-5 text-center text-sm text-gray-500">📌 En SQL : <code class="bg-gray-200 px-1 rounded">BEGIN TRANSACTION;</code> ... <code class="bg-gray-200 px-1 rounded">COMMIT;</code> ou <code class="bg-gray-200 px-1 rounded">ROLLBACK;</code></div>
+                </div>
+
+                <!-- Slide 4 : Propriétés ACID (vue d'ensemble) -->
+                <div class="slide slide-4 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🔐 Les propriétés ACID</h2>
+                    <p class="text-gray-600 mb-5">Quatre piliers qui garantissent la fiabilité des transactions.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-red-50 p-4 rounded-xl border border-red-200">
+                            <div class="badge-acid mb-2">A - Atomicité</div>
+                            <p class="text-gray-700 text-sm">Tout ou rien. Si une opération échoue, la transaction entière est annulée (<strong>ROLLBACK</strong>).</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                            <div class="badge-acid mb-2">C - Cohérence</div>
+                            <p class="text-gray-700 text-sm">Une transaction valide transforme la base d'un état cohérent à un autre (contraintes respectées).</p>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                            <div class="badge-acid mb-2">I - Isolation</div>
+                            <p class="text-gray-700 text-sm">Transactions simultanées n'interfèrent pas. Chacune s'exécute comme si elle était seule.</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                            <div class="badge-acid mb-2">D - Durabilité</div>
+                            <p class="text-gray-700 text-sm">Une fois validée (<strong>COMMIT</strong>), la transaction persiste même en cas de panne.</p>
+                        </div>
+                    </div>
+                    <!-- petite illustration dessinée en SVG simple -->
+                    <div class="mt-6 flex justify-center">
+                        <svg width="280" height="60" viewBox="0 0 400 70" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="70" height="40" fill="#fde68a" stroke="#b45309" stroke-width="1.5" rx="6"/>
+                            <text x="25" y="35" fill="#78350f" font-size="12">Atomicité</text>
+                            <rect x="95" y="10" width="70" height="40" fill="#bbf7d0" stroke="#15803d" stroke-width="1.5" rx="6"/>
+                            <text x="108" y="35" fill="#14532d" font-size="12">Cohérence</text>
+                            <rect x="180" y="10" width="70" height="40" fill="#bfdbfe" stroke="#1e3a8a" stroke-width="1.5" rx="6"/>
+                            <text x="196" y="35" fill="#1e3a8a" font-size="12">Isolation</text>
+                            <rect x="265" y="10" width="70" height="40" fill="#e9d5ff" stroke="#6b21a5" stroke-width="1.5" rx="6"/>
+                            <text x="278" y="35" fill="#4c1d95" font-size="12">Durabilité</text>
+                            <path d="M80 30 L90 30" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+                            <path d="M165 30 L175 30" stroke="#334155" stroke-width="2"/>
+                            <path d="M250 30 L260 30" stroke="#334155" stroke-width="2"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : Focus sur Atomicité + ROLLBACK -->
+                <div class="slide slide-5 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">⚡ Atomicité &amp; ROLLBACK</h2>
+                    <p class="text-gray-700 mb-4">L'atomicité garantit qu'une transaction est <strong>indivisible</strong>. Si une erreur survient, tout est annulé.</p>
+                    <div class="code-block text-sm mb-4">
+                        <span class="text-green-300">-- Exemple: Achat en ligne</span><br>
+                        BEGIN;<br>
+                        UPDATE stock SET quantite = quantite - 1 WHERE produit_id = 10;<br>
+                        UPDATE commande SET total = total + 25 WHERE id = 5;<br>
+                        -- Si la ligne suivante échoue (contrainte) → ROLLBACK automatique possible<br>
+                        ROLLBACK; -- Annule les 2 modifications<br>
+                        -- ou COMMIT; pour valider définitivement
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm"><span class="font-bold">💻 Commande ROLLBACK :</span> utilisé dans les blocs de programmation (procédures) ou quand une condition n'est pas remplie. En environnement SQL interactif, on peut l'exécuter manuellement.</p>
+                    </div>
+                    <div class="mt-3 flex justify-center gap-4 text-xs font-mono bg-white p-2 rounded-md shadow">
+                        <span>🔁 BEGIN → Opérations → Si OK → COMMIT</span> 
+                        <span>❌ Si erreur → ROLLBACK</span>
+                    </div>
+                </div>
+
+                <!-- Slide 6 : Isolation et concurrence -->
+                <div class="slide slide-6 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🔄 Isolation & problèmes de concurrence</h2>
+                    <p class="text-gray-700 mb-3">L'isolation évite les interférences quand plusieurs utilisateurs manipulent les mêmes données en même temps.</p>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-2 bg-orange-50 p-3 rounded-md">
+                            <span class="text-xl">⚠️</span>
+                            <div><strong>Dirty Read</strong> : Lire une donnée pas encore validée (puis annulée).</div>
+                        </div>
+                        <div class="flex items-start gap-2 bg-orange-50 p-3 rounded-md">
+                            <span class="text-xl">👀</span>
+                            <div><strong>Non-repeatable read</strong> : relire la même donnée, elle a changé entre temps.</div>
+                        </div>
+                        <div class="flex items-start gap-2 bg-orange-50 p-3 rounded-md">
+                            <span class="text-xl">👻</span>
+                            <div><strong>Phantom read</strong> : de nouvelles lignes apparaissent lors d'une seconde lecture.</div>
+                        </div>
+                    </div>
+                    <div class="mt-5 p-3 bg-indigo-50 rounded-lg text-center text-sm">
+                        🔐 Les SGBD offrent des niveaux d'isolement (Read Uncommitted, Read Committed, Repeatable Read, Serializable) pour équilibrer performance et fiabilité.
+                    </div>
+                </div>
+
+                <!-- Slide 7 : COMMIT, Durabilité -->
+                <div class="slide slide-7 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">💾 COMMIT et Durabilité</h2>
+                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 mb-5">
+                        <p><span class="font-bold text-emerald-800">COMMIT</span> : valide définitivement toutes les modifications de la transaction.</p>
+                        <p class="text-sm mt-1">Une fois le <span class="bg-emerald-200 px-1">COMMIT</span> exécuté, les changements sont <strong>permanents</strong> (même en cas de coupure électrique).</p>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="card-concept p-4 rounded-xl">
+                            <div class="font-bold">📀 Durabilité en pratique</div>
+                            <p class="text-sm text-gray-600">Le SGBD écrit les modifications sur le disque (journaux de transactions) avant d'accuser réception.</p>
+                        </div>
+                        <div class="card-concept p-4 rounded-xl">
+                            <div class="font-bold">🛠️ Exemple SQL</div>
+                            <div class="code-block text-xs mt-2">
+                                BEGIN;<br>
+                                INSERT INTO factures VALUES (101, 299.99);<br>
+                                COMMIT;   ✔️ définitif.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-5 text-center italic text-gray-500">💡 "Une fois commit, vos données sont en sécurité"</div>
+                </div>
+
+                <!-- Slide 8 : Cohérence et contraintes -->
+                <div class="slide slide-8 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔗 Cohérence des données</h2>
+                    <p class="text-gray-700">Avant et après une transaction, toutes les <strong>contraintes d'intégrité</strong> (clés primaires, étrangères, UNIQUE, CHECK) doivent être respectées.</p>
+                    <div class="mt-5 p-4 bg-gray-100 rounded-xl">
+                        <p class="font-mono text-sm">-- Exemple : si on ajoute une commande dont l'ID client n'existe pas → violation FK</p>
+                        <p class="font-mono text-sm text-red-600">-- La transaction sera rejetée et annulée (ROLLBACK implicite).</p>
+                    </div>
+                    <div class="flex items-center gap-3 mt-5 text-sm bg-white rounded-lg shadow p-3">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>La cohérence garantit que les règles métier sont toujours vraies.</span>
+                    </div>
+                </div>
+
+                <!-- Slide 9 : BEGIN / COMMIT / ROLLBACK en détail -->
+                <div class="slide slide-9 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🛠️ Syntaxes SQL principales</h2>
+                    <div class="space-y-4">
+                        <div class="bg-slate-800 text-gray-100 p-4 rounded-xl font-mono text-sm overflow-x-auto">
+                            <span class="text-yellow-300">-- Début de transaction</span><br>
+                            START TRANSACTION;  ou  BEGIN WORK;<br>
+                            <span class="text-green-300">-- Opérations</span><br>
+                            UPDATE comptes SET solde = solde - 100 WHERE id=1;<br>
+                            UPDATE comptes SET solde = solde + 100 WHERE id=2;<br>
+                            <span class="text-blue-300">-- Vérification (si tout ok)</span><br>
+                            COMMIT;  <span class="text-gray-400">-- validation</span><br>
+                            <span class="text-red-300">-- En cas de problème</span><br>
+                            ROLLBACK; <span class="text-gray-400">-- annulation complète</span>
+                        </div>
+                        <div class="flex flex-wrap gap-3 text-sm text-center">
+                            <div class="flex-1 bg-blue-100 p-2 rounded">🔹 <strong>BEGIN</strong> : démarre une nouvelle transaction</div>
+                            <div class="flex-1 bg-green-100 p-2 rounded">🔹 <strong>COMMIT</strong> : rend les changements permanents</div>
+                            <div class="flex-1 bg-red-100 p-2 rounded">🔹 <strong>ROLLBACK</strong> : annule toutes les modifications depuis BEGIN</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 10 : Récapitulatif et exercice pratique -->
+                <div class="slide slide-10 p-6 md:p-8 slide-hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Récapitulons &amp; Petit exercice</h2>
+                    <div class="bg-gradient-to-r from-indigo-50 to-sky-50 p-5 rounded-xl">
+                        <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                            <li>Une transaction = unité atomique de travail.</li>
+                            <li>ACID = Atomicité, Cohérence, Isolation, Durabilité.</li>
+                            <li><strong>BEGIN</strong> pour démarrer, <strong>COMMIT/ROLLBACK</strong> pour valider/annuler.</li>
+                            <li>Transactions essentielles pour les applis critiques (banque, réservations).</li>
+                        </ul>
+                    </div>
+                    <div class="mt-6 p-4 border-2 border-dashed border-indigo-300 rounded-xl">
+                        <p class="font-semibold">🧪 À vous de jouer (réflexion) :</p>
+                        <p class="text-sm mt-1">Imaginez un système de réservation de vols. Deux clients tentent de réserver le dernier siège. Comment les transactions ACID évitent-elles une surréservation ?</p>
+                        <details class="mt-3 cursor-pointer text-blue-600">
+                            <summary>Voir un indice</summary>
+                            <p class="text-gray-600 text-sm mt-2">L'isolation et le verrouillage garantissent qu'une seule transaction verra le siège disponible, l'autre attendra ou échouera proprement. Atomicité empêche une réservation partielle.</p>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation des slides + indicateur -->
+            <div class="bg-gray-50 px-5 py-4 flex justify-between items-center border-t border-gray-200">
+                <button id="prevBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-5 rounded-l-full rounded-r-full disabled:opacity-40 transition btn-nav">◀ Précédent</button>
+                <div class="text-sm text-gray-600">
+                    <span id="slideCounter">1</span> / <span id="totalSlides">10</span>
+                </div>
+                <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-l-full rounded-r-full transition btn-nav">Suivant ▶</button>
+            </div>
+        </div>
+        <p class="text-center text-xs text-gray-500 mt-4">📚 Cours - Base de données (Initiation) | Enseignant : Cameroun | Leçon 22 : Transactions ACID</p>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let currentSlide = 1;
+            const totalSlides = $('.slide').length;  // 10 slides
+            $('#totalSlides').text(totalSlides);
+
+            function showSlide(slideNumber) {
+                $('.slide').addClass('slide-hidden');
+                $(`.slide-${slideNumber}`).removeClass('slide-hidden');
+                $('#slideCounter').text(slideNumber);
+                // Gérer désactivation des boutons si besoin
+                if(slideNumber === 1) {
+                    $('#prevBtn').prop('disabled', true);
+                } else {
+                    $('#prevBtn').prop('disabled', false);
+                }
+                if(slideNumber === totalSlides) {
+                    $('#nextBtn').prop('disabled', true);
+                } else {
+                    $('#nextBtn').prop('disabled', false);
+                }
+                // scroll en haut du slide (pour mobile)
+                $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 10 }, 100);
+            }
+
+            $('#nextBtn').on('click', function() {
+                if(currentSlide < totalSlides) {
+                    currentSlide++;
+                    showSlide(currentSlide);
+                }
+            });
+
+            $('#prevBtn').on('click', function() {
+                if(currentSlide > 1) {
+                    currentSlide--;
+                    showSlide(currentSlide);
+                }
+            });
+
+            // Initialisation
+            showSlide(1);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 47 : Dockerfile multi-stage - API E-commerce</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (utile pour formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Police moderne -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body { background: #f0f9ff; scroll-behavior: smooth; }
+        .slide {
+            display: none;
+            animation: fadeSlide 0.4s ease-out;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(12px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .progress-bar {
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #0f766e;
+            transition: width 0.3s ease;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        @media (max-width: 640px) {
+            .container-custom {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+        .terminal-like {
+            background: #0f172a;
+            border-left: 4px solid #14b8a6;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-teal-50 to-cyan-50">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10 container-custom">
+        <!-- Barre de progression sticky -->
+        <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-md rounded-2xl shadow-md p-3 mb-6 border border-teal-100">
+            <div class="flex justify-between items-center text-sm text-slate-600 mb-2">
+                <span class="font-bold text-teal-700">🐳 Docker & NestJS · Cours Cameroun</span>
+                <span id="slideCounter" class="bg-teal-100 px-3 py-1 rounded-full text-xs font-semibold">Slide 1 / 7</span>
+            </div>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" data-index="0">
+                <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-teal-200">
+                    <div class="bg-gradient-to-r from-teal-800 to-cyan-800 p-8 md:p-12 text-white">
+                        <div class="text-sm uppercase tracking-wider font-semibold mb-2 opacity-80">Chapitre 15 · Mise en production</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">🐋 Dockerfile multi-stage pour API NestJS</h1>
+                        <div class="w-24 h-1 bg-teal-300 my-5 rounded-full"></div>
+                        <p class="text-lg md:text-xl text-teal-100 max-w-2xl">Optimiser la taille, la sécurité et le déploiement de ton application e-commerce</p>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="flex flex-wrap gap-3 text-slate-600">
+                            <span class="bg-teal-50 px-4 py-2 rounded-full text-sm">🧠 Compétence : Mettre en production</span>
+                            <span class="bg-teal-50 px-4 py-2 rounded-full text-sm">📘 Leçon 47 / 50</span>
+                            <span class="bg-teal-50 px-4 py-2 rounded-full text-sm">⏱️ 55 min</span>
+                        </div>
+                        <div class="mt-8 flex justify-end">
+                            <button class="next-slide bg-teal-600 hover:bg-teal-700 text-white font-medium px-6 py-2.5 rounded-xl shadow transition">Commencer la leçon →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" data-index="1">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-emerald-700 p-6 text-white">
+                        <h2 class="text-2xl md:text-3xl font-bold flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8 space-y-5">
+                        <div class="flex gap-4 items-start">
+                            <div class="bg-emerald-100 p-2 rounded-full text-emerald-700 text-xl">1️⃣</div>
+                            <p class="text-slate-700 text-lg"><span class="font-semibold">Créer un Dockerfile multi-stage</span> : build → production, image finale légère.</p>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <div class="bg-emerald-100 p-2 rounded-full text-emerald-700 text-xl">2️⃣</div>
+                            <p class="text-slate-700 text-lg"><span class="font-semibold">Configurer docker-compose</span> : orchestrer API, PostgreSQL, Redis.</p>
+                        </div>
+                        <div class="flex gap-4 items-start">
+                            <div class="bg-emerald-100 p-2 rounded-full text-emerald-700 text-xl">3️⃣</div>
+                            <p class="text-slate-700 text-lg"><span class="font-semibold">Gérer les variables d’environnement</span> en toute sécurité.</p>
+                        </div>
+                        <div class="mt-4 p-4 bg-teal-50 rounded-xl border-l-4 border-teal-500 text-teal-800 text-sm italic">
+                            💡 À la fin, vous saurez empaqueter votre API e-commerce dans une image Docker prête pour le cloud (DigitalOcean, Scaleway).
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button class="next-slide bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Qu'est-ce qu'un multi-stage ? (dessin explicatif) -->
+            <div class="slide" data-index="2">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-blue-800 p-5 text-white">
+                        <h2 class="text-2xl font-bold">🏗️ Docker multi-stage : principe</h2>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <p class="text-slate-700">Un Dockerfile multi-stage utilise plusieurs phases (<code>FROM ... AS ...</code>) pour ne garder que le strict nécessaire dans l'image finale.</p>
+                        <!-- Dessin SVG maison -->
+                        <div class="bg-gray-100 p-4 rounded-xl flex justify-center">
+                            <svg width="100%" height="140" viewBox="0 0 600 100" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+                                <rect x="10" y="20" width="100" height="50" fill="#2563eb" rx="8" />
+                                <text x="35" y="50" fill="white" font-size="12">Stage 1</text>
+                                <text x="25" y="65" fill="white" font-size="9">Build (node:18)</text>
+                                <line x1="110" y1="45" x2="190" y2="45" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+                                <rect x="200" y="20" width="100" height="50" fill="#0f766e" rx="8" />
+                                <text x="230" y="50" fill="white" font-size="12">Stage 2</text>
+                                <text x="215" y="65" fill="white" font-size="9">Prod (node:18-alpine)</text>
+                                <line x1="300" y1="45" x2="380" y2="45" stroke="#334155" stroke-width="2"/>
+                                <rect x="390" y="20" width="100" height="50" fill="#10b981" rx="8" />
+                                <text x="415" y="50" fill="white" font-size="12">Image finale</text>
+                                <text x="405" y="65" fill="white" font-size="9">~150 MB</text>
+                                <defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#334155"/></marker></defs>
+                            </svg>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 mt-2">
+                            <div class="bg-blue-50 p-3 rounded-lg">
+                                <span class="font-bold">📦 Phase de build</span>
+                                <p class="text-sm">Installation des dépendances, compilation TypeScript, génération du dossier dist/.</p>
+                            </div>
+                            <div class="bg-teal-50 p-3 rounded-lg">
+                                <span class="font-bold">🚀 Phase production</span>
+                                <p class="text-sm">Copie uniquement le build + node_modules --production. Image légère et sécurisée.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button class="next-slide bg-blue-700 hover:bg-blue-800 text-white px-5 py-2 rounded-xl">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : Exemple concret de Dockerfile multi-stage pour NestJS -->
+            <div class="slide" data-index="3">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-purple-700 p-5 text-white">
+                        <h2 class="text-2xl font-bold">📄 Dockerfile multi-stage (NestJS)</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-slate-700">Voici un Dockerfile professionnel pour une API NestJS avec TypeORM, utilisant l'image officielle Node et l'alpine pour la taille réduite.</p>
+                        <div class="code-block text-sm">
+<pre># Étape 1: build
+FROM node:18 AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
+COPY . .
+RUN npm run build
+
+# Étape 2: production (alpine)
+FROM node:18-alpine AS production
+WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+COPY package*.json ./
+USER nestjs
+EXPOSE 3000
+CMD ["node", "dist/main.js"]</pre>
+                        </div>
+                        <div class="bg-amber-50 p-3 rounded-lg">
+                            <p class="text-amber-800 text-sm">🔐 <strong>Sécurité</strong> : on crée un utilisateur non-root (<code>nestjs</code>) pour exécuter l'application, limitant les risques.</p>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : docker-compose avec services (app, postgres, redis) -->
+            <div class="slide" data-index="4">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-cyan-800 p-5 text-white">
+                        <h2 class="text-2xl font-bold">⚙️ docker-compose.yml pour l'e-commerce</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-slate-700">Orchestrer l'API, PostgreSQL et Redis en un seul fichier. Simplifie les déploiements locaux et en production.</p>
+                        <div class="code-block text-xs">
+<pre>version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ecommerce_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_URL: postgresql://ecommerce:secret@postgres:5432/ecommerce_db
+      REDIS_HOST: redis
+    env_file:
+      - .env.production
+
+volumes:
+  pgdata:</pre>
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button class="next-slide bg-cyan-600 hover:bg-cyan-700 text-white px-5 py-2 rounded-xl">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Gestion des variables d'environnement -->
+            <div class="slide" data-index="5">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-700 p-5 text-white">
+                        <h2 class="text-2xl font-bold">🔐 Variables d'environnement sécurisées</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-slate-700">Ne jamais hardcoder les secrets dans le Dockerfile. Utilisez <code>env_file</code> ou <code>environment</code> dans docker-compose.</p>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div class="bg-gray-800 text-green-300 p-3 rounded-lg font-mono text-sm">
+                                <p>.env.production</p>
+                                <pre class="text-xs">JWT_SECRET=supersecurekey
+DB_PASSWORD=strongpass
+STRIPE_KEY=sk_live_xxx</pre>
+                            </div>
+                            <div class="bg-slate-100 p-3 rounded-lg">
+                                <p class="font-semibold">✅ Bonnes pratiques :</p>
+                                <ul class="list-disc pl-5 text-sm">
+                                    <li>Ne pas versionner .env*</li>
+                                    <li>Utiliser Docker secrets en mode swarm</li>
+                                    <li>Injecter via CI/CD (GitHub Actions)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-2 p-3 bg-slate-50 rounded-lg border-l-4 border-amber-500">
+                            <span class="font-bold">📌 Rappel :</span> <code>process.env.DB_PASSWORD</code> dans NestJS lira la variable depuis le conteneur.
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button class="next-slide bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-xl">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Mise en pratique & commandes utiles -->
+            <div class="slide" data-index="6">
+                <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+                    <div class="bg-teal-700 p-5 text-white">
+                        <h2 class="text-2xl font-bold">🚀 Mise en pratique</h2>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <p class="font-semibold text-slate-800">Commandes essentielles pour builder et lancer votre API containerisée :</p>
+                        <div class="code-block text-sm">
+<pre># Construire l'image multi-stage
+docker build -t ecommerce-api:latest .
+
+# Lancer tous les services (API + DB + Redis)
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f api
+
+# Arrêter et supprimer les conteneurs
+docker-compose down -v</pre>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl">
+                            <p class="text-green-800 font-semibold">🏁 Défi final :</p>
+                            <p class="text-sm">Améliorez le Dockerfile en ajoutant une étape de test (npm run test) avant le build, et optimisez le cache des dépendances pour accélérer les reconstructions.</p>
+                        </div>
+                        <div class="text-center text-teal-600 pt-2">
+                            ✨ Félicitations ! Vous maîtrisez la containerisation d'une API e-commerce avec multi-stage ✨
+                        </div>
+                    </div>
+                    <div class="px-6 pb-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-xl">← Précédent</button>
+                        <button id="resetLesson" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-xl shadow">🔄 Revoir la leçon</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons mobiles flottants -->
+        <div class="fixed bottom-5 right-5 flex gap-3 md:hidden z-20">
+            <button id="mobilePrev" class="bg-white shadow-xl p-3 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100">◀</button>
+            <button id="mobileNext" class="bg-white shadow-xl p-3 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100">▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentIdx = 0;
+            const $slides = $('.slide');
+            const total = $slides.length;
+
+            function updateSlideAndProgress() {
+                $slides.removeClass('active');
+                $($slides[currentIdx]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIdx+1} / ${total}`);
+                let percent = (currentIdx / (total - 1)) * 100;
+                $('#progressFill').css('width', percent + '%');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function nextSlide() {
+                if (currentIdx < total - 1) {
+                    currentIdx++;
+                    updateSlideAndProgress();
+                }
+            }
+            function prevSlide() {
+                if (currentIdx > 0) {
+                    currentIdx--;
+                    updateSlideAndProgress();
+                }
+            }
+
+            // Événements globaux
+            $('.next-slide').off('click').on('click', nextSlide);
+            $('.prev-slide').off('click').on('click', prevSlide);
+            $('#mobileNext').off('click').on('click', nextSlide);
+            $('#mobilePrev').off('click').on('click', prevSlide);
+            $('#resetLesson').on('click', function() {
+                currentIdx = 0;
+                updateSlideAndProgress();
+            });
+
+            // Swipe tactile
+            let startX = 0, endX = 0;
+            $(document).on('touchstart', function(e) {
+                startX = e.originalEvent.touches[0].clientX;
+            });
+            $(document).on('touchend', function(e) {
+                endX = e.originalEvent.changedTouches[0].clientX;
+                if (endX < startX - 40) nextSlide();
+                if (endX > startX + 40) prevSlide();
+            });
+
+            // Flèches clavier
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') nextSlide();
+                if (e.key === 'ArrowLeft') prevSlide();
+            });
+
+            updateSlideAndProgress();
+        });
+    </script>
+</body>
+</html>

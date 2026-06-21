@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 23 : Gestion de la concurrence et niveaux d'isolation | Base de données</title>
+    <!-- Tailwind CSS + Google Fonts pour améliorer la lisibilité -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (si besoin, mais utile pour certains concepts) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition douce pour les slides */
+        .slide {
+            transition: all 0.3s ease-in-out;
+        }
+        /* Personnalisation pour la navigation tactile */
+        button, .nav-btn {
+            touch-action: manipulation;
+        }
+        /* Ajustement pour les petits écrans */
+        @media (max-width: 640px) {
+            .container-slide {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* Personnalisation du défilement pour les longues listes */
+        .slide-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+        .slide-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .slide-content::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .slide-content::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        /* Animation de focus */
+        button:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 font-sans antialiased">
+
+    <div class="min-h-screen py-6 px-3 md:py-8 md:px-4">
+        <div class="max-w-5xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-blue-100">
+            
+            <!-- En-tête avec titre de matière et classe -->
+            <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-5 py-4 md:px-8 md:py-5 text-white">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <p class="text-sm font-medium text-blue-200">Classe : Développement Web</p>
+                        <p class="text-lg font-bold">Initiation aux Bases de données</p>
+                    </div>
+                    <div class="bg-blue-900/50 px-4 py-1 rounded-full text-sm font-semibold">
+                        Chapitre 7 : Concurrence & Transactions
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conteneur des slides -->
+            <div class="relative">
+                <!-- Slides wrapper -->
+                <div id="slidesContainer" class="overflow-hidden">
+                    <!-- Slide 1 : Titre de la leçon -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="0">
+                        <div class="flex flex-col items-center justify-center min-h-[65vh] text-center">
+                            <div class="bg-blue-100 text-blue-800 rounded-full px-4 py-1 text-sm font-semibold mb-6">Leçon 23</div>
+                            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-6 leading-tight">🔄 Gestion de la concurrence <br>et niveaux d'isolation</h1>
+                            <div class="w-24 h-1 bg-blue-500 rounded-full my-4"></div>
+                            <p class="text-lg md:text-xl text-gray-600 max-w-2xl mt-4">Comprendre les problèmes d'accès simultané et maîtriser les niveaux de verrouillage pour garantir l'intégrité des données.</p>
+                            <div class="mt-12 flex gap-2 text-sm text-gray-500">
+                                <span class="bg-gray-100 px-3 py-1 rounded-full">👥 Multi-utilisateurs</span>
+                                <span class="bg-gray-100 px-3 py-1 rounded-full">🔒 ACID</span>
+                                <span class="bg-gray-100 px-3 py-1 rounded-full">⚡ Concurrence</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 2 : Objectifs d'apprentissage -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="1">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-8 border-b border-blue-200 pb-4">
+                                <span class="text-4xl">🎯</span>
+                                <h2 class="text-3xl md:text-4xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                            </div>
+                            <div class="slide-content space-y-5 text-lg text-gray-700">
+                                <div class="flex items-start gap-4 bg-blue-50 p-4 rounded-xl">
+                                    <span class="text-blue-600 font-bold text-2xl">1.</span>
+                                    <span>Comprendre les problèmes de concurrence : <strong>dirty read, non-repeatable read, phantom read</strong></span>
+                                </div>
+                                <div class="flex items-start gap-4 bg-blue-50 p-4 rounded-xl">
+                                    <span class="text-blue-600 font-bold text-2xl">2.</span>
+                                    <span>Connaître les niveaux d'isolation SQL : <strong>READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE</strong></span>
+                                </div>
+                                <div class="flex items-start gap-4 bg-blue-50 p-4 rounded-xl">
+                                    <span class="text-blue-600 font-bold text-2xl">3.</span>
+                                    <span>Choisir le bon niveau d'isolation selon les besoins de l'application (performance vs cohérence).</span>
+                                </div>
+                                <div class="flex items-start gap-4 bg-blue-50 p-4 rounded-xl">
+                                    <span class="text-blue-600 font-bold text-2xl">4.</span>
+                                    <span>Savoir configurer et visualiser le niveau d'isolation dans MySQL / PostgreSQL.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 3 : Introduction à la concurrence (problèmes) -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="2">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-3xl">⚠️</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Problèmes de concurrence</h2>
+                            </div>
+                            <div class="slide-content space-y-6">
+                                <p class="text-gray-700">Quand plusieurs utilisateurs ou applications manipulent la même base de données en même temps, trois problèmes classiques peuvent survenir :</p>
+                                <div class="grid md:grid-cols-3 gap-5 mt-2">
+                                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm">
+                                        <h3 class="font-bold text-red-700 text-xl">📖 Dirty Read</h3>
+                                        <p class="text-sm mt-2">Lecture de données non encore validées (<code class="bg-gray-200 px-1 rounded">COMMIT</code>). Si la transaction écrit des données puis annule (<code class="bg-gray-200 px-1 rounded">ROLLBACK</code>), l'autre transaction a lu des données « sales » qui n'ont jamais existé.</p>
+                                    </div>
+                                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-xl shadow-sm">
+                                        <h3 class="font-bold text-yellow-700 text-xl">🔄 Non-repeatable Read</h3>
+                                        <p class="text-sm mt-2">Au sein d'une même transaction, une requête identique retourne des résultats différents car une autre transaction a modifié <strong>et validé</strong> ces données entre-temps.</p>
+                                    </div>
+                                    <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-xl shadow-sm">
+                                        <h3 class="font-bold text-purple-700 text-xl">👻 Phantom Read</h3>
+                                        <p class="text-sm mt-2">De nouvelles lignes apparaissent (insertion) ou disparaissent dans le résultat d'une même requête, à cause d'une autre transaction qui a ajouté/supprimé des enregistrements.</p>
+                                    </div>
+                                </div>
+                                <!-- Petit dessin ascii simplifié avec image placeholder (car compliqué à dessiner proprement en SVG) -->
+                                <div class="bg-gray-100 p-4 rounded-xl text-center mt-3">
+                                    <p class="font-medium text-gray-600 mb-2">📌 Illustration schématique :</p>
+                                    <img src="" alt="schéma expliquant dirty read, non-repeatable read et phantom read entre deux transactions concurrentes" class="mx-auto max-w-full h-auto border border-gray-300 rounded">
+                                    <div class="text-xs text-gray-500 italic mt-2">(Schéma conceptuel : transaction A modifie, transaction B lit avant validation → dirty read)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 4 : Les 4 niveaux d'isolation SQL -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="3">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-3xl">🔐</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Niveaux d'isolation (SQL standard)</h2>
+                            </div>
+                            <div class="slide-content overflow-x-auto">
+                                <table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-md text-sm md:text-base">
+                                    <thead class="bg-indigo-100">
+                                        <tr>
+                                            <th class="px-4 py-3 border-b">Niveau</th>
+                                            <th class="px-4 py-3 border-b">Dirty Read</th>
+                                            <th class="px-4 py-3 border-b">Non-repeatable Read</th>
+                                            <th class="px-4 py-3 border-b">Phantom Read</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200 text-center">
+                                        <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">READ UNCOMMITTED</td><td class="text-red-600">✔️ Possible</td><td class="text-red-600">✔️ Possible</td><td class="text-red-600">✔️ Possible</td></tr>
+                                        <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">READ COMMITTED</td><td class="text-green-600">❌ Impossible</td><td class="text-red-600">✔️ Possible</td><td class="text-red-600">✔️ Possible</td></tr>
+                                        <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">REPEATABLE READ</td><td class="text-green-600">❌ Impossible</td><td class="text-green-600">❌ Impossible</td><td class="text-red-600">✔️ Possible (dépend SGBD)</td></tr>
+                                        <tr class="hover:bg-gray-50"><td class="px-4 py-2 font-semibold">SERIALIZABLE</td><td class="text-green-600">❌ Impossible</td><td class="text-green-600">❌ Impossible</td><td class="text-green-600">❌ Impossible</td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="bg-blue-50 p-4 rounded-xl mt-6">
+                                    <p class="font-semibold text-blue-800">💡 Résumé simple :</p>
+                                    <ul class="list-disc list-inside space-y-1 mt-2 text-gray-700">
+                                        <li><strong>READ UNCOMMITTED</strong> : le moins isolé, maximum de performances mais risque élevé.</li>
+                                        <li><strong>READ COMMITTED</strong> : empêche les lectures sales (utilisé par PostgreSQL par défaut).</li>
+                                        <li><strong>REPEATABLE READ</strong> : garantit la répétabilité (MySQL InnoDB par défaut).</li>
+                                        <li><strong>SERIALIZABLE</strong> : le plus strict, comme si les transactions s'exécutaient une par une.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 5 : Exemple concret et choix du niveau d'isolation -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="4">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-3xl">⚖️</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Comment choisir le bon niveau ?</h2>
+                            </div>
+                            <div class="slide-content space-y-5">
+                                <p class="text-gray-700">Le choix dépend du besoin de cohérence des données vs les performances attendues.</p>
+                                <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-md">
+                                    <h3 class="font-bold text-lg text-indigo-700">📌 Exemple : système bancaire</h3>
+                                    <p class="mt-2">Pour un virement bancaire, on ne peut tolérer ni <strong>dirty read</strong> ni <strong>phantom</strong>. On utilisera <span class="bg-yellow-100 px-2 py-0.5 rounded font-mono">SERIALIZABLE</span> ou <span class="bg-yellow-100 px-2 py-0.5 rounded font-mono">REPEATABLE READ</span> avec précautions.</p>
+                                </div>
+                                <div class="bg-white border border-gray-200 rounded-lg p-5 shadow-md">
+                                    <h3 class="font-bold text-lg text-indigo-700">📊 Exemple : dashboard analytique</h3>
+                                    <p class="mt-2">Pour un rapport de ventes en temps réel, quelques écarts mineurs sont acceptables, on peut utiliser <span class="bg-green-100 px-2 py-0.5 rounded font-mono">READ COMMITTED</span> pour de meilleures performances.</p>
+                                </div>
+                                <div class="bg-gradient-to-r from-gray-50 to-blue-50 p-4 rounded-xl border border-blue-200">
+                                    <p class="font-mono text-sm">🔧 <strong>Configuration pratique sous MySQL :</strong><br>
+                                    <code class="bg-gray-800 text-white px-2 py-0.5 rounded text-xs">SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;</code><br>
+                                    <code class="bg-gray-800 text-white px-2 py-0.5 rounded text-xs mt-1 inline-block">SELECT @@transaction_isolation;</code></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 6 : Résumé + Bonnes pratiques -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="5">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-3xl">📝</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Points clés à retenir</h2>
+                            </div>
+                            <div class="slide-content space-y-5">
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div class="flex items-start space-x-3 bg-green-50 p-3 rounded-lg">
+                                        <span class="text-green-600 text-2xl">✓</span>
+                                        <span>L'isolation garantit que les transactions concurrentes n'interfèrent pas de manière inattendue.</span>
+                                    </div>
+                                    <div class="flex items-start space-x-3 bg-green-50 p-3 rounded-lg">
+                                        <span class="text-green-600 text-2xl">✓</span>
+                                        <span>Plus le niveau d'isolation est élevé, plus on perd en concurrence (plus de verrous).</span>
+                                    </div>
+                                    <div class="flex items-start space-x-3 bg-green-50 p-3 rounded-lg">
+                                        <span class="text-green-600 text-2xl">✓</span>
+                                        <span>PostgreSQL utilise par défaut <strong>READ COMMITTED</strong> ; MySQL (InnoDB) utilise <strong>REPEATABLE READ</strong> par défaut.</span>
+                                    </div>
+                                    <div class="flex items-start space-x-3 bg-green-50 p-3 rounded-lg">
+                                        <span class="text-green-600 text-2xl">✓</span>
+                                        <span>Pour éviter les phénomènes fantômes, on peut passer à SERIALIZABLE ou utiliser des verrouillages explicites.</span>
+                                    </div>
+                                </div>
+                                <div class="mt-8 bg-indigo-50 p-5 rounded-2xl text-center">
+                                    <p class="italic text-indigo-800">"Une bonne compréhension des niveaux d'isolation permet d'équilibrer performance et fiabilité dans vos applications."</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 7 : Quiz / Exercice d'auto-évaluation (interactif simple) -->
+                    <div class="slide w-full p-6 md:p-10" data-slide="6">
+                        <div class="min-h-[65vh]">
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-3xl">🧠</span>
+                                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Testez vos connaissances</h2>
+                            </div>
+                            <div class="slide-content">
+                                <div class="bg-white rounded-xl shadow-md p-5 border border-gray-200">
+                                    <p class="font-semibold mb-3">Question : Un employé lit le solde d'un compte, pendant qu'un autre virement est en cours (pas encore validé). Il voit un solde temporairement incorrect. Quel problème de concurrence est-ce ?</p>
+                                    <div class="space-y-2 mb-5">
+                                        <label class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"><input type="radio" name="quiz" value="dirty" class="w-4 h-4"> <span>A) Dirty Read (lecture sale)</span></label>
+                                        <label class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"><input type="radio" name="quiz" value="nonrepeat"> <span>B) Non-repeatable Read</span></label>
+                                        <label class="flex items-center gap-3 p-2 rounded hover:bg-gray-50"><input type="radio" name="quiz" value="phantom"> <span>C) Phantom Read</span></label>
+                                    </div>
+                                    <button id="checkQuizBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition shadow">Vérifier ma réponse</button>
+                                    <p id="quizFeedback" class="mt-4 text-sm font-medium italic"></p>
+                                </div>
+                                <div class="mt-6 text-sm text-gray-500 bg-gray-100 p-3 rounded-lg">
+                                    💡 Astuce : La réponse se trouve dans le slide 3.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation buttons (précédent / suivant) -->
+                <div class="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/80">
+                    <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+                    <div class="text-sm text-gray-500">
+                        Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">7</span>
+                    </div>
+                    <button id="nextSlide" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow transition disabled:opacity-40 disabled:cursor-not-allowed">Suivant ▶</button>
+                </div>
+            </div>
+        </div>
+        <!-- Footer note -->
+        <div class="text-center text-xs text-gray-400 mt-6">
+            © Enseignant - Cours sur les bases de données | Niveaux d'isolation & Concurrence
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let currentIndex = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            // Fonction pour afficher le slide actif
+            function showSlide(index) {
+                if (index < 0) index = 0;
+                if (index >= total) index = total - 1;
+                currentIndex = index;
+                // Masquer tous les slides
+                slides.hide();
+                // Afficher le slide correspondant
+                $(slides[currentIndex]).show();
+                $('#currentSlideIdx').text(currentIndex + 1);
+                // Gérer l'état des boutons
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === total - 1);
+                // Scroll en haut du conteneur pour une meilleure expérience mobile
+                $('html, body').animate({ scrollTop: $('.max-w-5xl').offset().top - 10 }, 100);
+            }
+
+            // Navigation
+            $('#nextSlide').on('click', function() {
+                if (currentIndex < total - 1) {
+                    showSlide(currentIndex + 1);
+                }
+            });
+            $('#prevSlide').on('click', function() {
+                if (currentIndex > 0) {
+                    showSlide(currentIndex - 1);
+                }
+            });
+
+            // Gestion du quiz (slide 7)
+            $('#checkQuizBtn').on('click', function() {
+                const selected = $('input[name="quiz"]:checked').val();
+                if (!selected) {
+                    $('#quizFeedback').html('❌ Veuillez sélectionner une réponse.').css('color', '#b91c1c');
+                    return;
+                }
+                if (selected === 'dirty') {
+                    $('#quizFeedback').html('✅ Exact ! La lecture d\'une donnée non validée est bien un "Dirty Read". Félicitations !').css('color', '#15803d');
+                } else {
+                    $('#quizFeedback').html('❌ Pas tout à fait. Relisez la description du problème : il s\'agit d\'une donnée non validée → Dirty Read.').css('color', '#b91c1c');
+                }
+            });
+
+            // Initialisation : afficher le premier slide
+            showSlide(0);
+
+            // Support tactile / clavier (flèches gauche/droite)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowLeft') {
+                    $('#prevSlide').click();
+                } else if (e.key === 'ArrowRight') {
+                    $('#nextSlide').click();
+                }
+            });
+
+            // Pour que MathJax s'applique sur le contenu des slides si jamais des formules apparaissent
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

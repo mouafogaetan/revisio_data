@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 46 : Tests end-to-end avec Detox | React Native e-commerce</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- MathJax (préparé si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide {
+      transition: opacity 0.25s ease-in-out;
+    }
+    body {
+      background: #f0f4fa;
+    }
+    .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-indigo-50 font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+      
+      <!-- En-tête -->
+      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-vial text-lg"></i>
+          <span class="font-semibold text-sm md:text-base">Tests end-to-end · Detox</span>
+        </div>
+        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
+          Leçon 46 / 55
+        </div>
+      </div>
+
+      <!-- Conteneur slides -->
+      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
+          Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="text-center text-sm text-gray-500 mt-6">
+      <i class="fas fa-robot"></i> Automatisation des tests sur iOS et Android simulateurs
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // Leçon 46 : Tests End-to-End avec Detox
+    // Installation, configuration, écriture de tests (login, achat)
+    // Exécution sur iOS et Android simulators
+    // --------------------------------------------------------------
+    const slidesData = [
+      {
+        type: "title",
+        title: "🤖 Tests End-to-End avec Detox",
+        subtitle: "Automatiser les parcours utilisateur (login, achat) sur iOS et Android",
+        icon: "fa-robot",
+        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Comprendre le rôle des tests end-to-end (E2E) dans une app e-commerce",
+          "Installer et configurer Detox avec Expo ou React Native CLI",
+          "Écrire des tests E2E simulant la connexion et un achat complet",
+          "Exécuter les tests sur simulateur iOS et émulateur Android",
+          "Analyser les résultats et déboguer les échecs"
+        ]
+      },
+      {
+        type: "content",
+        title: "📱 Pourquoi les tests E2E sont essentiels ?",
+        content: `<p>Les tests unitaires et d'intégration ne suffisent pas. Les tests <strong>end-to-end (E2E)</strong> simulent de véritables actions utilisateur :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li>✅ Vérifier le flux complet : <strong>Connexion → Recherche produit → Ajout panier → Paiement</strong></li>
+          <li>✅ Détecter les régressions avant mise en production</li>
+          <li>✅ Tester l'interaction avec les composants natifs (clavier, gestes, alertes)</li>
+          <li>✅ S'assurer que l'application fonctionne sur iOS ET Android</li>
+        </ul>
+        <div class="mt-3 p-3 bg-green-50 rounded-xl">
+          <i class="fas fa-chart-line"></i> <strong>Impact :</strong> Réduction des bugs en production, confiance accrue lors des releases.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🔧 Qu'est-ce que Detox ?",
+        content: `<p><strong>Detox</strong> est un framework de test E2E pour React Native, développé par Wix. Il fonctionne en dehors de l'application, communique avec le simulateur et exécute des actions (tap, type, swipe).</p>
+        <ul class="list-disc pl-6 mt-2">
+          <li>Contrairement à Appium, Detox est <strong>synchrone</strong> : il attend que l'application soit inactive avant d'agir.</li>
+          <li>Support natif pour iOS (Simulator) et Android (Emulator).</li>
+          <li>Intégration avec Jest (ou Mocha).</li>
+        </ul>
+        <div class="mt-3 bg-yellow-50 p-3 rounded">
+          <i class="fas fa-info-circle"></i> <strong>Prérequis :</strong> Node, watchman (iOS), JDK et Android SDK (Android).
+        </div>`
+      },
+      {
+        type: "content",
+        title: "📦 Installation de Detox (avec Expo)",
+        content: `<p>Pour un projet Expo, on utilise <strong>expo-detox-hook</strong> ou une configuration manuelle. Exemple basique :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+npm install -g detox-cli
+npm install --save-dev detox jest jest-circus
+
+# Pour Expo : configuration spécifique
+expo install detox
+        </pre>
+        <p>Créer un fichier <code>.detoxrc.json</code> :</p>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+{
+  "testRunner": "jest",
+  "runnerConfig": "e2e/config.json",
+  "configurations": {
+    "ios.sim": {
+      "type": "ios.simulator",
+      "binaryPath": "ios/build/Build/Products/Release-iphonesimulator/YourApp.app",
+      "build": "xcodebuild -workspace ios/YourApp.xcworkspace -scheme YourApp -configuration Release -sdk iphonesimulator -derivedDataPath ios/build",
+      "device": { "type": "iPhone 14" }
+    },
+    "android.emu": {
+      "type": "android.emulator",
+      "binaryPath": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "build": "cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ..",
+      "device": { "avdName": "Pixel_4_API_30" }
+    }
+  }
+}
+        </pre>`
+      },
+      {
+        type: "content",
+        title: "✍️ Écrire un test de connexion (login)",
+        content: `<p>Structure typique d'un test Detox avec Jest :</p>
+        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
+// e2e/login.spec.js
+describe('Connexion utilisateur', () => {
+  beforeAll(async () => {
+    await device.launchApp();
+  });
+
+  beforeEach(async () => {
+    await device.reloadReactNative();
+  });
+
+  it('doit se connecter avec email et mot de passe valides', async () => {
+    await element(by.id('emailInput')).typeText('test@example.com');
+    await element(by.id('passwordInput')).typeText('password123');
+    await element(by.id('loginButton')).tap();
+
+    // Vérifier que l'écran d'accueil apparaît
+    await expect(element(by.id('homeScreen'))).toBeVisible();
+    await expect(element(by.text('Bienvenue, Jean'))).toBeVisible();
+  });
+});
+        </pre>
+        <p>Utilisez <code>by.id()</code> (testID dans React Native) ou <code>by.text()</code>. Detox attend automatiquement que l'application soit réactive.</p>`
+      },
+      {
+        type: "content",
+        title: "🛒 Tester le flux d'achat (ajout panier → paiement)",
+        content: `<p>Un test E2E complet simule un achat :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+it('effectue un achat complet', async () => {
+  // Connexion (steps précédents)
+  await element(by.id('product_123')).tap();
+  await element(by.id('addToCartButton')).tap();
+  await expect(element(by.text('Produit ajouté'))).toBeVisible();
+
+  await element(by.id('cartIcon')).tap();
+  await expect(element(by.id('cartScreen'))).toBeVisible();
+  await element(by.id('checkoutButton')).tap();
+
+  // Formulaire adresse
+  await element(by.id('addressInput')).typeText('12 rue de Paris');
+  await element(by.id('validateAddress')).tap();
+
+  // Paiement (Stripe test)
+  await element(by.id('payButton')).tap();
+  await expect(element(by.id('successScreen'))).toBeVisible();
+});
+        </pre>
+        <p>On peut aussi utiliser des <strong>mocks</strong> pour le backend (stub des appels API).</p>`
+      },
+      {
+        type: "content",
+        title: "🏁 Exécuter les tests sur iOS et Android",
+        content: `<p>Commandes Detox :</p>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+# Construire l'app en mode test
+detox build --configuration ios.sim
+
+# Lancer les tests
+detox test --configuration ios.sim
+
+# Pour Android
+detox build --configuration android.emu
+detox test --configuration android.emu
+        </pre>
+        <p>On peut lancer des tests spécifiques :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+detox test --configuration ios.sim e2e/login.spec.js
+detox test --configuration android.emu --cleanup
+        </pre>
+        <div class="mt-2 p-2 bg-indigo-50 rounded">
+          <i class="fas fa-terminal"></i> L'option <code>--cleanup</code> ferme le simulateur après les tests.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🛠️ Bonnes pratiques et astuces",
+        content: `<ul class="list-disc pl-6 space-y-2">
+          <li>Utiliser <strong>testID</strong> (React Native) ou <code>accessibilityLabel</code> pour cibler les éléments. Éviter les sélecteurs fragiles.</li>
+          <li><strong>Mock API</strong> : dans un environnement de test, utiliser un serveur mock ou intercepteur (ex: Mirage JS).</li>
+          <li><strong>Nettoyage</strong> : réinitialiser l'état (vider le panier, déconnecter) entre chaque test.</li>
+          <li>Éviter les <code>waitFor</code> explicites ; Detox attend automatiquement. Utiliser <code>waitFor</code> uniquement pour des animations longues.</li>
+          <li>Lancer les tests en <strong>CI/CD</strong> (GitHub Actions, Bitrise) pour valider chaque pull request.</li>
+        </ul>
+        <div class="mt-3 p-2 bg-purple-50 rounded-lg">
+          <i class="fas fa-tachometer-alt"></i> <strong>Astuce CI :</strong> Préférer des machines virtuelles avec accélération matérielle pour Android.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "📸 Debugging : captures d'écran et artifacts",
+        "content": `<p>Quand un test échoue, Detox peut prendre une capture d'écran. On peut aussi ajouter manuellement :</p>
+        <pre class="bg-gray-800 text-yellow-200 p-3 rounded-lg text-sm">
+// Dans un test
+await device.takeScreenshot('avant_paiement');
+        </pre>
+        <p>Les résultats sont dans le dossier <code>artifacts/</code>. Utile pour le débogage à distance.</p>
+        <p>On peut aussi utiliser <code>detox run</code> en mode debug :</p>
+        <pre class="bg-gray-800 text-gray-200 p-3 rounded-lg text-sm">
+detox test --debug-synchronization 5000
+        </pre>
+        <p>L'option <code>--debug-synchronization</code> aide à détecter ce qui maintient l'application occupée (réseau, animations).</p>`
+      },
+      {
+        type: "summary",
+        title: "📦 Récapitulatif : Tests E2E avec Detox",
+        points: [
+          "Detox permet des tests end-to-end réalistes sur iOS et Android",
+          "Configuration via .detoxrc.json (binaire, device, build command)",
+          "Tests écrits avec Jest : tap, typeText, expect (toExist, toBeVisible)",
+          "Flux critiques : connexion, ajout panier, paiement",
+          "Exécution sur simulateurs avec detox test",
+          "Intégration continue pour détecter les régressions"
+        ],
+        icon: "fa-check-double"
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(slide) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
+            <i class="fas ${slide.icon || 'fa-robot'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
+            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
+            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">Detox · E2E · iOS & Android</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "objectives") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
+            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+            </div>
+            <ul class="space-y-4 flex-1">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Naviguez pour maîtriser Detox</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "content") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "summary") {
+        return `
+          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
+            <div class="text-center">
+              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+              <ul class="text-left max-w-md mx-auto space-y-3">
+                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
+                <i class="fas fa-mobile-alt"></i> Des tests robustes = application fiable !
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `<div class="p-8 text-red-500">Erreur de contenu</div>`;
+    }
+
+    function updateSlide() {
+      const slideHtml = renderSlide(slidesData[currentIndex]);
+      $('#slides-container').fadeOut(150, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      let indicatorsHtml = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+      }
+      $('#slide-indicators').html(indicatorsHtml);
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlide();
+      } else {
+        alert('🎉 Félicitations ! Vous maîtrisez Detox pour les tests E2E. Mettez en place ces tests sur votre projet e-commerce !');
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    $(document).ready(function() {
+      updateSlide();
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      
+      $(document).on('click', '.indicator-dot', function() {
+        const idx = $(this).data('index');
+        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
+          currentIndex = idx;
+          updateSlide();
+        }
+      });
+      
+      // Swipe mobile
+      let touchStartX = 0, touchEndX = 0;
+      const container = document.getElementById('slides-container');
+      if (container) {
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        });
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) nextSlide();
+          if (touchEndX > touchStartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

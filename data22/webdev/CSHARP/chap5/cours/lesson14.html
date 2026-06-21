@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 14 : Classes et Objets en C# | Cours Développement Web</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, présent mais peu utilisé ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisations douces pour lisibilité et animations */
+        body {
+            background: #f8fafc;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* couleurs accessibles : bleu paisible, gris doux, texte foncé */
+        .prose-code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        pre {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.2rem 0.3rem;
+            border-radius: 0.3rem;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.25rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+        .swipe-hint {
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Affichage slide courant + indicateur -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <div class="bg-white/70 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm text-sm font-medium text-slate-600">
+                📘 <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+            </div>
+            <div class="flex gap-2">
+                <button id="prevSlide" class="nav-btn bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold py-2 px-5 rounded-full shadow-sm transition">◀ Précédent</button>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant ▶</button>
+            </div>
+        </div>
+
+        <!-- Container des slides -->
+        <div id="slidesWrapper" class="relative overflow-hidden">
+            <div id="slidesContainer" class="flex flex-col gap-6 slide-container">
+                <!-- Les slides seront injectées dynamiquement via jQuery -->
+            </div>
+        </div>
+
+        <!-- petit indicateur de navigation tactile -->
+        <div class="text-center text-slate-400 text-xs mt-6 swipe-hint">
+            👆 Cliquez sur les boutons pour naviguer entre les slides
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu des slides : titre, objectifs, contenu détaillé (leçon14 : classes, champs, méthodes, new, constructeur, this)
+        const slidesData = [
+            {
+                type: "title",
+                title: "🐍 Leçon 14 : Classes et objets en C#",
+                subtitle: "Bienvenue dans l'orienté objet !",
+                icon: "🏛️"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Comprendre ce qu'est une classe (plan/modèle) et un objet (instance)",
+                    "✅ Savoir déclarer des champs et des méthodes à l'intérieur d'une classe",
+                    "✅ Instancier des objets avec le mot-clé <span class='highlight'>new</span>",
+                    "✅ Utiliser le constructeur (<span class='highlight'>ctor</span>) et le mot-clé <span class='highlight'>this</span>"
+                ]
+            },
+            {
+                type: "content",
+                title: "🧱 Qu'est-ce qu'une classe ?",
+                content: `
+                    <p>En C#, une <strong class="text-indigo-700">classe</strong> est comme un <strong>plan</strong> ou un <strong>moule</strong> qui décrit ce que sera un objet. Un <strong>objet</strong> est une instance concrète de cette classe, avec ses propres valeurs.</p>
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 my-4 rounded-r-xl">
+                        <p class="font-semibold">🎨 Analogie simple :</p>
+                        <p>Une classe <code class="bg-slate-200 text-slate-800 px-1 rounded">Voiture</code> définit des caractéristiques (couleur, modèle) et des actions (rouler, klaxonner). Chaque voiture fabriquée (objet) aura sa propre couleur et son modèle.</p>
+                    </div>
+                    <pre><code>// Définition d'une classe simple
+class Personne
+{
+    // Champs (données)
+    public string nom;
+    public int age;
+    
+    // Méthode (comportement)
+    public void SePresenter()
+    {
+        Console.WriteLine("Bonjour, je m'appelle " + nom);
+    }
+}</code></pre>
+                `
+            },
+            {
+                type: "content",
+                title: "🏷️ Champs et méthodes : les membres de la classe",
+                content: `
+                    <p>Une classe contient des <span class="highlight">champs</span> (variables qui stockent l'état) et des <span class="highlight">méthodes</span> (blocs de code qui définissent des actions).</p>
+                    <ul class="list-disc pl-6 my-3 space-y-2">
+                        <li><strong>Champ</strong> : variable déclarée dans la classe, ex : <code>public string couleur;</code></li>
+                        <li><strong>Méthode</strong> : fonction qui agit sur les données, ex : <code>public void AfficherCouleur() { ... }</code></li>
+                    </ul>
+                    <pre><code>class Etudiant
+{
+    // champs
+    public string prenom;
+    public double moyenne;
+    
+    // méthode
+    public void AfficherInfos()
+    {
+        Console.WriteLine(prenom + " a une moyenne de " + moyenne);
+    }
+}</code></pre>
+                `
+            },
+            {
+                type: "content",
+                title: "🆕 Instancier des objets avec 'new'",
+                content: `
+                    <p>Pour créer un objet à partir d'une classe, on utilise l'opérateur <span class="highlight">new</span>. Cela alloue de la mémoire et appelle le constructeur.</p>
+                    <pre><code>// Création d'objets
+Personne p1 = new Personne();
+p1.nom = "Alice";
+p1.age = 22;
+p1.SePresenter();   // Affiche : Bonjour, je m'appelle Alice
+
+// On peut créer plusieurs objets indépendants
+Personne p2 = new Personne();
+p2.nom = "Bob";
+p2.SePresenter();</code></pre>
+                    <div class="bg-slate-100 p-3 rounded-lg mt-2 text-sm">💡 <strong>Astuce :</strong> chaque objet possède sa propre copie des champs. Modifier p1.nom n'affecte pas p2.</div>
+                `
+            },
+            {
+                type: "content",
+                title: "🏗️ Le constructeur (ctor) : initialiser dès la création",
+                content: `
+                    <p>Un <strong>constructeur</strong> est une méthode spéciale appelée automatiquement lorsqu'on utilise <code>new</code>. Il porte le même nom que la classe et n'a pas de type de retour.</p>
+                    <pre><code>class CompteBancaire
+{
+    public string titulaire;
+    public double solde;
+    
+    // Constructeur
+    public CompteBancaire(string nom, double montantInitial)
+    {
+        titulaire = nom;
+        solde = montantInitial;
+        Console.WriteLine($"Compte créé pour {titulaire}");
+    }
+}
+
+// Utilisation
+CompteBancaire compte = new CompteBancaire("Fatima", 1000.0);</code></pre>
+                    <p>✅ <strong>Pourquoi utiliser un constructeur ?</strong> Pour garantir qu'un objet soit dans un état cohérent dès sa création.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔑 Le mot-clé 'this' : se référer à l'objet courant",
+                content: `
+                    <p>Le mot-clé <span class="highlight">this</span> représente l'<strong>instance actuelle</strong> de la classe. Il sert à lever les ambiguïtés entre paramètres et champs, ou pour appeler un autre constructeur.</p>
+                    <pre><code>class Livre
+{
+    public string titre;
+    public string auteur;
+    
+    // this distingue le paramètre du champ
+    public Livre(string titre, string auteur)
+    {
+        this.titre = titre;   // this.titre = champ; titre = paramètre
+        this.auteur = auteur;
+    }
+    
+    public void Afficher()
+    {
+        Console.WriteLine($"Livre : {this.titre} par {this.auteur}");
+    }
+}</code></pre>
+                    <div class="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">✨ On peut aussi utiliser <code>this</code> pour appeler un constructeur d'une même classe : <code>public Livre() : this("Inconnu", "Anonyme") {}</code></div>
+                `
+            },
+            {
+                type: "content",
+                title: "📝 Exemple complet : la classe 'Personne'",
+                content: `
+                    <p>Regroupons tout ce que nous avons vu : champs, méthode, constructeur et <code>this</code>.</p>
+                    <pre><code>using System;
+
+class Personne
+{
+    // champs
+    public string nom;
+    public int anneeNaissance;
+    
+    // constructeur
+    public Personne(string nom, int anneeNaissance)
+    {
+        this.nom = nom;
+        this.anneeNaissance = anneeNaissance;
+    }
+    
+    // méthode
+    public int CalculerAge(int anneeActuelle)
+    {
+        return anneeActuelle - anneeNaissance;
+    }
+    
+    public void SePresenter(int anneeCourante)
+    {
+        int age = CalculerAge(anneeCourante);
+        Console.WriteLine($"Salut ! Je suis {this.nom}, j'ai {age} ans.");
+    }
+}
+
+// Programme principal
+class Program
+{
+    static void Main()
+    {
+        Personne etudiant = new Personne("Claude", 2005);
+        etudiant.SePresenter(2026);  // affiche âge 21 ans
+    }
+}</code></pre>
+                `
+            },
+            {
+                type: "content",
+                title: "🧪 Petit exercice de réflexion",
+                content: `
+                    <div class="bg-white shadow-inner rounded-lg p-5 border border-indigo-100">
+                        <p class="font-bold text-indigo-800">À toi de jouer ! ✏️</p>
+                        <p>Crée une classe <strong>Produit</strong> avec :</p>
+                        <ul class="list-decimal pl-6 my-2 space-y-1">
+                            <li>Deux champs : <code>nom</code> (string) et <code>prixHT</code> (double).</li>
+                            <li>Un constructeur qui initialise ces deux champs (utilise <code>this</code>).</li>
+                            <li>Une méthode <code>PrixTTC()</code> qui retourne le prix avec TVA (20%).</li>
+                        </ul>
+                        <p class="mt-3">Exemple d'utilisation : <br>
+                        <code>Produit stylo = new Produit("Stylo", 2.0);</code><br>
+                        <code>Console.WriteLine(stylo.PrixTTC());  // 2.4</code>
+                        </p>
+                        <details class="mt-4 cursor-pointer bg-gray-100 p-2 rounded">
+                            <summary class="font-medium">🔎 Voir une solution possible</summary>
+                            <pre class="mt-2 text-xs"><code>class Produit {
+    public string nom;
+    public double prixHT;
+    public Produit(string nom, double prixHT) {
+        this.nom = nom;
+        this.prixHT = prixHT;
+    }
+    public double PrixTTC() {
+        return prixHT * 1.20;
+    }
+}</code></pre>
+                        </details>
+                    </div>
+                `
+            },
+            {
+                type: "end",
+                title: "🏁 Récapitulatif & prochaine leçon",
+                content: `
+                    <p class="text-lg font-medium">✅ Ce qu'il faut retenir :</p>
+                    <ul class="list-disc pl-6 space-y-2 mt-2">
+                        <li>Une <strong>classe</strong> définit la structure (champs + méthodes).</li>
+                        <li>Un <strong>objet</strong> est une instance créée avec <code>new</code>.</li>
+                        <li>Le <strong>constructeur</strong> initialise l'état de l'objet.</li>
+                        <li><code>this</code> fait référence à l'instance courante, utile pour éviter les conflits de noms.</li>
+                    </ul>
+                    <div class="mt-6 p-4 bg-green-50 rounded-2xl border border-green-200">
+                        💪 Prochaine leçon : nous découvrirons les propriétés (get/set) et les modificateurs d'accès.
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+
+        // Rendu des slides dans le container
+        function renderSlides() {
+            const container = $("#slidesContainer");
+            container.empty();
+            slidesData.forEach((slide, idx) => {
+                let slideHtml = "";
+                if (slide.type === "title") {
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8 text-center border-t-8 border-indigo-500">
+                            <div class="text-6xl mb-4">${slide.icon || "📖"}</div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800">${slide.title}</h1>
+                            <p class="text-slate-500 text-lg mt-3">${slide.subtitle || "Initiation au C# POO"}</p>
+                            <div class="mt-8 flex justify-center">
+                                <div class="bg-indigo-100 text-indigo-800 px-5 py-2 rounded-full text-sm font-semibold">👨‍🏫 Cours - Développement Web</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (slide.type === "objectifs") {
+                    let objList = "";
+                    slide.objectives.forEach(obj => {
+                        objList += `<li class="mb-3 flex items-start gap-3"><span class="text-indigo-600 text-xl">🎯</span> <span class="text-gray-700">${obj}</span></li>`;
+                    });
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+                            <ul class="space-y-3 text-base md:text-lg">
+                                ${objList}
+                            </ul>
+                        </div>
+                    `;
+                } else if (slide.type === "content") {
+                    slideHtml = `
+                        <div class="slide-card bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2 mb-4"><span>📌</span> ${slide.title}</h2>
+                            <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                                ${slide.content}
+                            </div>
+                        </div>
+                    `;
+                } else if (slide.type === "end") {
+                    slideHtml = `
+                        <div class="slide-card bg-gradient-to-br from-indigo-50 to-white rounded-2xl shadow-xl p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-4">${slide.title}</h2>
+                            <div class="text-gray-700 text-base space-y-3">
+                                ${slide.content}
+                            </div>
+                            <div class="mt-8 text-center text-indigo-500 italic">
+                                ✨ Continuez à pratiquer, chaque objet construit vous rapproche de la maîtrise du C# ✨
+                            </div>
+                        </div>
+                    `;
+                }
+                // Ajouter un attribut data-slide-index pour référence
+                const slideDiv = $("<div>").addClass("mb-6").attr("data-slide-index", idx).html(slideHtml);
+                container.append(slideDiv);
+            });
+            updateSlideVisibility();
+            updateCounter();
+        }
+
+        function updateSlideVisibility() {
+            // afficher uniquement le slide courant
+            $("#slidesContainer > div").each(function(index) {
+                if (index === currentSlide) {
+                    $(this).removeClass("hidden").show();
+                } else {
+                    $(this).addClass("hidden").hide();
+                }
+            });
+            // scroll en haut pour confort
+            $("html, body").animate({ scrollTop: 0 }, 100);
+        }
+
+        function updateCounter() {
+            $("#slideCounter").text(currentSlide + 1);
+            $("#totalSlides").text(totalSlides);
+        }
+
+        function goNext() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlideVisibility();
+                updateCounter();
+            } else {
+                // petite indication de fin
+                alert("🎉 Félicitations ! Vous avez terminé la leçon 14. Révisez bien les concepts.");
+            }
+        }
+
+        function goPrev() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlideVisibility();
+                updateCounter();
+            } else {
+                // déjà au début
+                $("#prevSlide").css("opacity", "0.6");
+                setTimeout(() => $("#prevSlide").css("opacity", ""), 300);
+            }
+        }
+
+        // Gestion des raccourcis clavier (flèches)
+        $(document).keydown(function(e) {
+            if (e.key === "ArrowRight") {
+                goNext();
+                e.preventDefault();
+            } else if (e.key === "ArrowLeft") {
+                goPrev();
+                e.preventDefault();
+            }
+        });
+
+        // Rendu initial + événements
+        $(document).ready(function() {
+            renderSlides();
+            $("#nextSlide").on("click", goNext);
+            $("#prevSlide").on("click", goPrev);
+            // Support tactile / swipe basique (optionnel)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $("#slidesWrapper").on("touchstart", function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $("#slidesWrapper").on("touchend", function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40) {
+                    goNext();
+                } else if (touchEndX > touchStartX + 40) {
+                    goPrev();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

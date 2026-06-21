@@ -1,0 +1,148 @@
+[
+  {
+    "intitule": "Analyse des performances avec Flipper",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous utilisez Flipper pour diagnostiquer une application React Native qui devient lente après plusieurs minutes d'utilisation. Les outils Flipper montrent :</p><ul><li>Une augmentation constante de la mémoire (heap) de 50 Mo à 450 Mo en 10 minutes</li><li>De nombreux composants non démontés dans l'onglet \"React DevTools\"</li><li>Des requêtes réseau qui restent en attente (pending)</li></ul>",
+      "images": [
+        "capture d'écran du moniteur de mémoire (heap) dans Flipper montrant une courbe croissante",
+        "onglet React DevTools de Flipper affichant des composants orphelins"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier le type de problème observé à partir des métriques et proposer deux causes possibles.",
+        "niveau": "medium",
+        "reponse": "Le problème est une **fuite mémoire (memory leak)**. Les causes possibles : (1) des composants non démontés (ex: navigation sans cleanup, listeners d'événements non retirés) ; (2) des requêtes réseau qui ne se terminent jamais (promesses non résolues, WebSockets non fermés) ; (3) des intervalles (`setInterval`) non nettoyés.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment Flipper permet de visualiser les composants React encore en mémoire après leur démontage. Quelle action concrète peut aider à localiser le composant fautif ?",
+        "niveau": "hard",
+        "reponse": "L'onglet **React DevTools** de Flipper affiche l'arborescence des composants actuellement montés. En naviguant dans l'application, on peut observer quels composants restent anormalement dans l'arbre après qu'ils auraient dû être démontés. En cliquant sur un composant, on peut inspecter ses props et son état, ainsi que voir les `useEffect` actifs. Pour localiser le composant fautif, on peut utiliser le **Profiler** pour enregistrer une session et observer les composants qui ne disparaissent jamais.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer trois vérifications à effectuer dans le code pour résoudre ce type de fuite mémoire.",
+        "niveau": "medium",
+        "reponse": "1. Vérifier que chaque `useEffect` qui s'abonne à un événement (NetInfo, AppState, WebSocket) retourne une fonction de cleanup.\n2. Vérifier que chaque `setInterval` ou `setTimeout` est annulé avec `clearInterval`/`clearTimeout` dans le cleanup.\n3. Vérifier que les requêtes asynchrones utilisent `AbortController` ou un flag `isMounted` pour éviter `setState` après démontage.\n4. Vérifier que les écrans retirés de la pile de navigation (ex: `navigation.pop`) sont bien démontés.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Débogage avec React Native Debugger",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un utilisateur signale que l'application plante lorsqu'il ajoute un produit au panier depuis l'écran de détail. Le crash n'est pas reproductible en développement. Vous décidez d'utiliser React Native Debugger pour analyser le problème en production (build debug).</p><p>Voici l'extrait de code suspect :</p><pre><code>const handleAddToCart = () => {\n  const currentCart = cartStore.getState().items;\n  const newItem = { id: product.id, name: product.name, price: product.price };\n  const updatedCart = [...currentCart, newItem];\n  cartStore.setState({ items: updatedCart });\n  navigation.navigate('Cart');\n};</code></pre>",
+      "images": [
+        "schéma de l'architecture React Native Debugger (Redux DevTools, React DevTools, Network inspecteur)",
+        "capture d'écran d'une erreur 'Cannot read property 'id' of undefined' dans la console"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quels sont les avantages de React Native Debugger par rapport aux outils de développement standard (Chrome DevTools) ? Citer deux fonctionnalités spécifiques.",
+        "niveau": "medium",
+        "reponse": "React Native Debugger combine plusieurs outils en un : (1) **Redux DevTools** intégré pour inspecter l'état global et les actions (même sans Redux, on peut inspecter les stores Zustand via le débogueur) ; (2) **React DevTools** avec accès à l'arbre des composants et au profiler ; (3) **Network inspecteur** pour voir toutes les requêtes HTTP ; (4) **Console** avec accès à l'environnement JavaScript complet.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Analyser le code fourni. Identifier un problème potentiel qui pourrait causer un crash. Expliquer comment React Native Debugger aiderait à le détecter.",
+        "niveau": "hard",
+        "reponse": "Le code suppose que `product` est toujours défini. Si `product` est `null` ou `undefined` (par exemple si l'API a retourné des données incomplètes), `product.id` lèvera une erreur \"Cannot read property 'id' of undefined\".\n\nReact Native Debugger aiderait à :\n- Placer un point d'arrêt (breakpoint) sur la ligne `const newItem = ...`\n- Inspecter la valeur de `product` dans la console au moment du crash\n- Voir la pile d'appels exacte (call stack)\n- Utiliser la console pour exécuter `console.log(product)` en temps réel",
+        "sousQuestions": [
+          {
+            "numero": "2.a",
+            "texte": "Proposer une correction robuste du code pour éviter ce crash.",
+            "niveau": "easy",
+            "reponse": "```javascript\nconst handleAddToCart = () => {\n  if (!product || !product.id) {\n    console.error('Produit invalide', product);\n    Alert.alert('Erreur', 'Impossible d\\'ajouter ce produit au panier');\n    return;\n  }\n  // ... reste du code\n};\n```"
+          }
+        ]
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer la différence entre le mode \"Remote JS Debugging\" (React Native Debugger) et le mode \"Hermes\" (pas de débogage distant). Comment déboguer efficacement avec Hermes ?",
+        "niveau": "very hard",
+        "reponse": "En mode standard, le code JavaScript s'exécute dans le navigateur Chrome (ou React Native Debugger) via WebSocket, permettant l'utilisation des DevTools. Avec Hermes (moteur JavaScript optimisé pour RN), le code s'exécute nativement sur l'appareil, ce qui améliore les performances mais désactive le débogage distant.\n\nPour déboguer avec Hermes :\n- Utiliser le **Hermes Debugger** intégré dans Chrome (chrome://inspect) ou dans Flipper\n- Utiliser `console.log` et les points d'arrêt via Flipper\n- Utiliser le profiler Hermes pour analyser les performances\n- Activer le mode \"Debug\" dans l'appli (qui désactive partiellement Hermes pour le débogage)",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise en place de Sentry pour le suivi des crashs",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre application e-commerce est en production avec 10 000 utilisateurs actifs. Vous recevez des rapports de crashs via les stores (Google Play Console, App Store Connect), mais les rapports manquent de contexte (stack trace incomplète, pas de données utilisateur). Vous décidez d'intégrer Sentry.</p><p>Le budget mensuel alloué aux outils de monitoring est de $C = 50000$ FCFA. Sentry facture $0.30$ FCFA par événement (crash ou erreur) après 5000 événements gratuits par mois.</p>",
+      "images": [
+        "dashboard Sentry montrant la liste des crashs, leur fréquence, et les données de contexte (version OS, version app, utilisateur)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes d'intégration de Sentry dans un projet Expo (managed workflow).",
+        "niveau": "medium",
+        "reponse": "1. Installer le package : `expo install sentry-expo`\n2. Dans `app.json`, ajouter la configuration : `\"hooks\": { \"postPublish\": [ { \"file\": \"sentry-expo/upload-sourcemaps\", \"config\": {} } ] }`\n3. Initialiser Sentry dans `App.js` : `import * as Sentry from 'sentry-expo'; Sentry.init({ dsn: 'VOTRE_DSN' });`\n4. (Optionnel) Ajouter des tags et identifiants utilisateur : `Sentry.setUser({ id: userId, email: userEmail })`\n5. Tester en déclenchant une erreur manuelle : `Sentry.captureException(new Error('Test crash'))`",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Calculer le coût mensuel estimé si l'application enregistre 12 500 crashs/erreurs par mois. Déterminer si le budget est suffisant.",
+        "niveau": "easy",
+        "reponse": "Événements payants = 12500 - 5000 = 7500.\nCoût = 7500 × 0,30 = 2250 FCFA.\nLe budget de 50 000 FCFA est largement suffisant (2250 < 50000).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer comment Sentry peut aider à identifier qu'un crash spécifique n'affecte que les utilisateurs sous Android 11 avec un modèle de téléphone particulier. Proposer une action corrective basée sur ces informations.",
+        "niveau": "hard",
+        "reponse": "Sentry regroupe automatiquement les erreurs similaires et affiche des métadonnées comme : système d'exploitation (Android 11), modèle de l'appareil (Samsung Galaxy S21), version de l'application, et même les tags personnalisés. On peut donc filtrer les événements par OS ou modèle.\n\nAction corrective : Si le crash n'arrive que sur Android 11 Samsung, on peut (1) reproduire le bug sur un émulateur avec ces paramètres ; (2) Corriger le code (ex: utilisation d'une API spécifique non supportée) ; (3) Déployer un correctif via OTA (EAS Update) ou une nouvelle version sur le store.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Profiling des performances avec Flipper",
+    "type": "ressource",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>L'écran de liste de produits utilise une `FlatList`. Les utilisateurs signalent que le défilement devient saccadé (jank) après avoir scrolé plusieurs centaines d'éléments. Vous utilisez le **Profiler** de Flipper pour enregistrer une session de défilement.</p><p>Les métriques montrent :</p><ul><li>Temps moyen par frame : 28 ms (objectif : 16 ms pour 60 FPS)</li><li>Nombre de re-rendus inutiles : chaque changement de scroll déclenche un rendu complet de tous les éléments visibles</li><li>Le layout des cellules est recalculé à chaque défilement</li></ul>",
+      "images": [
+        "graphique des frames (frame rate) dans Flipper montrant des pics dépassant 16 ms",
+        "capture d'écran du profiler montrant des re-rendus excessifs"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Interpréter les métriques : quel est le framerate actuel (calcul à partir du temps moyen par frame) ? Ce framerate est-il acceptable ?",
+        "niveau": "easy",
+        "reponse": "Framerate = $\\frac{1000}{T_{frame}} = \\frac{1000}{28} \\approx 35,7$ FPS. Un framerate de 60 FPS est idéal (16,6 ms/frame), 30-40 FPS est considéré comme médiocre et perceptible par l'utilisateur (saccades). Il faut donc optimiser pour atteindre au moins 50-60 FPS.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer trois optimisations pour réduire le temps par frame et les re-rendus inutiles dans la FlatList.",
+        "niveau": "hard",
+        "reponse": "1. **Mémoïsation des composants enfants** : utiliser `React.memo` sur chaque cellule pour éviter les re-rendus si les props n'ont pas changé.\n2. **Optimisation du rendu des images** : utiliser `expo-image` avec redimensionnement automatique et cache.\n3. **Réduction du layout recalculation** : utiliser `getItemLayout` pour que FlatList connaisse la hauteur des cellules à l'avance.\n4. **Virtualisation améliorée** : remplacer `FlatList` par `FlashList` (shopify/flash-list) qui offre un meilleur recyclage.\n5. **Supprimer les animations inutiles** pendant le scroll (désactiver les opacités/transitions).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer comment utiliser le Profiler de Flipper pour identifier quels composants spécifiques sont responsables des re-rendus excessifs.",
+        "niveau": "very hard",
+        "reponse": "Dans Flipper, activer l'onglet **React DevTools** puis l'onglet **Profiler**. Enregistrer une session (clic sur le bouton d'enregistrement) pendant que l'utilisateur scroll. Arrêter l'enregistrement. Le Profiler affiche un diagramme en flammes (flamegraph) où chaque barre représente un rendu de composant. Les barres larges et fréquentes indiquent les composants qui ralentissent l'application. On peut cliquer sur un rendu pour voir les props et le state qui ont changé. On peut également activer le \"highlight updates\" dans React DevTools pour voir visuellement quels composants se re-rendent pendant le scroll.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

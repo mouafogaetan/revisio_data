@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>NestJS · Leçon 29 : Microservices TCP/REDIS/RMQ</title>
+  <!-- Tailwind CSS + Font Awesome (quelques icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules si besoin, reste présent) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions et rendu agréable */
+    body {
+      background: linear-gradient(125deg, #f0f4f8 0%, #e9eef4 100%);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    .slide-card {
+      transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      backdrop-filter: blur(2px);
+    }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1.2rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .badge-micro {
+      background: #1e3a5f;
+      color: white;
+      border-radius: 40px;
+      padding: 0.2rem 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    @media (max-width: 640px) {
+      .code-block {
+        font-size: 0.7rem;
+        padding: 0.7rem;
+        border-radius: 1rem;
+      }
+      h2 {
+        font-size: 1.6rem;
+      }
+    }
+    .nav-btn {
+      transition: transform 0.2s, background 0.2s;
+    }
+    .nav-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+  <div id="slides-container" class="relative">
+
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide-card bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/50 transition-all" data-slide="0">
+      <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+        <span class="badge-micro mb-4">NestJS · Architecture distribuée</span>
+        <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-[#0b2b44] to-[#2c7da0] bg-clip-text text-transparent mb-5">Leçon 29</h1>
+        <p class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Microservices avec NestJS</p>
+        <div class="h-1 w-28 bg-[#2c7da0] rounded-full mx-auto my-4"></div>
+        <p class="text-gray-600 max-w-xl text-lg mt-3">TCP, REDIS, RMQ : communication robuste entre services</p>
+        <div class="mt-12 flex flex-wrap justify-center gap-3">
+          <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">🔌 @nestjs/microservices</span>
+          <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">📡 ClientProxy & MessagePattern</span>
+          <span class="bg-indigo-50 px-4 py-2 rounded-full text-indigo-800 text-sm">🔄 Transporters (TCP/Redis/RMQ)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10 border border-white/50" data-slide="1">
+      <div class="flex flex-col min-h-[70vh] justify-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 border-l-8 border-[#2c7da0] pl-5 mb-7">🎯 Objectifs de la leçon</h2>
+        <ul class="space-y-4 text-gray-700 text-lg">
+          <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <strong>Comprendre</strong> l'architecture microservices dans NestJS et le rôle du transport.</li>
+          <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <strong>Configurer</strong> un microservice avec les transporteurs TCP, Redis et RMQ (RabbitMQ).</li>
+          <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <strong>Établir</strong> la communication client ↔ serveur via <code>ClientProxy</code> et <code>@MessagePattern</code>.</li>
+          <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <strong>Utiliser</strong> les patterns asynchrones et gérer la charge.</li>
+          <li class="flex gap-3 items-start"><span class="text-[#2c7da0] text-xl">✓</span> <strong>Appliquer</strong> les bonnes pratiques dans un système distribué.</li>
+        </ul>
+        <div class="mt-8 bg-sky-50 p-4 rounded-2xl border border-sky-200 text-sky-800">
+          💡 <span class="font-semibold">Pourquoi les microservices ?</span> Découpage, scalabilité, résilience et indépendance technologique.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : Concepts + installation microservices -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="2">
+      <div class="flex flex-col min-h-[70vh]">
+        <div class="flex items-center gap-3 flex-wrap mb-4">
+          <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-bold">🔌 1. Module & transporteurs</span>
+        </div>
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">Installation et création d'un microservice</h2>
+        <p class="text-gray-700 mb-3">Installer <code class="bg-gray-200 px-1 rounded">@nestjs/microservices</code>. Ensuite on crée un microservice avec <code>createMicroservice()</code>.</p>
+        <div class="code-block mb-4">
+          <pre>npm install @nestjs/microservices
+
+// main.ts (microservice TCP)
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.createMicroservice&lt;MicroserviceOptions&gt;(
+    AppModule,
+    {
+      transport: Transport.TCP,
+      options: { host: '0.0.0.0', port: 3001 },
+    },
+  );
+  await app.listen();
+}
+bootstrap();</pre>
+        </div>
+        <div class="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm border-l-4 border-amber-400">
+          📌 <strong>Transporters disponibles :</strong> TCP, Redis, MQTT, NATS, RabbitMQ (RMQ), gRPC, Kafka.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 : Décorateur @MessagePattern et réponse -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="3">
+      <div class="flex flex-col min-h-[70vh]">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">📨 Gestion des messages : @MessagePattern</h2>
+        <p class="mb-3">Dans le contrôleur ou le service, on utilise <code>@MessagePattern('nom.pattern')</code> pour écouter les requêtes.</p>
+        <div class="code-block text-sm mb-4">
+          <pre>// math.controller.ts
+import { Controller } from '@nestjs/common';
+import { MessagePattern, Payload } from '@nestjs/microservices';
+
+@Controller()
+export class MathController {
+  @MessagePattern('sum')
+  accumulate(@Payload() data: number[]): number {
+    return (data || []).reduce((a, b) => a + b, 0);
+  }
+}</pre>
+        </div>
+        <p class="text-gray-600 text-sm">Le client envoie un message avec le pattern <code>'sum'</code> et reçoit le résultat. On peut aussi utiliser <code>@EventPattern</code> pour les événements sans réponse.</p>
+        <div class="bg-indigo-50 p-3 rounded-lg mt-2 text-indigo-800">
+          ✨ <strong>Astuce :</strong> <code>@Payload()</code> extrait la donnée utile. NestJS prend automatiquement en charge la sérialisation JSON.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 : ClientProxy – communication depuis une app Nest -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="4">
+      <div class="flex flex-col min-h-[70vh]">
+        <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full w-fit text-sm mb-3">📡 2. ClientProxy</span>
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">Créer un client pour communiquer</h2>
+        <p class="mb-3">Un microservice client envoie des requêtes via <code>ClientProxyFactory</code> ou <code>@Client()</code> (déprécié). On injecte ensuite le proxy.</p>
+        <div class="code-block text-sm mb-4">
+          <pre>// app.module.ts
+import { ClientsModule, Transport } from '@nestjs/microservices';
+
+@Module({
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'MATH_SERVICE',
+        transport: Transport.TCP,
+        options: { host: 'localhost', port: 3001 },
+      },
+    ]),
+  ],
+})
+export class AppModule {}
+
+// math-client.service.ts
+@Injectable()
+export class MathClientService {
+  constructor(@Inject('MATH_SERVICE') private client: ClientProxy) {}
+
+  async sum(numbers: number[]) {
+    return this.client.send&lt;number&gt;('sum', numbers).toPromise();
+    // ou .subscribe() pour flux asynchrone
+  }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 : Redis & RabbitMQ (RMQ) exemples -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="5">
+      <div class="flex flex-col min-h-[70vh]">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">🔄 Transports : Redis et RabbitMQ (RMQ)</h2>
+        <p class="mb-2">Modifiez simplement l'objet <code>transport</code> pour changer de protocole.</p>
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+          <div class="bg-gray-800 text-gray-100 rounded-xl p-3 text-sm">
+            <span class="font-bold text-red-300">Redis</span>
+            <pre class="mt-1">transport: Transport.REDIS,
+options: {
+  host: 'localhost',
+  port: 6379,
+}</pre>
+          </div>
+          <div class="bg-gray-800 text-gray-100 rounded-xl p-3 text-sm">
+            <span class="font-bold text-green-300">RabbitMQ (RMQ)</span>
+            <pre class="mt-1">transport: Transport.RMQ,
+options: {
+  urls: ['amqp://localhost:5672'],
+  queue: 'tasks_queue',
+  queueOptions: { durable: false },
+}</pre>
+          </div>
+        </div>
+        <div class="code-block text-sm">
+          <pre>// Enregistrement du client RMQ
+ClientsModule.register([
+  {
+    name: 'TASK_SERVICE',
+    transport: Transport.RMQ,
+    options: {
+      urls: ['amqp://user:pass@rabbitmq:5672'],
+      queue: 'tasks_queue',
+      noAck: false,
+    },
+  },
+]);</pre>
+        </div>
+        <p class="text-gray-600 text-sm mt-3">✅ Redis : ultra rapide pour les communications légères. ✅ RMQ : files d'attente robustes, routage avancé.</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 : Exemple concret : service de notification + event pattern -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="6">
+      <div class="flex flex-col min-h-[70vh]">
+        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3">📬 Patterns vs Events</h2>
+        <p class="mb-2"><code>@MessagePattern</code> attend une réponse (requête-réponse). <code>@EventPattern</code> est utilisé pour les notifications sans réponse (fire-and-forget).</p>
+        <div class="code-block text-sm mb-4">
+          <pre>// notification microservice
+@EventPattern('user_created')
+async handleUserCreated(@Payload() data: any) {
+  console.log(`Nouvel utilisateur: ${data.email}`);
+  // envoi email de bienvenue...
+}
+
+// Client émet un événement
+this.client.emit('user_created', { email: 'new@example.com' });</pre>
+        </div>
+        <div class="bg-teal-50 p-4 rounded-xl border-l-4 border-teal-500 text-teal-800">
+          💡 <strong>Bonnes pratiques :</strong> utilisez des patterns versionnés (ex: "user.created.v1"). Gérez les erreurs avec des stratégies de repli.
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 : Récapitulatif & exercice -->
+    <div class="slide-card hidden bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-10" data-slide="7">
+      <div class="flex flex-col min-h-[70vh] justify-center">
+        <h2 class="text-3xl font-bold text-gray-800 mb-5">🧠 Synthèse – Microservices NestJS</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>Créer un microservice</strong> → <code>NestFactory.createMicroservice()</code></div>
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>Transports supportés</strong> → TCP, Redis, RMQ, NATS, gRPC, Kafka</div>
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>@MessagePattern</strong> → Requête/Réponse</div>
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>@EventPattern</strong> → Événements unidirectionnels</div>
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>ClientProxy</strong> → communication via <code>send()</code> ou <code>emit()</code></div>
+          <div class="bg-gray-100 p-4 rounded-xl">✅ <strong>Scalabilité horizontale</strong> avec plusieurs instances</div>
+        </div>
+        <div class="bg-amber-50 p-4 rounded-xl text-center border border-amber-300">
+          🧪 <strong>À vous de jouer :</strong> Créez un microservice TCP qui calcule la factorielle d'un nombre, puis un client qui l'appelle via <code>ClientProxy</code>. Validez avec Supertest ou console.
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation slides (précédent/suivant + dots) -->
+    <div class="flex justify-between items-center mt-8 gap-4 flex-wrap">
+      <button id="prevSlide" class="nav-btn bg-white/80 hover:bg-white text-gray-800 font-semibold py-2 px-6 rounded-full shadow-md border border-gray-300 backdrop-blur-sm transition flex items-center gap-2">◀ Précédent</button>
+      <div class="flex gap-2 flex-wrap justify-center" id="dotsIndicator"></div>
+      <button id="nextSlide" class="nav-btn bg-[#2c7da0] hover:bg-[#1f5e7a] text-white font-semibold py-2 px-6 rounded-full shadow-md transition flex items-center gap-2">Suivant ▶</button>
+    </div>
+  </div>
+  <div class="text-center text-gray-500 text-xs mt-8 border-t border-gray-300 pt-5">
+    📘 NestJS – Microservices (TCP/Redis/RMQ) | Cours pour étudiants camerounais | Interface mobile-friendly
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    let currentSlide = 0;
+    const slides = $('.slide-card');
+    const total = slides.length;
+
+    function showSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= total) index = total - 1;
+      currentSlide = index;
+      slides.each(function(i) {
+        if (i === currentSlide) {
+          $(this).removeClass('hidden').fadeIn(200);
+        } else {
+          $(this).addClass('hidden');
+        }
+      });
+      updateDots();
+      // Smooth scroll to top for better mobile exp
+      $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 15 }, 180);
+    }
+
+    function generateDots() {
+      const container = $('#dotsIndicator');
+      container.empty();
+      for (let i = 0; i < total; i++) {
+        const dot = $('<button>')
+          .addClass('w-3 h-3 rounded-full transition-all duration-200 mx-1 focus:outline-none')
+          .attr('data-index', i)
+          .css('background-color', i === currentSlide ? '#2c7da0' : '#cbd5e1');
+        dot.on('click', function() {
+          const idx = parseInt($(this).attr('data-index'));
+          showSlide(idx);
+        });
+        container.append(dot);
+      }
+    }
+
+    function updateDots() {
+      $('#dotsIndicator button').each(function(i) {
+        if (i === currentSlide) {
+          $(this).css('background-color', '#2c7da0').css('width', '1.25rem').css('border-radius', '0.75rem');
+        } else {
+          $(this).css('background-color', '#cbd5e1').css('width', '0.75rem').css('border-radius', '9999px');
+        }
+      });
+    }
+
+    $('#nextSlide').on('click', () => {
+      if (currentSlide < total - 1) showSlide(currentSlide + 1);
+      else {
+        $('#nextSlide').css('transform', 'scale(0.98)');
+        setTimeout(() => $('#nextSlide').css('transform', ''), 150);
+      }
+    });
+    $('#prevSlide').on('click', () => {
+      if (currentSlide > 0) showSlide(currentSlide - 1);
+      else {
+        $('#prevSlide').css('transform', 'scale(0.98)');
+        setTimeout(() => $('#prevSlide').css('transform', ''), 150);
+      }
+    });
+
+    $(document).on('keydown', (e) => {
+      if (e.key === 'ArrowRight') $('#nextSlide').click();
+      else if (e.key === 'ArrowLeft') $('#prevSlide').click();
+    });
+
+    generateDots();
+    showSlide(0);
+  });
+</script>
+</body>
+</html>

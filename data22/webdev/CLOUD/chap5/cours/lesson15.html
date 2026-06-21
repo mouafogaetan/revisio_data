@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Cloud - Leçon 15 : Virtual Private Cloud (VPC)</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icones) + jQuery + MathJax -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Personnalisation légère du thème pour un meilleur confort visuel -->
+    <style>
+        /* Ajustements pour lisibilité et transitions douces */
+        body {
+            background: #f4f7fc;
+        }
+        .slide-card {
+            transition: all 0.3s ease-in-out;
+        }
+        .nav-btn {
+            transition: background 0.2s;
+        }
+        /* Correction pour le contenu mathématique si jamais, mais simple texte */
+        .prose h3 {
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .prose ul, .prose p {
+            margin-bottom: 0.75rem;
+        }
+        .active-dot {
+            background-color: #1e40af;
+            transform: scale(1.1);
+        }
+        /* rendre les slides agréables sur petits écrans */
+        @media (max-width: 640px) {
+            .slide-card {
+                padding: 1.25rem !important;
+            }
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+        <!-- En-tête léger avec le contexte de la leçon -->
+        <div class="flex justify-between items-center mb-4 text-sm text-gray-600 flex-wrap gap-2">
+            <div class="bg-white/70 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+                📘 Web Dev | ☁️ Initiation Cloud
+            </div>
+            <div class="bg-white/70 rounded-full px-3 py-1 shadow-sm">
+                Leçon 15 · Chapitre 5: Connectivité réseau
+            </div>
+        </div>
+
+        <!-- Conteneur principal du slide -->
+        <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+            <!-- slide dynamique affiché ici -->
+            <div id="current-slide" class="slide-card p-6 md:p-8 lg:p-10 transition-all">
+                <!-- Contenu injecté via jQuery -->
+            </div>
+
+            <!-- Navigation + indicateurs -->
+            <div class="bg-gray-50 px-5 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-gray-200">
+                <div class="flex gap-3">
+                    <button id="prevBtn" class="nav-btn bg-white hover:bg-gray-200 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                        ← Précédent
+                    </button>
+                    <button id="nextBtn" class="nav-btn bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-5 rounded-full shadow-sm transition flex items-center gap-1">
+                        Suivant →
+                    </button>
+                </div>
+                <div class="flex gap-2 flex-wrap justify-center" id="dots-indicator">
+                    <!-- dots générés dynamiquement -->
+                </div>
+                <div class="text-sm text-gray-500" id="slide-counter">
+                    Slide 1 / X
+                </div>
+            </div>
+        </div>
+
+        <!-- petite note de bas de page explicative -->
+        <div class="mt-5 text-center text-xs text-gray-500">
+            ✨ Cours conçu pour le Cameroun – notion VPC expliquée simplement. Utilisez les boutons pour naviguer.
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------
+        // Données des slides (Leçon 15)
+        // Titre, objectifs et contenu complet basé sur le programme (lesson15: VPC, subnets, routage, security groups, ACL)
+        // Le contenu reprend les objectifs: Créer un VPC, sous-réseaux, tables de routage, passerelles, groupes de sécurité, ACL.
+        // Nous allons produire 6 slides: 1- Titre, 2- Objectifs, 3- VPC & Subnets, 4- Routage & Passerelles, 5- Sécurité (SG & NACL), 6- Pratique & Exemple simple.
+        // ------------------------------
+        
+        const slidesData = [
+            {   // slide 0 - Titre
+                type: "title",
+                title: "☁️ Virtual Private Cloud (VPC)",
+                subtitle: "Leçon 15 · Maîtriser la connectivité réseau dans le cloud",
+                badge: "AWS · Azure · GCP",
+                description: "Comprendre comment créer un réseau privé virtuel dans le cloud, segmenter avec des sous-réseaux, et sécuriser les accès."
+            },
+            {   // slide 1 - Objectifs pédagogiques (référence aux objectifs de lesson15)
+                type: "objectifs",
+                title: "🎯 Objectifs de cette leçon",
+                objectives: [
+                    "Créer un VPC (Virtual Private Cloud) et des sous-réseaux publics/privés.",
+                    "Configurer les tables de routage et les passerelles (Internet Gateway, NAT).",
+                    "Comprendre les groupes de sécurité (Security Groups) et les ACL réseau (Network ACLs).",
+                    "Appliquer les bonnes pratiques d'isolation réseau dans le cloud."
+                ]
+            },
+            {   // slide 2 - Qu'est-ce qu'un VPC et sous-réseaux
+                type: "content",
+                title: "🏠 Qu'est-ce qu'un VPC ?",
+                icon: "🌐",
+                sections: [
+                    {
+                        heading: "Définition simple",
+                        text: "Un VPC (Virtual Private Cloud) est comme votre propre maison virtuelle dans le cloud. Vous choisissez l'adresse (bloc CIDR), vous créez des pièces (sous-réseaux), et vous décidez qui peut entrer ou sortir."
+                    },
+                    {
+                        heading: "Les sous-réseaux (Subnets)",
+                        text: "Les sous-réseaux divisent le VPC. Un sous-réseau public a accès à Internet (via une passerelle Internet). Un sous-réseau privé ne communique pas directement avec Internet (sécurisé pour bases de données)."
+                    },
+                    {
+                        heading: "Exemple de CIDR",
+                        text: "Par exemple, on peut utiliser 10.0.0.0/16 pour le VPC, puis sous-réseau public 10.0.1.0/24 et sous-réseau privé 10.0.2.0/24."
+                    }
+                ],
+                schema: "simple"
+            },
+            {   // slide 3 - Tables de routage et passerelles
+                type: "content",
+                title: "🚦 Routage & Passerelles",
+                icon: "🔄",
+                sections: [
+                    {
+                        heading: "Tables de routage",
+                        text: "Les tables de routage indiquent où diriger le trafic réseau. Chaque sous-réseau est associé à une table de routage. Si vous voulez qu'un sous-réseau public accède à Internet, la table doit contenir une route vers une Internet Gateway."
+                    },
+                    {
+                        heading: "Internet Gateway (IGW)",
+                        text: "C'est la porte d'entrée/sortie d'Internet pour le VPC. Elle permet aux ressources publiques (comme des serveurs web) d'être accessibles depuis le web."
+                    },
+                    {
+                        heading: "Passerelle NAT (pour sous-réseaux privés)",
+                        text: "Une instance privée peut avoir besoin d'aller sur Internet (télécharger des mises à jour) sans être accessible de l'extérieur : on utilise alors une NAT Gateway dans le sous-réseau public."
+                    }
+                ]
+            },
+            {   // slide 4 - Groupes de sécurité et ACL
+                type: "content",
+                title: "🛡️ Sécurité : Security Groups & NACL",
+                icon: "🔒",
+                sections: [
+                    {
+                        heading: "Groupes de sécurité (Stateful)",
+                        text: "Ils agissent comme un pare-feu virtuel pour les instances (VM). On autorise des règles entrantes (ex: HTTP, SSH) et sortantes. Si on autorise une requête entrante, la réponse est automatiquement permise (stateful)."
+                    },
+                    {
+                        heading: "Network ACL (Stateless)",
+                        text: "Les NACL s'appliquent au niveau du sous-réseau. Elles sont stateless : il faut autoriser explicitement les flux entrants ET sortants. Elles permettent des règles de blocage par adresse IP."
+                    },
+                    {
+                        heading: "Différence simple",
+                        text: "Security Group = première ligne autour de la VM (plus simple, stateful). NACL = couche supplémentaire au niveau sous-réseau (stateless). On utilise souvent les deux pour plus de sécurité."
+                    }
+                ],
+                tip: "💡 Bonne pratique : Utilisez les groupes de sécurité pour la plupart des règles, et les NACL pour ajouter des pare-feux réseau généraux."
+            },
+            {   // slide 5 - Exemple concret et schéma texte (pas d'image externe, dessin texte)
+                type: "diagram",
+                title: "📡 Architecture VPC simple - schéma",
+                icon: "📐",
+                content: `
+                    <div class="bg-gray-100 p-4 rounded-xl font-mono text-sm overflow-x-auto">
+                    <pre class="whitespace-pre-wrap text-gray-800">
+    [ Internet ]
+         │
+    ┌────▼────┐
+    │ Internet│
+    │ Gateway │
+    └────┬────┘
+         │
+    ┌────▼────────────────────────┐
+    │         VPC 10.0.0.0/16     │
+    │  ┌─────────────┐   ┌─────────────┐
+    │  │  Subnet A   │   │  Subnet B   │
+    │  │  (Public)   │   │  (Private)  │
+    │  │10.0.1.0/24  │   │10.0.2.0/24  │
+    │  │             │   │             │
+    │  │  [ VM Web ] │   │ [ Database ]│
+    │  │  + SG HTTP  │   │  + SG MySQL │
+    │  └──────┬──────┘   └──────▲──────┘
+    │         │                 │
+    │    Route table:          Route table:
+    │    0.0.0.0/0 → IGW      (local only)
+    │         │                 │
+    │    ┌────▼────┐           (NAT GW optional)
+    │    │  NAT GW │──────────►│
+    │    └─────────┘           pour accès internet sortant
+    └─────────────────────────────────┘
+                    </pre>
+                    </div>
+                    <p class="mt-3 text-gray-700">On voit ici : VPC avec deux sous-réseaux. Subnet public avec Internet Gateway, Subnet privé isolé. Les groupes de sécurité contrôlent les flux entre Web et DB.</p>
+                    <p class="mt-2 text-blue-800 text-sm">✨ Ce dessin schématique vous aide à visualiser la construction d'un VPC typique dans AWS, Azure ou GCP.</p>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour rendre un slide selon son type
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            let html = '';
+
+            if (slide.type === 'title') {
+                html = `
+                    <div class="text-center py-6 md:py-10">
+                        <div class="inline-block bg-blue-100 text-blue-800 rounded-full px-4 py-1 text-sm font-medium mb-4">${slide.badge || 'Cloud Computing'}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">${slide.title}</h1>
+                        <p class="text-xl text-gray-600 max-w-2xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 h-1 w-20 bg-blue-500 mx-auto rounded-full"></div>
+                        <p class="mt-6 text-gray-500">${slide.description || 'Cliquez sur Suivant pour découvrir les objectifs'}</p>
+                        <div class="mt-6 flex justify-center gap-2 text-sm text-gray-400">📘 ${slide.badge ? slide.badge : 'VPC & Réseau'}</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectifs') {
+                html = `
+                    <div>
+                        <div class="flex items-center gap-3 border-b border-gray-200 pb-3 mb-5">
+                            <span class="text-3xl">📌</span>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+                        </div>
+                        <div class="space-y-4">
+                            ${slide.objectives.map((obj, idx) => `
+                                <div class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl">
+                                    <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mt-0.5">${idx+1}</span>
+                                    <p class="text-gray-700 text-base">${obj}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-8 p-3 bg-blue-50 rounded-lg text-blue-800 text-sm">
+                            💡 À la fin, vous saurez configurer un VPC comme un architecte cloud débutant.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                html = `
+                    <div>
+                        <div class="flex items-center gap-2 border-b border-gray-200 pb-3 mb-5">
+                            <span class="text-3xl">${slide.icon || '📘'}</span>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+                        </div>
+                        <div class="prose prose-blue max-w-none text-gray-700">
+                            ${slide.sections.map(section => `
+                                <h3 class="text-xl font-semibold text-gray-800 mt-4 mb-2">${section.heading}</h3>
+                                <p class="mb-3">${section.text}</p>
+                            `).join('')}
+                            ${slide.tip ? `<div class="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-yellow-800 text-sm">${slide.tip}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'diagram') {
+                html = `
+                    <div>
+                        <div class="flex items-center gap-2 border-b border-gray-200 pb-3 mb-5">
+                            <span class="text-3xl">${slide.icon || '🖼️'}</span>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+                        </div>
+                        <div class="prose max-w-none">
+                            ${slide.content}
+                        </div>
+                        <div class="mt-6 text-sm text-gray-500 italic border-t pt-4">
+                            ⚡ Ce schéma texte est un dessin fait main (ASCII) pour bien comprendre les composants réseau cloud. Vous pouvez le recopier sur votre cahier.
+                        </div>
+                    </div>
+                `;
+            }
+            else {
+                html = `<div class="p-4">Contenu non disponible</div>`;
+            }
+
+            // petite animation fade
+            $("#current-slide").fadeOut(150, function() {
+                $(this).html(html);
+                $(this).fadeIn(200);
+            });
+            
+            // mise à jour des indicateurs
+            updateNavAndDots();
+            // MathJax si nécessaire (pas de formules complexes mais on peut forcer un event)
+            if (window.MathJax) {
+                MathJax.typesetPromise && MathJax.typesetPromise();
+            }
+        }
+
+        function updateNavAndDots() {
+            // Mise à jour compteur
+            $("#slide-counter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            
+            // Mise à jour des dots
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === currentIndex) ? 'active-dot bg-blue-700 w-8' : 'bg-gray-300 w-6';
+                dotsHtml += `<button class="dot-btn h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+            }
+            $("#dots-indicator").html(dotsHtml);
+            
+            // Gestion des boutons précédent/suivant désactivés
+            if (currentIndex === 0) {
+                $("#prevBtn").prop('disabled', true).addClass('opacity-50');
+            } else {
+                $("#prevBtn").prop('disabled', false).removeClass('opacity-50');
+            }
+            if (currentIndex === totalSlides - 1) {
+                $("#nextBtn").prop('disabled', true).addClass('opacity-50');
+            } else {
+                $("#nextBtn").prop('disabled', false).removeClass('opacity-50');
+            }
+            
+            // Gestion clic sur dots
+            $(".dot-btn").off('click').on('click', function() {
+                let idx = parseInt($(this).data('index'));
+                if (!isNaN(idx) && idx !== currentIndex && idx >=0 && idx < totalSlides) {
+                    currentIndex = idx;
+                    renderSlide(currentIndex);
+                }
+            });
+        }
+        
+        // Navigation événements
+        $("#nextBtn").on('click', function() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        });
+        
+        $("#prevBtn").on('click', function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        });
+        
+        // initialisation
+        renderSlide(0);
+        
+        // Gestion des touches clavier (gauche/droite) pour les grands
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    renderSlide(currentIndex);
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderSlide(currentIndex);
+                }
+            }
+        });
+        
+        // Adaptabilité mobile : tout est déjà responsive, pas de souci.
+    </script>
+</body>
+</html>

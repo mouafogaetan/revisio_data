@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>React - Cycle de vie et useEffect</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .code-block {
+            background: #1e1b4b;
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            margin: 1rem 0;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .lifecycle-svg {
+            background: #f3f4f6;
+            border-radius: 16px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #c7d2fe;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 10px;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+        .badge {
+            display: inline-block;
+            background: #4f46e5;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
+    <!-- Barre de progression -->
+    <div class="mb-5 bg-indigo-200/50 rounded-full h-2 overflow-hidden">
+        <div id="progressBar" class="bg-gradient-to-r from-indigo-600 to-violet-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- Indicateur de slide -->
+    <div class="text-center mb-3 text-sm text-gray-700 font-medium">
+        <i class="fas fa-layer-group"></i> Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+    </div>
+
+    <div id="slidesContainer">
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <div class="text-center">
+                <div class="inline-block p-4 bg-indigo-100 rounded-full mb-6">
+                    <i class="fas fa-sync-alt text-6xl text-indigo-600"></i>
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-violet-700 mb-4">
+                    Cycle de vie & useEffect
+                </h1>
+                <p class="text-xl text-gray-700 mb-3">Les hooks qui donnent vie à vos composants</p>
+                <div class="border-t border-indigo-300 w-24 mx-auto my-6"></div>
+                <p class="text-gray-600"><i class="fas fa-chart-line"></i> Montage • Mise à jour • Dé montage • Effets secondaires</p>
+                <div class="mt-8 flex justify-center gap-4 text-sm text-gray-500">
+                    <span><i class="fas fa-graduation-cap text-indigo-600"></i> Niveau: Intermédiaire</span>
+                    <span><i class="fas fa-clock"></i> Durée: 55 min</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 border-l-8 border-indigo-500 pl-4 mb-6">
+                🎯 Objectifs de la leçon
+            </h2>
+            <ul class="space-y-4 text-gray-700">
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre les <strong>3 phases du cycle de vie</strong> d'un composant React (montage, mise à jour, démontage)</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser <strong class="text-indigo-600">useEffect</strong> pour exécuter du code après le rendu</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Maîtriser le <strong>tableau de dépendances</strong> pour contrôler quand l'effet s'exécute</span></li>
+                <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Nettoyer les effets secondaires avec la <strong>fonction de nettoyage (cleanup)</strong></span></li>
+            </ul>
+            <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm border border-indigo-200">
+                <i class="fas fa-lightbulb"></i> À la fin, vous saurez gérer les appels API, les timers, les abonnements et bien plus !
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : LE CYCLE DE VIE D'UN COMPOSANT -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🌱 Le cycle de vie en 3 phases</h2>
+            <p class="text-gray-700 mb-4">Un composant React passe par trois grandes phases :</p>
+            <div class="lifecycle-svg">
+                <!-- Diagramme SVG du cycle de vie -->
+                <svg viewBox="0 0 500 300" class="w-full h-auto">
+                    <rect x="150" y="20" width="200" height="40" rx="8" fill="#4f46e5" />
+                    <text x="250" y="45" fill="white" text-anchor="middle" font-size="14" font-weight="bold">1. MONTAGE</text>
+                    <text x="250" y="65" fill="#4f46e5" text-anchor="middle" font-size="11">Naissance du composant</text>
+                    
+                    <rect x="150" y="110" width="200" height="40" rx="8" fill="#8b5cf6" />
+                    <text x="250" y="135" fill="white" text-anchor="middle" font-size="14" font-weight="bold">2. MISE À JOUR</text>
+                    <text x="250" y="155" fill="#8b5cf6" text-anchor="middle" font-size="11">Re-rendu (props/état changent)</text>
+                    
+                    <rect x="150" y="220" width="200" height="40" rx="8" fill="#ec4899" />
+                    <text x="250" y="245" fill="white" text-anchor="middle" font-size="14" font-weight="bold">3. DÉMONTAGE</text>
+                    <text x="250" y="265" fill="#ec4899" text-anchor="middle" font-size="11">Disparition du composant</text>
+                    
+                    <!-- Flèches -->
+                    <path d="M250 60 L250 100" stroke="#4f46e5" stroke-width="2" marker-end="url(#arrow)" />
+                    <path d="M250 150 L250 210" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow)" />
+                    <path d="M250 260 L250 290" stroke="#ec4899" stroke-width="2" marker-end="url(#arrow)" />
+                    
+                    <defs>
+                        <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                            <path d="M0,0 L8,4 L0,8 Z" fill="#6b7280" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-sm">
+                <div class="bg-indigo-50 p-2 rounded text-center"><span class="font-bold">Montage :</span> Création, insertion dans le DOM</div>
+                <div class="bg-violet-50 p-2 rounded text-center"><span class="font-bold">Mise à jour :</span> Changement de props ou d'état</div>
+                <div class="bg-pink-50 p-2 rounded text-center"><span class="font-bold">Démontage :</span> Retrait du DOM</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : INTRODUCTION À useEffect -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">⚡ useEffect : Le couteau suisse des effets</h2>
+            <p class="text-gray-700 mb-3"><code>useEffect</code> est un Hook qui permet d'exécuter du code <strong>après le rendu</strong> du composant.</p>
+            <div class="code-block">
+                <pre><code>import { useEffect } from 'react';
+
+function MonComposant() {
+  useEffect(() => {
+    // Code exécuté APRÈS le rendu
+    console.log('Effet exécuté !');
+  });
+
+  return &lt;div&gt;Mon composant&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3">
+                <p class="text-yellow-800 text-sm"><i class="fas fa-info-circle"></i> Les effets secondaires sont des opérations qui interagissent avec le monde extérieur : appel API, manipulation directe du DOM, timers, abonnements...</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : LE TABLEAU DE DÉPENDANCES -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🎛️ Le tableau de dépendances</h2>
+            <p class="text-gray-700 mb-3">Le second argument de <code>useEffect</code> contrôle quand l'effet se ré-exécute.</p>
+            <div class="space-y-4">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="font-semibold text-indigo-700">Cas 1 : Pas de tableau → Exécution à chaque rendu</p>
+                    <pre class="bg-gray-800 text-white p-2 rounded text-sm mt-1"><code>useEffect(() => { /* exécuté à chaque rendu */ });</code></pre>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="font-semibold text-green-700">Cas 2 : Tableau vide [] → Exécution UNE SEULE fois (au montage)</p>
+                    <pre class="bg-gray-800 text-white p-2 rounded text-sm mt-1"><code>useEffect(() => { /* exécuté au montage uniquement */ }, []);</code></pre>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="font-semibold text-violet-700">Cas 3 : Dépendances → Exécution quand les valeurs changent</p>
+                    <pre class="bg-gray-800 text-white p-2 rounded text-sm mt-1"><code>useEffect(() => { /* exécuté quand count change */ }, [count]);</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 : MONTAGE AVEC USEEFFECT ([] VIDE) -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🎬 Exécuter du code au montage</h2>
+            <p class="text-gray-700 mb-3">Le tableau de dépendances vide <code>[]</code> signifie que l'effet s'exécute <strong>une seule fois</strong> après le premier rendu.</p>
+            <div class="code-block">
+                <pre><code>import { useEffect, useState } from 'react';
+
+function UserProfile() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Charger les données utilisateur au montage du composant
+    fetch('https://api.example.com/user/1')
+      .then(res => res.json())
+      .then(data => {
+        setUser(data);
+        setLoading(false);
+      });
+  }, []); // ← Tableau vide : une seule fois !
+
+  if (loading) return &lt;div&gt;Chargement...&lt;/div&gt;;
+  return &lt;div&gt;Bonjour {user.name}&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <div class="bg-green-50 p-3 rounded-lg text-green-800 text-sm mt-2">
+                <i class="fas fa-check-circle"></i> Idéal pour les appels API, l'initialisation de bibliothèques, etc.
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : RÉAGIR AUX CHANGEMENTS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🔄 Réagir aux changements de props ou d'état</h2>
+            <p class="text-gray-700 mb-3">Ajoutez des dépendances pour exécuter l'effet quand elles changent.</p>
+            <div class="code-block">
+                <pre><code>function ProductList({ category }) {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    // Recharger les produits quand la catégorie change
+    fetch(`/api/products?category=${category}`)
+      .then(res => res.json())
+      .then(setProducts);
+  }, [category]); // ← S'exécute à chaque changement de category
+
+  return &lt;div&gt;{products.map(p => &lt;Product key={p.id} {...p} /&gt;)}&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-lg text-amber-800 text-sm mt-2">
+                <i class="fas fa-exclamation-triangle"></i> Attention : assurez-vous d'inclure TOUTES les valeurs utilisées dans l'effet !
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : FONCTION DE NETTOYAGE (CLEANUP) -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🧹 Nettoyer avec la fonction de cleanup</h2>
+            <p class="text-gray-700 mb-3">La fonction retournée dans <code>useEffect</code> s'exécute au démontage OU avant le prochain effet.</p>
+            <div class="code-block">
+                <pre><code>function Timer() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSeconds(s => s + 1);
+    }, 1000);
+
+    // Fonction de nettoyage (cleanup)
+    return () => {
+      clearInterval(interval); // Supprime l'intervalle au démontage
+      console.log('Timer nettoyé !');
+    };
+  }, []); // Tableau vide = cleanup au démontage uniquement
+
+  return &lt;div&gt;Temps : {seconds}s&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <div class="bg-red-50 p-3 rounded-lg text-red-800 text-sm mt-2">
+                <i class="fas fa-trash-alt"></i> Nettoyage obligatoire pour les timers, abonnements, event listeners, requêtes en cours...
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : EXEMPLE D'ABONNEMENT -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📡 Exemple : Abonnement WebSocket</h2>
+            <div class="code-block">
+                <pre><code>function LiveChat() {
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    const socket = new WebSocket('wss://chat.example.com');
+
+    socket.onmessage = (event) => {
+      setMessages(prev => [...prev, event.data]);
+    };
+
+    // Nettoyer : fermer la connexion au démontage
+    return () => {
+      socket.close();
+      console.log('WebSocket fermé');
+    };
+  }, []);
+
+  return &lt;div&gt;{messages.length} messages reçus&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <p class="text-gray-600 text-sm mt-2">Sans cleanup, la connexion resterait ouverte même si le composant n'est plus affiché, causant des fuites mémoire !</p>
+        </div>
+
+        <!-- SLIDE 10 : COMPARAISON AVEC LES CLASSES -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🔄 useEffect vs méthodes de cycle de vie (classes)</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead class="bg-indigo-100">
+                        <tr><th class="p-2 border">Classes React</th><th class="p-2 border">useEffect</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="p-2 border"><code>componentDidMount</code></td><td class="p-2 border"><code>useEffect(fn, [])</code></td></tr>
+                        <tr><td class="p-2 border"><code>componentDidUpdate</code></td><td class="p-2 border"><code>useEffect(fn, [deps])</code></td></tr>
+                        <tr><td class="p-2 border"><code>componentWillUnmount</code></td><td class="p-2 border">Fonction de retour dans <code>useEffect</code></td></tr>
+                        <tr><td class="p-2 border">Tous combinés</td><td class="p-2 border">Un seul <code>useEffect</code> peut gérer montage, mise à jour ET cleanup !</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-gray-600 text-sm mt-3"><i class="fas fa-heart text-red-500"></i> Les hooks simplifient le code en regroupant la logique liée au lieu de la disperser dans plusieurs méthodes.</p>
+        </div>
+
+        <!-- SLIDE 11 : RÈGLES DES HOOKS -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📜 Règles importantes des hooks</h2>
+            <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                <li><span class="font-semibold">Appeler les hooks au niveau racine</span> : pas dans des conditions, boucles ou fonctions imbriquées</li>
+                <li><span class="font-semibold">Appeler les hooks uniquement dans des composants fonctionnels</span> ou des hooks personnalisés</li>
+                <li><span class="font-semibold">Toujours inclure toutes les dépendances</span> utilisées dans l'effet (ou utiliser ESLint avec eslint-plugin-react-hooks)</li>
+                <li><span class="font-semibold">Ne pas appeler hooks après un return conditionnel</span></li>
+            </ul>
+            <div class="bg-red-50 p-3 rounded-lg mt-3">
+                <p class="text-red-700 text-sm"><i class="fas fa-code-branch"></i> ❌ Mauvais : <code>if (condition) { useEffect(...) }</code></p>
+                <p class="text-green-700 text-sm mt-1"><i class="fas fa-check"></i> ✅ Bon : Toujours appeler useEffect au même endroit, utiliser condition à l'intérieur si besoin</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 12 : MULTIPLES useEffect -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 Séparer les préoccupations</h2>
+            <p class="text-gray-700 mb-3">On peut avoir plusieurs <code>useEffect</code> dans un même composant. Chacun gère une responsabilité distincte.</p>
+            <div class="code-block">
+                <pre><code>function Dashboard({ userId }) {
+  // Effet 1 : Charger le profil utilisateur
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }, [userId]);
+
+  // Effet 2 : S'abonner aux notifications
+  useEffect(() => {
+    const subscription = subscribeToNotifications(userId);
+    return () => subscription.unsubscribe();
+  }, [userId]);
+
+  // Effet 3 : Mettre à jour le titre de la page
+  useEffect(() => {
+    document.title = `Tableau de bord - ${userId}`;
+  }, [userId]);
+
+  return &lt;div&gt;...&lt;/div&gt;;
+}</code></pre>
+            </div>
+            <p class="text-gray-600 text-sm mt-2">✅ Meilleure lisibilité et maintenance : chaque effet a un objectif unique !</p>
+        </div>
+
+        <!-- SLIDE 13 : RÉSUMÉ ET BONNES PRATIQUES -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Récapitulatif</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-indigo-50 p-3 rounded-lg">
+                    <p class="font-bold"><i class="fas fa-check-circle text-green-600"></i> Bonnes pratiques</p>
+                    <ul class="list-disc pl-4 text-sm mt-1">
+                        <li>Toujours nettoyer les effets (timers, abonnements)</li>
+                        <li>Utiliser le tableau de dépendances correctement</li>
+                        <li>Séparer les effets par responsabilité</li>
+                        <li>Déplacer la logique complexe dans des hooks personnalisés</li>
+                    </ul>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg">
+                    <p class="font-bold"><i class="fas fa-exclamation-triangle"></i> Pièges à éviter</p>
+                    <ul class="list-disc pl-4 text-sm mt-1">
+                        <li>Oublier les dépendances → comportement imprévisible</li>
+                        <li>Mettre [] pour des effets qui dépendent de props → stale data</li>
+                        <li>Modifier l'état dans un effet sans condition → boucle infinie</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-5 bg-indigo-100 p-4 rounded-xl text-center">
+                <i class="fas fa-gem text-indigo-600 text-2xl"></i>
+                <p class="font-medium">Règle d'or : useEffect = synchroniser votre composant avec le monde extérieur !</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 14 : EXERCICE PRATIQUE -->
+        <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-indigo-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Exercice : Horloge en temps réel</h2>
+            <p class="text-gray-700 mb-3">Créez un composant <code>Clock</code> qui affiche l'heure actuelle et se met à jour chaque seconde.</p>
+            <p class="font-semibold mt-2">Consignes :</p>
+            <ol class="list-decimal pl-5 space-y-2 text-gray-700">
+                <li>Utiliser <code>useState</code> pour stocker l'heure</li>
+                <li>Utiliser <code>useEffect</code> pour créer un intervalle setInterval au montage</li>
+                <li>Nettoyer l'intervalle au démontage</li>
+                <li>Optionnel : ajouter un bouton pour cacher/montrer l'horloge et observer le nettoyage</li>
+            </ol>
+            <button id="showHint" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded transition">
+                <i class="fas fa-lightbulb"></i> Voir la solution
+            </button>
+            <div id="hintText" class="hidden mt-4 p-3 bg-green-100 rounded-lg text-green-800">
+                <pre class="bg-gray-800 text-white p-3 rounded text-sm"><code>function Clock() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return &lt;h2&gt;Il est {time.toLocaleTimeString()}&lt;/h2&gt;;
+}</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="flex justify-between items-center mt-5 gap-4">
+        <button id="prevBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50">
+            <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div class="flex gap-2" id="dotsContainer"></div>
+        <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">
+            Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        updateDots();
+
+        function updateProgress() {
+            let percent = ((current + 1) / total) * 100;
+            $('#progressBar').css('width', percent + '%');
+            $('#currentSlideIdx').text(current + 1);
+        }
+
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            current = index;
+            updateProgress();
+            updateDots();
+            $('#prevBtn').prop('disabled', current === 0);
+            if (current === total-1) {
+                $('#nextBtn').html('Terminer <i class="fas fa-check-circle"></i>');
+            } else {
+                $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+            }
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        function updateDots() {
+            $('#dotsContainer').empty();
+            for(let i = 0; i < total; i++) {
+                let dot = $('<div>').addClass('w-3 h-3 rounded-full transition-all duration-200 cursor-pointer mx-1')
+                    .css('background-color', i === current ? '#4f46e5' : '#a5b4fc');
+                dot.on('click', (function(idx) { return function() { showSlide(idx); }; })(i));
+                $('#dotsContainer').append(dot);
+            }
+        }
+
+        $('#nextBtn').click(function() {
+            if(current < total-1) showSlide(current+1);
+            else alert('🎉 Félicitations ! Vous maîtrisez maintenant le cycle de vie et useEffect !');
+        });
+        $('#prevBtn').click(function() {
+            if(current > 0) showSlide(current-1);
+        });
+
+        $('#showHint').click(function() {
+            $('#hintText').toggleClass('hidden');
+        });
+
+        showSlide(0);
+    });
+</script>
+
+<footer class="text-center text-gray-600 text-sm py-5 border-t border-indigo-300 mt-6">
+    <p><i class="fas fa-chalkboard-teacher"></i> Cours React - Cycle de vie et useEffect | Programme Développement Web (Cameroun)</p>
+    <p class="text-xs">Maîtrisez les effets secondaires pour des applications réactives et performantes</p>
+</footer>
+</body>
+</html>

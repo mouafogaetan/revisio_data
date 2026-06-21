@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 27 : Journalisation (Logging) avec ILogger | ASP.NET Core</title>
+    <!-- Tailwind CSS + Font Awesome (pour icones) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin, mais peu utilisé dans cette leçon, on le garde pour d'éventuels schémas) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition douce pour les slides et réglages mobiles */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .slide-container {
+            transition: transform 0.4s ease-out, opacity 0.3s ease;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.2s;
+        }
+        /* boutons navigation bien tactiles */
+        .nav-btn {
+            transition: all 0.2s ease;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 { font-size: 1.8rem !important; }
+            h2 { font-size: 1.4rem !important; }
+        }
+        /* Progress bar */
+        .progress-bar {
+            height: 5px;
+            background: #cbd5e1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #0f3b5c;
+            transition: width 0.3s ease;
+        }
+        /* code blocks simplifiés mais lisibles */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            font-family: 'Fira Code', monospace;
+            margin: 1rem 0;
+        }
+        .code-inline {
+            background: #eef2ff;
+            color: #0c4e6e;
+            font-family: monospace;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .badge-level {
+            background: #0f3b5c;
+            border-radius: 2rem;
+            padding: 0.2rem 1rem;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: white;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slide -->
+        <div class="relative">
+            <!-- Indicateur de progression et compteur -->
+            <div class="flex justify-between items-center mb-4 text-sm text-gray-600 flex-wrap gap-2">
+                <div class="bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
+                    <span id="slideCounter">Slide 1 / 7</span>
+                </div>
+                <div class="flex-1 max-w-xs ml-2">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="badge-level">ASP.NET Core • Logging</div>
+            </div>
+
+            <!-- Zone slide dynamique -->
+            <div id="slidesWrapper" class="slide-container overflow-hidden relative min-h-[480px]">
+                <!-- Les slides seront injectées ici via jQuery -->
+            </div>
+
+            <!-- Boutons de navigation -->
+            <div class="flex justify-between items-center mt-8 gap-3">
+                <button id="prevSlide" class="nav-btn py-2 px-5 rounded-full border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="flex gap-2">
+                    <button id="gotoSlide1" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">1</button>
+                    <button id="gotoSlide2" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">2</button>
+                    <button id="gotoSlide3" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">3</button>
+                    <button id="gotoSlide4" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">4</button>
+                    <button id="gotoSlide5" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">5</button>
+                    <button id="gotoSlide6" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">6</button>
+                    <button id="gotoSlide7" class="text-xs w-7 h-7 rounded-full bg-white shadow hover:bg-gray-100">7</button>
+                </div>
+                <button id="nextSlide" class="nav-btn py-2 px-5 rounded-full bg-[#0f3b5c] text-white font-medium shadow-md hover:bg-[#1e4a6e] transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu des slides (leçon 27 : Utiliser ILogger<T>)
+        const slidesData = [
+            {   // Slide 0 : Titre principal
+                title: "📋 Journalisation (Logging) avec ILogger&lt;T&gt;",
+                content: `
+                    <div class="text-center space-y-6">
+                        <div class="inline-block p-4 bg-indigo-50 rounded-full">
+                            <span class="text-6xl">📝</span>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">ASP.NET Core : Journalisation professionnelle</h1>
+                        <p class="text-lg text-gray-600 max-w-lg mx-auto">Utiliser <span class="code-inline">ILogger&lt;T&gt;</span> pour tracer, surveiller et déboguer vos API .NET</p>
+                        <div class="mt-6 pt-4 border-t border-gray-200 text-gray-500 text-sm">
+                            <p>👨‍🏫 Cours pour étudiants camerounais • Développement Web • API .NET</p>
+                        </div>
+                        <div class="bg-sky-50 p-4 rounded-2xl inline-block">
+                            <p class="font-mono text-sky-800">dotnet add package Microsoft.Extensions.Logging</p>
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 1 : Objectifs pédagogiques (basés sur l'exercice/lesson27)
+                title: "🎯 Objectifs de la leçon",
+                content: `
+                    <div class="space-y-5">
+                        <p class="text-gray-700 text-md">À la fin de cette leçon, vous serez capable de :</p>
+                        <ul class="space-y-3 list-none">
+                            <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Utiliser <span class="code-inline">ILogger&lt;T&gt;</span> </strong> pour logger des événements dans vos contrôleurs et services</span></li>
+                            <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Configurer les niveaux de log</strong> (Information, Warning, Error, Debug)</span></li>
+                            <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Ajouter des logs enrichis</strong> dans les contrôleurs et les services métier</span></li>
+                            <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Comprendre l'impact</strong> de la journalisation sur la maintenance des API en production</span></li>
+                        </ul>
+                        <div class="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm border-l-4 border-amber-400 mt-4">
+                            💡 Pourquoi c'est crucial ? Les logs aident à retrouver les erreurs, analyser les performances et surveiller la santé de l'API.
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 2 : Qu'est-ce que ILogger<T> et injection
+                title: "🔍 ILogger&lt;T&gt; : Le coeur du logging",
+                content: `
+                    <div class="space-y-4">
+                        <p><span class="code-inline">ILogger&lt;T&gt;</span> est une interface générique fournie par le framework .NET. Chaque instance est typée par la classe qui l'utilise (contrôleur, service...).</p>
+                        <div class="bg-gray-800 rounded-xl overflow-hidden">
+                            <pre><code>// Dans un contrôleur ProductsController.cs
+private readonly ILogger&lt;ProductsController&gt; _logger;
+
+public ProductsController(ILogger&lt;ProductsController&gt; logger)
+{
+    _logger = logger;
+}
+
+[HttpGet]
+public IActionResult GetProducts()
+{
+    _logger.LogInformation("Récupération de tous les produits");
+    // ... code métier
+}</code></pre>
+                        </div>
+                        <p class="text-sm text-gray-600">✅ <strong>Injection de dépendances :</strong> ASP.NET Core l'enregistre automatiquement. Il suffit de l'ajouter en paramètre du constructeur.</p>
+                    </div>
+                `
+            },
+            {   // Slide 3 : Niveaux de log (Information, Warning, Error, etc.)
+                title: "📊 Niveaux de log (LogLevel)",
+                content: `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-3 rounded-xl border-l-8 border-blue-600">
+                            <span class="font-bold text-blue-800">🔵 Trace / Debug</span>
+                            <p class="text-sm">Développement détaillé, à éviter en production.</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-xl border-l-8 border-green-600">
+                            <span class="font-bold text-green-800">🟢 Information</span>
+                            <p class="text-sm">Flux normal : création, modification, requêtes importantes.</p>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-xl border-l-8 border-yellow-600">
+                            <span class="font-bold text-yellow-800">⚠️ Warning</span>
+                            <p class="text-sm">Anomalies potentielles, comportement inattendu mais sans crash.</p>
+                        </div>
+                        <div class="bg-red-50 p-3 rounded-xl border-l-8 border-red-600">
+                            <span class="font-bold text-red-800">❌ Error</span>
+                            <p class="text-sm">Exception gérée, erreur fonctionnelle nécessitant attention.</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+                        <p class="font-mono text-sm">_logger.LogWarning("Stock faible pour produit {ProductId}", productId);<br>
+                        _logger.LogError(ex, "Erreur lors de la suppression de l'utilisateur {UserId}", userId);</p>
+                    </div>
+                `
+            },
+            {   // Slide 4 : Configuration des logs dans appsettings.json & Program.cs
+                title: "⚙️ Configuration des logs",
+                content: `
+                    <div class="space-y-3">
+                        <p>Dans <span class="code-inline">appsettings.json</span> on peut définir le niveau minimal pour chaque catégorie :</p>
+                        <pre><code>{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "VotreNamespace.Controllers": "Debug"
+    }
+  }
+}</code></pre>
+                        <p>Ou en code (<span class="code-inline">Program.cs</span>) :</p>
+                        <pre><code>builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);</code></pre>
+                        <div class="bg-indigo-50 p-3 rounded-xl mt-2">
+                            📌 <strong>Conseil production :</strong> Information / Warning suffisent. Debug réservé au développement.
+                        </div>
+                    </div>
+                `
+            },
+            {   // Slide 5 : Ajouter des logs enrichis dans contrôleurs et services (exemple concret)
+                title: "📌 Logs enrichis dans l'API : exemples pratiques",
+                content: `
+                    <div class="space-y-4">
+                        <p>Exemple complet dans un service métier et contrôleur :</p>
+                        <pre><code>// Service ProduitService.cs
+public class ProduitService : IProduitService
+{
+    private readonly ILogger&lt;ProduitService&gt; _logger;
+    public ProduitService(ILogger&lt;ProduitService&gt; logger) => _logger = logger;
+
+    public async Task&lt;Produit&gt; CreerProduitAsync(ProduitDto dto)
+    {
+        _logger.LogInformation("Création produit: {Nom}, prix: {Prix}", dto.Nom, dto.Prix);
+        try {
+            // sauvegarde...
+            _logger.LogInformation("Produit {Id} créé avec succès", produit.Id);
+            return produit;
+        } catch (Exception ex) {
+            _logger.LogError(ex, "Échec création produit {Nom}", dto.Nom);
+            throw;
+        }
+    }
+}</code></pre>
+                        <p class="text-sm text-gray-700">🌟 <strong>Bonnes pratiques :</strong> Utiliser des paramètres structurés (ex: <span class="code-inline">{ProductId}</span>) pour faciliter le filtrage des logs.</p>
+                    </div>
+                `
+            },
+            {   // Slide 6 : Résumé / TP et mise en garde (dernière slide)
+                title: "🏁 Récapitulatif & Exercice pratique",
+                content: `
+                    <div class="space-y-5">
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="flex gap-2 items-start"><span class="text-xl">✅</span> <span><strong>ILogger&lt;T&gt;</strong> s'injecte partout (contrôleur, service, repository)</span></div>
+                            <div class="flex gap-2 items-start"><span class="text-xl">✅</span> <span>6 niveaux: Trace, Debug, Information, Warning, Error, Critical</span></div>
+                            <div class="flex gap-2 items-start"><span class="text-xl">✅</span> <span>Configuration via appsettings.json ou code pour filtrer la verbosité</span></div>
+                            <div class="flex gap-2 items-start"><span class="text-xl">✅</span> <span>Toujours logger les exceptions avec LogError(ex, message)</span></div>
+                        </div>
+                        <div class="bg-white border-2 border-dashed border-sky-300 p-4 rounded-xl">
+                            <p class="font-semibold">🧪 Mini projet :</p>
+                            <p class="text-sm">Créez un endpoint POST /api/commande, ajoutez ILogger&lt;CommandesController&gt;, loggez "Tentative de création", puis en cas de succès "Commande validée", ou erreur avec LogError. Vérifiez la console.</p>
+                        </div>
+                        <p class="text-xs text-center text-gray-500 pt-2">Prochaine leçon : optimisations et monitoring avancé !</p>
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour rendre le slide actif
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            const wrapper = $('#slidesWrapper');
+            const html = `
+                <div class="slide p-6 md:p-8 transition-all duration-300">
+                    <div class="mb-3 flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Leçon 27 / Logging</span>
+                        <span class="text-sm text-gray-400">${index+1}/${totalSlides}</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-5 border-[#0f3b5c] pl-3 mb-5">${slide.title}</h2>
+                    <div class="prose prose-slate max-w-none text-gray-700">
+                        ${slide.content}
+                    </div>
+                </div>
+            `;
+            wrapper.fadeOut(150, function() {
+                wrapper.html(html);
+                wrapper.fadeIn(200);
+            });
+            
+            // Mise à jour compteur + progression
+            $('#slideCounter').text(`Slide ${index+1} / ${totalSlides}`);
+            const progressPercent = ((index) / (totalSlides - 1)) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            
+            // Gestion des boutons de navigation
+            $('#prevSlide').prop('disabled', index === 0);
+            $('#nextSlide').prop('disabled', index === totalSlides - 1);
+            
+            // Highlight des mini boutons ronds
+            $('[id^="gotoSlide"]').removeClass('bg-[#0f3b5c] text-white').addClass('bg-white text-gray-700');
+            $(`#gotoSlide${index+1}`).removeClass('bg-white text-gray-700').addClass('bg-[#0f3b5c] text-white');
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        function goToSlide(slideNumber) {
+            if (slideNumber >= 1 && slideNumber <= totalSlides) {
+                currentIndex = slideNumber - 1;
+                renderSlide(currentIndex);
+            }
+        }
+
+        $(document).ready(function() {
+            renderSlide(0);
+            
+            // Event handlers
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            $('#gotoSlide1').on('click', () => goToSlide(1));
+            $('#gotoSlide2').on('click', () => goToSlide(2));
+            $('#gotoSlide3').on('click', () => goToSlide(3));
+            $('#gotoSlide4').on('click', () => goToSlide(4));
+            $('#gotoSlide5').on('click', () => goToSlide(5));
+            $('#gotoSlide6').on('click', () => goToSlide(6));
+            $('#gotoSlide7').on('click', () => goToSlide(7));
+            
+            // Navigation au clavier (flèches)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                }
+            });
+            
+            // Support tactile sur mobile par swiping simple (jQuery)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const slidesWrapper = document.getElementById('slidesWrapper');
+            slidesWrapper.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            slidesWrapper.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                if (touchEndX < touchStartX - 50) nextSlide();
+                if (touchEndX > touchStartX + 50) prevSlide();
+            });
+        });
+    </script>
+    <!-- Note: le design intègre toutes les consignes: tailwind, jquery, responsive, slides, couleurs sobres, aucun dessin complexe nécessaire donc pas d'image externe-->
+    <footer class="text-center text-xs text-gray-400 py-6">
+        Cours développé par votre formateur – API .NET (ASP.NET Core) – Logging avancé avec ILogger
+    </footer>
+</body>
+</html>

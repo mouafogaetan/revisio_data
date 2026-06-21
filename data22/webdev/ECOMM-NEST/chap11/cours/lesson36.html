@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 36 : Files d'attente asynchrones avec Bull et Redis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .slide-container { transition: transform 0.4s ease-in-out; }
+        .slide { min-width: 100%; box-sizing: border-box; scroll-snap-align: start; }
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slides-wrapper::-webkit-scrollbar { height: 6px; }
+        .slides-wrapper::-webkit-scrollbar-track { background: #fde68a; border-radius: 10px; }
+        .slides-wrapper::-webkit-scrollbar-thumb { background: #d97706; border-radius: 10px; }
+        .card-hover { transition: all 0.2s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15); }
+        .btn-nav:active { transform: scale(0.96); }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85em;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+        }
+        .badge {
+            background: #d97706;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .queue-card {
+            background: white;
+            border-left: 4px solid #d97706;
+        }
+        .flow-arrow {
+            position: relative;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-5xl mx-auto px-3 md:px-6 py-5 md:py-8">
+    <!-- Header progression -->
+    <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-5 sticky top-2 z-10 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="text-amber-700 font-bold text-lg">⚡ Files d'attente</span>
+            <span class="text-gray-500 text-sm">Lesson 36 - Chap 11</span>
+        </div>
+        <div class="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+            <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+        </div>
+    </div>
+
+    <!-- Slides wrapper -->
+    <div class="slides-wrapper relative flex overflow-x-auto rounded-2xl shadow-xl bg-white" id="slidesWrapper">
+        <div class="slide-container flex" id="slideContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="text-center space-y-5">
+                    <div class="inline-block bg-amber-100 text-amber-800 rounded-full px-5 py-1.5 text-sm font-semibold">⏱️ Traitement asynchrone</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-amber-700 to-orange-600 bg-clip-text text-transparent">Files d'attente avec Bull + Redis</h1>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">Envoyer des emails en background, générer des factures PDF et créer des rapports sans bloquer l'utilisateur</p>
+                    <div class="pt-6 flex justify-center gap-4 text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1">🐂 <span>Bull</span></span>
+                        <span class="flex items-center gap-1">📧 <span>Emails asynchrones</span></span>
+                        <span class="flex items-center gap-1">📄 <span>PDF en arrière-plan</span></span>
+                        <span class="flex items-center gap-1">📊 <span>Rapports</span></span>
+                    </div>
+                    <div class="mt-8 animate-bounce text-amber-500 text-sm">👆 Glissez ou utilisez les boutons 👆</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-amber-500 pl-5 mb-8">🎯 Objectifs</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Comprendre l'utilité des files d'attente asynchrones</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Installer et configurer <strong>@nestjs/bull</strong> avec Redis</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Envoyer des emails de confirmation de commande en background</li>
+                        <li class="flex gap-3 items-start"><span class="text-amber-500 text-xl">✔️</span> Générer des factures PDF et des rapports via des workers</li>
+                    </ul>
+                    <div class="mt-10 bg-amber-50 p-4 rounded-xl italic text-gray-700 border border-amber-200">
+                        💡 <strong>Pourquoi ?</strong> Les opérations longues (envoi d'emails, génération PDF) ne doivent pas bloquer la réponse HTTP.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QU'UNE FILE D'ATTENTE ? -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Concepts</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📬 Qu'est-ce qu'une file d'attente ?</h2>
+                    <div class="queue-card p-4 rounded-lg mb-4">
+                        <p class="font-semibold">Principe : Producteur → Queue → Consommateur (Worker)</p>
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4 my-6">
+                            <div class="text-center p-3 bg-blue-50 rounded-lg flex-1">
+                                <span class="text-2xl">📤</span>
+                                <p class="font-semibold">Producteur</p>
+                                <p class="text-xs">API NestJS qui ajoute un job</p>
+                            </div>
+                            <div class="text-2xl">→</div>
+                            <div class="text-center p-3 bg-amber-50 rounded-lg flex-1">
+                                <span class="text-2xl">📋</span>
+                                <p class="font-semibold">Queue (Redis)</p>
+                                <p class="text-xs">Stockage temporaire des jobs</p>
+                            </div>
+                            <div class="text-2xl">→</div>
+                            <div class="text-center p-3 bg-green-50 rounded-lg flex-1">
+                                <span class="text-2xl">⚙️</span>
+                                <p class="font-semibold">Worker</p>
+                                <p class="text-xs">Processeur qui exécute le job</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <div class="bg-green-50 p-3 rounded-lg">✅ <strong>Avantage 1</strong> : Réponse HTTP immédiate</div>
+                        <div class="bg-green-50 p-3 rounded-lg">✅ <strong>Avantage 2</strong> : Reprise sur échec (retry)</div>
+                        <div class="bg-green-50 p-3 rounded-lg">✅ <strong>Avantage 3</strong> : Scalabilité horizontale</div>
+                        <div class="bg-green-50 p-3 rounded-lg">✅ <strong>Avantage 4</strong> : Traitement par lots</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INSTALLATION ET CONFIGURATION -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Setup technique</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📦 Installation de Bull</h2>
+                    <pre><code># Installation des dépendances
+npm install @nestjs/bull bull
+npm install @types/bull
+
+# Redis doit être installé et en cours d'exécution
+# docker run -d -p 6379:6379 redis
+
+# Configuration dans app.module.ts
+import { BullModule } from '@nestjs/bull';
+
+@Module({
+  imports: [
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+    BullModule.registerQueue({
+      name: 'email',
+    }),
+    BullModule.registerQueue({
+      name: 'invoice',
+    }),
+  ],
+})
+export class AppModule {}</code></pre>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-4 border-l-4 border-amber-500">
+                        ⚠️ <strong>Important</strong> : Redis doit être accessible depuis votre application NestJS.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : ENVOI D'EMAIL AVEC QUEUE -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Exemple concret</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📧 Queue d'envoi d'emails</h2>
+                    <pre><code>// email.processor.ts
+import { Processor, Process } from '@nestjs/bull';
+import { Job } from 'bull';
+
+@Processor('email')
+export class EmailProcessor {
+  @Process('send-confirmation')
+  async handleOrderConfirmation(job: Job) {
+    const { email, orderId, customerName, total } = job.data;
+    
+    console.log(`Envoi d'email à ${email} pour la commande ${orderId}`);
+    
+    // Simulation d'envoi d'email
+    await this.emailService.send({
+      to: email,
+      subject: `Confirmation commande #${orderId}`,
+      html: `&lt;h1&gt;Merci ${customerName} !&lt;/h1&gt;
+             &lt;p&gt;Votre commande de ${total} FCFA est confirmée.&lt;/p&gt;`
+    });
+    
+    return { success: true, orderId };
+  }
+}
+
+// order.service.ts
+async createOrder(cart: Cart) {
+  const order = await this.orderRepository.save(newOrder);
+  
+  // Ajouter un job dans la queue (non bloquant)
+  await this.emailQueue.add('send-confirmation', {
+    email: order.user.email,
+    orderId: order.id,
+    customerName: order.user.firstName,
+    total: order.total
+  });
+  
+  return order; // Réponse immédiate sans attendre l'email
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : GÉNÉRATION DE FACTURES PDF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Traitement lourd</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📄 Génération de PDF en arrière-plan</h2>
+                    <pre><code>// invoice.processor.ts
+@Processor('invoice')
+export class InvoiceProcessor {
+  @Process('generate')
+  async generateInvoice(job: Job) {
+    const { orderId, userId } = job.data;
+    
+    // 1. Récupérer les données de la commande
+    const order = await this.orderService.findOne(orderId);
+    
+    // 2. Générer le PDF (opération longue)
+    const pdfBuffer = await this.pdfService.generateOrderInvoice(order);
+    
+    // 3. Stocker sur S3 ou disque
+    const fileUrl = await this.storageService.upload(
+      `invoices/${orderId}.pdf`,
+      pdfBuffer
+    );
+    
+    // 4. Mettre à jour la commande avec l'URL
+    await this.orderService.updateInvoiceUrl(orderId, fileUrl);
+    
+    // 5. Notifier l'utilisateur
+    await this.emailQueue.add('send-notification', {
+      userId,
+      subject: 'Facture disponible',
+      message: `Votre facture est disponible : ${fileUrl}`
+    });
+    
+    return { fileUrl };
+  }
+}
+
+// invoice.controller.ts
+@Post('orders/:id/invoice')
+@UseGuards(JwtAuthGuard)
+async generateInvoice(@Param('id') orderId: string, @Req() req) {
+  const job = await this.invoiceQueue.add('generate', {
+    orderId,
+    userId: req.user.id
+  });
+  
+  return {
+    message: 'Génération de la facture en cours',
+    jobId: job.id,
+    statusUrl: `/api/invoices/${job.id}/status`
+  };
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : GESTION DES ÉCHECS ET REPRISES -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Robustesse</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔄 Gestion des échecs et reprises</h2>
+                    <pre><code>@Processor('email')
+export class EmailProcessor {
+  @Process({
+    name: 'send',
+    concurrency: 5, // 5 jobs simultanés
+  })
+  async handleEmail(job: Job) {
+    try {
+      // Tentative d'envoi
+      await this.emailService.send(job.data);
+    } catch (error) {
+      // Réessayer jusqu'à 3 fois avec délai exponentiel
+      if (job.attemptsMade < 3) {
+        throw error; // Bull retentera automatiquement
+      }
+      // Après 3 échecs, marquer comme failed
+      await this.logFailedEmail(job.data, error);
+    }
+  }
+}
+
+// Ajout d'un job avec options
+await this.emailQueue.add('send', data, {
+  delay: 5000,           // Délai avant exécution (ms)
+  attempts: 3,           // Nombre de tentatives
+  backoff: {
+    type: 'exponential', // Délai exponentiel entre les tentatives
+    delay: 1000,         // Délai initial
+  },
+  removeOnComplete: true, // Supprimer le job après succès
+  removeOnFail: false,    // Garder les jobs échoués pour analyse
+});</code></pre>
+                    <div class="bg-green-50 p-3 rounded-lg mt-4">
+                        📊 <strong>Surveillance</strong> : Bull fournit des métriques (jobs en attente, actifs, terminés, échoués)
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RÉCAPITULATIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh] flex items-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">📋 Récapitulatif</h2>
+                    <div class="grid gap-4">
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">1️⃣ Bull + Redis</div>
+                            <p>Solution de file d'attente pour NestJS basée sur Redis</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">2️⃣ Producteur / Consommateur</div>
+                            <p>API ajoute des jobs → Queue → Workers traitent les jobs asynchronement</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">3️⃣ Cas d'usage typiques</div>
+                            <p>Envoi d'emails, génération PDF, traitement d'images, rapports, webhooks</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-4 shadow-sm">
+                            <div class="font-bold text-amber-700">4️⃣ Tolérance aux pannes</div>
+                            <p>Reprise automatique, tentatives, délai exponentiel, persistence Redis</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXERCICE INTERACTIF -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-5">🧪 Exercice - Compléter le processeur</h2>
+                    <div class="bg-gray-50 p-5 rounded-2xl shadow-inner">
+                        <p class="font-medium">Complétez le processeur de la queue <code>report</code> pour générer un rapport CSV des commandes :</p>
+                        <pre id="codeEditor" contenteditable="true" class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm my-4 whitespace-pre-wrap outline-none" style="caret-color: white;">@Processor('report')
+export class ReportProcessor {
+  @Process('generate-csv')
+  async generateReport(job: Job) {
+    const { startDate, endDate, userId } = job.data;
+    
+    // 1. Récupérer les commandes dans la période
+    // À compléter
+    
+    // 2. Générer le CSV
+    // À compléter
+    
+    // 3. Stocker le fichier
+    // À compléter
+    
+    // 4. Notifier l'utilisateur
+    // À compléter
+  }
+}</pre>
+                        <button id="checkAnswerBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-6 rounded-full btn-nav transition">✅ Vérifier</button>
+                        <div id="feedbackMsg" class="mt-4 text-sm hidden p-3 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm btn-nav disabled:opacity-40">← Précédent</button>
+        <div class="flex gap-2 overflow-x-auto pb-1" id="dotsContainer"></div>
+        <button id="nextBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-5 rounded-full shadow-sm btn-nav">Suivant →</button>
+    </div>
+    <div class="text-center text-gray-500 text-xs mt-6">
+        📘 Leçon 36 : Files d'attente avec Bull + Redis - Envoi d'emails, factures PDF et rapports - Chapitre 11
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const $wrapper = $('.slides-wrapper');
+    let slides = $('.slide');
+    let totalSlides = slides.length;
+    let currentIndex = 0;
+    let isScrolling = false;
+
+    $('#totalSlides').text(totalSlides);
+    updateDots();
+
+    function updateDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            let activeClass = (i === currentIndex) ? 'bg-amber-600 w-8' : 'bg-gray-300 w-3';
+            dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('#currentSlide').text(currentIndex + 1);
+    }
+
+    function scrollToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= totalSlides) index = totalSlides - 1;
+        currentIndex = index;
+        const slideWidth = slides.first().outerWidth();
+        $wrapper.animate({ scrollLeft: slideWidth * currentIndex }, 300, 'swing');
+        updateDots();
+        $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+        $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+    }
+
+    $wrapper.on('scroll', function() {
+        if (!isScrolling) {
+            requestAnimationFrame(() => {
+                const scrollPos = $wrapper.scrollLeft();
+                const slideWidth = slides.first().outerWidth();
+                let newIndex = Math.round(scrollPos / slideWidth);
+                if (newIndex !== currentIndex && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    updateDots();
+                    $('#currentSlide').text(currentIndex + 1);
+                    $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+                    $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+                }
+                isScrolling = false;
+            });
+            isScrolling = true;
+        }
+    });
+
+    $('#nextBtn').click(() => { if (currentIndex < totalSlides - 1) scrollToSlide(currentIndex + 1); });
+    $('#prevBtn').click(() => { if (currentIndex > 0) scrollToSlide(currentIndex - 1); });
+    $(document).on('click', '.dot', function() { scrollToSlide($(this).data('index')); });
+
+    let resizeTimer;
+    $(window).on('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            let slideWidth = slides.first().outerWidth();
+            $wrapper.scrollLeft(slideWidth * currentIndex);
+        }, 100);
+    });
+
+    // Exercice interactif - Vérification simplifiée
+    $('#checkAnswerBtn').click(function() {
+        let $feedback = $('#feedbackMsg');
+        $feedback.removeClass('hidden');
+        
+        $feedback.removeClass('bg-red-100').addClass('bg-green-100 text-green-800');
+        $feedback.html(`🎉 Voici une implémentation possible :
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded mt-2 text-xs overflow-auto">@Processor('report')
+export class ReportProcessor {
+  @Process('generate-csv')
+  async generateReport(job: Job) {
+    const { startDate, endDate, userId } = job.data;
+    
+    // 1. Récupérer les commandes
+    const orders = await this.orderService.findByDateRange(startDate, endDate);
+    
+    // 2. Générer le CSV
+    const csv = this.convertToCSV(orders);
+    const filename = \`report_\${Date.now()}.csv\`;
+    
+    // 3. Stocker le fichier
+    const fileUrl = await this.storage.upload(\`reports/\${filename}\`, csv);
+    
+    // 4. Notifier l'utilisateur
+    await this.emailQueue.add('send-notification', {
+      userId,
+      subject: 'Rapport CSV prêt',
+      message: \`Votre rapport est disponible : \${fileUrl}\`
+    });
+    
+    return { fileUrl };
+  }
+}</pre>
+        <p class="mt-2">Les jobs sont traités en arrière-plan sans bloquer l'API.</p>`);
+    });
+
+    setTimeout(() => {
+        let slideWidth = slides.first().outerWidth();
+        $wrapper.scrollLeft(slideWidth * currentIndex);
+        $('#prevBtn').addClass('opacity-40');
+    }, 100);
+});
+</script>
+</body>
+</html>

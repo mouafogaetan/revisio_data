@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 41 : Capacités natives avec Expo (Image Picker, Caméra, Scanner)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+            border-radius: 1.8rem;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: #1e293b;
+        }
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .badge-lesson {
+            background: #0891b2;
+        }
+        @media (max-width: 640px) {
+            .slide-card { border-radius: 1.25rem; }
+            .text-responsive { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+<div class="max-w-4xl mx-auto relative">
+    <!-- Contexte matière -->
+    <div class="mb-4 flex flex-wrap justify-between gap-2 items-center">
+        <div class="text-xs md:text-sm font-medium bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm text-gray-600">
+            📱 Matière : Développement d'application mobile e-commerce multiplateforme
+        </div>
+        <div class="text-xs bg-cyan-50 text-cyan-700 px-3 py-1.5 rounded-full">
+            Chapitre 12 · Utiliser les capacités natives
+        </div>
+    </div>
+
+    <!-- Carte principale slide -->
+    <div class="slide-card bg-white shadow-xl border border-gray-100 p-5 md:p-8">
+        <div class="flex justify-between items-center mb-5 pb-2 border-b border-gray-100 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+                <span class="badge-lesson text-white text-xs font-bold px-3 py-1 rounded-full">Leçon 41 / 55</span>
+                <span class="text-gray-500 text-sm">📸 Appareil photo · Galerie · Scanner</span>
+            </div>
+            <div class="text-sm text-gray-400" id="slideCounter">Slide 1 / <span id="totalSlides">0</span></div>
+        </div>
+
+        <!-- zone de contenu dynamique -->
+        <div id="slideContent" class="min-h-[500px] transition-all duration-200"></div>
+
+        <!-- Navigation + progression -->
+        <div class="flex justify-between items-center mt-8 pt-5 border-t border-gray-100 gap-3">
+            <button id="prevSlide" class="nav-btn bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-5 rounded-full shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+                ← Précédent
+            </button>
+            <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                <div id="progressFill" class="progress-bar h-full bg-cyan-600 rounded-full w-0"></div>
+            </div>
+            <button id="nextSlide" class="nav-btn bg-cyan-700 hover:bg-cyan-800 text-white font-semibold py-2 px-6 rounded-full shadow-md transition">
+                Suivant →
+            </button>
+        </div>
+    </div>
+    <p class="text-center text-xs text-gray-400 mt-6">📱 Navigation tactile (glisser) ou boutons – cours adapté mobile</p>
+</div>
+
+<script>
+    // ----- Définition des slides pour la leçon 41 (expo-image-picker, appareil photo, scan code-barres) ----
+    // Objectifs lesson41 : 
+    // 0: Installer expo-image-picker
+    // 1: Prendre/uploader une photo d'avatar
+    // 2: Scanner un code-barres (expo-barcode-scanner)
+    const slides = [
+        {
+            type: "title",
+            title: "📸 Capacités natives : appareil photo, galerie et scan",
+            subtitle: "expo-image-picker & expo-barcode-scanner",
+            emoji: "📱🔍",
+            description: "Apprenez à interagir avec la caméra, la bibliothèque d'images et à scanner des codes‑barres dans votre app React Native (Expo)."
+        },
+        {
+            type: "objectives",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Installer et configurer `expo-image-picker` pour accéder à la galerie et à l'appareil photo",
+                "Permettre à l'utilisateur de prendre une photo ou de choisir une image (avatar, avis produit)",
+                "Intégrer `expo-barcode-scanner` pour scanner des codes‑barres et rechercher rapidement un produit"
+            ]
+        },
+        {
+            type: "concept",
+            title: "📦 Pourquoi utiliser expo-image-picker ?",
+            description: "Expo fournit des modules natifs simples d’emploi pour accéder à la caméra et à la galerie sans configuration complexe.",
+            features: [
+                "✅ Permissions automatiques ou explicites (iOS/Android)",
+                "✅ Recadrage (allowsEditing) et compression (quality)",
+                "✅ Récupération de l’URI locale pour afficher ou uploader",
+                "✅ Support base64 pour envoi direct en JSON"
+            ],
+            note: "Alternative à react-native-image-picker, mais `expo-image-picker` est plus simple dans un projet Expo."
+        },
+        {
+            type: "code_demo",
+            title: "📸 Choisir une image depuis la galerie",
+            codeBlocks: [
+                {
+                    lang: "bash",
+                    title: "1. Installation (déjà incluse dans Expo SDK)",
+                    content: "# expo-image-picker est intégré au SDK Expo. Aucune installation supplémentaire.\nexpo install expo-image-picker"
+                },
+                {
+                    lang: "jsx",
+                    title: "2. Demander permission et ouvrir la galerie",
+                    content: "import * as ImagePicker from 'expo-image-picker';\n\nconst pickImage = async () => {\n  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();\n  if (status !== 'granted') {\n    alert('Permission refusée pour accéder à la galerie');\n    return;\n  }\n  const result = await ImagePicker.launchImageLibraryAsync({\n    mediaTypes: ImagePicker.MediaTypeOptions.Images,\n    allowsEditing: true,\n    aspect: [1, 1],\n    quality: 0.7,\n  });\n  if (!result.canceled) {\n    setSelectedImage(result.assets[0].uri);\n  }\n};"
+                }
+            ],
+            important: "⚠️ `result.assets[0].uri` contient le chemin local. Avec `allowsEditing: true`, l'utilisateur peut recadrer l’image."
+        },
+        {
+            type: "camera_demo",
+            title: "📷 Prendre une photo avec l’appareil photo",
+            description: "Même principe, mais avec `launchCameraAsync`. Pensez à demander la permission caméra.",
+            codeExample: `const takePhoto = async () => {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission caméra refusée');
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    quality: 0.8,
+  });
+  if (!result.canceled) {
+    console.log(result.assets[0].uri);
+    // upload ou affichage
+  }
+};`,
+            tip: "📌 Sur Android, pensez à gérer les cas où le fichier est temporaire. Utilisez `expo-file-system` pour le déplacer si nécessaire."
+        },
+        {
+            type: "barcode",
+            title: "🔍 Scanner un code-barres avec expo-barcode-scanner",
+            content: "Ce module permet d’utiliser la caméra pour lire des codes-barres (EAN-13, Code 128, QR Code, etc.) et rechercher instantanément un produit.",
+            install: "expo install expo-barcode-scanner",
+            codeExample: `import { BarCodeScanner } from 'expo-barcode-scanner';\n\nconst [hasPermission, setHasPermission] = useState(null);\nconst [scanned, setScanned] = useState(false);\n\nuseEffect(() => {\n  (async () => {\n    const { status } = await BarCodeScanner.requestPermissionsAsync();\n    setHasPermission(status === 'granted');\n  })();\n}, []);\n\nconst handleBarCodeScanned = ({ type, data }) => {\n  setScanned(true);\n  alert(Code barre ${data} de type ${type} scanné !);\n  // Rechercher produit via API\n};\n\nif (hasPermission === null) return <Text>Demande de permission...</Text>;\nif (!hasPermission) return <Text>Accès caméra refusé</Text>;\n\nreturn (\n  <View style={{ flex: 1 }}>\n    <BarCodeScanner\n      onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}\n      style={{ flex: 1 }}\n    />\n    {scanned && <Button title=\"Scanner à nouveau\" onPress={() => setScanned(false)} />}\n  </View>\n);`,
+            tip: "💡 Utilisez le scanner pour ajouter rapidement un produit au panier : scannez le code EAN, appelez l'API produit, puis ajoutez-le."
+        },
+        {
+            type: "tips",
+            title: "🧠 Bonnes pratiques & astuces",
+            tips: [
+                "📌 Toujours vérifier les permissions avant d’appeler la caméra/galerie (UX + conformité)",
+                "📌 Compresser les images (quality: 0.6-0.8) pour réduire l’upload",
+                "📌 Pour les avis avec photos, stocker les images sur un CDN et enregistrer les URLs",
+                "📌 Le scanner de codes‑barres peut aussi lire les QR codes (paiement, lien produit)",
+                "📌 Sur Android, ajouter `android:requestLegacyExternalStorage` si besoin pour les vieux OS"
+            ]
+        },
+        {
+            type: "quiz",
+            title: "📝 Vérification des acquis",
+            question: "Quelle est la propriété à utiliser dans le résultat de `launchImageLibraryAsync` pour récupérer l’URI locale de l’image sélectionnée ?",
+            options: [
+                "result.uri",
+                "result.assets[0].uri",
+                "result.localUri",
+                "result.path"
+            ],
+            correctIndex: 1,
+            explanation: "✅ Avec les versions récentes d'expo-image-picker, le résultat contient un tableau `assets`. On accède donc à `result.assets[0].uri`. L'ancienne propriété `result.uri` n'est plus standard ; il faut utiliser `assets`."
+        },
+        {
+            type: "conclusion",
+            title: "🏁 Récapitulatif de la leçon",
+            summary: "Grâce à expo-image-picker et expo-barcode-scanner, vous pouvez intégrer facilement les fonctionnalités natives de caméra, galerie et scan de codes‑barres. Ces outils améliorent l'expérience e-commerce (avatar, upload photo produit, recherche par scan).",
+            nextStep: "Prochaine étape : exploiter la localisation (expo-location) pour la livraison et les magasins proches."
+        }
+    ];
+
+    let currentIndex = 0;
+    const total = slides.length;
+    $("#totalSlides").text(total);
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        let html = '';
+
+        if (slide.type === 'title') {
+            html = `
+                <div class="text-center py-4 md:py-8">
+                    <div class="text-6xl mb-3">${slide.emoji}</div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-cyan-800 to-teal-700 bg-clip-text text-transparent">${slide.title}</h1>
+                    <p class="text-gray-600 text-base md:text-lg mt-3 max-w-xl mx-auto">${slide.subtitle}</p>
+                    <div class="mt-5 bg-cyan-50 inline-block px-5 py-2 rounded-full text-cyan-800 text-sm">⏱️ 20 min · natif facile</div>
+                    <div class="mt-4 text-gray-500">${slide.description}</div>
+                </div>
+            `;
+        } 
+        else if (slide.type === 'objectives') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-6"><span class="text-3xl">📌</span> ${slide.title}</h2>
+                    <ul class="space-y-4">
+                        ${slide.objectives.map(obj => `<li class="flex items-start gap-3 bg-gray-50 p-3 rounded-xl"><span class="text-cyan-500 text-xl">✓</span> <span class="text-gray-700">${obj}</span></li>`).join('')}
+                    </ul>
+                    <div class="mt-6 p-4 bg-teal-50 rounded-2xl border-l-4 border-cyan-400 text-sm">
+                        💡 À la fin, vous saurez ajouter des photos de profil, des images d'avis et scanner des produits par code-barres.
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'concept') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-4">${slide.description}</p>
+                    <ul class="space-y-2 mb-5 bg-gray-50 p-4 rounded-xl">
+                        ${slide.features.map(f => `<li class="flex gap-2"><span class="text-cyan-500">✨</span> <span>${f}</span></li>`).join('')}
+                    </ul>
+                    <div class="bg-amber-50 p-3 rounded-xl text-amber-800 text-sm">📘 ${slide.note}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'code_demo') {
+            let codeHtml = '';
+            slide.codeBlocks.forEach(block => {
+                codeHtml += `<div class="mb-5"><div class="font-mono text-sm text-gray-600 mb-1">${block.title || ''}</div><pre><code class="language-${block.lang}">${escapeHtml(block.content)}</code></pre></div>`;
+            });
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    ${codeHtml}
+                    <div class="bg-red-50 p-3 rounded-xl text-red-700 text-sm border-l-4 border-red-400">${slide.important}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'camera_demo') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">${slide.title}</h2>
+                    <p class="mb-3 text-gray-700">${slide.description}</p>
+                    <pre><code class="language-javascript">${escapeHtml(slide.codeExample)}</code></pre>
+                    <div class="mt-3 text-green-700 bg-green-50 p-3 rounded-lg text-sm">${slide.tip}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'barcode') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">${slide.title}</h2>
+                    <p class="text-gray-700 mb-2">${slide.content}</p>
+                    <div class="bg-gray-100 p-2 rounded-lg font-mono text-xs">📦 ${slide.install}</div>
+                    <pre><code class="language-javascript">${escapeHtml(slide.codeExample)}</code></pre>
+                    <div class="mt-3 text-indigo-700 bg-indigo-50 p-3 rounded-lg text-sm">${slide.tip}</div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'tips') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-5">${slide.title}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        ${slide.tips.map(t => `<div class="bg-white border border-gray-200 p-3 rounded-xl shadow-sm flex gap-2"><span>💡</span> ${t}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'quiz') {
+            html = `
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <div class="bg-indigo-50 p-5 rounded-2xl">
+                        <p class="font-semibold text-gray-800 text-lg mb-4">❓ ${slide.question}</p>
+                        <div class="space-y-3" id="quizOptionsContainer">
+                            ${slide.options.map((opt, idx) => `<label class="flex items-center gap-3 p-3 bg-white rounded-xl border cursor-pointer hover:bg-gray-50"><input type="radio" name="quizRadio" value="${idx}" class="w-4 h-4 text-cyan-600"><span>${opt}</span></label>`).join('')}
+                        </div>
+                        <button id="quizSubmitBtn" class="mt-5 bg-cyan-600 text-white px-6 py-2 rounded-full hover:bg-cyan-700">Vérifier ma réponse</button>
+                        <div id="quizFeedbackMsg" class="mt-4 text-sm"></div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (slide.type === 'conclusion') {
+            html = `
+                <div class="text-center py-6">
+                    <div class="text-5xl mb-3">🏁</div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+                    <p class="text-gray-700 mb-5">${slide.summary}</p>
+                    <div class="bg-green-50 p-4 rounded-2xl text-green-800 text-sm">🚀 ${slide.nextStep}</div>
+                </div>
+            `;
+        }
+
+        $("#slideContent").html(html);
+        $("#slideCounter").text(`Slide ${index+1} / ${total}`);
+        const progressPercent = ((index) / (total - 1)) * 100;
+        $("#progressFill").css("width", `${progressPercent}%`);
+        $("#prevSlide").prop("disabled", index === 0);
+        $("#nextSlide").prop("disabled", index === total-1);
+
+        if (slide.type === 'quiz') {
+            $("#quizSubmitBtn").off('click').on('click', function() {
+                const selectedVal = $("input[name='quizRadio']:checked").val();
+                if (selectedVal === undefined) {
+                    $("#quizFeedbackMsg").html('<span class="text-orange-600">📢 Veuillez choisir une réponse.</span>');
+                    return;
+                }
+                const isCorrect = parseInt(selectedVal) === slide.correctIndex;
+                if (isCorrect) {
+                    $("#quizFeedbackMsg").html(`<span class="text-green-700 bg-green-100 p-2 rounded-lg inline-block">✅ ${slide.explanation}</span>`);
+                } else {
+                    $("#quizFeedbackMsg").html(`<span class="text-red-600 bg-red-50 p-2 rounded-lg inline-block">❌ ${slide.explanation}</span>`);
+                }
+            });
+        }
+    }
+
+    $("#nextSlide").on("click", () => { if (currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    $("#prevSlide").on("click", () => { if (currentIndex > 0) { currentIndex--; renderSlide(currentIndex); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+    
+    let touchStartX = 0;
+    $("#slideContent").on("touchstart", (e) => { touchStartX = e.originalEvent.touches[0].clientX; });
+    $("#slideContent").on("touchend", (e) => {
+        if (!touchStartX) return;
+        const diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0 && currentIndex > 0) { currentIndex--; renderSlide(currentIndex); }
+            else if (diff < 0 && currentIndex < total-1) { currentIndex++; renderSlide(currentIndex); }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        touchStartX = 0;
+    });
+
+    renderSlide(0);
+</script>
+</body>
+</html>

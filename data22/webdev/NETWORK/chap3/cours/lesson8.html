@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Réseaux - Leçon 8 : Masques et Sous-réseaux (CIDR, calculs, VLSM)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            min-height: 100vh;
+        }
+        .slide { display: none; opacity: 0; transition: opacity 0.4s ease; }
+        .slide.active { display: block; opacity: 1; }
+        .nav-btn { transition: all 0.2s; }
+        .nav-btn:hover:not(:disabled) { transform: scale(1.02); background-color: #1e40af !important; }
+        .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        pre {
+            background-color: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 1rem;
+            overflow-x: auto; font-size: 0.8rem; font-family: 'Monaco', monospace;
+        }
+        code { font-family: 'Monaco', monospace; background-color: #e2e8f0; padding: 0.2rem 0.4rem; border-radius: 0.5rem; color: #0f172a; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        .calc-card { background: white; border-radius: 1rem; padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #3b82f6; }
+        .badge-cidr { background-color: #2563eb; color: white; font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 999px; }
+        @media (max-width: 640px) { pre { font-size: 0.65rem; } h2 { font-size: 1.4rem; } }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+    <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden border border-white/40">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active p-6 md:p-10" id="slide1">
+            <div class="flex flex-col items-center text-center space-y-5">
+                <div class="bg-blue-100 rounded-full p-4"><svg class="w-12 h-12 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg></div>
+                <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">Masques, sous-réseaux & VLSM</h1>
+                <p class="text-gray-600 max-w-xl">Comprendre le masque CIDR, calculer adresse réseau, broadcast, hôtes valides et découpage en sous-réseaux</p>
+                <div class="flex gap-2 flex-wrap justify-center"><span class="badge-cidr">IPv4</span><span class="badge-cidr bg-indigo-600">CIDR</span><span class="badge-cidr bg-green-700">Sous-réseau</span></div>
+                <p class="text-sm text-gray-500 mt-4">Lesson 8 · Chapitre 3 · Adressage IP</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10" id="slide2">
+            <div class="border-l-4 border-blue-600 pl-5 mb-6"><h2 class="text-2xl md:text-3xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2></div>
+            <div class="grid gap-4">
+                <div class="flex gap-3 bg-blue-50/60 p-4 rounded-xl"><span class="text-blue-700 font-bold text-xl">1.</span> <span>Comprendre le masque de sous‑réseau et la notation <strong>CIDR</strong> (/8, /16, /24).</span></div>
+                <div class="flex gap-3 bg-blue-50/60 p-4 rounded-xl"><span class="text-blue-700 font-bold text-xl">2.</span> <span>Calculer l’adresse <strong>réseau</strong>, l’adresse de <strong>broadcast</strong> et la plage d’hôtes valides.</span></div>
+                <div class="flex gap-3 bg-blue-50/60 p-4 rounded-xl"><span class="text-blue-700 font-bold text-xl">3.</span> <span>Découper un réseau en sous‑réseaux (VLSM) selon des besoins précis.</span></div>
+                <div class="flex gap-3 bg-blue-50/60 p-4 rounded-xl"><span class="text-blue-700 font-bold text-xl">4.</span> <span>Optimiser l’espace d’adressage avec le masque variable.</span></div>
+            </div>
+            <div class="mt-6 bg-amber-50 p-3 rounded-lg border border-amber-200 text-amber-800 text-sm">💡 À retenir : le masque indique la partie réseau de l’adresse IP. Plus le masque est grand (ex: /30), moins il y a d’hôtes.</div>
+        </div>
+
+        <!-- SLIDE 3 : Rappel notation CIDR et Masque -->
+        <div class="slide p-6 md:p-10" id="slide3">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">🧠 Le masque de sous-réseau</h2>
+            <p>Le masque est un nombre de 32 bits : bits à 1 = partie réseau ; bits à 0 = partie hôte.<br>Notation CIDR : <strong class="text-blue-600">/n</strong> où n = nombre de bits à 1.</p>
+            <div class="grid md:grid-cols-3 gap-4 my-5">
+                <div class="bg-gray-100 p-3 rounded-xl text-center"><span class="font-mono text-blue-800">/8</span> (255.0.0.0)<br>16 777 214 hôtes</div>
+                <div class="bg-gray-100 p-3 rounded-xl text-center"><span class="font-mono text-blue-800">/16</span> (255.255.0.0)<br>65 534 hôtes</div>
+                <div class="bg-gray-100 p-3 rounded-xl text-center"><span class="font-mono text-blue-800">/24</span> (255.255.255.0)<br>254 hôtes</div>
+            </div>
+            <div class="calc-card"><p class="font-semibold">🔢 Calcul du masque :</p><p>Exemple : /26 → 24 bits + 2 bits = 255.255.255.<strong>192</strong> (car 128+64 = 192). Nombre d’hôtes : $2^{(32-26)} - 2 = 2^6 - 2 = 62$ hôtes.</p></div>
+        </div>
+
+        <!-- SLIDE 4 : Calcul adresse réseau / broadcast -->
+        <div class="slide p-6 md:p-10" id="slide4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">📐 Calculs essentiels</h2>
+            <p>Étant donnés une IP et un masque, comment trouver :</p>
+            <ul class="list-disc ml-6 mt-2 space-y-1"><li><strong>Adresse réseau</strong> = IP &amp; masque (ET binaire)</li><li><strong>Adresse broadcast</strong> = réseau + (masque inversé) ou tous les bits hôtes à 1</li><li><strong>Premier hôte</strong> = réseau + 1</li><li><strong>Dernier hôte</strong> = broadcast − 1</li></ul>
+            <div class="mt-4 bg-gray-50 p-4 rounded-xl">
+                <p class="font-mono text-sm">Exemple : 192.168.1.45 /26 (masque 255.255.255.192)</p>
+                <p>Réseau = 192.168.1.<strong>0</strong> (car 45 & 192 = 0)<br>Broadcast = 192.168.1.<strong>63</strong><br>Plage hôtes = 192.168.1.1 → 192.168.1.62</p>
+            </div>
+            <div class="mt-3 text-center text-sm text-gray-500">📌 Formule : nombre d’hôtes = $2^{(32 - \text{mask})} - 2$</div>
+        </div>
+
+        <!-- SLIDE 5 : Découpage en sous-réseaux (VLSM) -->
+        <div class="slide p-6 md:p-10" id="slide5">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">✂️ VLSM : découpage sur mesure</h2>
+            <p>On attribue à chaque sous-réseau le masque qui correspond exactement au nombre d’hôtes requis.</p>
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-xl my-4">
+                <p class="font-bold">Problème classique :</p>
+                <p>Réseau 192.168.10.0/24. Besoins :<br>✔ Sous-réseau A : 50 hôtes → masque /26 (62 hôtes)<br>✔ Sous-réseau B : 28 hôtes → masque /27 (30 hôtes)<br>✔ Sous-réseau C : 12 hôtes → masque /28 (14 hôtes)<br>✔ Liaison point à point : 2 hôtes → masque /30 (2 hôtes)</p>
+            </div>
+            <pre><code>Réseau initial : 192.168.10.0/24
+Sous-réseau A : 192.168.10.0/26  (1-62)
+Sous-réseau B : 192.168.10.64/27 (65-94)
+Sous-réseau C : 192.168.10.96/28 (97-110)
+Liaison P2P : 192.168.10.112/30 (113-114)</code></pre>
+            <p class="text-xs text-gray-500 mt-2">On économise les adresses en évitant le gaspillage.</p>
+        </div>
+
+        <!-- SLIDE 6 : Tableau récapitulatif masques courants -->
+        <div class="slide p-6 md:p-10" id="slide6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">📊 Tableau des masques CIDR</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-xl border">
+                    <thead class="bg-gray-100"><tr><th class="p-2">CIDR</th><th class="p-2">Masque décimal</th><th class="p-2">Nb hôtes</th><th class="p-2">Exemple réseau</th></tr></thead>
+                    <tbody class="text-sm">
+                        <tr class="border-b"><td class="p-2 font-mono">/24</td><td>255.255.255.0</td><td>254</td><td>192.168.1.0</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/25</td><td>255.255.255.128</td><td>126</td><td>192.168.1.128</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/26</td><td>255.255.255.192</td><td>62</td><td>192.168.1.64</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/27</td><td>255.255.255.224</td><td>30</td><td>192.168.1.32</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/28</td><td>255.255.255.240</td><td>14</td><td>192.168.1.16</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/29</td><td>255.255.255.248</td><td>6</td><td>192.168.1.8</td></tr>
+                        <tr class="border-b"><td class="p-2 font-mono">/30</td><td>255.255.255.252</td><td>2</td><td>192.168.1.4</td></tr>
+                        <tr><td class="p-2 font-mono">/31</td><td>255.255.255.254</td><td>0 (RFC 3021)</td><td>liaison P2P sans broadcast</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 p-3 bg-yellow-50 rounded-lg text-yellow-800 text-sm">⚠️ /31 est utilisé pour les liaisons point à point (pas de broadcast, 2 adresses utilisables).</div>
+        </div>
+
+        <!-- SLIDE 7 : Exercice guidé + simulateur de calcul -->
+        <div class="slide p-6 md:p-10" id="slide7">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">🧪 Exercice interactif</h2>
+            <p>Entrez une adresse IPv4 et un masque CIDR pour obtenir le réseau, broadcast et plage.</p>
+            <div class="bg-white p-5 rounded-xl shadow mt-2">
+                <div class="flex flex-col sm:flex-row gap-3 mb-4">
+                    <input type="text" id="ipInput" placeholder="192.168.1.45" class="border p-2 rounded-lg flex-1">
+                    <input type="text" id="cidrInput" placeholder="/26" class="border p-2 rounded-lg w-24">
+                    <button id="calcBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Calculer</button>
+                </div>
+                <div id="resultCalc" class="bg-gray-50 p-3 rounded-lg text-sm font-mono">Résultat : </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-4">🔍 Exemple : 10.0.0.15/28 → Réseau 10.0.0.0/28, Broadcast 10.0.0.15, hôtes 10.0.0.1 → 10.0.0.14</p>
+        </div>
+
+        <!-- SLIDE 8 : résumé -->
+        <div class="slide p-6 md:p-10" id="slide8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-3">📌 Synthèse – Ce qu’il faut maîtriser</h2>
+            <div class="space-y-3">
+                <div class="flex gap-2"><span class="text-green-600">✓</span> Convertir un masque CIDR en décimal</div>
+                <div class="flex gap-2"><span class="text-green-600">✓</span> Calculer réseau & broadcast avec l’opération ET binaire</div>
+                <div class="flex gap-2"><span class="text-green-600">✓</span> Déterminer le nombre d’hôtes : $2^{32-n} - 2$</div>
+                <div class="flex gap-2"><span class="text-green-600">✓</span> Découper un réseau selon des besoins réels (VLSM)</div>
+            </div>
+            <div class="mt-6 bg-blue-100 p-4 rounded-xl text-center">
+                <p class="italic">« Un bon schéma d’adressage évite les conflits et économise les IP. »</p>
+                <p class="text-sm mt-2">Prochaine leçon : IPv6 et routage dynamique</p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center p-6 bg-gray-50/80 border-t border-gray-200 rounded-b-3xl">
+            <button id="prevBtn" class="nav-btn bg-gray-200 text-gray-700 px-5 py-2 rounded-full disabled:opacity-40" disabled>◀ Précédent</button>
+            <span id="slideCounter" class="text-sm text-gray-500">Slide 1 / 8</span>
+            <button id="nextBtn" class="nav-btn bg-blue-700 text-white px-5 py-2 rounded-full shadow-md">Suivant ▶</button>
+        </div>
+    </div>
+    <footer class="text-center text-gray-500 text-xs mt-6">© Enseignant Réseaux - Cameroun | Leçon 8 : Masques, sous-réseaux et VLSM</footer>
+</div>
+
+<script>
+$(document).ready(function(){
+    let current = 1, total = 8;
+    function updateSlides(){
+        $('.slide').removeClass('active');
+        $(`#slide${current}`).addClass('active');
+        $('#slideCounter').text(`Slide ${current} / ${total}`);
+        $('#prevBtn').prop('disabled', current === 1);
+        if(current === total) $('#nextBtn').prop('disabled', true).text('Terminé ✓');
+        else $('#nextBtn').prop('disabled', false).text('Suivant ▶');
+        if(window.MathJax) MathJax.typesetPromise();
+    }
+    $('#nextBtn').click(() => { if(current < total) { current++; updateSlides(); } else alert("Félicitations ! Vous maîtrisez le calcul des sous-réseaux."); });
+    $('#prevBtn').click(() => { if(current > 1) { current--; updateSlides(); } });
+    // calcul interactif
+    function ipToLong(ip){
+        let parts = ip.split('.');
+        if(parts.length !== 4) return null;
+        return ((parseInt(parts[0]) << 24) >>> 0) + ((parseInt(parts[1]) << 16) >>> 0) + ((parseInt(parts[2]) << 8) >>> 0) + parseInt(parts[3]);
+    }
+    function longToIp(long){
+        return [(long >>> 24) & 255, (long >>> 16) & 255, (long >>> 8) & 255, long & 255].join('.');
+    }
+    $('#calcBtn').click(function(){
+        let ip = $('#ipInput').val().trim();
+        let cidr = $('#cidrInput').val().trim();
+        let maskBits = parseInt(cidr.replace('/', ''));
+        if(isNaN(maskBits) || maskBits < 0 || maskBits > 32){
+            $('#resultCalc').html('<span class="text-red-600">Masque invalide (ex: /24, /26)</span>');
+            return;
+        }
+        let ipLong = ipToLong(ip);
+        if(ipLong === null){
+            $('#resultCalc').html('<span class="text-red-600">Adresse IPv4 invalide</span>');
+            return;
+        }
+        let maskLong = (~0 << (32 - maskBits)) >>> 0;
+        let networkLong = ipLong & maskLong;
+        let broadcastLong = networkLong | (~maskLong >>> 0);
+        let firstHost = networkLong + 1;
+        let lastHost = broadcastLong - 1;
+        let hostsCount = (maskBits === 31) ? 2 : (1 << (32 - maskBits)) - 2;
+        if(maskBits === 31) hostsCount = 2;
+        if(maskBits === 32) hostsCount = 1;
+        $('#resultCalc').html(`
+            <div class="space-y-1 text-sm">
+                <p><strong>Réseau :</strong> ${longToIp(networkLong)}/${maskBits}</p>
+                <p><strong>Broadcast :</strong> ${longToIp(broadcastLong)}</p>
+                <p><strong>Plage hôtes :</strong> ${longToIp(firstHost)} → ${longToIp(lastHost)}</p>
+                <p><strong>Nombre d'hôtes utilisables :</strong> ${hostsCount}</p>
+            </div>
+        `);
+    });
+    // touch swipe
+    let touchStartX=0, touchEndX=0;
+    $('.slide').on('touchstart', e => touchStartX = e.originalEvent.touches[0].clientX);
+    $('.slide').on('touchend', e => {
+        touchEndX = e.originalEvent.changedTouches[0].clientX;
+        if(touchStartX - touchEndX > 60 && current < total) { current++; updateSlides(); }
+        else if(touchEndX - touchStartX > 60 && current > 1) { current--; updateSlides(); }
+    });
+});
+</script>
+</body>
+</html>

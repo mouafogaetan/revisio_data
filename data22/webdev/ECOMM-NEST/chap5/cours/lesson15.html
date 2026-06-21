@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 15 : Gestion du panier d'achat | API E-commerce</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .snap-scroll { scroll-snap-type: x mandatory; overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .snap-scroll .slide { scroll-snap-align: start; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .code-block { background: #0f172a; color: #e2e8f0; border-radius: 1rem; padding: 1rem; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; }
+        @media (max-width: 640px) { .code-block { font-size: 0.7rem; padding: 0.75rem; } }
+        .card-lesson { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02); }
+        .badge-cart { background: #f59e0b; color: white; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+    <!-- En-tête -->
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
+        <div>
+            <span class="text-sm font-semibold text-amber-700 bg-amber-100 px-3 py-1 rounded-full">📘 API E-commerce / NestJS</span>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">Développement d'une API e-commerce</h1>
+        </div>
+        <div class="badge-cart px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">Leçon 15 : Panier d'achat</div>
+    </div>
+
+    <!-- Slides horizontaux -->
+    <div class="relative mt-3">
+        <div id="slidesWrapper" class="snap-scroll flex overflow-x-auto no-scrollbar rounded-2xl gap-4" style="scroll-snap-type: x mandatory;">
+            
+            <!-- SLIDE 1 : Titre -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="0">
+                <div class="card-lesson p-6 md:p-10 h-full flex flex-col justify-center items-center text-center min-h-[70vh]">
+                    <div class="inline-block p-4 bg-amber-100 rounded-full mb-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M17 13l1.5 6M9 21h6M12 15v6" />
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-black text-gray-800 mb-4">Gestion du panier d'achat</h2>
+                    <p class="text-xl text-gray-600">Entités Cart & CartItem, liaison utilisateur, panier anonyme</p>
+                    <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-gray-500">
+                        <span>🛒 Chapitre 5</span><span>•</span><span>⚡ Leçon 15</span><span>•</span><span>🔐 Panier connecté & anonyme</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="1">
+                <div class="card-lesson p-6 md:p-10 h-full min-h-[70vh]">
+                    <div class="flex items-center gap-3 border-b pb-3 border-gray-200 mb-5">
+                        <span class="text-3xl">🎯</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4 text-gray-700 text-lg md:text-xl list-disc pl-6">
+                        <li>✅ Créer les entités <strong>Cart</strong> et <strong>CartItem</strong></li>
+                        <li>✅ Lier le panier à l'utilisateur (relation <strong>OneToOne</strong>)</li>
+                        <li>✅ Gérer le panier anonyme avec session/visitorId</li>
+                        <li>✅ Fusionner le panier anonyme lors de la connexion</li>
+                    </ul>
+                    <div class="mt-10 bg-amber-50 p-5 rounded-xl text-amber-800 text-sm italic border-l-4 border-amber-400">
+                        💡 Un panier peut exister sans utilisateur connecté (via un identifiant temporaire). À la connexion, on fusionne les deux paniers.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Entité Cart -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="2">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-3"><span class="text-3xl">🛒</span> 1. Entité Cart</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// cart.entity.ts
+import { Entity, PrimaryGeneratedColumn, OneToOne, OneToMany, Column, JoinColumn } from 'typeorm';
+import { User } from './user.entity';
+import { CartItem } from './cart-item.entity';
+
+@Entity()
+export class Cart {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @OneToOne(() => User, user => user.cart, { nullable: true })
+    @JoinColumn()
+    user: User | null;
+
+    @Column({ nullable: true })
+    visitorId: string;  // Pour le panier anonyme
+
+    @OneToMany(() => CartItem, item => item.cart, { cascade: true })
+    items: CartItem[];
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+    createdAt: Date;
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
+    updatedAt: Date;
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : Entité CartItem -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="3">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📦 2. Entité CartItem</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// cart-item.entity.ts
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from 'typeorm';
+import { Cart } from './cart.entity';
+import { Product } from './product.entity';
+
+@Entity()
+export class CartItem {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ManyToOne(() => Cart, cart => cart.items)
+    cart: Cart;
+
+    @ManyToOne(() => Product)
+    product: Product;
+
+    @Column({ default: 1 })
+    quantity: number;
+
+    // Variation (taille, couleur) - stockée en JSON
+    @Column({ type: 'json', nullable: true })
+    variation: Record<string, string>;
+}</code></pre>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg text-sm">📌 Le champ <code>variation</code> permet de stocker les options choisies (ex: {"size": "L", "color": "rouge"}).</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Relation OneToOne dans User -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="4">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔗 3. Relation OneToOne dans User</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// Dans user.entity.ts
+@OneToOne(() => Cart, cart => cart.user, { cascade: true })
+cart: Cart;
+
+// Création automatique du panier à l'inscription
+@BeforeInsert()
+async createCart() {
+    this.cart = new Cart();
+    this.cart.user = this;
+}</code></pre>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg text-sm">✅ Chaque utilisateur a un panier unique (OneToOne). À l'inscription, on crée automatiquement son panier vide.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Panier anonyme avec visitorId -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="5">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">👤 4. Panier anonyme (visitorId)</h2>
+                    <p class="text-gray-700 mb-3">Pour les visiteurs non connectés, on utilise un identifiant temporaire stocké dans le localStorage ou envoyé dans les headers.</p>
+                    <div class="code-block mb-4">
+                        <pre><code>// Récupération ou création du panier
+async getOrCreateCart(visitorId?: string, userId?: string): Promise&lt;Cart&gt; {
+    if (userId) {
+        // Utilisateur connecté : panier lié à son compte
+        const user = await this.userService.findOne(userId);
+        if (user.cart) return user.cart;
+        return this.createCartForUser(userId);
+    }
+    
+    if (visitorId) {
+        let cart = await this.cartRepository.findOne({ where: { visitorId }, relations: ['items', 'items.product'] });
+        if (cart) return cart;
+    }
+    
+    // Créer un nouveau panier anonyme
+    return this.cartRepository.save({ visitorId: visitorId || uuidv4() });
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Fusion des paniers à la connexion -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="6">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔄 5. Fusion panier anonyme → connecté</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>async mergeCarts(visitorId: string, userId: string): Promise&lt;Cart&gt; {
+    const anonymousCart = await this.cartRepository.findOne({ where: { visitorId }, relations: ['items'] });
+    const userCart = await this.getCartByUserId(userId);
+    
+    if (!anonymousCart) return userCart;
+    
+    // Fusionner les articles
+    for (const item of anonymousCart.items) {
+        await this.addItemToCart(userCart.id, item.productId, item.quantity, item.variation);
+    }
+    
+    // Supprimer le panier anonyme
+    await this.cartRepository.remove(anonymousCart);
+    return this.getCartWithItems(userCart.id);
+}</code></pre>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-lg text-sm">✨ Appeler cette méthode juste après la connexion (login ou register).</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Service Cart - méthodes principales -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="7">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">⚙️ 6. Service Cart - méthodes essentielles</h2>
+                    <div class="code-block text-sm">
+                        <pre><code>// Ajouter un produit
+async addItem(cartId: string, productId: string, quantity: number, variation?: any) {
+    const cart = await this.getCart(cartId);
+    const product = await this.productService.findOne(productId);
+    
+    let item = cart.items.find(i => i.product.id === productId && JSON.stringify(i.variation) === JSON.stringify(variation));
+    if (item) {
+        item.quantity += quantity;
+    } else {
+        item = this.cartItemRepository.create({ cart, product, quantity, variation });
+    }
+    return this.cartItemRepository.save(item);
+}
+
+// Modifier quantité
+async updateQuantity(itemId: string, quantity: number) { ... }
+
+// Supprimer un item
+async removeItem(itemId: string) { ... }
+
+// Vider le panier
+async clearCart(cartId: string) {
+    await this.cartItemRepository.delete({ cart: { id: cartId } });
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Exercice pratique -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="8">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Exercice : Implémentez la fusion</h2>
+                    <p class="mb-3">Écrivez la méthode <code>mergeCarts</code> qui prend un visitorId et un userId et retourne le panier fusionné.</p>
+                    <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                        <p class="font-mono text-sm">// À compléter dans CartService</p>
+                    </div>
+                    <button id="revealAnswerBtn" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-6 rounded-full transition">Voir la correction</button>
+                    <div id="answerBox" class="hidden mt-5 bg-green-100 p-4 rounded-xl text-green-800 border border-green-300">
+                        ✅ <strong>Correction :</strong><br>
+                        <code>async mergeCarts(visitorId: string, userId: string): Promise&lt;Cart&gt; {<br>
+                        &nbsp;&nbsp;const anonymousCart = await this.cartRepository.findOne({ where: { visitorId }, relations: ['items', 'items.product'] });<br>
+                        &nbsp;&nbsp;const userCart = await this.getCartByUserId(userId);<br>
+                        &nbsp;&nbsp;if (!anonymousCart) return userCart;<br>
+                        &nbsp;&nbsp;for (const item of anonymousCart.items) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;await this.addItemToCart(userCart.id, item.product.id, item.quantity, item.variation);<br>
+                        &nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;await this.cartRepository.remove(anonymousCart);<br>
+                        &nbsp;&nbsp;return this.getCartWithItems(userCart.id);<br>
+                        }</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : Résumé -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="9">
+                <div class="card-lesson p-6 md:p-10 h-full flex flex-col justify-center min-h-[70vh]">
+                    <h2 class="text-3xl font-extrabold text-center text-gray-800 mb-6">📌 En résumé</h2>
+                    <div class="space-y-4 max-w-xl mx-auto">
+                        <div class="flex gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Entités <strong>Cart</strong> (OneToOne User) et <strong>CartItem</strong> (ManyToOne Product)</span></div>
+                        <div class="flex gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Panier anonyme via <code>visitorId</code> (UUID stocké côté client)</span></div>
+                        <div class="flex gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Fusion automatique à la connexion pour ne pas perdre les articles</span></div>
+                        <div class="flex gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Gestion des variations (taille, couleur) en JSON</span></div>
+                    </div>
+                    <div class="text-center mt-10 text-gray-500 text-sm border-t pt-5">
+                        🚀 Prochaine leçon : Manipulation du panier (ajout, modification, suppression)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dots indicateurs -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dotsContainer"></div>
+
+        <!-- Boutons navigation -->
+        <div class="flex justify-between items-center mt-5 gap-4">
+            <button id="prevSlide" class="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm disabled:opacity-40 transition">◀ Précédent</button>
+            <button id="nextSlide" class="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm">Suivant ▶</button>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-5">👆 Glissez horizontalement ou utilisez les boutons</p>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        const $wrapper = $('#slidesWrapper');
+        const slides = $('.slide');
+        const totalSlides = slides.length;
+        let currentIndex = 0;
+
+        // Création des dots
+        const $dotsContainer = $('#dotsContainer');
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = $('<button>').addClass('w-2.5 h-2.5 rounded-full mx-1 bg-gray-300 transition-all duration-200 focus:outline-none').attr('data-index', i);
+            if (i === 0) dot.addClass('bg-amber-600 w-3.5 h-3.5');
+            dot.on('click', function() { goToSlide(parseInt($(this).attr('data-index'))); });
+            $dotsContainer.append(dot);
+        }
+
+        function updateDots() {
+            $('#dotsContainer button').each(function(idx) {
+                const $dot = $(this);
+                if (idx === currentIndex) {
+                    $dot.removeClass('bg-gray-300').addClass('bg-amber-600');
+                    $dot.css({ width: '0.9rem', height: '0.9rem' });
+                } else {
+                    $dot.removeClass('bg-amber-600').addClass('bg-gray-300');
+                    $dot.css({ width: '0.65rem', height: '0.65rem' });
+                }
+            });
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentIndex = index;
+            const slideEl = slides[currentIndex];
+            if (slideEl) {
+                $wrapper.animate({ scrollLeft: slideEl.offsetLeft - $wrapper.offset().left + $wrapper.scrollLeft() }, 280);
+            }
+            updateDots();
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+        }
+
+        $('#prevSlide').on('click', () => goToSlide(currentIndex - 1));
+        $('#nextSlide').on('click', () => goToSlide(currentIndex + 1));
+
+        $wrapper.on('scroll', function() {
+            let newIndex = 0;
+            let minDiff = Infinity;
+            const scrollLeftVal = $wrapper.scrollLeft();
+            slides.each(function(idx) {
+                const slideLeft = $(this).offset().left - $wrapper.offset().left;
+                const diff = Math.abs(scrollLeftVal - slideLeft);
+                if (diff < minDiff) { minDiff = diff; newIndex = idx; }
+            });
+            if (newIndex !== currentIndex) {
+                currentIndex = newIndex;
+                updateDots();
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+            }
+        });
+
+        $('#revealAnswerBtn').on('click', function() { $('#answerBox').removeClass('hidden'); });
+
+        goToSlide(0);
+        $(window).on('resize', function() {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(() => {
+                const slideEl = slides[currentIndex];
+                if (slideEl) $wrapper.scrollLeft(slideEl.offsetLeft - $wrapper.offset().left + $wrapper.scrollLeft());
+            }, 100);
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+[
+  {
+    "intitule": "Configuration de TypeORM avec PostgreSQL",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS utilisant TypeORM et PostgreSQL, vous devez configurer la connexion à la base de données. Voici un extrait de code partiel :</p><pre><code>// app.module.ts\nimport { Module } from '@nestjs/common';\nimport { TypeOrmModule } from '@nestjs/typeorm';\n\n@Module({\n  imports: [\n    TypeOrmModule.forRoot({\n      type: 'postgres',\n      // ... configuration manquante\n    }),\n  ],\n})\nexport class AppModule {}\n</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les quatre propriétés de configuration minimales nécessaires pour établir une connexion à une base de données PostgreSQL avec TypeORM.",
+        "niveau": "easy",
+        "reponse": "Les propriétés minimales sont : `host` (hôte du serveur, ex: localhost), `port` (port par défaut 5432), `username` (nom d'utilisateur), `password` (mot de passe), `database` (nom de la base).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez le rôle de l'option `synchronize: true` dans la configuration TypeORM. Pourquoi est-il déconseillé en production ?",
+        "niveau": "medium",
+        "reponse": "`synchronize: true` permet à TypeORM de synchroniser automatiquement le schéma de la base de données avec les entités à chaque démarrage de l'application (création/modification de tables). En production, c'est dangereux car cela peut entraîner une perte de données ou des modifications non contrôlées du schéma. On utilise plutôt les migrations en production.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création et exécution d'une migration",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous avez créé une nouvelle entité <code>Product</code> avec les champs suivants : <code>id</code> (clé primaire), <code>name</code> (string, non nul), <code>price</code> (decimal, non nul), <code>stock</code> (integer, valeur par défaut 0), <code>createdAt</code> (timestamp).</p><p>La base de données PostgreSQL est déjà en production et contient d'autres tables. Vous devez appliquer ce changement de schéma sans perte de données.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quelle commande TypeORM devez-vous exécuter pour générer automatiquement un fichier de migration basé sur les différences entre vos entités et la base existante ?",
+        "niveau": "easy",
+        "reponse": "`npm run typeorm migration:generate -- src/migrations/CreateProductTable -d src/data-source.ts` (ou équivalent selon la configuration : `typeorm migration:generate`). Cette commande analyse les entités et génère un fichier de migration avec les requêtes SQL `CREATE TABLE` ou `ALTER TABLE`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Après avoir généré et vérifié le fichier de migration, quelles commandes permettent respectivement d'appliquer la migration et d'annuler la dernière migration appliquée ?",
+        "niveau": "easy",
+        "reponse": "`npm run typeorm migration:run` pour appliquer les migrations en attente (créer la table Product). `npm run typeorm migration:revert` pour annuler la dernière migration appliquée (supprimer la table Product si elle a été créée par cette migration).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Comparez l'approche `synchronize: true` et l'approche par migrations pour la gestion du schéma en production. Justifiez quel choix est recommandé.",
+        "niveau": "hard",
+        "reponse": "`synchronize: true` modifie automatiquement le schéma au démarrage, ce qui est rapide pour le développement mais dangereux en production (risque de suppression de données, pas de traçabilité, pas de rollback). Les migrations offrent un contrôle total : chaque changement est versionné dans un fichier SQL, peut être révisé, exécuté manuellement ou en CI/CD, et peut être annulé (`revert`). Les migrations sont la seule approche professionnelle pour la production.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise en place des seeds pour données initiales",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous développez une API e-commerce avec NestJS, TypeORM et PostgreSQL. Pour les tests et le développement, vous souhaitez pré-remplir la base avec des données initiales : des rôles (admin, customer, seller), un administrateur par défaut, et quelques catégories de produits.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez un fichier de seed (ex: `src/seeds/initial.seed.ts`) qui insère trois rôles dans la table `role` en utilisant le QueryBuilder ou l'API du repository TypeORM. Écrivez le code TypeScript correspondant.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport { DataSource } from 'typeorm';\nimport { Role } from '../entities/role.entity';\n\nexport async function seedInitialRoles(dataSource: DataSource) {\n  const roleRepository = dataSource.getRepository(Role);\n  const roles = [\n    { name: 'admin', description: 'Administrateur' },\n    { name: 'customer', description: 'Client' },\n    { name: 'seller', description: 'Vendeur' },\n  ];\n  for (const roleData of roles) {\n    const exists = await roleRepository.findOne({ where: { name: roleData.name } });\n    if (!exists) {\n      await roleRepository.save(roleData);\n    }\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez comment exécuter ce seed de manière autonome (sans lancer toute l'application) en utilisant un script npm ou une commande TypeORM dédiée.",
+        "niveau": "hard",
+        "reponse": "On peut créer un script séparé qui initialise la connexion TypeORM, appelle la fonction de seed, puis ferme la connexion. Exemple dans `package.json` : `\"seed\": \"ts-node -r tsconfig-paths/register src/seeds/run-seeds.ts\"`. Dans `run-seeds.ts`, on crée une `DataSource`, on l'initialise, on appelle les fonctions de seed, puis on destroy. On peut aussi utiliser la librairie `typeorm-seeding` ou exécuter les seeds après les migrations en développement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposez une stratégie pour que les seeds soient exécutées automatiquement après les migrations en environnement de test, mais pas en production (sauf si explicitement demandé).",
+        "niveau": "very hard",
+        "reponse": "On peut utiliser les variables d'environnement : `RUN_SEEDS=true`. Dans le script de seed, vérifier `process.env.NODE_ENV === 'test' || process.env.RUN_SEEDS === 'true'`. En production, ne jamais exécuter les seeds automatiquement. On peut aussi créer un script npm séparé `npm run seed:prod` qui ne s'exécute qu'avec un flag explicite. En CI/CD, pour l'environnement de test, on exécute les migrations puis les seeds avant les tests.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Migration pour ajout d'une colonne avec contrainte NOT NULL",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter une colonne obligatoire `slug` (chaîne unique) à une table `category` qui contient déjà 10 000 catégories en production. La colonne ne doit pas être NULL pour les nouvelles entrées, mais les enregistrements existants n'ont pas encore de slug.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez les étapes pour créer une migration sécurisée qui ajoute la colonne `slug` sans perdre de données et en respectant la contrainte NOT NULL.",
+        "niveau": "hard",
+        "reponse": "1. Créer une migration avec `ALTER TABLE category ADD COLUMN slug VARCHAR(255)` (sans NOT NULL d'abord). 2. Mettre à jour les enregistrements existants : générer un slug unique pour chaque ligne (ex: à partir du nom). 3. Une fois tous les slugs remplis, modifier la colonne avec `ALTER TABLE category ALTER COLUMN slug SET NOT NULL` + ajouter une contrainte UNIQUE. 4. Versionner la migration. L'alternative est de faire tout en une seule migration avec des requêtes SQL séquentielles.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez les requêtes SQL (compatibles PostgreSQL) nécessaires pour cette migration, en supposant que vous générez le slug en utilisant `LOWER(REPLACE(name, ' ', '-'))` comme base, et en gérant les doublons avec un suffixe numérique.",
+        "niveau": "very hard",
+        "reponse": "```sql\n-- 1. Ajout de la colonne nullable\nALTER TABLE category ADD COLUMN slug VARCHAR(255);\n\n-- 2. Mise à jour temporaire : génération de slug unique avec gestion des doublons\nUPDATE category SET slug = \n  LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', '-', 'g'));\n\n-- Résolution des doublons (ajout d'un compteur)\nWITH duplicates AS (\n  SELECT id, slug, ROW_NUMBER() OVER (PARTITION BY slug ORDER BY id) - 1 AS rn\n  FROM category\n)\nUPDATE category SET slug = duplicates.slug || \n  CASE WHEN duplicates.rn > 0 THEN '-' || duplicates.rn ELSE '' END\nFROM duplicates WHERE category.id = duplicates.id;\n\n-- 3. Ajout des contraintes\nALTER TABLE category ALTER COLUMN slug SET NOT NULL;\nALTER TABLE category ADD CONSTRAINT category_slug_unique UNIQUE (slug);\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration TypeORM avec variables d'environnement",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous travaillez sur un projet NestJS qui doit se connecter à PostgreSQL. Les informations de connexion sont différentes selon l'environnement (développement, test, production).</p><pre><code>// .env.development\nDB_HOST=localhost\nDB_PORT=5432\nDB_USER=dev_user\nDB_PASSWORD=dev_pass\nDB_NAME=ecommerce_dev\n\n// .env.production\nDB_HOST=prod-db.example.com\nDB_PORT=5432\nDB_USER=prod_user\nDB_PASSWORD=secure_pass\nDB_NAME=ecommerce_prod\n</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez comment configurer le module TypeORM dans `AppModule` pour utiliser dynamiquement les variables d'environnement via `@nestjs/config`.",
+        "niveau": "medium",
+        "reponse": "Importer `ConfigModule.forRoot()` (avec `envFilePath` selon l'environnement), puis utiliser `ConfigService` dans `TypeOrmModule.forRootAsync()` pour injecter les valeurs dynamiquement. Exemple : `useFactory: (config: ConfigService) => ({ type: 'postgres', host: config.get('DB_HOST'), port: config.get('DB_PORT'), username: config.get('DB_USER'), password: config.get('DB_PASSWORD'), database: config.get('DB_NAME'), entities: [__dirname + '/**/*.entity{.ts,.js}'], synchronize: false, migrations: [__dirname + '/migrations/**/*{.ts,.js}'] })`, avec `inject: [ConfigService]`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Quelle est l'utilité du fichier `ormconfig.js` (ou `data-source.ts`) séparé ? Dans quel cas l'utiliser plutôt que la configuration dans `AppModule` ?",
+        "niveau": "medium",
+        "reponse": "Un fichier `data-source.ts` (ou `ormconfig.js`) permet de centraliser la configuration TypeORM pour être utilisé par la CLI TypeORM (migrations, seeds) en dehors du contexte NestJS. Les commandes `typeorm migration:run` nécessitent un fichier de configuration exportant un `DataSource`. On peut le garder synchronisé avec la config NestJS en important les mêmes variables d'environnement.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,142 @@
+[
+  {
+    "intitule": "Configuration des widgets iOS dans Expo",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous souhaitez ajouter un widget iOS à votre application e-commerce React Native (Expo). Le widget doit afficher le nombre d’articles dans le panier et le montant total. Les données du panier sont stockées dans <code>AsyncStorage</code> avec le store Zustand.</p><p>Le widget utilise un <code>AppGroup</code> pour partager les données entre l’application principale et l’extension widget. Le chemin d’accès au groupe est <code>group.com.monapp.panier</code>.</p>",
+      "images": [
+        "Schéma d’un widget iOS affichant le panier sur l’écran d’accueil",
+        "Configuration d’un App Group dans Xcode pour partager UserDefaults"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le rôle d’un App Group dans le contexte des widgets iOS et comment il permet de synchroniser les données du panier entre l’app et le widget.",
+        "niveau": "medium",
+        "reponse": "Un App Group est un conteneur partagé accessible par plusieurs extensions et l’application principale. Il permet de partager des données via UserDefaults ou CoreData. Pour le panier, l’app écrit le panier dans le groupe, le widget le lit pour afficher les informations en temps réel.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire les étapes de configuration nécessaires dans <code>app.json</code> (Expo) pour activer les widgets iOS, et la structure de code pour écrire les données du panier dans le App Group.",
+        "niveau": "very hard",
+        "reponse": "Dans app.json, ajouter `\"ios\": { \"supportsTablet\": true, \"bundleIdentifier\": \"com.monapp\", \"entitlements\": { \"com.apple.security.application-groups\": [\"group.com.monapp.panier\"] } }`. Dans le code, utiliser `expo-user-defaults` ou `expo-app-group` pour écrire : `await AppGroup.setItemAsync('cartCount', count.toString(), 'group.com.monapp.panier')`. Le widget lit ensuite ces valeurs.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation des raccourcis Android (Quick Actions)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Une application mobile souhaite proposer des raccourcis (quick actions) sur l’icône de l’application Android pour accéder directement au panier, aux favoris et à la recherche. Les raccourcis sont dynamiques (le contenu peut varier selon l’utilisateur).</p><p>La bibliothèque <code>expo-quick-actions</code> est utilisée.</p>",
+      "images": [
+        "Capture d’écran des raccourcis Android (long press sur icône)",
+        "Diagramme de cycle de vie des raccourcis dynamiques"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analyser la différence entre les raccourcis statiques (déclarés dans AndroidManifest.xml) et les raccourcis dynamiques (créés à l’exécution). Justifier pourquoi les raccourcis dynamiques sont préférables pour un panier personnalisé.",
+        "niveau": "medium",
+        "reponse": "Statiques : définis au build, immuables. Dynamiques : créés par l’app, peuvent changer selon l’état (ex: nombre d’articles). Pour le panier, dynamique permet d’afficher “Voir panier (2 articles)” si le panier n’est pas vide. Plus pertinent et flexible.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Rédiger le code TypeScript (React Native / Expo) pour créer un raccourci dynamique vers l’écran panier lorsque l’utilisateur ajoute un premier article. Inclure la gestion du clic pour naviguer vers le bon écran.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as QuickActions from 'expo-quick-actions';\n\nconst updateQuickActions = (cartItemsCount: number) => {\n  if (cartItemsCount > 0) {\n    QuickActions.setItems([{\n      title: `Panier (${cartItemsCount} article)`,\n      icon: 'shopping-cart',\n      id: 'cart',\n      params: { screen: 'Cart' }\n    }]);\n  } else {\n    QuickActions.clearItems();\n  }\n};\n\n// Dans le composant racine\nQuickActions.addListener(({ id }) => {\n  if (id === 'cart') navigation.navigate('Cart');\n});\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Widget panier sur l’écran d’accueil (iOS & Android)",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L’équipe produit souhaite un widget “panier” visible sur l’écran d’accueil (iOS et Android). Sur iOS, le widget affiche les 3 derniers articles ajoutés et le total. Sur Android, le widget (via <code>expo-home-widget</code> ou équivalent) affiche simplement le nombre d’articles.</p><p>Les données sont partagées via un mécanisme de stockage commun (App Group pour iOS, SharedPreferences pour Android).</p>",
+      "images": [
+        "Comparaison visuelle widget iOS (avec images) et widget Android (texte simple)",
+        "Schéma de synchronisation des données panier vers le widget"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les limites techniques des widgets Android avec Expo (React Native) et proposer une solution alternative pour afficher le compteur du panier.",
+        "niveau": "hard",
+        "reponse": "Expo ne supporte pas nativement les widgets Android en JavaScript. Solution : utiliser une bibliothèque comme <code>react-native-home-widget</code> (exige eject) ou implémenter un composant natif. Alternative plus simple : afficher un badge sur l’icône (compteur) via <code>expo-notifications</code> avec setBadgeCountAsync. Limite : pas d’interactivité.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Évaluer l’impact sur la batterie et les performances de la mise à jour fréquente du widget (toutes les 15 minutes). Proposer une stratégie de rafraîchissement plus intelligente (basée sur les événements de l’app).",
+        "niveau": "medium",
+        "reponse": "Des mises à jour trop fréquentes épuisent la batterie et peuvent être limitées par iOS (budget d’exécution). Stratégie : mise à jour uniquement lorsque l’utilisateur modifie le panier (ajout/suppression), en écrivant les données partagées et en forçant le rechargement via `WidgetCenter.reloadAllTimelines()` (iOS). Éviter les mises à jour temporisées. Sur Android, utiliser WorkManager avec intervalle plus long.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Déploiement et test des widgets sur les stores",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous avez développé un widget panier pour l’application e-commerce. Avant de publier la mise à jour sur le Play Store et l’App Store, vous devez tester les fonctionnalités et préparer les assets nécessaires.</p>",
+      "images": [
+        "Checklist de soumission App Store pour les widgets",
+        "Console Google Play : ajout d’images de widget (prise de vue)"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Enumérer les assets spécifiques que vous devez fournir pour chaque store concernant les widgets (icônes, captures d’écran, tailles).",
+        "niveau": "medium",
+        "reponse": "iOS : images pour chaque taille de widget (small, medium, large) dans l’App Store Connect. Android : captures d’écran du widget sur l’écran d’accueil (au moins une). Pas d’icône supplémentaire si l’icône de l’app est utilisée.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer un plan de test (cas de test) pour valider le widget avant publication. Inclure les scénarios de panier vide, panier avec articles, déconnexion, suppression d’articles.",
+        "niveau": "medium",
+        "reponse": "1. Panier vide → widget affiche “0 article” ou message vide. 2. Ajout d’un article → vérifier mise à jour dans les 30 secondes. 3. Suppression d’un article → widget reflète le changement. 4. Déconnexion → widget doit se vider ou afficher “Connectez-vous”. 5. Réinstallation de l’app → widget réapparaît avec les bonnes données. 6. Changement de la langue du système → widget doit s’adapter.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation multi-plateforme pour widgets",
+    "type": "ressource",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>L’application e-commerce doit tourner sur iOS et Android. Vous devez concevoir une architecture permettant de partager la logique de mise à jour des widgets entre les deux plateformes, tout en gérant les différences de mécanismes (App Group vs SharedPreferences).</p><p>Formule de calcul du coût de synchronisation : $C = n_{updates} \\times (t_{write} + t_{read})$ où $n_{updates}$ est le nombre de mises à jour du panier par session.</p>",
+      "images": [
+        "Diagramme d’architecture multi-plateforme pour widgets",
+        "Courbe de performance selon la fréquence d’écriture"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer comment créer une abstraction (classe ou hook) qui unifie l’écriture des données du panier vers le widget, en détectant la plateforme (Platform.OS).",
+        "niveau": "very hard",
+        "reponse": "```typescript\nconst updateWidget = async (cartData: CartData) => {\n  if (Platform.OS === 'ios') {\n    await AppGroup.setItemAsync('cart', JSON.stringify(cartData), 'group.app.panier');\n    await WidgetCenter.reloadAllTimelines();\n  } else if (Platform.OS === 'android') {\n    // Solution alternative : SharedPreferences via module natif ou expo-constants\n    await SharedPreferences.setString('widget_cart', JSON.stringify(cartData));\n  }\n};\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Calculer la réduction du coût de synchronisation si on passe de 15 mises à jour par session (chaque ajout/suppression) à 1 mise à jour différée (en fin de session). Supposez $t_{write} = 50ms$, $t_{read} = 20ms$.",
+        "niveau": "medium",
+        "reponse": "$C_{initial} = 15 \\times (50 + 20) = 15 \\times 70 = 1050ms$. $C_{différé} = 1 \\times 70 = 70ms$. Réduction = $1050 - 70 = 980ms$ soit environ 93\\% de gain de performance.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

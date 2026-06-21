@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 49 : Logs structurés, Sentry & Monitoring | API E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { transition: all 0.3s ease; }
+        html { scroll-behavior: smooth; }
+        body { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+        .badge-sentry { background-color: #362c59; color: #e2f0e2; }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8 border border-gray-100">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-5 shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <span class="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full mb-3">NestJS - Production & Surveillance</span>
+                    <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">Monitoring & Logging avancé</h1>
+                    <p class="text-gray-500 mt-3 text-lg">Logs structurés, Sentry, PM2, New Relic</p>
+                    <div class="mt-8 flex gap-3 flex-wrap justify-center">
+                        <span class="bg-gray-100 text-gray-700 px-4 py-1 rounded-full text-sm">Lesson 49</span>
+                        <span class="bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full text-sm">📊 Logs structurés</span>
+                        <span class="bg-purple-100 text-purple-700 px-4 py-1 rounded-full text-sm">🚨 Sentry</span>
+                        <span class="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm">📈 PM2 / New Relic</span>
+                    </div>
+                    <div class="mt-10 text-sm text-gray-400">⬇️ Boutons de navigation en bas à droite</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-800">Objectifs de la leçon</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-4">
+                    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-indigo-700 text-lg mb-2">📄 Objectif 1</div>
+                        <p class="text-gray-700">Configurer des logs structurés (Winston / Pino) pour faciliter l'analyse</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-indigo-700 text-lg mb-2">🧩 Objectif 2</div>
+                        <p class="text-gray-700">Intégrer Sentry pour capturer et centraliser les erreurs</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-bold text-indigo-700 text-lg mb-2">📈 Objectif 3</div>
+                        <p class="text-gray-700">Surveiller les performances avec PM2 ou New Relic</p>
+                    </div>
+                </div>
+                <div class="mt-6 bg-indigo-50 p-4 rounded-xl text-indigo-800 text-sm italic">
+                    💡 Une bonne observabilité = détection proactive des pannes et optimisation des performances.
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : LOGS STRUCTURÉS AVEC WINSTON -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2 mb-4"><span class="text-3xl">📄</span> Logs structurés avec Winston</h2>
+                <p class="mb-3 text-gray-700">Les logs structurés (format JSON) permettent une exploitation automatique par des outils comme ELK, Datadog ou AWS CloudWatch.</p>
+                <div class="code-block">
+                    <pre>
+// Installation
+npm install winston @nestjs/winston
+
+// app.module.ts
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
+
+const winstonConfig = WinstonModule.createLogger({
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+      )
+    }),
+    new winston.transports.File({
+      filename: 'logs/error.log',
+      level: 'error',
+      format: winston.format.json()
+    })
+  ]
+});
+
+@Module({
+  imports: [],
+  providers: [],
+})
+export class AppModule {}</pre>
+                </div>
+                <div class="mt-3 text-sm text-gray-600">✨ Résultat : chaque ligne de log est un objet JSON avec timestamp, niveau, message, contexte.</div>
+            </div>
+
+            <!-- SLIDE 4 : STRUCTURE D'UN LOG JSON -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🔍 Exemple de log structuré</h2>
+                <div class="code-block text-xs">
+                    <pre>
+{
+  "timestamp": "2025-06-15T10:32:15.123Z",
+  "level": "error",
+  "message": "Échec de paiement Stripe",
+  "context": "PaymentService",
+  "userId": "usr_123",
+  "orderId": "ord_456",
+  "error": "card_declined",
+  "stack": "..."
+}</pre>
+                </div>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <span class="font-bold text-green-700">✅ Avantage :</span> Filtrage par champ, agrégation automatique, corrélation avec d'autres services.
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg">
+                        <span class="font-bold text-amber-700">📌 Bonne pratique :</span> Ajouter toujours un correlationId pour tracer une requête de bout en bout.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : INTÉGRATION DE SENTRY -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2"><span class="text-3xl">🚨</span> Sentry : capture d'erreurs</h2>
+                <p class="mt-2 mb-3">Sentry centralise les erreurs en production, remonte les stack traces et le contexte utilisateur.</p>
+                <div class="code-block">
+                    <pre>
+// Installation
+npm install @sentry/node @sentry/profiling-node
+
+// main.ts
+import * as Sentry from '@sentry/node';
+
+Sentry.init({
+  dsn: 'https://votre-dsn@sentry.io/project-id',
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 0.5,
+  integrations: [new Sentry.Integrations.Http({ tracing: true })],
+});
+
+// Dans un service
+try {
+  await stripe.paymentIntent.create(...);
+} catch (err) {
+  Sentry.captureException(err, {
+    tags: { service: 'payment' },
+    extra: { userId, orderId }
+  });
+  throw new InternalServerErrorException('Paiement échoué');
+}</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : CONTEXTE UTILISATEUR DANS SENTRY -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">👤 Associer un utilisateur à une erreur Sentry</h2>
+                <p class="mb-3">Facilite le support : savoir quel client a rencontré l'erreur.</p>
+                <div class="code-block">
+                    <pre>
+// Dans un guard ou middleware
+Sentry.setUser({
+  id: user.id,
+  email: user.email,
+  ip_address: req.ip
+});
+
+// Lors d'une erreur critique
+Sentry.captureMessage('Panier abandonné après 3 échecs paiement', {
+  level: 'warning',
+  user: { id: userId }
+});</pre>
+                </div>
+                <div class="mt-4 bg-purple-50 p-3 rounded-lg text-purple-800 text-sm">
+                    💡 Sentry regroupe automatiquement les erreurs similaires (fingerprinting) et vous alerte par email/webhook.
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : SURVEILLANCE AVEC PM2 -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">📊 PM2 : Process Manager pour Node.js</h2>
+                <p class="mb-2">PM2 permet de garder l'application vivante, de redémarrer automatiquement et d'exposer des métriques.</p>
+                <div class="code-block">
+                    <pre>
+# Démarrer l'application
+pm2 start dist/main.js --name ecommerce-api
+
+# Surveiller les logs en temps réel
+pm2 logs ecommerce-api
+
+# Afficher les métriques (CPU, mémoire, uptime)
+pm2 monit
+
+# Redémarrer après crash automatiquement
+pm2 startup
+
+# Générer un rapport de performance
+pm2 report</pre>
+                </div>
+                <div class="mt-3 bg-gray-100 p-3 rounded-lg text-sm">
+                    🔁 PM2 peut aussi faire du load balancing (mode cluster) avec <code>pm2 start main.js -i max</code>.
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : NEW RELIC - APM PROFESSIONNEL -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">📈 New Relic : Application Performance Monitoring</h2>
+                <p class="mb-2">New Relic offre des fonctionnalités avancées : analyse des temps de réponse, bases de données, vues lentes, alertes.</p>
+                <div class="code-block">
+                    <pre>
+// Installation
+npm install newrelic
+
+// newrelic.js (à la racine)
+exports.config = {
+  app_name: ['Ecommerce API'],
+  license_key: process.env.NEW_RELIC_LICENSE_KEY,
+  logging: { level: 'info' },
+  allow_all_headers: true,
+  attributes: { include: ['request.headers.*', 'user.id'] }
+};
+
+// Dans main.ts, TOUT EN PREMIER
+import 'newrelic';
+import { NestFactory } from '@nestjs/core';</pre>
+                </div>
+                <div class="mt-3 text-sm text-gray-600">📌 Dashboard : transactions lentes, erreurs par endpoint, top des routes, base de données lentes.</div>
+            </div>
+
+            <!-- SLIDE 9 : TABLEAU COMPARATIF PM2 / NEW RELIC / SENTRY -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">Comparaison rapide</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-gray-50 rounded-xl text-sm">
+                        <thead class="bg-indigo-100">
+                            <tr><th class="p-2 text-left">Outil</th><th class="p-2 text-left">Fonction principale</th><th class="p-2 text-left">Idéal pour</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-2 font-semibold">PM2</td><td>Process management, logs basiques, redémarrage auto</td><td>Petites structures, VPS simple</td></tr>
+                            <tr class="border-b"><td class="p-2 font-semibold">Sentry</td><td>Erreurs, stack traces, alertes</td><td>Détection rapide des bugs en production</td></tr>
+                            <tr class="border-b"><td class="p-2 font-semibold">New Relic</td><td>APM, base de données, analyse de performances</td><td>Applications critiques, scaling horizontal</td></tr>
+                            <tr><td class="p-2 font-semibold">Winston/Pino</td><td>Logs structurés (JSON)</td><td>Centralisation et analyse (ELK, Datadog)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : BONNES PRATIQUES DE MONITORING -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">✅ Bonnes pratiques</h2>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li>Ne jamais logger de données sensibles (passwords, tokens, cartes bancaires)</li>
+                    <li>Utiliser des niveaux de log : <code>error</code>, <code>warn</code>, <code>info</code>, <code>debug</code></li>
+                    <li>Mettre en place une alerte Sentry pour les erreurs 5xx en production</li>
+                    <li>Surveiller la mémoire et le CPU avec PM2 ou New Relic</li>
+                    <li>Ajouter un <code>health check</code> (ex: <code>/health</code>) pour le load balancer</li>
+                    <li>Corréler les logs et les traces avec un ID unique (correlationId)</li>
+                </ul>
+                <div class="mt-5 bg-indigo-50 p-3 rounded-lg italic text-indigo-800">🔍 “Ce qui ne se mesure pas ne s’améliore pas.” – Appliquez le monitoring dès le premier jour en prod.</div>
+            </div>
+
+            <!-- SLIDE 11 : QUIZ RAPIDE -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">🧪 Quiz – Vérifiez vos acquis</h2>
+                <div id="quiz-area" class="space-y-5">
+                    <div class="border-b pb-3">
+                        <p class="font-semibold">1. Quel format de log est recommandé pour une exploitation automatique (ELK, Datadog) ?</p>
+                        <div class="flex flex-wrap gap-3 mt-2">
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="1" data-val="0">Texte brut avec espaces</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="1" data-val="1">JSON structuré</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="1" data-val="2">XML</button>
+                        </div>
+                        <div class="quiz-feedback text-sm mt-1"></div>
+                    </div>
+                    <div class="border-b pb-3">
+                        <p class="font-semibold">2. Quelle bibliothèque NestJS permet de capturer les exceptions et de les envoyer à Sentry ?</p>
+                        <div class="flex flex-wrap gap-3 mt-2">
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="2" data-val="0">@nestjs/bull</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="2" data-val="1">@sentry/node</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="2" data-val="2">@nestjs/throttler</button>
+                        </div>
+                        <div class="quiz-feedback text-sm mt-1"></div>
+                    </div>
+                    <div class="border-b pb-3">
+                        <p class="font-semibold">3. Quelle commande PM2 affiche les métriques CPU/mémoire en temps réel ?</p>
+                        <div class="flex flex-wrap gap-3 mt-2">
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="3" data-val="0">pm2 list</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="3" data-val="1">pm2 monit</button>
+                            <button class="quiz-btn bg-gray-100 hover:bg-indigo-100 px-3 py-1 rounded-full text-sm" data-q="3" data-val="2">pm2 show</button>
+                        </div>
+                        <div class="quiz-feedback text-sm mt-1"></div>
+                    </div>
+                </div>
+                <p class="text-xs text-center text-gray-400 mt-6">Cliquez sur une réponse pour valider</p>
+            </div>
+
+            <!-- SLIDE 12 : CONCLUSION -->
+            <div class="slide bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8 text-center">
+                <div class="text-5xl mb-4">📈</div>
+                <h2 class="text-2xl font-bold text-indigo-800">Récapitulons</h2>
+                <ul class="text-left max-w-sm mx-auto mt-5 space-y-2">
+                    <li>✔️ Logs structurés (JSON) avec Winston</li>
+                    <li>✔️ Erreurs capturées par Sentry + contexte utilisateur</li>
+                    <li>✔️ PM2 pour la résilience et les métriques de base</li>
+                    <li>✔️ New Relic pour une APM complète</li>
+                    <li>✔️ Bonnes pratiques : ne pas logger de secrets, alerter sur erreurs critiques</li>
+                </ul>
+                <div class="mt-6 p-4 bg-indigo-100 rounded-xl">
+                    <p class="italic text-indigo-900">"Un système bien surveillé est un système fiable."</p>
+                </div>
+                <div class="mt-6 text-gray-400 text-sm">Fin de la leçon 49 🎉</div>
+            </div>
+
+            <!-- BOUTONS DE NAVIGATION -->
+            <div class="fixed bottom-4 right-4 md:bottom-8 md:right-8 flex gap-3 z-20">
+                <button id="prevSlide" class="bg-white shadow-xl rounded-full p-3 text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-40" disabled>◀</button>
+                <button id="nextSlide" class="bg-indigo-600 shadow-xl rounded-full p-3 text-white hover:bg-indigo-700 transition">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('.slide');
+            let current = 0;
+            let total = slides.length;
+            
+            function update() {
+                slides.each(function(idx){
+                    if(idx === current) $(this).removeClass('hidden').show();
+                    else $(this).addClass('hidden').hide();
+                });
+                $('#prevSlide').prop('disabled', current === 0);
+                $('#nextSlide').prop('disabled', current === total-1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            function goTo(idx){
+                if(idx >= 0 && idx < total){
+                    current = idx;
+                    update();
+                }
+            }
+            
+            $('#nextSlide').click(() => goTo(current+1));
+            $('#prevSlide').click(() => goTo(current-1));
+            
+            slides.each((i,el) => { if(i !== 0) $(el).hide().addClass('hidden'); });
+            $('#prevSlide').prop('disabled', true);
+            
+            // QUIZ
+            $('.quiz-btn').on('click', function(){
+                let $btn = $(this);
+                let q = $btn.data('q');
+                let val = $btn.data('val');
+                let $parent = $btn.closest('.border-b');
+                let $feedback = $parent.find('.quiz-feedback');
+                let correct = false;
+                let msg = '';
+                
+                if(q == 1 && val == 1) { correct = true; msg = "✅ Exact ! Le JSON est structuré et lisible par les outils d'agrégation."; }
+                else if(q == 1) { msg = "❌ Non, le format JSON est recommandé pour l'exploitation automatique."; }
+                
+                if(q == 2 && val == 1) { correct = true; msg = "✅ Bravo ! @sentry/node est l'intégration officielle pour Node.js."; }
+                else if(q == 2) { msg = "❌ La bonne réponse est @sentry/node."; }
+                
+                if(q == 3 && val == 1) { correct = true; msg = "✅ Oui ! pm2 monit ouvre une interface interactive avec CPU/mémoire."; }
+                else if(q == 3) { msg = "❌ Non, c'est pm2 monit qui affiche les métriques en direct."; }
+                
+                $feedback.html(msg);
+                if(correct) $feedback.removeClass('text-red-600').addClass('text-green-600');
+                else $feedback.removeClass('text-green-600').addClass('text-red-600');
+                
+                $parent.find('.quiz-btn').prop('disabled', true).addClass('opacity-50');
+            });
+        });
+    </script>
+</body>
+</html>

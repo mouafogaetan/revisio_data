@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 26 : Provisioning vs Configuration - Terraform & Ansible</title>
+  <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (formules si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <!-- Personnalisation Tailwind : couleurs douces pour l'éducation -->
+  <style>
+    /* Transition slides + swipe simple */
+    .slide-container {
+      transition: transform 0.3s ease-in-out;
+    }
+    .slide {
+      scroll-snap-align: start;
+    }
+    .scroll-snap-mandatory {
+      scroll-snap-type: x mandatory;
+    }
+    /* cache scrollbar pour plus propre sur mobile (optionnel) */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* couleurs douces, lisibles */
+    body {
+      background: #f9fafb;
+    }
+    .card-bg {
+      background: #ffffffdd;
+      backdrop-filter: blur(2px);
+    }
+    .btn-nav {
+      transition: all 0.2s;
+    }
+    .btn-nav:active {
+      transform: scale(0.96);
+    }
+    /* pour les diagrammes ascii ou simples */
+    .diagram-box {
+      background: #1e293b;
+      color: #e2e8f0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      padding: 1rem;
+      border-radius: 1rem;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body class="antialiased font-sans">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <!-- Conteneur slides avec défilement horizontal (swipe) -->
+    <div class="relative overflow-hidden rounded-2xl shadow-2xl bg-white/70 backdrop-blur-sm border border-gray-200">
+      <div id="slidesWrapper" class="overflow-x-auto no-scrollbar scroll-snap-mandatory flex snap-mandatory w-full">
+        <div id="slidesContainer" class="flex flex-nowrap transition-transform duration-300">
+          
+          <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh] flex flex-col justify-center items-center text-center">
+            <div class="bg-white/80 p-8 rounded-3xl shadow-xl max-w-2xl mx-auto border border-indigo-100">
+              <span class="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Leçon 26 · Cloud Computing</span>
+              <h1 class="text-3xl md:text-5xl font-extrabold mt-6 bg-gradient-to-r from-indigo-700 to-sky-700 bg-clip-text text-transparent">Provisioning vs Configuration</h1>
+              <div class="h-1 w-24 bg-indigo-400 mx-auto my-6 rounded-full"></div>
+              <p class="text-xl text-gray-700 font-medium">Intégrer <span class="font-bold text-indigo-800">Terraform</span> et <span class="font-bold text-emerald-700">Ansible</span></p>
+              <div class="mt-8 flex flex-wrap justify-center gap-3 text-gray-600">
+                <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">🔧 Infrastructure as Code</span>
+                <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">⚙️ Configuration Management</span>
+                <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">☁️ Approche complémentaire</span>
+              </div>
+              <p class="text-sm text-gray-400 mt-10">Classe : Développement Web | Matière : Initiation au Cloud Computing</p>
+            </div>
+          </div>
+          
+          <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh] flex flex-col justify-center">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8 border-l-8 border-indigo-500">
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3"><span class="text-3xl">🎯</span> Objectifs de la leçon</h2>
+              <ul class="mt-6 space-y-4 text-gray-700 text-lg">
+                <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">•</span> <span><strong class="font-semibold">Comprendre la différence</strong> entre provisioning (création d’infrastructure) et configuration (installation/logiciels)</span></li>
+                <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">•</span> <span><strong class="font-semibold">Écrire des playbooks Ansible</strong> pour configurer des machines virtuelles (déployer nginx, docker, etc.)</span></li>
+                <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">•</span> <span><strong class="font-semibold">Intégrer Terraform et Ansible</strong> : provisionner l’infrastructure avec Terraform, puis la configurer avec Ansible</span></li>
+                <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">•</span> <span><strong class="font-semibold">Maîtriser les bonnes pratiques</strong> d'automatisation hybride (local-exec, provisioners, inventaire dynamique)</span></li>
+              </ul>
+              <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-indigo-800 italic text-sm">
+                💡 <span class="font-medium">À la fin de ce cours</span>, vous saurez automatiser le déploiement complet d’une application web cloud de A à Z.
+              </div>
+            </div>
+          </div>
+          
+          <!-- SLIDE 3 : Différence Provisioning vs Configuration -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8 h-full">
+              <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span class="text-indigo-600">📌</span> Provisioning ≠ Configuration</h2>
+              <div class="grid md:grid-cols-2 gap-6 mt-6">
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-200">
+                  <div class="text-4xl mb-2">🏗️ Terraform</div>
+                  <p class="font-semibold text-blue-800">Provisioning (création d'infrastructure)</p>
+                  <ul class="list-disc list-inside mt-3 text-gray-700 space-y-1">
+                    <li>Crée des VMs, réseaux, bases de données, load balancers</li>
+                    <li>Gère l'état (terraform.tfstate)</li>
+                    <li>Langage déclaratif HCL</li>
+                    <li>Idempotent : "créer ce qui n'existe pas"</li>
+                  </ul>
+                </div>
+                <div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-200">
+                  <div class="text-4xl mb-2">🛠️ Ansible</div>
+                  <p class="font-semibold text-emerald-800">Configuration (installation / paramétrage)</p>
+                  <ul class="list-disc list-inside mt-3 text-gray-700 space-y-1">
+                    <li>Installe des logiciels (nginx, docker, python)</li>
+                    <li>Configure les services, fichiers, utilisateurs</li>
+                    <li>Agentless (SSH uniquement)</li>
+                    <li>Playbooks YAML, modules puissants</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="mt-8 bg-gray-100 p-4 rounded-lg">
+                <p class="font-medium text-gray-800">🔁 Complémentarité :</p>
+                <p class="text-gray-700 mt-1">Terraform prépare le terrain (serveurs, réseau). Ansible transforme ces serveurs bruts en machines prêtes à exécuter l'application.</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- SLIDE 4 : EXEMPLE PLAYBOOK ANSIBLE SIMPLE -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold text-gray-800">📜 Écrire un playbook Ansible</h2>
+              <p class="text-gray-600 mt-2">Fichier YAML qui définit les tâches à exécuter sur les serveurs distants.</p>
+              <div class="mt-5 bg-slate-800 text-gray-100 p-4 rounded-xl overflow-x-auto">
+                <pre class="text-sm font-mono">
+---
+- name: Configurer un serveur web
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Installer Nginx
+      apt:
+        name: nginx
+        state: present
+      when: ansible_os_family == "Debian"
+    
+    - name: Démarrer Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+    
+    - name: Copier une page personnalisée
+      copy:
+        content: "&lt;h1&gt;Bienvenue sur mon cloud !&lt;/h1&gt;"
+        dest: /var/www/html/index.html
+                </pre>
+              </div>
+              <p class="text-sm text-gray-500 mt-3">✨ <strong>Commande :</strong> <code class="bg-gray-200 px-2 py-0.5 rounded">ansible-playbook -i inventaire.ini playbook.yml</code></p>
+            </div>
+          </div>
+          
+          <!-- SLIDE 5 : Intégration Terraform + Ansible (approches) -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold text-gray-800">🔗 Intégrer Terraform & Ansible</h2>
+              <p class="mt-2 text-gray-600">Trois méthodes populaires :</p>
+              <div class="space-y-4 mt-5">
+                <div class="border-l-4 border-indigo-400 pl-4 py-2 bg-indigo-50/40 rounded-r">
+                  <p class="font-bold">1️⃣ Provisioner <code class="bg-gray-200 px-1">local-exec</code> dans Terraform</p>
+                  <p class="text-sm">Après création des VMs, Terraform lance une commande Ansible sur la machine locale.</p>
+                </div>
+                <div class="border-l-4 border-emerald-400 pl-4 py-2 bg-emerald-50/40 rounded-r">
+                  <p class="font-bold">2️⃣ Utiliser l’inventaire dynamique</p>
+                  <p class="text-sm">Ansible récupère les IPs depuis l’état Terraform (terraform output) ou depuis un script python.</p>
+                </div>
+                <div class="border-l-4 border-amber-400 pl-4 py-2 bg-amber-50/40 rounded-r">
+                  <p class="font-bold">3️⃣ Module Ansible dans Terraform (community)</p>
+                  <p class="text-sm">Il existe un provider Ansible (expérimental) pour exécuter des playbooks directement depuis le plan Terraform.</p>
+                </div>
+              </div>
+              <!-- Petit schéma texte simple -->
+              <div class="diagram-box mt-6 text-xs md:text-sm">
+                <span class="text-indigo-300">[Terraform]</span>  →  crée VM (AWS/GCP/Azure)  →  exporte IP publique<br/>
+                <span class="text-emerald-300">[Ansible]</span>  →  utilise ces IPs  →  configure l'application  →  ✅ serveur opérationnel
+              </div>
+            </div>
+          </div>
+          
+          <!-- SLIDE 6 : Exemple d'intégration pas à pas -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold text-gray-800">⚡ Exemple concret - Workflow hybride</h2>
+              <div class="mt-4 space-y-4">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <p><span class="font-mono font-bold text-indigo-700">1. main.tf (Terraform)</span> : provisionne une instance EC2 (ou un droplet) et génère un fichier inventory.ini via template.</p>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <p><span class="font-mono font-bold text-emerald-700">2. playbook.yml (Ansible)</span> : installe Docker, déploie un conteneur nginx.</p>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                  <p><span class="font-mono font-bold text-gray-800">3. Commande combinée</span> :</p>
+                  <pre class="bg-slate-800 text-white p-3 rounded-lg text-sm mt-2 overflow-x-auto">terraform apply -auto-approve && ansible-playbook -i inventory.ini playbook.yml</pre>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-lg text-indigo-900 text-sm">
+                  💡 On peut aussi utiliser le provisioner <code>remote-exec</code> mais Ansible est plus robuste pour la configuration logicielle.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 7 : Exemple de code Terraform avec local-exec -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold text-gray-800">🧩 Terraform + local-exec</h2>
+              <p class="text-sm text-gray-500 mb-3">Extraire les IPs après création et lancer Ansible automatiquement.</p>
+              <div class="bg-slate-800 text-gray-100 p-4 rounded-xl text-sm font-mono overflow-x-auto">
+                <pre>
+resource "aws_instance" "web" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  tags = { Name = "ansible-target" }
+
+  provisioner "local-exec" {
+    command = "echo ${self.public_ip} > inventory.ini && ansible-playbook -i inventory.ini playbook.yml"
+  }
+}
+
+output "instance_ip" {
+  value = aws_instance.web.public_ip
+}
+                </pre>
+              </div>
+              <p class="mt-4 text-gray-700">⚠️ <span class="font-semibold">Note :</span> Les provisioners Terraform sont à utiliser en dernier recours. On préfère générer un inventaire dynamique pour plus de flexibilité.</p>
+            </div>
+          </div>
+          
+          <!-- SLIDE 8 : Inventaire dynamique avec script -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold text-gray-800">🔄 Inventaire dynamique Ansible</h2>
+              <p>On utilise <code class="bg-gray-200 px-1">terraform output -json</code> pour générer un inventaire automatique.</p>
+              <div class="mt-4 bg-slate-800 p-3 rounded-xl text-white text-sm">
+                <pre class="font-mono">
+#!/bin/bash
+# inventory.sh (exécutable)
+terraform output -json | jq '{ "all": { "hosts": [ .instance_ip.value ] } }'
+                </pre>
+              </div>
+              <p class="mt-3">Puis on lance :</p>
+              <div class="bg-gray-100 p-2 rounded font-mono text-sm">ansible-playbook -i inventory.sh playbook.yml</div>
+              <div class="mt-5 flex items-center gap-2 text-emerald-700 bg-emerald-50 p-3 rounded-lg">
+                ✅ Avantage : Évite de générer des fichiers statiques, toujours synchronisé avec l'état réel du cloud.
+              </div>
+            </div>
+          </div>
+          
+          <!-- SLIDE 9 : Bonnes pratiques & résumé -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh]">
+            <div class="bg-white/90 rounded-2xl shadow-xl p-6 md:p-8">
+              <h2 class="text-2xl font-bold flex items-center gap-2">🌟 <span>Bonnes pratiques d'intégration</span></h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div class="bg-white border rounded-xl p-3 shadow-sm"><span class="font-bold">✔</span> Séparer les responsabilités : Terraform pour l’infra, Ansible pour les softs.</div>
+                <div class="bg-white border rounded-xl p-3 shadow-sm"><span class="font-bold">✔</span> Utiliser des modules Terraform réutilisables.</div>
+                <div class="bg-white border rounded-xl p-3 shadow-sm"><span class="font-bold">✔</span> Gérer les dépendances (attendre que les VMs soient SSH-ready).</div>
+                <div class="bg-white border rounded-xl p-3 shadow-sm"><span class="font-bold">✔</span> Stocker l’état Terraform à distance (S3, Azure Storage).</div>
+              </div>
+              <div class="mt-8 p-4 bg-gradient-to-r from-indigo-50 to-sky-50 rounded-xl">
+                <p class="font-semibold">📚 À retenir :</p>
+                <p class="text-gray-700">Terraform prépare l'infrastructure (le "matériel"), Ansible la transforme en environnement fonctionnel. Leur intégration permet l'<strong>automatisation totale</strong> de l'infrastructure cloud : du provisionning jusqu'au déploiement d'applications.</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- SLIDE 10 : Exercice ou mise en pratique -->
+          <div class="slide w-full flex-shrink-0 snap-start p-6 md:p-10 min-h-[70vh] flex flex-col justify-center">
+            <div class="bg-white/95 rounded-2xl shadow-xl p-6 md:p-8 text-center">
+              <span class="text-5xl">💻</span>
+              <h2 class="text-2xl md:text-3xl font-bold mt-3">Petit atelier pratique</h2>
+              <p class="mt-4 text-gray-600">En utilisant Terraform (mock ou local) et Ansible, essayez de :</p>
+              <ul class="list-disc list-inside text-left max-w-md mx-auto mt-4 text-gray-700 space-y-2">
+                <li>Provisionner 2 VMs (localhost via docker ou VirtualBox)</li>
+                <li>Écrire un playbook pour installer Python3 et un serveur HTTP simple</li>
+                <li>Lancer la config après le "terraform apply"</li>
+              </ul>
+              <div class="mt-6 p-3 bg-indigo-100 rounded-xl italic text-indigo-800">
+                💡 À faire en lab : utilisation de <strong>terraform localstack</strong> ou <strong>libvirt</strong> ou alors s’entraîner sur du vrai cloud avec crédits gratuits.
+              </div>
+              <p class="mt-6 text-sm text-gray-500">Cette compétence est clé pour les métiers DevOps / Cloud Engineer.</p>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- navigation buttons (précédent/suivant) -->
+      <button id="prevSlide" class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-indigo-600 hover:text-white rounded-full p-2 shadow-lg transition-all btn-nav backdrop-blur-sm border border-gray-200 w-10 h-10 flex items-center justify-center font-bold text-xl z-10">←</button>
+      <button id="nextSlide" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-indigo-600 hover:text-white rounded-full p-2 shadow-lg transition-all btn-nav backdrop-blur-sm border border-gray-200 w-10 h-10 flex items-center justify-center font-bold text-xl z-10">→</button>
+      
+      <!-- indicateur de slide (dots) -->
+      <div class="absolute bottom-3 left-0 right-0 flex justify-center gap-2 pb-2">
+        <div id="slideDots" class="flex gap-2 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm"></div>
+      </div>
+    </div>
+    
+    <div class="text-center text-gray-500 text-xs mt-6">
+      Leçon 26 - Initiation au Cloud Computing | Formation Développement Web (Cameroun) | Automatisation Terraform + Ansible
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      const $container = $('#slidesContainer');
+      const $wrapper = $('#slidesWrapper');
+      let slides = $('.slide');
+      let totalSlides = slides.length;
+      let currentIndex = 0;
+      let slideWidth = 0;
+      
+      // Fonction pour mettre à jour la largeur et le défilement
+      function updateDimensions() {
+        slideWidth = $wrapper.width();
+        slides.each(function(i) {
+          $(this).css('width', slideWidth + 'px');
+        });
+        goToSlide(currentIndex, false);
+        generateDots();
+      }
+      
+      // Générer les points indicateurs
+      function generateDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+          dotsHtml += `<button class="dot w-2.5 h-2.5 rounded-full transition-all ${i === currentIndex ? 'bg-indigo-700 w-5' : 'bg-gray-400'} focus:outline-none"></button>`;
+        }
+        $('#slideDots').html(dotsHtml);
+        $('.dot').each(function(idx) {
+          $(this).on('click', function() {
+            goToSlide(idx, true);
+          });
+        });
+      }
+      
+      function goToSlide(index, animate = true) {
+        if (index < 0) index = 0;
+        if (index >= totalSlides) index = totalSlides - 1;
+        currentIndex = index;
+        const scrollLeft = currentIndex * slideWidth;
+        if (animate) {
+          $wrapper.animate({ scrollLeft: scrollLeft }, 300);
+        } else {
+          $wrapper.scrollLeft(scrollLeft);
+        }
+        updateDotsActive();
+      }
+      
+      function updateDotsActive() {
+        $('.dot').each(function(i) {
+          if (i === currentIndex) {
+            $(this).removeClass('bg-gray-400 w-2.5').addClass('bg-indigo-700 w-5');
+          } else {
+            $(this).removeClass('bg-indigo-700 w-5').addClass('bg-gray-400 w-2.5');
+          }
+        });
+      }
+      
+      // événements flèches
+      $('#nextSlide').on('click', function() {
+        if (currentIndex < totalSlides - 1) {
+          goToSlide(currentIndex + 1, true);
+        }
+      });
+      $('#prevSlide').on('click', function() {
+        if (currentIndex > 0) {
+          goToSlide(currentIndex - 1, true);
+        }
+      });
+      
+      // réagir au redimensionnement
+      $(window).on('resize', function() {
+        updateDimensions();
+      });
+      
+      // détection swipe (mobile)
+      let touchStartX = 0;
+      let touchEndX = 0;
+      $wrapper.on('touchstart', function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $wrapper.on('touchend', function(e) {
+        touchEndX = e.originalEvent.changedTouches[0].clientX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) {
+            // swipe gauche -> next
+            if (currentIndex < totalSlides - 1) goToSlide(currentIndex + 1, true);
+          } else {
+            // swipe droite -> prev
+            if (currentIndex > 0) goToSlide(currentIndex - 1, true);
+          }
+        }
+      });
+      
+      // initialisation
+      updateDimensions();
+      
+      // détection du scroll manuel (synchronisation)
+      $wrapper.on('scroll', function() {
+        let newIndex = Math.round($wrapper.scrollLeft() / slideWidth);
+        if (newIndex !== currentIndex && !isNaN(newIndex)) {
+          currentIndex = newIndex;
+          updateDotsActive();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

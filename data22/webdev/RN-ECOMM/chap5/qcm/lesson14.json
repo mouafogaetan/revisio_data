@@ -1,0 +1,146 @@
+[
+  {
+    "questionText": "Quelle est la commande correcte pour installer Axios dans un projet React Native (Expo) ?",
+    "options": [
+      "npm install axios",
+      "expo install axios",
+      "npm install react-native-axios",
+      "expo add axios"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "Axios est une bibliothèque JavaScript indépendante de React Native, donc on l'installe avec `npm install axios` ou `yarn add axios`. Pour les projets Expo, il n'y a pas de commande `expo install` spécifique pour Axios car il ne nécessite pas de configuration native. `expo install` est réservé aux packages avec des dépendances natives."
+  },
+  {
+    "questionText": "Comment configure-t-on une instance Axios avec une baseURL personnalisée pour interagir avec l'API backend ?",
+    "options": [
+      "axios.defaults.baseURL = 'https://api.example.com'",
+      "const api = axios.create({ baseURL: 'https://api.example.com' })",
+      "axios.config({ baseUrl: 'https://api.example.com' })",
+      "new Axios('https://api.example.com')"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La méthode recommandée est d'utiliser `axios.create()` qui crée une instance personnalisée avec sa propre configuration. Cela permet d'avoir plusieurs instances pour différents services API (ex: auth API, products API) avec des configurations distinctes. Modifier `axios.defaults` affecterait toutes les instances et peut causer des effets de bord."
+  },
+  {
+    "questionText": "Complétez le code suivant pour ajouter automatiquement le token JWT à chaque requête sortante :\n```javascript\nconst api = axios.create({ baseURL: 'https://api.example.com' });\n\napi.interceptors.request.use(config => {\n  const token = getToken();\n  if (token) {\n    config.headers[$\\text{......}$] = `Bearer ${token}`;\n  }\n  return config;\n});\n```",
+    "options": [
+      "'X-Token'",
+      "'Auth'",
+      "'Authentication'",
+      "'Authorization'"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "easy",
+    "explanation": "Le header standard pour l'authentification Bearer est 'Authorization'. La valeur doit être au format `Bearer ${token}`. C'est une convention HTTP largement adoptée (RFC 6750). Les autres options ('X-Token', 'Auth', 'Authentication') ne sont pas standard et nécessiteraient une configuration spécifique côté backend."
+  },
+  {
+    "questionText": "Que se passe-t-il lorsqu'un token JWT expire (statut 401) et que l'on a implémenté un intercepteur de réponse pour le refresh token ?",
+    "options": [
+      "L'application affiche une erreur et bloque l'utilisateur",
+      "L'intercepteur intercepte la réponse 401, tente de rafraîchir le token avec un appel au endpoint /refresh, puis réessaie la requête originale",
+      "Le token est automatiquement renouvelé par Axios sans intervention",
+      "L'utilisateur doit se reconnecter manuellement"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "L'intercepteur de réponse (response interceptor) capture les erreurs 401. Ensuite, il appelle un endpoint de refresh token (généralement /auth/refresh) avec le refresh token stocké. Si le refresh est réussi, le nouveau token est sauvegardé et la requête originale est rejouée automatiquement. Si le refresh échoue, on déconnecte l'utilisateur."
+  },
+  {
+    "questionText": "Quelle est la syntaxe correcte d'un intercepteur de réponse pour gérer le refresh token ?",
+    "options": [
+      "api.interceptors.response.use(response => response, error => { if(error.response?.status === 401) { return refreshToken() } })",
+      "api.interceptors.response.use(error => error, response => { if(error.status === 401) refresh() })",
+      "api.interceptors.request.use(async config => { if(config.retry) { await refreshToken() } })",
+      "api.on('401', async () => { await refreshToken() })"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "hard",
+    "explanation": "La bonne syntaxe utilise `api.interceptors.response.use()` avec deux paramètres : le premier est le callback de succès (on retourne simplement la réponse), le second est le callback d'erreur (on vérifie si le status est 401, puis on exécute la logique de refresh). Il faut aussi gérer les cas de multiple requêtes simultanées pour éviter plusieurs appels de refresh en parallèle (queue)."
+  },
+  {
+    "questionText": "Pourquoi est-il important de stocker les tokens JWT dans un endroit sécurisé comme expo-secure-store plutôt que AsyncStorage ?",
+    "options": [
+      "AsyncStorage est plus lent que SecureStore",
+      "SecureStore chiffre les données, protégeant les tokens contre les accès malveillants sur les appareils rootés/jailbreakés",
+      "AsyncStorage ne peut pas stocker de chaînes JSON",
+      "SecureStore est automatiquement synchronisé avec le backend"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "expo-secure-store (ou react-native-encrypted-storage) chiffre les données au niveau du système d'exploitation, offrant une protection contre les accès non autorisés. AsyncStorage stocke les données en clair, ce qui est dangereux pour les tokens JWT car une application malveillante ou un utilisateur avec accès physique pourrait les extraire. C'est une bonne pratique de sécurité."
+  },
+  {
+    "questionText": "Quel problème résout l'utilisation d'une file d'attente (queue) lors de l'implémentation du refresh token ?",
+    "options": [
+      "Le problème de mémoire vive des tokens",
+      "Le problème des requêtes simultanées pendant le refresh (plusieurs 401 déclenchent plusieurs appels de refresh)",
+      "Le problème de latence réseau",
+      "Le problème de compatibilité iOS/Android"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "Lorsque plusieurs requêtes échouent simultanément avec 401 (par exemple au chargement d'un écran avec plusieurs appels API), chaque requête déclencherait un appel de refresh token. On utilise une queue (pending requests) : la première requête déclenche le refresh, les suivantes attendent dans une file. Une fois le nouveau token obtenu, toutes les requêtes en attente sont rejouées avec le nouveau token."
+  },
+  {
+    "questionText": "Complétez le code de l'intercepteur de réponse avec gestion de queue :\n```javascript\nlet isRefreshing = false;\nlet failedQueue = [];\n\nconst processQueue = (error, token = null) => {\n  failedQueue.forEach(promise => {\n    if (error) promise.reject(error);\n    else promise.resolve(token);\n  });\n  failedQueue = [];\n};\n\napi.interceptors.response.use(\n  response => response,\n  async error => {\n    const originalRequest = error.config;\n    if (error.response?.status === 401 && !originalRequest._retry) {\n      originalRequest._retry = true;\n      if (!isRefreshing) {\n        isRefreshing = true;\n        try {\n          const newToken = await refreshToken();\n          $\\text{......}$\n          return api(originalRequest);\n        } catch (refreshError) {\n          processQueue(refreshError, null);\n          return Promise.reject(refreshError);\n        } finally {\n          isRefreshing = false;\n        }\n      }\n      return new Promise((resolve, reject) => {\n        failedQueue.push({ resolve, reject });\n      }).then(token => {\n        originalRequest.headers.Authorization = `Bearer ${token}`;\n        return api(originalRequest);\n      });\n    }\n    return Promise.reject(error);\n  }\n);\n```",
+    "options": [
+      "processQueue(null, newToken)",
+      "processQueue(newToken)",
+      "processQueue(newToken, null)",
+      "processQueue(null)"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "very hard",
+    "explanation": "Après avoir obtenu un nouveau token, on appelle `processQueue(null, newToken)` pour résoudre toutes les promesses en attente avec le nouveau token. Le premier paramètre `null` signifie qu'il n'y a pas d'erreur, et le second est le token à distribuer. Toutes les requêtes en attente seront alors rejouées avec le nouveau token."
+  },
+  {
+    "questionText": "Quelle est l'utilité de la propriété `baseURL` dans la configuration Axios ?",
+    "options": [
+      "Définir l'URL de base pour toutes les requêtes, évitant de répéter le domaine à chaque appel",
+      "Définir le timeout maximum des requêtes",
+      "Définir les en-têtes CORS par défaut",
+      "Définir le format de réponse attendu (JSON/XML)"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "`baseURL` permet de définir une URL de base (protocole + domaine + éventuellement port) qui sera préfixée à chaque chemin relatif. Par exemple, avec `baseURL: 'https://api.example.com/v1'`, un appel à `api.get('/products')` envoie une requête à `https://api.example.com/v1/products`. Cela réduit la duplication et facilite la gestion des environnements (dev/staging/prod)."
+  },
+  {
+    "questionText": "Comment configurer Axios pour envoyer automatiquement les cookies avec chaque requête (authentification basée sur session) ?",
+    "options": [
+      "axios.defaults.withCredentials = true",
+      "axios.defaults.sendCookies = true",
+      "axios.defaults.includeCredentials = true",
+      "axios.defaults.credentials = 'include'"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "La propriété `withCredentials` (à true) permet d'inclure les cookies d'authentification dans les requêtes cross-origin. C'est utile pour les sessions basées sur cookies plutôt que sur tokens Bearer. Cependant, pour les applications mobiles avec tokens JWT, on utilise généralement le header Authorization au lieu des cookies."
+  },
+  {
+    "questionText": "Que fait le paramètre `_retry` dans l'intercepteur de refresh token ?",
+    "options": [
+      "Il indique le nombre de tentatives restantes avant abandon",
+      "Il empêche les boucles infinies en marquant qu'une requête a déjà été retentée après refresh",
+      "Il active le mode debug d'Axios",
+      "Il force l'utilisation du cache réseau"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La propriété `_retry` (nom personnalisé) est ajoutée à l'objet `config` de la requête pour indiquer qu'on a déjà tenté de la rejouer après un refresh. Sans cela, si la requête rejouée échoue à nouveau avec 401 (par exemple si le refresh token est aussi expiré), on entrerait dans une boucle infinie de tentatives de refresh. `_retry` permet d'éviter ce scénario."
+  },
+  {
+    "questionText": "Quel est le rôle de l'intercepteur de requête (request interceptor) dans la gestion des tokens JWT ?",
+    "options": [
+      "Capturer les erreurs réseau",
+      "Ajouter automatiquement le token JWT (header Authorization) avant l'envoi de chaque requête",
+      "Rafraîchir le token périodiquement",
+      "Vérifier la validité du token côté serveur"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "L'intercepteur de requête s'exécute avant que la requête ne soit envoyée. C'est l'endroit idéal pour ajouter dynamiquement le token JWT (si présent) dans le header Authorization. On peut aussi y ajouter d'autres headers communs (version de l'API, langue, etc.) ou logger les requêtes sortantes."
+  }
+]

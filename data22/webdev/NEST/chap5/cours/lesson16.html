@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>NestJS | Lesson 16 : Hachage des mots de passe (bcrypt)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f0f9f4; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .slide { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .slide.active { display: block; opacity: 1; }
+        .slide:not(.active) { display: none; }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { transform: scale(1.02); background-color: #1e293b; }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            background: #d9f99d;
+            color: #3f6212;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active" id="slide1">
+            <div class="bg-gradient-to-r from-green-700 to-emerald-600 text-white px-6 py-12 md:py-16 text-center">
+                <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-4">🔐 NestJS – Sécurité</span>
+                <h1 class="text-3xl md:text-5xl font-extrabold mb-4">Hachage des mots de passe<br>avec bcrypt</h1>
+                <p class="text-green-100 text-lg md:text-xl max-w-2xl mx-auto">bcrypt • hash • compare • stockage sécurisé</p>
+                <div class="mt-8 flex justify-center gap-3 text-sm font-medium">
+                    <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Lesson 16</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full">⏱️ 35 min</span>
+                </div>
+            </div>
+            <div class="p-6 text-center text-gray-500 text-sm border-t">NestJS – Framework Node.js progressif</div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide" id="slide2">
+            <div class="bg-emerald-50 border-b px-6 py-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-emerald-800 flex items-center gap-2">📌 Objectifs de la leçon</h2>
+                <p class="text-gray-600 mt-1">À la fin, vous saurez :</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div><strong>Installer bcrypt</strong> et l'intégrer dans un service NestJS.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div><strong>Hacher un mot de passe</strong> avant de le stocker en base de données.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div><strong>Comparer</strong> un mot de passe saisi avec un hash stocké (bcrypt.compare).</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div><strong>Bonnes pratiques</strong> : salage, coût de hachage, protection contre les attaques.</div></div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : POURQUOI HASHER LES MOTS DE PASSE ? -->
+        <div class="slide" id="slide3">
+            <div class="bg-amber-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-amber-800">⚠️ Pourquoi ne jamais stocker en clair ?</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <p>Stocker un mot de passe en clair dans une base de données est extrêmement dangereux. En cas de fuite, l'attaquant peut utiliser ces identifiants sur d'autres services.</p>
+                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
+                    <p class="font-bold text-red-800">❌ Mauvais exemple</p>
+                    <code class="text-sm">password: "monSuperMotDePasse123"</code>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                    <p class="font-bold text-green-800">✅ Bonne pratique</p>
+                    <code class="text-sm">password: "$2b$10$91mX4fKjYg5GZj... (hash bcrypt + salage)</code>
+                    <p class="text-xs text-gray-600 mt-1">Le hachage est irréversible : même l'administrateur ne peut pas connaître le mot de passe original.</p>
+                </div>
+                <div class="bg-gray-100 p-3 rounded text-sm italic">🧠 bcrypt ajoute automatiquement un <strong>salt</strong> (valeur aléatoire) pour rendre les attaques par rainbow tables inefficaces.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : INSTALLATION ET PREMIERS TESTS -->
+        <div class="slide" id="slide4">
+            <div class="bg-slate-800 text-white px-6 py-5">
+                <h2 class="text-2xl font-bold">📦 Installation de bcrypt</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="code-block">
+                    npm install bcrypt<br>
+                    npm install -D @types/bcrypt
+                </div>
+                <p class="font-semibold">Exemple d'utilisation basique :</p>
+                <div class="code-block text-sm">
+<code>
+import * as bcrypt from 'bcrypt';
+
+const saltRounds = 10;
+const plainPassword = "secret123";
+
+// Hachage
+const hash = await bcrypt.hash(plainPassword, saltRounds);
+console.log(hash); // $2b$10$91mX4fKjYg5GZj...
+
+// Comparaison
+const isMatch = await bcrypt.compare(plainPassword, hash);
+console.log(isMatch); // true
+</code>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg text-sm">
+                    💡 <strong>saltRounds = 10</strong> correspond à environ 2^10 itérations – bon compromis sécurité/performance.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : SERVICE DE HACHAGE DANS NESTJS -->
+        <div class="slide" id="slide5">
+            <div class="bg-purple-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-purple-800">🏭 Création d'un service Hashing (BCryptService)</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// src/auth/bcrypt.service.ts
+import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+
+@Injectable()
+export class BcryptService {
+  private readonly saltRounds = 10;
+
+  async hash(password: string): Promise&lt;string&gt; {
+    return bcrypt.hash(password, this.saltRounds);
+  }
+
+  async compare(password: string, hash: string): Promise&lt;boolean&gt; {
+    return bcrypt.compare(password, hash);
+  }
+}
+</code>
+                </div>
+                <p class="mt-4 text-sm">On injecte ensuite ce service dans AuthService pour hâcher les mots de passe avant enregistrement.</p>
+                <div class="bg-green-50 p-3 rounded mt-3">
+                    ✅ <strong>Avantage :</strong> centralise la logique de hachage, facile à mocker dans les tests.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 : INTÉGRATION DANS AUTH SERVICE -->
+        <div class="slide" id="slide6">
+            <div class="bg-indigo-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-indigo-800">🔁 Intégration dans AuthService</h2>
+            </div>
+            <div class="p-6">
+                <p>Lors de la création d'un compte, on hache le mot de passe avant de le sauvegarder en base.</p>
+                <div class="code-block mt-3">
+<code>
+// auth.service.ts
+@Injectable()
+export class AuthService {
+  constructor(
+    private bcryptService: BcryptService,
+    @InjectRepository(User) private userRepo: Repository&lt;User&gt;,
+  ) {}
+
+  async register(createUserDto: CreateUserDto) {
+    const hashedPassword = await this.bcryptService.hash(createUserDto.password);
+    const newUser = this.userRepo.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return this.userRepo.save(newUser);
+  }
+
+  async validateUser(email: string, pass: string) {
+    const user = await this.userRepo.findOneBy({ email });
+    if (!user) return null;
+    const isMatch = await this.bcryptService.compare(pass, user.password);
+    return isMatch ? user : null;
+  }
+}
+</code>
+                </div>
+                <div class="mt-4 bg-yellow-50 p-3 rounded text-sm">
+                    ⚠️ <strong>Ne jamais logguer</strong> le mot de passe ou le hash, même en développement.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : BONNES PRATIQUES -->
+        <div class="slide" id="slide7">
+            <div class="bg-teal-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-teal-800">⚙️ Bonnes pratiques & paramètres</h2>
+            </div>
+            <div class="p-6 space-y-5">
+                <ul class="list-disc pl-6 space-y-2">
+                    <li><strong>Salt rounds :</strong> utiliser entre 10 et 12 (2^10 = 1024 itérations). Augmenter progressivement avec la puissance matérielle.</li>
+                    <li><strong>Bcrypt vs scrypt/argon2 :</strong> bcrypt est mature, simple et largement supporté. Pour très haute sécurité, préférer argon2 (mais plus complexe).</li>
+                    <li><strong>Longueur du mot de passe :</strong> bcrypt limite à 72 bytes. Penser à tronquer ou valider avant hachage.</li>
+                    <li><strong>Ne pas désactiver le salage :</strong> bcrypt le gère automatiquement.</li>
+                </ul>
+                <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                    🔐 Exemple de hash complet : <span class="break-all">$2b$10$9Rr5xQbPwA1/3Zq8YcLQOuvJb9kL8nMpCxJfX3YlZ5wVq2RfUaW</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : EXEMPLE COMPLET D'UN CONTROLEUR -->
+        <div class="slide" id="slide8">
+            <div class="bg-cyan-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-cyan-800">🌐 Exemple : Contrôleur Auth complet</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// auth.controller.ts
+@Post('register')
+async register(@Body() dto: CreateUserDto) {
+  return this.authService.register(dto);
+}
+
+@Post('login')
+async login(@Body() loginDto: LoginDto) {
+  const user = await this.authService.validateUser(loginDto.email, loginDto.password);
+  if (!user) throw new UnauthorizedException();
+  const token = this.jwtService.sign({ sub: user.id, email: user.email });
+  return { access_token: token };
+}
+</code>
+                </div>
+                <p class="mt-3 text-sm">Le mot de passe est haché avant stockage, et jamais renvoyé dans la réponse.</p>
+                <div class="mt-4 p-3 bg-green-100 border border-green-300 rounded">
+                    📘 <strong>Résumé du flux :</strong> Inscription → hash password → enregistrement → Connexion → comparaison bcrypt → JWT.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : EXERCICE PRATIQUE -->
+        <div class="slide" id="slide9">
+            <div class="bg-orange-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-orange-800">✏️ Exercice pratique</h2>
+            </div>
+            <div class="p-6">
+                <p>1. Créez un projet NestJS et installez bcrypt.</p>
+                <p>2. Implémentez un <strong>BcryptService</strong> avec les méthodes hash et compare.</p>
+                <p>3. Dans un UsersService, hachez le mot de passe avant de le stocker (simulez une base avec un tableau).</p>
+                <p>4. Écrivez une méthode <code>validateUser</code> qui compare un mot de passe saisi avec le hash stocké.</p>
+                <p>5. Testez avec un petit script ou un contrôleur simple.</p>
+                <div class="mt-5 bg-gray-800 text-white rounded p-3 text-sm">
+                    💡 <strong>Bonus :</strong> mesurez le temps d'exécution de bcrypt.hash avec saltRounds = 10, 12, 14. Que constatez-vous ?
+                </div>
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    ➡️ Utilisez les boutons pour naviguer entre les slides.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center px-6 py-4 border-t bg-gray-50">
+            <button id="prevBtn" class="nav-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full disabled:opacity-50 transition" disabled>◀ Précédent</button>
+            <div class="text-sm text-gray-500">Slide <span id="currentSlide">1</span> / <span id="totalSlides">9</span></div>
+            <button id="nextBtn" class="nav-btn bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-5 rounded-full transition">Suivant ▶</button>
+        </div>
+    </div>
+    <div class="text-center text-gray-400 text-xs mt-4">© NestJS – Cours avancé | Sécurité des mots de passe</div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            $('#currentSlide').text(index + 1);
+            $('#prevBtn').prop('disabled', index === 0);
+            $('#nextBtn').prop('disabled', index === total - 1);
+        }
+        $('#nextBtn').on('click', function() {
+            if (current < total - 1) { current++; showSlide(current); }
+        });
+        $('#prevBtn').on('click', function() {
+            if (current > 0) { current--; showSlide(current); }
+        });
+        // Swipe mobile
+        let touchStartX = 0, touchEndX = 0;
+        $('.slide').on('touchstart', function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $('.slide').on('touchend', function(e) {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            if (touchStartX - touchEndX > 50 && current < total - 1) { current++; showSlide(current); }
+            else if (touchEndX - touchStartX > 50 && current > 0) { current--; showSlide(current); }
+        });
+        if(window.MathJax) MathJax.typesetPromise();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>TypeScript - Index Signatures, Record et Mapped Types</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            min-height: 85vh;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .card-slide {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.2);
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+            background-color: #d97706;
+            color: white;
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #fcd34d;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .progress-dot.active-dot {
+            background-color: #b45309;
+            width: 24px;
+            border-radius: 12px;
+        }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+        }
+        @media (max-width: 640px) {
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="card-slide p-6 md:p-10 text-center">
+                    <div class="mb-6">
+                        <span class="text-sm font-semibold text-amber-700 bg-amber-100 px-4 py-1 rounded-full">TypeScript • Lesson 15</span>
+                    </div>
+                    <div class="text-7xl mb-6">📂🔷</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-amber-700 to-orange-700 bg-clip-text text-transparent">Index Signatures, Record & Mapped Types</h1>
+                    <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-xl mx-auto">Manipuler des objets dynamiques et transformer des types</p>
+                    <div class="mt-10 text-gray-500 text-sm">👨‍🏫 Classe Développement Web • Cameroun</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide" id="slide2">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-amber-500 pl-4 mb-6">🎯 Objectifs du cours</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex items-start gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Utiliser les index signatures (<code>[key: string]: type</code>) pour des propriétés dynamiques</span></li>
+                        <li class="flex items-start gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Maîtriser les types utilitaires <code>Record&lt;K, V&gt;</code></span></li>
+                        <li class="flex items-start gap-3"><span class="text-amber-600 text-xl">✓</span> <span>Utiliser les mapped types pour transformer des types existants</span></li>
+                    </ul>
+                    <div class="mt-8 p-4 bg-amber-50 rounded-xl text-amber-800 text-sm italic">
+                        💡 À la fin, vous saurez créer des types flexibles pour des objets aux clés dynamiques.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : LE PROBLÈME DES OBJETS DYNAMIQUES -->
+            <div class="slide" id="slide3">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🤔 Le problème des objets dynamiques</h2>
+                    <p>On a souvent besoin de stocker des données dont les clés ne sont pas connues à l'avance (ex: traduction, configuration, stockage clé-valeur).</p>
+                    <pre><code>// Sans TypeScript : n'importe quelle clé est acceptée
+const translations: any = {};
+translations.fr = "Bonjour";
+translations.en = "Hello";
+translations.es = "Hola";
+
+// Avec TypeScript classique : impossible de typer dynamiquement
+// interface Translations {
+//   fr: string;
+//   en: string;
+//   es: string;
+// } // ❌ pas flexible</code></pre>
+                    <p class="text-amber-700 font-semibold">Solution : les <strong>index signatures</strong> !</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INDEX SIGNATURES -->
+            <div class="slide" id="slide4">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Index Signatures</h2>
+                    <pre><code>interface Translations {
+  [key: string]: string;  // Toute clé de type string a une valeur string
+}
+
+const t: Translations = {
+  fr: "Bonjour",
+  en: "Hello",
+  es: "Hola"
+};
+
+// ✅ Accès dynamique OK
+t.de = "Guten Tag";
+console.log(t.fr);  // "Bonjour"
+
+// ❌ Erreur : la valeur doit être une string
+t.jp = 42;  // Type 'number' non assignable à 'string'</code></pre>
+                    <div class="bg-green-50 p-2 rounded mt-2 text-sm">✔️ Utile pour les dictionnaires, les configurations, les caches.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : TYPES POSSIBLES POUR LES CLÉS -->
+            <div class="slide" id="slide5">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔑 Types autorisés pour les index</h2>
+                    <p>Les index signatures peuvent utiliser <code>string</code> ou <code>number</code> comme type de clé.</p>
+                    <pre><code>// Clés de type string
+interface StringMap {
+  [key: string]: number;
+}
+
+// Clés de type number (tableau associatif numérique)
+interface NumberMap {
+  [index: number]: string;
+}
+
+const arr: NumberMap = ["a", "b", "c"];
+console.log(arr[0]);  // "a" ✅
+
+// ⚠️ JavaScript convertit automatiquement les clés number en string
+// TypeScript les traite séparément</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : MIXER INDEX SIGNATURE ET PROPRIÉTÉS FIXES -->
+            <div class="slide" id="slide6">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔧 Mixer propriétés fixes et dynamiques</h2>
+                    <pre><code>interface UserPreferences {
+  // Propriétés fixes
+  theme: 'light' | 'dark';
+  notifications: boolean;
+  
+  // Propriétés dynamiques supplémentaires
+  [key: string]: string | boolean | number;
+}
+
+const prefs: UserPreferences = {
+  theme: 'dark',
+  notifications: true,
+  language: 'fr',      // ✅ OK (valeur string)
+  fontSize: 14         // ✅ OK (valeur number)
+};
+
+// ❌ prefs.unknown = new Date(); // Erreur : Date n'est pas dans l'union</code></pre>
+                    <div class="bg-yellow-50 p-2 rounded mt-2 text-sm">⚠️ Le type de l'index doit être compatible avec tous les types des propriétés fixes.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : LE TYPE UTILITAIRE RECORD<K, V> -->
+            <div class="slide" id="slide7">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Le type <code>Record&lt;K, V&gt;</code></h2>
+                    <p><code>Record&lt;K, V&gt;</code> est un type utilitaire qui construit un type objet dont les clés sont de type <code>K</code> et les valeurs de type <code>V</code>.</p>
+                    <pre><code>// Record avec des clés littérales
+type UserRoles = Record&lt;'admin' | 'user' | 'guest', string&gt;;
+// Équivalent à :
+// type UserRoles = {
+//   admin: string;
+//   user: string;
+//   guest: string;
+// }
+
+const roles: UserRoles = {
+  admin: "Administrateur",
+  user: "Utilisateur",
+  guest: "Invité"
+};
+
+// Record avec des clés string quelconques
+type StringNumberMap = Record&lt;string, number&gt;;
+const map: StringNumberMap = { a: 1, b: 2, c: 3 };</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RECORD VS INDEX SIGNATURE -->
+            <div class="slide" id="slide8">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">⚖️ <code>Record&lt;K,V&gt;</code> vs <code>{ [key: string]: V }</code></h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border text-sm">
+                            <thead class="bg-amber-100">\
+                                <th class="p-2">Critère</th><th class="p-2">Index Signature</th><th class="p-2">Record&lt;K,V&gt;</th>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b"><td class="p-2">Clés</td><td class="p-2"><code>string</code> ou <code>number</code></td><td class="p-2">N'importe quel type (union, enum...)</td></tr>
+                                <tr class="border-b"><td class="p-2">Clés connues</td><td class="p-2">Non (toutes les clés possibles)</td><td class="p-2">Oui (on peut limiter aux clés de l'union)</td></tr>
+                                <tr class="border-b"><td class="p-2">Syntaxe</td><td class="p-2"><code>{ [key: string]: T }</code></td><td class="p-2"><code>Record&lt;K, T&gt;</code></td></tr>
+                                <tr class="border-b"><td class="p-2">Exemple</td><td class="p-2"><code>{ [key: string]: number }</code></td><td class="p-2"><code>Record&lt;string, number&gt;</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-2 text-gray-600">Préférez <code>Record</code> quand les clés sont connues (union), sinon l'index signature.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : MAPPED TYPES - INTRODUCTION -->
+            <div class="slide" id="slide9">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔄 Mapped Types : introduction</h2>
+                    <p>Un <strong>mapped type</strong> permet de transformer un type existant en un nouveau type, en appliquant une transformation à chaque propriété.</p>
+                    <pre><code>// Syntaxe de base : [P in keyof T]: T[P]
+type ReadOnly&lt;T&gt; = {
+  readonly [P in keyof T]: T[P];
+};
+
+interface User {
+  name: string;
+  age: number;
+}
+
+type ReadonlyUser = ReadOnly&lt;User&gt;;
+// Équivalent à :
+// interface ReadonlyUser {
+//   readonly name: string;
+//   readonly age: number;
+// }</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : MAPPED TYPES STANDARDS -->
+            <div class="slide" id="slide10">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📚 Mapped Types standards (built-in)</h2>
+                    <div class="space-y-3">
+                        <div><code>Partial&lt;T&gt;</code> : rend toutes les propriétés optionnelles</div>
+                        <div><code>Required&lt;T&gt;</code> : rend toutes les propriétés obligatoires</div>
+                        <div><code>Readonly&lt;T&gt;</code> : rend toutes les propriétés en lecture seule</div>
+                        <div><code>Pick&lt;T, K&gt;</code> : sélectionne un sous-ensemble de propriétés</div>
+                        <div><code>Omit&lt;T, K&gt;</code> : exclut certaines propriétés</div>
+                    </div>
+                    <pre><code>interface User {
+  id: number;
+  name: string;
+  email: string;
+  age: number;
+}
+
+type UserPreview = Pick&lt;User, 'id' | 'name'&gt;;  // { id: number; name: string }
+type UserWithoutEmail = Omit&lt;User, 'email'&gt;; // { id: number; name: string; age: number }
+type PartialUser = Partial&lt;User&gt;; // Tout est optionnel</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 11 : CRÉER SES PROPRES MAPPED TYPES -->
+            <div class="slide" id="slide11">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🛠️ Créer des Mapped Types personnalisés</h2>
+                    <pre><code>// Rendre toutes les propriétés optionnelles ET readonly
+type ReadonlyPartial&lt;T&gt; = {
+  readonly [P in keyof T]?: T[P];
+};
+
+// Transformer les types des propriétés (ex: toutes en string)
+type Stringify&lt;T&gt; = {
+  [P in keyof T]: string;
+};
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
+
+type StringProduct = Stringify&lt;Product&gt;;
+// { id: string; name: string; price: string; }</code></pre>
+                    <div class="bg-green-50 p-2 rounded mt-2 text-sm">🔧 Les mapped types sont très utilisés dans les bibliothèques comme Redux, Prisma, etc.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 12 : MODIFICATEURS DANS LES MAPPED TYPES -->
+            <div class="slide" id="slide12">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">✏️ Modificateurs <code>+?</code> , <code>-?</code> , <code>+readonly</code></h2>
+                    <pre><code>// Supprimer le readonly (si présent)
+type Mutable&lt;T&gt; = {
+  -readonly [P in keyof T]: T[P];
+};
+
+// Rendre toutes les propriétés obligatoires (enlever le ?)
+type Concrete&lt;T&gt; = {
+  [P in keyof T]-?: T[P];
+};
+
+interface Config {
+  url?: string;
+  timeout?: number;
+}
+
+type RequiredConfig = Concrete&lt;Config&gt;;
+// { url: string; timeout: number; }</code></pre>
+                    <p><code>+?</code> ajoute l'optionnalité, <code>-?</code> l'enlève. Idem pour <code>+readonly</code> / <code>-readonly</code>.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 13 : EXEMPLE CONCRET (API) -->
+            <div class="slide" id="slide13">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🌐 Exemple concret : API REST</h2>
+                    <pre><code>// Définition des endpoints
+type ApiEndpoints = {
+  '/users': { id: number; name: string }[];
+  '/user/:id': { id: number; name: string; email: string };
+  '/posts': { id: number; title: string }[];
+};
+
+// Type générique pour typer les réponses
+type ApiResponse&lt;T extends keyof ApiEndpoints&gt; = {
+  data: ApiEndpoints[T];
+  status: number;
+};
+
+// Utilisation
+async function fetchApi&lt;T extends keyof ApiEndpoints&gt;(
+  url: T
+): Promise&lt;ApiResponse&lt;T&gt;&gt; {
+  // implémentation
+  return { data: {} as any, status: 200 };
+}
+
+const users = await fetchApi('/users');
+// users.data est typé comme { id: number; name: string }[] ✅</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 14 : BONNES PRATIQUES -->
+            <div class="slide" id="slide14">
+                <div class="card-slide p-6 md:p-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">✅ Bonnes pratiques</h2>
+                    <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                        <li>Utilisez <code>Record&lt;K,V&gt;</code> quand les clés sont un ensemble connu (union).</li>
+                        <li>Utilisez les index signatures pour les dictionnaires génériques.</li>
+                        <li>Préférez les mapped types intégrés (<code>Partial</code>, <code>Pick</code>, <code>Omit</code>) à les recoder.</li>
+                        <li>Évitez les index signatures trop permissives si vous pouvez définir un type plus précis.</li>
+                        <li>Combinez <code>keyof</code> et les mapped types pour des transformations puissantes.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- SLIDE 15 : RÉSUMÉ -->
+            <div class="slide" id="slide15">
+                <div class="card-slide p-6 md:p-8 text-center">
+                    <h2 class="text-3xl font-bold mb-4">📌 Ce qu'il faut retenir</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left mt-6">
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> <code>[key: string]: Type</code> pour propriétés dynamiques</div>
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> <code>Record&lt;K, V&gt;</code> : objet avec clés de type K, valeurs V</div>
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> Mapped types : <code>{ [P in keyof T]: T[P] }</code></div>
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> Types utilitaires : <code>Partial</code>, <code>Pick</code>, <code>Omit</code>, <code>Readonly</code></div>
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> Modificateurs <code>+?</code>, <code>-?</code>, <code>+readonly</code></div>
+                        <div class="bg-amber-50 p-4 rounded-xl"><span class="font-bold">✓</span> Puissant pour typer des API ou des transformations</div>
+                    </div>
+                    <div class="mt-6 p-3 bg-amber-100 rounded-lg inline-block">
+                        🌟 Maîtrisez ces outils pour des types très flexibles !
+                    </div>
+                    <p class="mt-8 text-gray-500">Prochaine leçon : classes et POO en TypeScript 🚀</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation flottante -->
+        <div class="fixed bottom-4 left-0 right-0 flex justify-center items-center gap-3 z-20">
+            <button id="prevBtn" class="nav-btn bg-white text-gray-700 px-5 py-2 rounded-full shadow-lg border border-gray-300 font-semibold text-sm md:text-base">◀ Précédent</button>
+            <div id="progressDots" class="flex gap-2 mx-2 items-center"></div>
+            <button id="nextBtn" class="nav-btn bg-amber-600 text-white px-5 py-2 rounded-full shadow-lg font-semibold text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const slides = $('.slide');
+            let currentIndex = 0;
+            const totalSlides = slides.length;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                updateDots();
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            }
+
+            function updateDots() {
+                const container = $('#progressDots');
+                container.empty();
+                for (let i = 0; i < totalSlides; i++) {
+                    const dot = $('<div>').addClass('progress-dot');
+                    if (i === currentIndex) dot.addClass('active-dot');
+                    dot.on('click', function() {
+                        currentIndex = i;
+                        updateSlides();
+                    });
+                    container.append(dot);
+                }
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                } else {
+                    alert("🎉 Félicitations ! Vous avez terminé le cours sur les index signatures, Record et mapped types.");
+                }
+            });
+
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') $('#nextBtn').click();
+                else if (e.key === 'ArrowLeft') $('#prevBtn').click();
+            });
+
+            updateDots();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+[
+  {
+    "intitule": "Installation et configuration de base des notifications",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter des notifications push dans votre application e-commerce React Native (Expo). La bibliothèque <code>expo-notifications</code> est utilisée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Donner la commande d'installation de expo-notifications et citer les dépendances supplémentaires nécessaires pour les projets Expo gérés.",
+        "niveau": "easy",
+        "reponse": "```bash\nnpx expo install expo-notifications expo-device expo-constants\n```\n\nDépendances supplémentaires :\n- expo-device : pour obtenir les informations de l'appareil (device push token)\n- expo-constants : pour accéder aux variables d'environnement (projectId)\n\nPour EAS Build, expo-notifications est déjà configuré automatiquement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer la configuration nécessaire dans app.json pour activer les notifications sur iOS et Android.",
+        "niveau": "medium",
+        "reponse": "```json\n{\n  \"expo\": {\n    \"notification\": {\n      \"icon\": \"./assets/notification-icon.png\",\n      \"color\": \"#4CAF50\",\n      \"iosDisplayInForeground\": true,\n      \"androidMode\": \"default\",\n      \"androidCollapsedTitle\": \"Nouvelle notification\"\n    },\n    \"ios\": {\n      \"usesAppleSignIn\": true,\n      \"infoPlist\": {\n        \"UIBackgroundModes\": [\"remote-notification\"]\n      }\n    },\n    \"android\": {\n      \"permissions\": [\"RECEIVE_BOOT_COMPLETED\", \"VIBRATE\"]\n    }\n  }\n}\n```\n\nPour les notifications push complètes en production, il faut également configurer :\n- iOS : clé APNs dans Apple Developer Console\n- Android : clé FCM dans Firebase Console",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des permissions utilisateur",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Avant d'envoyer des notifications, vous devez demander la permission à l'utilisateur. Sur Android (API 33+), de nouvelles permissions fines sont nécessaires pour les notifications.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une fonction asynchrone `requestNotificationPermissions()` qui demande les permissions et retourne le statut. Gérer les cas spécifiques à Android 13+.",
+        "niveau": "medium",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport { Platform } from 'react-native';\n\nconst requestNotificationPermissions = async () => {\n  try {\n    // Pour Android 13+ (API 33+), permission POST_NOTIFICATIONS requise\n    if (Platform.OS === 'android' && Platform.Version >= 33) {\n      const { status: existingStatus } = await Notifications.getPermissionsAsync();\n      \n      if (existingStatus !== 'granted') {\n        const { status } = await Notifications.requestPermissionsAsync({\n          android: {\n            // Options spécifiques Android\n            importance: Notifications.AndroidImportance.HIGH,\n          },\n          ios: {\n            allowAlert: true,\n            allowBadge: true,\n            allowSound: true,\n          },\n        });\n        return status === 'granted';\n      }\n      return existingStatus === 'granted';\n    }\n    \n    // Pour les autres versions\n    const { status: existingStatus } = await Notifications.getPermissionsAsync();\n    let finalStatus = existingStatus;\n    \n    if (existingStatus !== 'granted') {\n      const { status } = await Notifications.requestPermissionsAsync();\n      finalStatus = status;\n    }\n    \n    return finalStatus === 'granted';\n  } catch (error) {\n    console.error('Erreur lors de la demande de permission:', error);\n    return false;\n  }\n};\n\n// Utilisation\nconst hasPermission = await requestNotificationPermissions();\nif (hasPermission) {\n  console.log('Notifications autorisées');\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquer la différence de comportement des permissions entre iOS et Android.",
+            "niveau": "medium",
+            "reponse": "- iOS : l'utilisateur doit explicitement autoriser les notifications via une popup système. Le refus peut être modifié dans les paramètres de l'application.\n- Android (avant API 33) : les notifications sont autorisées par défaut via le manifeste.\n- Android (API 33+) : requiert la permission POST_NOTIFICATIONS comme une permission runtime standard, comme la caméra ou la localisation.",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration des canaux de notification (Android)",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Sur Android 8.0+ (API 26+), les notifications doivent être associées à un canal. Créez des canaux distincts pour différents types de notifications (commandes, promotions, rappels).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une fonction `createNotificationChannels()` qui crée trois canaux : 'order-updates', 'promotions', 'reminders' avec des importances différentes.",
+        "niveau": "medium",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport { Platform } from 'react-native';\n\nconst createNotificationChannels = async () => {\n  if (Platform.OS !== 'android') return;\n  \n  try {\n    // Canal pour les mises à jour de commandes (haute importance)\n    await Notifications.setNotificationChannelAsync('order-updates', {\n      name: 'Mises à jour des commandes',\n      importance: Notifications.AndroidImportance.HIGH,\n      vibrationPattern: [0, 250, 250, 250],\n      lightColor: '#4CAF50',\n      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,\n      bypassDnd: true,\n    });\n    \n    // Canal pour les promotions (importance moyenne)\n    await Notifications.setNotificationChannelAsync('promotions', {\n      name: 'Promotions et offres',\n      importance: Notifications.AndroidImportance.DEFAULT,\n      vibrationPattern: [0, 200],\n      lightColor: '#FF9800',\n      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,\n    });\n    \n    // Canal pour les rappels (importance basse)\n    await Notifications.setNotificationChannelAsync('reminders', {\n      name: 'Rappels',\n      importance: Notifications.AndroidImportance.LOW,\n      sound: false,\n    });\n    \n    console.log('Canaux de notification créés avec succès');\n  } catch (error) {\n    console.error('Erreur lors de la création des canaux:', error);\n  }\n};\n\n// Appeler cette fonction dans App.js au démarrage\ncreateNotificationChannels();\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Citer les différents niveaux d'importance disponibles sur Android et leur signification.",
+            "niveau": "easy",
+            "reponse": "1. HIGH : son émis, apparaît à l'écran, interruption\n2. DEFAULT : son émis, notification standard\n3. LOW : pas de son, affichée silencieusement\n4. MIN : seulement dans le tiroir de notifications, pas de son ni de popup\n5. MAX : haute priorité, affichage tête haute (heads-up)\n6. NONE : pas de notification (désactivé)",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Réception des notifications de statut commande",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre backend envoie des notifications push lorsque le statut d'une commande change (confirmée, expédiée, livrée). Configurez l'écoute des notifications dans l'application pour afficher un message approprié et rediriger l'utilisateur vers le détail de la commande.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code complet pour configurer un listener de notifications dans App.js, gérer les notifications reçues en premier plan et en arrière-plan, et rediriger vers l'écran de détail de la commande.",
+        "niveau": "hard",
+        "reponse": "```javascript\nimport { useEffect, useRef } from 'react';\nimport { NavigationContainer } from '@react-navigation/native';\nimport * as Notifications from 'expo-notifications';\nimport { useNavigation } from '@react-navigation/native';\n\n// Configuration du handler d'affichage des notifications en premier plan\nNotifications.setNotificationHandler({\n  handleNotification: async (notification) => ({\n    shouldShowAlert: true,\n    shouldPlaySound: true,\n    shouldSetBadge: true,\n  }),\n});\n\nfunction App() {\n  const navigationRef = useRef();\n  const responseListener = useRef();\n  const notificationListener = useRef();\n\n  // Gérer la navigation vers le détail de la commande\n  const navigateToOrder = (orderId) => {\n    if (navigationRef.current) {\n      navigationRef.current.navigate('OrderDetails', { orderId });\n    }\n  };\n\n  useEffect(() => {\n    // Écouter les notifications reçues en premier plan\n    notificationListener.current = Notifications.addNotificationReceivedListener(\n      (notification) => {\n        console.log('Notification reçue:', notification);\n        // Optionnel : afficher un toast ou mettre à jour l'UI\n      }\n    );\n\n    // Écouter la réponse de l'utilisateur à une notification\n    responseListener.current = Notifications.addNotificationResponseReceivedListener(\n      (response) => {\n        const orderId = response.notification.request.content.data.orderId;\n        if (orderId) {\n          navigateToOrder(orderId);\n        }\n      }\n    );\n\n    // Gérer les notifications qui ont ouvert l'application\n    const checkInitialNotification = async () => {\n      const response = await Notifications.getLastNotificationResponseAsync();\n      if (response && response.notification.request.content.data.orderId) {\n        navigateToOrder(response.notification.request.content.data.orderId);\n      }\n    };\n    \n    checkInitialNotification();\n\n    return () => {\n      if (notificationListener.current) {\n        Notifications.removeNotificationSubscription(notificationListener.current);\n      }\n      if (responseListener.current) {\n        Notifications.removeNotificationSubscription(responseListener.current);\n      }\n    };\n  }, []);\n\n  // Fonction pour envoyer une notification locale (exemple)\n  const sendLocalStatusNotification = async (orderId, status) => {\n    const statusMessages = {\n      confirmed: '✅ Votre commande a été confirmée !',\n      shipped: '📦 Votre commande a été expédiée !',\n      delivered: '🏠 Votre commande a été livrée !',\n    };\n\n    await Notifications.scheduleNotificationAsync({\n      content: {\n        title: 'Mise à jour commande',\n        body: statusMessages[status] || `Statut mis à jour : ${status}`,\n        data: { orderId, status, screen: 'OrderDetails' },\n        channelId: 'order-updates',\n      },\n      trigger: null, // immédiat\n    });\n  };\n\n  return (\n    <NavigationContainer ref={navigationRef}>\n      {/* Le reste de l'application */}\n    </NavigationContainer>\n  );\n}\n\nexport default App;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Obtention et enregistrement du token push",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour recevoir des notifications push du backend, l'application doit envoyer son token push Expo au serveur après authentification.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les fonctions nécessaires pour :\n1. Obtenir le token push Expo de l'appareil\n2. Enregistrer ce token sur le backend après connexion\n3. Supprimer le token du backend lors de la déconnexion",
+        "niveau": "hard",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport * as Device from 'expo-device';\nimport Constants from 'expo-constants';\nimport { Platform } from 'react-native';\n\n// Obtenir le token push Expo\nconst getExpoPushToken = async () => {\n  if (!Device.isDevice) {\n    alert('Les notifications push ne fonctionnent que sur un appareil physique');\n    return null;\n  }\n\n  try {\n    const { status: existingStatus } = await Notifications.getPermissionsAsync();\n    let finalStatus = existingStatus;\n    \n    if (existingStatus !== 'granted') {\n      const { status } = await Notifications.requestPermissionsAsync();\n      finalStatus = status;\n    }\n    \n    if (finalStatus !== 'granted') {\n      alert('Permissions de notification refusées');\n      return null;\n    }\n    \n    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.expoConfig?.projectId;\n    \n    if (!projectId) {\n      console.warn('Project ID manquant pour les notifications');\n      return null;\n    }\n    \n    const token = await Notifications.getExpoPushTokenAsync({\n      projectId: projectId,\n    });\n    \n    console.log('Expo Push Token:', token.data);\n    return token.data;\n  } catch (error) {\n    console.error('Erreur lors de la récupération du token:', error);\n    return null;\n  }\n};\n\n// Enregistrer le token sur le backend\nconst registerPushToken = async (token, userId) => {\n  try {\n    const response = await fetch('https://api.example.com/users/push-token', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Authorization': `Bearer ${await getAuthToken()}`,\n      },\n      body: JSON.stringify({\n        userId,\n        pushToken: token,\n        platform: Platform.OS,\n        deviceName: Device.deviceName,\n      }),\n    });\n    \n    if (!response.ok) {\n      throw new Error('Erreur lors de l\\'enregistrement du token');\n    }\n    \n    return true;\n  } catch (error) {\n    console.error('Erreur:', error);\n    return false;\n  }\n};\n\n// Supprimer le token du backend (déconnexion)\nconst unregisterPushToken = async (token, userId) => {\n  try {\n    const response = await fetch('https://api.example.com/users/push-token', {\n      method: 'DELETE',\n      headers: {\n        'Content-Type': 'application/json',\n        'Authorization': `Bearer ${await getAuthToken()}`,\n      },\n      body: JSON.stringify({ userId, pushToken: token }),\n    });\n    \n    return response.ok;\n  } catch (error) {\n    console.error('Erreur lors de la suppression du token:', error);\n    return false;\n  }\n};\n\n// Hook personnalisé pour gérer le token push\nconst usePushNotifications = (isAuthenticated, userId) => {\n  useEffect(() => {\n    let token = null;\n    \n    const setupPushNotifications = async () => {\n      if (!isAuthenticated) return;\n      \n      token = await getExpoPushToken();\n      if (token) {\n        await registerPushToken(token, userId);\n      }\n    };\n    \n    setupPushNotifications();\n    \n    return () => {\n      if (token && isAuthenticated) {\n        unregisterPushToken(token, userId);\n      }\n    };\n  }, [isAuthenticated, userId]);\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Notification locale de rappel de panier abandonné",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Implémentez une fonction qui envoie une notification locale 30 minutes après l'ajout d'un article au panier si l'utilisateur n'a pas finalisé son achat.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une fonction `scheduleCartReminder(cartItems)` qui planifie une notification de rappel dans 30 minutes si le panier n'est pas vide.",
+        "niveau": "medium",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport AsyncStorage from '@react-native-async-storage/async-storage';\n\nconst REMINDER_SCHEDULED_KEY = '@cart_reminder_scheduled';\n\nconst scheduleCartReminder = async (cartItems) => {\n  if (!cartItems || cartItems.length === 0) {\n    // Annuler le rappel si le panier est vide\n    await cancelCartReminder();\n    return;\n  }\n  \n  // Vérifier si un rappel est déjà planifié\n  const alreadyScheduled = await AsyncStorage.getItem(REMINDER_SCHEDULED_KEY);\n  if (alreadyScheduled === 'true') {\n    console.log('Rappel déjà planifié');\n    return;\n  }\n  \n  const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);\n  const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);\n  \n  // Planifier la notification dans 30 minutes\n  const trigger = new Date(Date.now() + 30 * 60 * 1000);\n  \n  const notificationId = await Notifications.scheduleNotificationAsync({\n    content: {\n      title: '🛒 Vous avez oublié quelque chose ?',\n      body: `Votre panier contient ${itemCount} article(s) pour un total de ${total.toFixed(2)} €. Terminez votre commande !`,\n      data: { screen: 'Cart' },\n      channelId: 'reminders',\n      categoryIdentifier: 'cart-reminder',\n    },\n    trigger,\n  });\n  \n  // Sauvegarder l'ID de la notification planifiée\n  await AsyncStorage.setItem(REMINDER_SCHEDULED_KEY, 'true');\n  await AsyncStorage.setItem('@cart_reminder_id', notificationId);\n  \n  console.log('Rappel planifié pour dans 30 minutes');\n};\n\nconst cancelCartReminder = async () => {\n  const notificationId = await AsyncStorage.getItem('@cart_reminder_id');\n  if (notificationId) {\n    await Notifications.cancelScheduledNotificationAsync(notificationId);\n    await AsyncStorage.removeItem(REMINDER_SCHEDULED_KEY);\n    await AsyncStorage.removeItem('@cart_reminder_id');\n    console.log('Rappel annulé');\n  }\n};\n\n// Utilisation dans le composant CartScreen\nuseEffect(() => {\n  if (cartItems.length > 0) {\n    scheduleCartReminder(cartItems);\n  } else {\n    cancelCartReminder();\n  }\n  \n  return () => {\n    // Annuler le rappel si le composant se démonte (commande finalisée)\n    if (cartItems.length === 0) {\n      cancelCartReminder();\n    }\n  };\n}, [cartItems]);\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Badge sur l'icône de l'application",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Mettez à jour le badge (compteur) sur l'icône de l'application pour indiquer le nombre de notifications non lues (commandes en attente de validation).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une fonction `setAppBadge(count)` qui modifie le badge de l'icône application sur iOS et Android.",
+        "niveau": "medium",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport { Platform } from 'react-native';\n\nconst setAppBadge = async (count) => {\n  try {\n    // Définir le badge\n    await Notifications.setBadgeCountAsync(count);\n    \n    console.log(`Badge mis à jour : ${count}`);\n  } catch (error) {\n    console.error('Erreur lors de la mise à jour du badge:', error);\n  }\n};\n\n// Incrémenter le badge\nconst incrementBadge = async () => {\n  const currentBadge = await Notifications.getBadgeCountAsync();\n  await setAppBadge(currentBadge + 1);\n};\n\n// Décrémenter le badge (quand l'utilisateur ouvre la notification)\nconst decrementBadge = async () => {\n  const currentBadge = await Notifications.getBadgeCountAsync();\n  if (currentBadge > 0) {\n    await setAppBadge(currentBadge - 1);\n  }\n};\n\n// Réinitialiser le badge (à 0)\nconst resetBadge = async () => {\n  await setAppBadge(0);\n};\n\n// Utilisation : lorsque l'utilisateur ouvre l'application\nuseEffect(() => {\n  resetBadge();\n}, []);\n\n// Utilisation : à la réception d'une nouvelle commande\nconst onNewOrderReceived = async (order) => {\n  if (order.status === 'pending') {\n    await incrementBadge();\n    await Notifications.scheduleNotificationAsync({\n      content: {\n        title: 'Nouvelle commande',\n        body: `Commande #${order.id} en attente de validation`,\n        badge: 1,\n      },\n      trigger: null,\n    });\n  }\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Notifications push en développement vs production",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Expliquez les différences de configuration entre le développement et la production pour les notifications push Expo.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes nécessaires pour passer des notifications en développement (Expo Go) aux notifications en production (build standalone).",
+        "niveau": "medium",
+        "reponse": "**Développement (Expo Go) :**\n- Utilise les serveurs de notification d'Expo\n- Aucune configuration supplémentaire requise\n- Limité à 100 notifications par jour pour les comptes gratuits\n- Fonctionne immédiatement avec getExpoPushTokenAsync()\n\n**Production (Build standalone) :**\n1. Configurer un compte EAS (Expo Application Services)\n2. Générer les clés de notification :\n   - iOS : Créer une clé APNs (Apple Push Notification service) sur Apple Developer\n   - Android : Configurer Firebase Cloud Messaging (FCM) dans Firebase Console\n3. Lier les clés au projet Expo via `eas credentials`\n4. Mettre à jour app.json avec le projectId\n5. Rebuild l'application avec EAS Build\n6. En production, le token push inclut l'identifiant du projet\n\n**Vérification :**\n```javascript\n// Vérifier si l'application est en mode développement\nconst isDevelopment = __DEV__;\n\nif (isDevelopment) {\n  console.log('Notifications en développement (Expo Go)');\n} else {\n  console.log('Notifications en production (Standalone)');\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des erreurs de notification push",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le backend peut rencontrer des erreurs lors de l'envoi des notifications (token expiré, appareil hors ligne). Implémentez une stratégie de gestion des erreurs côté client.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un mécanisme de surveillance des tokens push qui détecte les tokens invalides et les renouvelle automatiquement.",
+        "niveau": "hard",
+        "reponse": "```javascript\nimport * as Notifications from 'expo-notifications';\nimport * as Device from 'expo-device';\n\nclass PushTokenManager {\n  constructor() {\n    this.currentToken = null;\n    this.isRefreshing = false;\n  }\n\n  async getValidToken(forceRefresh = false) {\n    if (!Device.isDevice) return null;\n\n    // Vérifier si le token actuel est valide\n    if (this.currentToken && !forceRefresh) {\n      const isValid = await this.validateToken(this.currentToken);\n      if (isValid) return this.currentToken;\n    }\n\n    // Rafraîchir le token\n    return this.refreshToken();\n  }\n\n  async refreshToken() {\n    if (this.isRefreshing) {\n      // Attendre la fin du rafraîchissement en cours\n      return new Promise((resolve) => {\n        const checkInterval = setInterval(async () => {\n          if (!this.isRefreshing) {\n            clearInterval(checkInterval);\n            resolve(this.currentToken);\n          }\n        }, 100);\n      });\n    }\n\n    this.isRefreshing = true;\n\n    try {\n      // Vérifier les permissions\n      const { status } = await Notifications.getPermissionsAsync();\n      if (status !== 'granted') {\n        console.log('Permissions non accordées');\n        return null;\n      }\n\n      // Obtenir un nouveau token\n      const newToken = await Notifications.getExpoPushTokenAsync({\n        projectId: Constants.expoConfig?.extra?.eas?.projectId,\n      });\n\n      this.currentToken = newToken.data;\n\n      // Envoyer le nouveau token au backend\n      await this.sendTokenToBackend(this.currentToken);\n\n      return this.currentToken;\n    } catch (error) {\n      console.error('Erreur lors du rafraîchissement du token:', error);\n      return null;\n    } finally {\n      this.isRefreshing = false;\n    }\n  }\n\n  async validateToken(token) {\n    if (!token) return false;\n\n    try {\n      // Tester le token avec une requête ping au backend\n      const response = await fetch('https://api.example.com/push-token/validate', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ token }),\n      });\n\n      if (response.status === 410) {\n        // Token expiré (Gone)\n        console.log('Token expiré, nécessite un rafraîchissement');\n        return false;\n      }\n\n      return response.ok;\n    } catch (error) {\n      console.error('Erreur de validation du token:', error);\n      return false;\n    }\n  }\n\n  async sendTokenToBackend(token) {\n    try {\n      const response = await fetch('https://api.example.com/users/push-token', {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n          'Authorization': `Bearer ${await getAuthToken()}`,\n        },\n        body: JSON.stringify({ pushToken: token }),\n      });\n\n      if (!response.ok) {\n        throw new Error(`HTTP ${response.status}`);\n      }\n\n      console.log('Token enregistré avec succès');\n    } catch (error) {\n      console.error('Erreur d\\'enregistrement:', error);\n      // Planifier une nouvelle tentative\n      setTimeout(() => this.sendTokenToBackend(token), 60000);\n    }\n  }\n}\n\n// Utilisation\nexport const pushTokenManager = new PushTokenManager();\n\n// Dans le composant\nuseEffect(() => {\n  const setupPushNotifications = async () => {\n    const token = await pushTokenManager.getValidToken();\n    if (token) {\n      console.log('Token push valide:', token);\n    }\n  };\n\n  setupPushNotifications();\n\n  // Rafraîchir périodiquement (toutes les 24h)\n  const interval = setInterval(() => {\n    pushTokenManager.getValidToken(true);\n  }, 24 * 60 * 60 * 1000);\n\n  return () => clearInterval(interval);\n}, []);\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

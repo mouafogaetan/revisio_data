@@ -1,0 +1,166 @@
+[
+  {
+    "intitule": "Configuration de la géolocalisation sur mobile",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Pour développer une application e-commerce qui propose aux utilisateurs de trouver des magasins partenaires à proximité, vous devez configurer la géolocalisation avec <code>expo-location</code> et <code>react-native-maps</code>.</p>\n<p>Répondez aux questions suivantes concernant les prérequis techniques.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quelles sont les commandes npm (ou expo) à exécuter pour installer les bibliothèques nécessaires à la géolocalisation et à l'affichage cartographique ?",
+        "niveau": "easy",
+        "reponse": "```bash\nnpx expo install expo-location react-native-maps\n```\nPour Expo, ces packages sont compatibles. Il faut aussi installer `expo-build-properties` si besoin de configurer les permissions nativement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire les permissions à ajouter dans <code>app.json</code> (ou <code>AndroidManifest.xml</code> / <code>Info.plist</code>) pour Android et iOS afin d'obtenir la localisation en arrière-plan (si nécessaire) et au premier plan.",
+        "niveau": "medium",
+        "reponse": "**Android (app.json → android.permissions)** :\n- `\"android.permission.ACCESS_FINE_LOCATION\"` (GPS précis)\n- `\"android.permission.ACCESS_COARSE_LOCATION\"` (réseau)\n- `\"android.permission.ACCESS_BACKGROUND_LOCATION\"` (optionnel pour arrière-plan)\n\n**iOS (app.json → ios.infoPlist)** :\n- `NSLocationWhenInUseUsageDescription` : explication pour utilisation en premier plan.\n- `NSLocationAlwaysAndWhenInUseUsageDescription` : si besoin d'arrière-plan.\n- `UIBackgroundModes` avec `location` (pour suivi en arrière-plan).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer la différence entre <code>requestForegroundPermissionsAsync</code> et <code>requestBackgroundPermissionsAsync</code> dans expo-location.",
+        "niveau": "medium",
+        "reponse": "`requestForegroundPermissionsAsync` demande l'autorisation d'accéder à la position lorsque l'app est ouverte (premier plan). `requestBackgroundPermissionsAsync` demande l'autorisation d'accéder à la position même lorsque l'app est en arrière-plan (ex: suivi de livraison). La permission arrière-plan nécessite généralement une justification spécifique dans les stores.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation de la carte et des marqueurs",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un livreur souhaite visualiser les points de dépôt relais autour de sa position actuelle. L'application doit afficher une carte centrée sur la position de l'utilisateur avec des marqueurs pour chaque point relais.</p>\n<p>Vous avez déjà un tableau <code>pickupPoints</code> contenant des objets avec <code>latitude</code>, <code>longitude</code>, <code>name</code> et <code>address</code>.</p>",
+      "images": [
+        "carte interactive avec des marqueurs rouges pour les magasins et un marqueur bleu pour la position actuelle"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un composant React Native utilisant <code>react-native-maps</code> et <code>expo-location</code> qui :\n1) Demande la permission de localisation au premier plan.\n2) Récupère la position actuelle.\n3) Affiche une carte centrée sur cette position.\n4) Ajoute un marqueur (MapView.Marker) pour chaque point relais.",
+        "niveau": "hard",
+        "reponse": "```tsx\nimport React, { useEffect, useState } from 'react';\nimport { View, StyleSheet } from 'react-native';\nimport MapView, { Marker } from 'react-native-maps';\nimport * as Location from 'expo-location';\n\nconst PickupMap = ({ pickupPoints }) => {\n  const [location, setLocation] = useState(null);\n  const [errorMsg, setErrorMsg] = useState(null);\n\n  useEffect(() => {\n    (async () => {\n      let { status } = await Location.requestForegroundPermissionsAsync();\n      if (status !== 'granted') {\n        setErrorMsg('Permission refusée');\n        return;\n      }\n      let userLocation = await Location.getCurrentPositionAsync({});\n      setLocation(userLocation);\n    })();\n  }, []);\n\n  if (!location) return <View><Text>Chargement...</Text></View>;\n\n  return (\n    <MapView\n      style={styles.map}\n      initialRegion={{\n        latitude: location.coords.latitude,\n        longitude: location.coords.longitude,\n        latitudeDelta: 0.05,\n        longitudeDelta: 0.05,\n      }}\n    >\n      {/* Position utilisateur */}\n      <Marker\n        coordinate={location.coords}\n        title=\"Ma position\"\n        pinColor=\"blue\"\n      />\n      {/* Points relais */}\n      {pickupPoints.map((point, index) => (\n        <Marker\n          key={index}\n          coordinate={{ latitude: point.latitude, longitude: point.longitude }}\n          title={point.name}\n          description={point.address}\n          pinColor=\"red\"\n        />\n      ))}\n    </MapView>\n  );\n};\n\nconst styles = StyleSheet.create({\n  map: { flex: 1, width: '100%', height: '100%' },\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comment calculer la distance entre la position de l'utilisateur et un point relais et trier les points du plus proche au plus éloigné ?",
+        "niveau": "medium",
+        "reponse": "Utiliser la formule de Haversine pour calculer la distance en kilomètres (ou mètres) entre deux coordonnées GPS. Ensuite, ajouter une propriété `distance` à chaque point relais, puis trier avec `sort()`. \n\n```javascript\nconst haversineDistance = (lat1, lon1, lat2, lon2) => {\n  const R = 6371; // Rayon Terre en km\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n};\n\nconst pointsAvecDistance = pickupPoints.map(point => ({\n  ...point,\n  distance: haversineDistance(userLat, userLng, point.latitude, point.longitude)\n}));\nconst sorted = pointsAvecDistance.sort((a,b) => a.distance - b.distance);\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Quelle propriété de <code>MapView</code> permet de recentrer automatiquement la carte sur la position de l'utilisateur lorsqu'il se déplace (en voiture) ?",
+        "niveau": "easy",
+        "reponse": "La propriété `showsUserLocation={true}` affiche un marqueur bleu pour l'utilisateur. Pour suivre et recentrer en temps réel, on peut utiliser `followsUserLocation={true}` (sur iOS) ou mettre à jour la région via un `watchPositionAsync` et `animateToRegion`. Avec `react-native-maps`, le composant `<MapView>` accepte `userLocationCalloutEnabled` et `showsUserLocation`, mais le recentrage automatique nécessite une écoute des changements de position.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Problèmes de performance et précision",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une grande ville, votre application doit afficher plus de 500 magasins partenaires sur la carte. Vous constatez des ralentissements importants lors du rendu des marqueurs et des saccades lors du défilement.</p>\n<p>En tant que développeur mobile, proposez des solutions pour optimiser l'affichage.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi afficher 500 marqueurs simultanément peut dégrader les performances et proposer deux techniques d'optimisation.",
+        "niveau": "hard",
+        "reponse": "Chaque marqueur est un composant React Native complexe, avec des calculs de position et des interactions. 500 marqueurs = 500 éléments dans l'arbre React, ce qui augmente la mémoire utilisée et ralentit les rendus.\n\n**Techniques d'optimisation :**\n1. **Clusterisation des marqueurs** : utiliser `react-native-maps-clustering` ou `react-native-map-clustering` pour regrouper les marqueurs proches. À faible zoom, on voit des clusters (ex: \"15 magasins\").\n2. **Affichage conditionnel selon la région visible** : filtrer les marqueurs n'affichant que ceux dans le viewport courant + une marge, en utilisant les limites de la carte (`onRegionChangeComplete`).\n3. **Utiliser `Marker` avec `tracksViewChanges={false}`** pour les marqueurs statiques.\n4. **Limiter le nombre de marqueurs** en chargeant seulement les N plus proches (ex: 100) ou par pagination.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comment améliorer la précision de la localisation et réduire la consommation de batterie lors du suivi en arrière-plan ?",
+        "niveau": "hard",
+        "reponse": "**Précision** :\n- Utiliser `Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })` pour une meilleure précision (GPS).\n- Pour le suivi continu, `Location.watchPositionAsync` avec `accuracy: Location.Accuracy.Balanced`.\n\n**Réduction batterie** :\n- Définir un `distanceInterval` (ex: 50 mètres) pour que les mises à jour ne se déclenchent qu'après un déplacement significatif.\n- Utiliser `timeInterval` plus long (ex: 10 secondes) pour les mises à jour.\n- Passer en mode \"faible consommation\" sur Android avec `ActivityType.OTHER`.\n- Désactiver la géolocalisation en arrière-plan quand l'app n'est pas active (sauf pour métiers nécessitant tracking constant).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Un utilisateur se plaint que la carte n'affiche pas les magasins alors qu'il est dans une zone avec une faible connexion 3G. Quelle stratégie pour améliorer l'expérience offline ?",
+        "niveau": "hard",
+        "reponse": "1. **Mettre en cache** les données des magasins (coordonnées, noms, adresses) dans AsyncStorage ou SQLite (ex: via `expo-sqlite`).\n2. **Utiliser `MapView` avec des tuiles hors ligne** : pré-télécharger les tuiles cartographiques pour les zones fréquentes.\n3. **Afficher un message et une version simplifiée** : les marqueurs peuvent quand même s'afficher sur fond blanc si les tuiles ne sont pas disponibles. On peut utiliser des librairies comme `react-native-maps-cache`.\n4. **Fonction offline first** : charger les magasins stockés localement, et afficher la carte en mode \"carte vierge\" en attendant que la connexion revienne.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sélection d'adresse sur la carte",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Dans le processus de checkout, l'utilisateur peut choisir son adresse de livraison en déposant un marqueur sur une carte interactive. Vous devez implémenter un écran où l'utilisateur :</p>\n<ul>\n  <li>Voit une carte centrée sur sa position actuelle.</li>\n  <li>Peut déplacer un marqueur ou appuyer n'importe où pour définir le point de livraison.</li>\n  <li>Récupère l'adresse réelle (nom de rue, code postal, ville) à partir des coordonnées GPS (reverse geocoding).</li>\n  <li>Valide et enregistre l'adresse.</li>\n</ul>",
+      "images": [
+        "écran avec carte interactive, un marqueur draggable et un formulaire pré-rempli avec l'adresse trouvée"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le composant complet permettant de sélectionner une adresse par glisser-déposer du marqueur, avec reverse geocoding via `expo-location`.",
+        "niveau": "very hard",
+        "reponse": "```tsx\nimport React, { useState, useEffect } from 'react';\nimport { View, Button, Text, StyleSheet } from 'react-native';\nimport MapView, { Marker } from 'react-native-maps';\nimport * as Location from 'expo-location';\n\nconst AddressPicker = ({ onAddressSelected }) => {\n  const [region, setRegion] = useState(null);\n  const [address, setAddress] = useState(null);\n  const [markerCoord, setMarkerCoord] = useState(null);\n\n  useEffect(() => {\n    (async () => {\n      let { status } = await Location.requestForegroundPermissionsAsync();\n      if (status !== 'granted') return;\n      let location = await Location.getCurrentPositionAsync({});\n      const initialCoord = {\n        latitude: location.coords.latitude,\n        longitude: location.coords.longitude,\n      };\n      setMarkerCoord(initialCoord);\n      setRegion({\n        ...initialCoord,\n        latitudeDelta: 0.01,\n        longitudeDelta: 0.01,\n      });\n      await reverseGeocode(initialCoord);\n    })();\n  }, []);\n\n  const reverseGeocode = async (coord) => {\n    const results = await Location.reverseGeocodeAsync(coord);\n    if (results.length > 0) {\n      const addr = results[0];\n      setAddress(`${addr.street} ${addr.streetNumber}, ${addr.postalCode} ${addr.city}`);\n    }\n  };\n\n  const onMarkerDragEnd = async (e) => {\n    const newCoord = e.nativeEvent.coordinate;\n    setMarkerCoord(newCoord);\n    await reverseGeocode(newCoord);\n  };\n\n  const handleValidate = () => {\n    if (markerCoord && address) {\n      onAddressSelected({ ...markerCoord, address });\n    }\n  };\n\n  if (!region) return <Text>Chargement...</Text>;\n\n  return (\n    <View style={styles.container}>\n      <MapView\n        style={styles.map}\n        region={region}\n        onRegionChangeComplete={setRegion}\n      >\n        <Marker\n          coordinate={markerCoord}\n          draggable\n          onDragEnd={onMarkerDragEnd}\n          title=\"Livraison ici\"\n        />\n      </MapView>\n      {address && (\n        <View style={styles.addressCard}>\n          <Text>Adresse sélectionnée : {address}</Text>\n          <Button title=\"Valider cette adresse\" onPress={handleValidate} />\n        </View>\n      )}\n    </View>\n  );\n};\n\nconst styles = StyleSheet.create({\n  container: { flex: 1 },\n  map: { flex: 1 },\n  addressCard: { position: 'absolute', bottom: 20, left: 20, right: 20, backgroundColor: 'white', padding: 16, borderRadius: 12, elevation: 5 },\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment gérer le cas où l'utilisateur déplace le marqueur sur une zone sans adresse (océan, forêt). Quel message d'erreur afficher ?",
+        "niveau": "medium",
+        "reponse": "Le reverse geocoding peut retourner un tableau vide ou des champs incomplets. On peut vérifier si `street` ou `city` sont null/undefined. Si aucune adresse trouvée, afficher un toast ou message d'erreur \"Position non valide pour la livraison, veuillez sélectionner une zone urbaine\". On peut également griser le bouton Valider et demander à l'utilisateur de déplacer le marqueur.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Quiz : Geolocation & Maps",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Cochez vrai ou faux pour chaque affirmation concernant la géolocalisation et l'affichage cartographique dans React Native.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "La bibliothèque <code>react-native-maps</code> fonctionne uniquement sur Android sans configuration supplémentaire.",
+        "niveau": "easy",
+        "reponse": "FAUX. Sur iOS, elle nécessite l'ajout d'une clé API Google Maps ou Apple Maps, et sur Android une clé API Google Maps est obligatoire (dans le fichier AndroidManifest.xml).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "<code>expo-location</code> permet de récupérer la position en arrière-plan même si l'utilisateur n'a pas donné la permission spécifique.",
+        "niveau": "easy",
+        "reponse": "FAUX. La permission arrière-plan (ACCESS_BACKGROUND_LOCATION sur Android, NSLocationAlwaysAndWhenInUseUsageDescription sur iOS) doit être explicitement demandée et accordée.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "La fonction <code>Location.reverseGeocodeAsync</code> convertit des coordonnées GPS en une adresse postale (rue, ville, code postal).",
+        "niveau": "easy",
+        "reponse": "VRAI. C'est le principe du reverse geocoding. Attention, cela nécessite une connexion internet car les données sont fournies par des services comme Google Maps ou Apple.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Pour afficher un grand nombre de marqueurs sans perte de performance, la meilleure approche est de tous les rendre avec un style simple.",
+        "niveau": "easy",
+        "reponse": "PARTIELLEMENT VRAI mais insuffisant. La meilleure approche combine clusterisation et affichage conditionnel selon la zone visible. Même avec un style simple, 500+ marqueurs ralentissent l'application.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

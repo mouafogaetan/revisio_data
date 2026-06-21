@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 21 : Hachage des mots de passe avec BCrypt - API .NET Core</title>
+    <!-- Tailwind CSS via CDN + base responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, mais léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Custom styles pour slides et transitions -->
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* scroll fluide / améliorations mobiles */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            background: #f8fafc;
+        }
+        /* personnalisation boutons */
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* code block amélioration responsive */
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .container-padding {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-blue-50 to-indigo-50">
+
+    <div class="max-w-4xl mx-auto py-6 md:py-10 px-4 sm:px-6 container-padding">
+        <!-- Conteneur principal de la présentation style slides -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-indigo-100">
+            
+            <!-- Header fixe avec progression -->
+            <div class="bg-indigo-700 text-white px-5 py-3 flex justify-between items-center flex-wrap gap-2">
+                <div class="font-bold text-sm md:text-base">🎓 API .NET (ASP.NET Core) — Leçon 21</div>
+                <div class="text-xs bg-indigo-800 px-3 py-1 rounded-full">Sécurité & Authentification</div>
+            </div>
+
+            <!-- Zone slides dynamique -->
+            <div id="slides-container" class="relative min-h-[500px] p-6 md:p-8">
+                <!-- Slide 1 : Titre -->
+                <div class="slide slide-visible" data-slide="0">
+                    <div class="flex flex-col items-center justify-center text-center space-y-6 py-8 md:py-12">
+                        <div class="bg-indigo-100 rounded-full p-4 inline-block">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-800">🔐 Hachage sécurisé des mots de passe</h1>
+                        <p class="text-xl text-indigo-700 font-semibold">BCrypt.Net-Next dans ASP.NET Core</p>
+                        <div class="pt-4 text-gray-500 italic">Protéger les identifiants des utilisateurs, une obligation éthique et légale</div>
+                        <div class="mt-8 w-24 h-1 bg-indigo-300 rounded-full mx-auto"></div>
+                        <p class="text-sm text-gray-400">Appuyez sur ➡️ pour commencer</p>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs pédagogiques -->
+                <div class="slide slide-hidden" data-slide="1">
+                    <div class="py-4">
+                        <div class="border-l-4 border-indigo-500 pl-4 mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2>
+                        </div>
+                        <ul class="space-y-4 text-gray-700">
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Installer et utiliser <code class="bg-gray-100 px-1 rounded">BCrypt.Net-Next</code> dans un projet .NET</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Hacher un mot de passe lors de l’inscription (enregistrement utilisateur)</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Vérifier le mot de passe saisi par rapport au hash stocké à la connexion</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Comprendre pourquoi le hachage salé (BCrypt) est résistant aux attaques</span></li>
+                        </ul>
+                        <div class="mt-8 bg-amber-50 p-4 rounded-lg border border-amber-200 text-sm">
+                            💡 <span class="font-semibold">Rappel :</span> On ne stocke JAMAIS les mots de passe en clair. BCrypt ajoute un "salt" aléatoire et est lent par conception (résistance aux attaques brute force).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3 : Pourquoi BCrypt ? Fondamentaux -->
+                <div class="slide slide-hidden" data-slide="2">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🧂 Pourquoi BCrypt ?</h2>
+                    <div class="grid md:grid-cols-2 gap-5">
+                        <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                            <div class="font-bold text-indigo-800 text-lg">⚡ Limites du hachage simple (MD5, SHA)</div>
+                            <p class="mt-2 text-gray-600">Les algorithmes rapides comme SHA256 sont vulnérables aux attaques par force brute ou tables rainbow. Un attaquant peut calculer des milliards de hash par seconde.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                            <div class="font-bold text-indigo-800 text-lg">🛡️ Forces de BCrypt</div>
+                            <p class="mt-2 text-gray-600">Basé sur l'algorithme Blowfish, il intègre un <strong>salt</strong> (32 octets) et un <strong>facteur de coût</strong> (work factor). Le coût rend le hachage volontairement lent (ex: 100ms) pour décourager les attaques.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-gray-800 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                        <pre>// Exemple de hash BCrypt (format) : 
+$2a$10$N9qo8uLOickgx2ZMRZoMy.Mr/.cZJgWx9YpRjYwF.t3UqVvlM5O7O
+ │  │  │      │                         │
+ │  │  │      └── salt (22 caractères)  └── hash final (31 caractères)
+ │  │  └── coût (10 = 2^10 itérations)
+ │  └── version (2a)
+ └── identifiant</pre>
+                    </div>
+                </div>
+
+                <!-- Slide 4 : Installation et préparation -->
+                <div class="slide slide-hidden" data-slide="3">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">📦 Installation du package BCrypt</h2>
+                    <div class="bg-gray-900 text-green-300 p-4 rounded-lg font-mono text-sm mb-5 overflow-x-auto">
+                        <pre>dotnet add package BCrypt.Net-Next</pre>
+                    </div>
+                    <p class="mb-2 text-gray-700">Ou via <strong>NuGet Package Manager</strong> : <code class="bg-gray-100 px-1">BCrypt.Net-Next</code> (version récente, compatible .NET Core / .NET 5+).</p>
+                    <div class="bg-indigo-50 p-4 rounded-lg mt-4">
+                        <p class="font-semibold">📌 À retenir :</p>
+                        <ul class="list-disc list-inside space-y-1 mt-2 text-gray-700">
+                            <li>Pas besoin de configurer de salt manuellement – BCrypt le génère automatiquement.</li>
+                            <li>La méthode <code>HashPassword</code> inclut le salt dans le résultat.</li>
+                            <li>Le facteur de coût par défaut est 10 (recommandé pour la plupart des apps).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : Hachage à l'inscription (register) -->
+                <div class="slide slide-hidden" data-slide="4">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">✍️ Étape 1 : Hacher lors de l'inscription</h2>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                        <pre>using BCryptNet = BCrypt.Net.BCrypt;
+
+// Dans votre service ou contrôleur (RegisterDto)
+public async Task&lt;IActionResult&gt; Register(RegisterRequest request)
+{
+    // Vérifier si l'utilisateur n'existe pas déjà...
+    var hashedPassword = BCryptNet.HashPassword(request.Password);
+    
+    var user = new User
+    {
+        Email = request.Email,
+        PasswordHash = hashedPassword,
+        // autres propriétés
+    };
+    
+    _context.Users.Add(user);
+    await _context.SaveChangesAsync();
+    return Ok(new { message = "Inscription réussie" });
+}</pre>
+                    </div>
+                    <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+                        🔒 <strong>Résultat :</strong> La base de données ne contient que le hash, jamais le mot de passe original.
+                    </div>
+                </div>
+
+                <!-- Slide 6 : Vérification à la connexion (login) -->
+                <div class="slide slide-hidden" data-slide="5">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">🔑 Étape 2 : Vérification à la connexion</h2>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                        <pre>public async Task&lt;IActionResult&gt; Login(LoginRequest request)
+{
+    var user = await _context.Users
+        .FirstOrDefaultAsync(u => u.Email == request.Email);
+    
+    if (user == null)
+        return Unauthorized("Email ou mot de passe incorrect");
+    
+    bool isValid = BCryptNet.Verify(request.Password, user.PasswordHash);
+    
+    if (!isValid)
+        return Unauthorized("Email ou mot de passe incorrect");
+    
+    // Générer token JWT ou session...
+    return Ok(new { token = GenerateJwtToken(user) });
+}</pre>
+                    </div>
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                        ⚠️ <strong>Important :</strong> <code>Verify()</code> compare le mot de passe fourni + le salt extrait du hash stocké. Ne jamais tenter de recréer manuellement le salt.
+                    </div>
+                </div>
+
+                <!-- Slide 7 : Ajuster le facteur de coût (work factor) -->
+                <div class="slide slide-hidden" data-slide="6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">⚙️ Personnaliser le coût (work factor)</h2>
+                    <p class="mb-3">BCrypt permet d'augmenter la difficulté de calcul (itérations = 2^workFactor). Plus le coût est élevé, plus le hachage est lent (sécurisé).</p>
+                    <div class="bg-gray-800 text-gray-100 p-4 rounded-lg font-mono text-sm">
+                        <pre>// Coût 12 (2^12 = 4096 itérations) – plus sécurisé, mais plus lent
+string hash = BCryptNet.HashPassword(password, workFactor: 12);
+
+// Vérification automatique (le work factor est stocké dans le hash)
+bool valid = BCryptNet.Verify(password, hashFromDb);</pre>
+                    </div>
+                    <div class="mt-4 bg-blue-50 p-4 rounded-lg">
+                        📈 Recommandation : utiliser coût 10 pour développement, 12-13 pour production selon les performances.
+                    </div>
+                </div>
+
+                <!-- Slide 8 : Bonnes pratiques & pièges à éviter -->
+                <div class="slide slide-hidden" data-slide="7">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">✅ Bonnes pratiques</h2>
+                    <ul class="space-y-3 text-gray-700">
+                        <li class="flex gap-2"><span class="text-green-600">✔️</span> Toujours hacher côté serveur, jamais côté client.</li>
+                        <li class="flex gap-2"><span class="text-green-600">✔️</span> Utiliser un work factor suffisamment élevé (10 minimum, 12 recommandé).</li>
+                        <li class="flex gap-2"><span class="text-green-600">✔️</span> Stocker le hash dans une colonne de type texte (nvarchar(255)).</li>
+                        <li class="flex gap-2"><span class="text-red-600">❌</span> Ne jamais utiliser MD5, SHA1, ou un algorithme rapide seul pour les mots de passe.</li>
+                        <li class="flex gap-2"><span class="text-red-600">❌</span> Ne jamais écrire son propre algorithme de hachage.</li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-100 rounded-xl p-4 text-center text-indigo-900">
+                        🧠 Rappel de sécurité : <strong>BCrypt + HTTPS + validation forte = première ligne de défense</strong>
+                    </div>
+                </div>
+
+                <!-- Slide 9 : Récapitulatif et exemple complet simplifié -->
+                <div class="slide slide-hidden" data-slide="8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-3">📝 Mini synthèse / code complet</h2>
+                    <div class="bg-white border rounded-lg shadow-sm overflow-hidden">
+                        <div class="bg-gray-100 px-4 py-2 font-mono text-sm">UserService.cs (extrait)</div>
+                        <div class="p-3 text-xs md:text-sm font-mono bg-gray-50 overflow-x-auto">
+                            <pre>public class AuthService {
+    private readonly AppDbContext _db;
+    public AuthService(AppDbContext db) => _db = db;
+    
+    public async Task&lt;bool&gt; RegisterUser(string email, string password) {
+        var existing = await _db.Users.AnyAsync(u => u.Email == email);
+        if(existing) return false;
+        var hash = BCrypt.Net.BCrypt.HashPassword(password, 12);
+        _db.Users.Add(new User{ Email = email, PasswordHash = hash });
+        await _db.SaveChangesAsync();
+        return true;
+    }
+    
+    public async Task&lt;User&gt; Authenticate(string email, string password) {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if(user == null) return null;
+        bool verified = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+        return verified ? user : null;
+    }
+}</pre>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-3">💡 Cette approche est compatible avec l'injection de dépendances et les contrôleurs d'API .NET Core.</p>
+                </div>
+
+                <!-- Slide 10 : Exercice / Mise en pratique (question) -->
+                <div class="slide slide-hidden" data-slide="9">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Mini exercice</h2>
+                    <div class="bg-white p-5 rounded-xl border border-indigo-200 shadow-sm">
+                        <p class="font-semibold">Situation : Vous développez une API d'inscription. Un utilisateur envoie le mot de passe "Azerty123".</p>
+                        <ol class="list-decimal list-inside mt-3 space-y-2 text-gray-700">
+                            <li>Quelle méthode BCrypt devez-vous appeler pour générer le hash avant insertion ?</li>
+                            <li>Que va stocker la base de données ?</li>
+                            <li>Lors du login, comment valider le mot de passe saisi ?</li>
+                        </ol>
+                        <div class="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-gray-600 italic" id="exerciseHint">
+                            💡 Réponses : (1) BCrypt.HashPassword() , (2) une chaîne contenant version + coût + salt + hash, (3) BCrypt.Verify()
+                        </div>
+                    </div>
+                    <div class="mt-5 text-center text-sm text-gray-500">
+                        👨‍🏫 N'hésitez pas à reproduire le code dans un projet test.
+                    </div>
+                </div>
+
+                <!-- Navigation buttons (précédent, suivant, compteur) -->
+                <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
+                    <button id="prevBtn" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-l-full rounded-r-full transition disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+                    <div class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full" id="slideCounter">Slide 1 / 10</div>
+                    <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-l-full rounded-r-full transition">Suivant ▶</button>
+                </div>
+            </div>
+            <!-- Fin slides-container -->
+        </div>
+        <div class="text-center text-xs text-gray-400 mt-6">
+            Cours généré pour les étudiants du Cameroun — API .NET Core | Sécurité & BCrypt
+        </div>
+    </div>
+
+    <script>
+        $(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const totalSlides = slides.length;
+            const $prevBtn = $('#prevBtn');
+            const $nextBtn = $('#nextBtn');
+            const $counter = $('#slideCounter');
+
+            function updateSlides() {
+                // masquer tous les slides
+                slides.each(function(index) {
+                    if(index === currentSlide) {
+                        $(this).removeClass('slide-hidden').addClass('slide-visible');
+                    } else {
+                        $(this).removeClass('slide-visible').addClass('slide-hidden');
+                    }
+                });
+                $counter.text(`Slide ${currentSlide+1} / ${totalSlides}`);
+                // gestion désactivation boutons
+                $prevBtn.prop('disabled', currentSlide === 0);
+                $nextBtn.prop('disabled', currentSlide === totalSlides-1);
+            }
+
+            function nextSlide() {
+                if(currentSlide < totalSlides - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            }
+
+            function prevSlide() {
+                if(currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            }
+
+            $nextBtn.on('click', nextSlide);
+            $prevBtn.on('click', prevSlide);
+
+            // Touches clavier (gauche/droite) pour accessibilité
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if(e.key === 'ArrowLeft') {
+                    prevSlide();
+                }
+            });
+
+            // swiper simple pour mobile (détection touch) - amélioration UX
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const $container = $('#slides-container');
+            $container.on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $container.on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                const diff = touchEndX - touchStartX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) {
+                        prevSlide();
+                    } else {
+                        nextSlide();
+                    }
+                }
+            });
+
+            // initialisation
+            updateSlides();
+
+            // Petit détail : MathJax peut retraiter si besoin après slide change, mais c'est optionnel
+            // On force pas pour éviter surcharge.
+        });
+    </script>
+    <!-- note: contenu complètement adapté au programme de l'API .NET, BCrypt leçon21 -->
+</body>
+</html>

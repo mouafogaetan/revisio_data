@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 52 : Déploiement continu (CI/CD) | React E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f1f5f9; }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .slide-content { padding: 1rem; }
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .badge {
+            @apply inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Progress & counter -->
+        <div class="mb-4 flex justify-between items-center text-sm text-gray-500">
+            <span id="slideCounter">Slide 1 / 8</span>
+            <div class="progress-bar w-32 md:w-48">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active p-6 md:p-10 slide-content">
+                <div class="flex flex-col items-center text-center">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full mb-4">CI/CD · Déploiement frontend</span>
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Déploiement continu avec GitHub Actions</h1>
+                    <p class="text-lg text-gray-600 max-w-2xl">Automatiser les tests, previews et déploiements vers Vercel/Netlify</p>
+                    <div class="mt-8 w-24 h-1 bg-blue-500 rounded-full"></div>
+                    <p class="mt-6 text-gray-500">Leçon 52 · Formation React e-commerce · Cameroun</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">✔️ Exécuter les tests avant déploiement</span><p class="text-gray-600 mt-1">Automatiser la vérification du code avec npm test dans GitHub Actions.</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">✔️ Déployer sur Vercel/Netlify</span><p class="text-gray-600 mt-1">Utiliser les intégrations officielles ou actions personnalisées.</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">✔️ Preview deployments (PR)</span><p class="text-gray-600 mt-1">Générer un environnement de test unique pour chaque pull request.</p></div>
+                    <div class="bg-gray-50 p-4 rounded-xl"><span class="font-semibold text-blue-700">✔️ Variables d’environnement</span><p class="text-gray-600 mt-1">Gérer secrets et configuration selon l’environnement (staging/prod).</p></div>
+                </div>
+                <div class="mt-6 bg-green-50 p-3 rounded-lg text-green-800 text-sm">💡 Pourquoi CI/CD ? Réduire les erreurs, livrer plus vite et en confiance.</div>
+            </div>
+
+            <!-- SLIDE 3 : PRÉPARATION DES TESTS AVANT DÉPLOIEMENT -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🧪 Étape 1 : Tester automatiquement avant déploiement</h2>
+                <p class="mb-3">Dans votre workflow GitHub Actions, on ajoute un job de test qui échoue si un test casse la build.</p>
+                <pre><code class="language-yaml"># .github/workflows/deploy.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run test           # exécute les tests unitaires & intégration
+      - run: npm run build          # vérifie que la build passe
+
+  deploy:
+    needs: test                     # attend que les tests réussissent
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déploiement vers Vercel
+        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}</code></pre>
+                <div class="bg-amber-50 p-3 mt-3 rounded-lg text-amber-800 text-sm">⚠️ Important : Ne déployez jamais une branche qui ne passe pas les tests.</div>
+            </div>
+
+            <!-- SLIDE 4 : DÉPLOIEMENT SUR VERCEL AVEC GITHUB ACTIONS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🚀 Étape 2 : Déployer sur Vercel (via GitHub Actions)</h2>
+                <p>Vercel propose une action officielle. Alternative : utiliser l’intégration native Vercel + GitHub (sans écrire de YAML) mais l’action donne plus de contrôle.</p>
+                <pre><code># Exemple d'action Vercel
+- name: Deploy to Vercel
+  uses: amondnet/vercel-action@v25
+  with:
+    vercel-token: ${{ secrets.VERCEL_TOKEN }}
+    vercel-org-id: ${{ secrets.ORG_ID}}
+    vercel-project-id: ${{ secrets.PROJECT_ID }}
+    vercel-args: '--prod'</code></pre>
+                <p class="text-gray-600 text-sm mt-2">🔐 Les secrets (VERCEL_TOKEN, ORG_ID) se paramètrent dans <strong>Settings → Secrets and variables → Actions</strong>.</p>
+                <div class="bg-blue-50 p-3 rounded-lg mt-3">
+                    <p class="text-blue-800">✨ Résultat : à chaque push sur main, le site est mis en ligne automatiquement.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : PREVIEW DEPLOYMENTS (NETLIFY ET VERCEL) -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">👀 Preview deployments (environnements de test)</h2>
+                <p>Pour chaque Pull Request, on génère une URL unique afin de tester la fonctionnalité sans toucher à la production.</p>
+                <ul class="list-disc pl-6 space-y-2 mt-2">
+                    <li><span class="font-semibold">Netlify</span> : active les "Deploy Previews" automatiquement si le repo est lié.</li>
+                    <li><span class="font-semibold">Vercel</span> : idem, chaque PR reçoit un préfixe automatique comme <code>pr-42-mon-site.vercel.app</code>.</li>
+                    <li><span class="font-semibold">GitHub Actions personnalisé</span> : on peut utiliser <code>peaceiris/actions-gh-pages</code> ou déployer sur un bucket S3 avec une URL temporaire.</li>
+                </ul>
+                <pre><code># Exemple de commentaire automatique sur la PR
+- name: Comment preview URL
+  uses: actions/github-script@v7
+  with:
+    script: |
+      github.rest.issues.createComment({
+        issue_number: context.issue.number,
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        body: '🚀 Preview disponible : https://preview-${{ github.sha }}.netlify.app'
+      })</code></pre>
+                <p class="text-gray-500 text-sm mt-3">✅ Cela facilite la relecture et les tests par l’équipe.</p>
+            </div>
+
+            <!-- SLIDE 6 : VARIABLES D'ENVIRONNEMENT & CONFIGURATIONS -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔧 Gérer les variables d’environnement</h2>
+                <p>Votre application utilise <code>.env.production</code> ou <code>VITE_API_URL</code>. En CI, injectez-les via les secrets GitHub.</p>
+                <pre><code># Dans votre workflow
+- name: Build with env
+  run: npm run build
+  env:
+    VITE_API_URL: ${{ secrets.VITE_API_URL }}
+    VITE_STRIPE_KEY: ${{ secrets.VITE_STRIPE_KEY }}
+
+# Vercel / Netlify : définissez les variables dans le dashboard du projet</code></pre>
+                <div class="grid md:grid-cols-2 gap-3 mt-4">
+                    <div class="border rounded-lg p-3"><span class="font-mono text-sm">VITE_API_URL=https://api.staging.example.com</span><br><span class="text-xs text-gray-500">Utilisé en staging/preview</span></div>
+                    <div class="border rounded-lg p-3"><span class="font-mono text-sm">VITE_API_URL=https://api.prod.example.com</span><br><span class="text-xs text-gray-500">En production</span></div>
+                </div>
+                <p class="text-red-600 text-sm mt-3">⚠️ Ne jamais versionner les fichiers .env contenant des secrets.</p>
+            </div>
+
+            <!-- SLIDE 7 : EXERCICES PRATIQUES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📝 Exercices d'application</h2>
+                <div class="space-y-5">
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 1 (compétence – medium)</p>
+                        <p>Écrivez un workflow GitHub Actions qui :</p>
+                        <ul class="list-disc pl-6 text-gray-700">
+                            <li>Se déclenche sur push sur <code>main</code> et sur pull request</li>
+                            <li>Installe les dépendances, lance les tests, puis construit l’application</li>
+                            <li>Si la branche est <code>main</code>, déploie sur Netlify en production</li>
+                        </ul>
+                        <details class="mt-2"><summary class="cursor-pointer text-green-600 font-medium">🔍 Voir corrigé</summary>
+                        <pre class="mt-2 text-sm">name: CI/CD Netlify
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci && npm test && npm run build
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: './dist'
+          production-branch: main
+          deploy-message: "Deploy from GitHub Actions"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}</pre></details>
+                    </div>
+                    <div class="border-b pb-3">
+                        <p class="font-semibold text-blue-800">Exercice 2 (ressource – hard)</p>
+                        <p>Sur Vercel, configurez un preview deployment qui utilise une base de données de test différente. Expliquez les variables nécessaires.</p>
+                        <details><summary class="cursor-pointer text-green-600 font-medium">🔍 Voir corrigé</summary>
+                        <p class="text-gray-700 mt-2">Dans Vercel : Settings → Environment Variables → créer <code>DATABASE_URL</code> pour les environnements Preview, Production et Development. Dans GitHub Actions, lors du déploiement preview, passer <code>--environment=preview</code> et Vercel utilisera automatiquement les bonnes variables. On peut aussi générer une URL dynamique via <code>VERCEL_GIT_COMMIT_REF</code>.</p>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES & RESSOURCES -->
+            <div class="slide p-6 md:p-10 slide-content">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✅ Récapitulatif & bonnes pratiques</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Séparez les jobs <strong>test</strong> et <strong>deploy</strong> pour une exécution claire.</li>
+                    <li>Utilisez des <strong>secrets</strong> pour les tokens d’accès aux plateformes.</li>
+                    <li>Activez les <strong>preview deployments</strong> pour chaque PR et commentez l’URL dans la PR.</li>
+                    <li>Ne pas déployer en production si les tests échouent.</li>
+                    <li>Surveillez les logs d’actions pour déboguer.</li>
+                </ul>
+                <div class="mt-6 flex flex-wrap gap-2 justify-center">
+                    <span class="bg-slate-100 px-3 py-1 rounded-full text-sm">📘 GitHub Actions docs</span>
+                    <span class="bg-slate-100 px-3 py-1 rounded-full text-sm">⚡ Vercel CLI</span>
+                    <span class="bg-slate-100 px-3 py-1 rounded-full text-sm">🦁 Netlify deploy previews</span>
+                </div>
+                <p class="text-center text-gray-400 text-xs mt-6">Leçon 52 · Enseignant : Cameroun · CI/CD pour React e-commerce</p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center mt-6 gap-3">
+            <button id="prevBtn" class="nav-btn bg-white border border-gray-300 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm hover:bg-gray-50 disabled:opacity-40 transition">◀ Précédent</button>
+            <div class="flex gap-2"><span id="pageIndicator" class="text-sm text-gray-500"></span></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 text-white font-medium py-2 px-5 rounded-full shadow-md hover:bg-blue-700 transition">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentIndex = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            const $prev = $('#prevBtn');
+            const $next = $('#nextBtn');
+            const $counter = $('#slideCounter');
+            const $progressFill = $('#progressFill');
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $counter.text(`Slide ${currentIndex+1} / ${total}`);
+                const percent = ((currentIndex) / (total-1)) * 100;
+                $progressFill.css('width', percent + '%');
+                $prev.prop('disabled', currentIndex === 0);
+                $next.prop('disabled', currentIndex === total-1);
+            }
+
+            $prev.on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+            $next.on('click', () => { if (currentIndex < total-1) { currentIndex++; updateSlides(); } });
+            $(document).on('keydown', (e) => {
+                if (e.key === 'ArrowLeft') $prev.trigger('click');
+                else if (e.key === 'ArrowRight') $next.trigger('click');
+            });
+            updateSlides();
+        });
+    </script>
+    <script>if(window.MathJax) MathJax.typesetPromise();</script>
+</body>
+</html>

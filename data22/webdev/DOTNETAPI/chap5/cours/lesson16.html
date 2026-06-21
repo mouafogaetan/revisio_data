@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours API .NET | Gestion globale des exceptions - Middleware personnalisé</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles personnalisés pour le diaporama */
+        .slide {
+            display: none;
+            min-height: 70vh;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-size: 0.85rem;
+            color: #dc2626;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #eef2f6 100%);
+        }
+        .card-hover {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.15);
+        }
+        .badge {
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="container mx-auto px-4 py-6 max-w-5xl">
+        
+        <!-- Conteneur principal du diaporama -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            
+            <!-- En-tête fixe -->
+            <div class="bg-gradient-to-r from-purple-800 to-indigo-800 px-6 py-4 text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-semibold tracking-wide">API .NET (ASP.NET Core) - Chapitre 5</p>
+                        <h1 class="text-xl md:text-2xl font-bold">Gestion globale des exceptions</h1>
+                        <p class="text-sm text-purple-100">Middleware personnalisé & Problem Details (RFC 7807)</p>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1 text-sm">
+                        Lesson 16
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slides -->
+            <div class="p-6 md:p-8">
+                <!-- Slide 1 : Titre -->
+                <div class="slide active" id="slide1">
+                    <div class="flex flex-col items-center justify-center text-center py-12 md:py-16">
+                        <div class="bg-purple-100 rounded-full p-4 mb-6">
+                            <svg class="w-16 h-16 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-slate-800 mb-4">🛡️ Gestion propre des erreurs</h2>
+                        <p class="text-xl text-slate-600 mb-6">Centraliser la gestion des exceptions avec un middleware personnalisé</p>
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <span class="badge">Middleware</span>
+                            <span class="badge">RFC 7807</span>
+                            <span class="badge">Problem Details</span>
+                            <span class="badge">ILogger</span>
+                        </div>
+                        <div class="mt-10 text-slate-400 text-sm">
+                            <p>✨ Utilisez les flèches ← → ou cliquez sur les boutons</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs pédagogiques -->
+                <div class="slide" id="slide2">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-6 border-l-4 border-purple-600 pl-4">🎯 Objectifs de la leçon</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-purple-600 text-xl">1️⃣</span>
+                            <p class="text-slate-700"><strong>Comprendre</strong> pourquoi il est important de centraliser la gestion des exceptions dans une API.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-purple-600 text-xl">2️⃣</span>
+                            <p class="text-slate-700"><strong>Maîtriser</strong> <code class="text-sm">app.UseExceptionHandler()</code> pour capturer les exceptions globalement.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-purple-600 text-xl">3️⃣</span>
+                            <p class="text-slate-700"><strong>Créer</strong> un middleware personnalisé de gestion d'erreurs.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-purple-600 text-xl">4️⃣</span>
+                            <p class="text-slate-700"><strong>Retourner</strong> des Problem Details conformes à la norme <strong>RFC 7807</strong>.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                        <p class="text-sm text-amber-800"><strong>💡 Pourquoi c'est important ?</strong><br>
+                        Sans gestion centralisée, chaque action de contrôleur doit contenir des blocs try/catch. Le code devient dupliqué, difficile à maintenir et les réponses d'erreur ne sont pas standardisées.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 3 : Le problème de la gestion non centralisée -->
+                <div class="slide" id="slide3">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">❌ Avant : la gestion éparse des erreurs</h2>
+                    <p class="text-slate-600 mb-3">Sans middleware, chaque méthode d'action ressemblerait à ceci :</p>
+                    <pre class="text-sm mb-4">[HttpGet("{id}")]
+public async Task&lt;ActionResult&lt;Product&gt;&gt; GetProduct(int id)
+{
+    try
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null)
+            return NotFound();
+        return Ok(product);
+    }
+    catch (Exception ex)
+    {
+        // Dupliqué dans chaque méthode !
+        _logger.LogError(ex, "Erreur lors de la récupération");
+        return StatusCode(500, "Erreur interne du serveur");
+    }
+}</pre>
+                    <div class="bg-red-50 border-l-4 border-red-500 p-3 mt-2 text-sm">
+                        <p class="font-semibold text-red-800">⚠️ Problèmes :</p>
+                        <ul class="list-disc list-inside text-slate-700">
+                            <li>Code répété (non DRY)</li>
+                            <li>Réponses d'erreur non uniformes</li>
+                            <li>Oubli possible de logging</li>
+                            <li>Difficile à maintenir</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Slide 4 : Solution - app.UseExceptionHandler() -->
+                <div class="slide" id="slide4">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">✅ Solution : <code>app.UseExceptionHandler()</code></h2>
+                    <p class="text-slate-600 mb-3">ASP.NET Core propose un middleware intégré pour capturer toutes les exceptions non gérées.</p>
+                    <pre class="text-sm mb-4">// Dans Program.cs
+var app = builder.Build();
+
+app.UseExceptionHandler(options =>
+{
+    options.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+
+        var exceptionFeature = context.Features.Get&lt;IExceptionHandlerFeature&gt;();
+        if (exceptionFeature != null)
+        {
+            var error = exceptionFeature.Error;
+            var logger = context.RequestServices.GetRequiredService&lt;ILogger&lt;Program&gt;&gt;();
+            logger.LogError(error, "Une exception non gérée s'est produite");
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                status = 500,
+                title = "Une erreur s'est produite",
+                detail = error.Message // ⚠️ À éviter en production
+            });
+        }
+    });
+});
+
+app.UseAuthorization();
+app.MapControllers();</pre>
+                    <div class="bg-green-50 border-l-4 border-green-500 p-3 mt-3 text-sm">
+                        <p class="font-semibold">📌 Important :</p>
+                        <p>En production, ne renvoyez <strong>jamais</strong> les détails techniques de l'exception (stack trace, message interne). Utilisez un message générique.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : Middleware personnalisé -->
+                <div class="slide" id="slide5">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🔧 Créer un middleware personnalisé</h2>
+                    <p class="text-slate-600 mb-3">Pour plus de contrôle, on peut créer notre propre classe middleware.</p>
+                    <pre class="text-sm mb-4">public class ExceptionMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger&lt;ExceptionMiddleware&gt; _logger;
+
+    public ExceptionMiddleware(RequestDelegate next, ILogger&lt;ExceptionMiddleware&gt; logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur capturée par le middleware");
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        context.Response.ContentType = "application/problem+json";
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+        var problemDetails = new
+        {
+            type = "https://tools.ietf.org/html/rfc7807",
+            title = "Erreur interne du serveur",
+            status = 500,
+            detail = "Une erreur inattendue s'est produite. Veuillez réessayer plus tard.",
+            instance = context.Request.Path
+        };
+
+        return context.Response.WriteAsJsonAsync(problemDetails);
+    }
+}
+
+// Enregistrement dans Program.cs
+app.UseMiddleware&lt;ExceptionMiddleware&gt;();</pre>
+                </div>
+
+                <!-- Slide 6 : Problem Details (RFC 7807) -->
+                <div class="slide" id="slide6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">📄 Problem Details - RFC 7807</h2>
+                    <p class="text-slate-600 mb-3">Une norme standard pour retourner des détails d'erreur dans les API REST.</p>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                        <p class="font-mono text-sm whitespace-pre-wrap">
+{
+  "type": "https://example.com/errors/invalid-parameter",
+  "title": "Paramètre invalide",
+  "status": 400,
+  "detail": "L'ID doit être un nombre positif",
+  "instance": "/api/products/-5",
+  "errors": {
+    "id": ["La valeur '-5' n'est pas valide"]
+  }
+}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">type</span> : URL qui identifie le type d'erreur</div>
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">title</span> : message court et lisible</div>
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">status</span> : code HTTP (400, 404, 500, etc.)</div>
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">detail</span> : explication spécifique</div>
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">instance</span> : chemin de la requête</div>
+                        <div class="border border-slate-200 p-2 rounded"><span class="font-bold">errors</span> : (optionnel) détails par champ</div>
+                    </div>
+                </div>
+
+                <!-- Slide 7 : Utiliser ProblemDetailsFactory -->
+                <div class="slide" id="slide7">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🏭 Utiliser ProblemDetailsFactory</h2>
+                    <p class="text-slate-600 mb-3">ASP.NET Core fournit une classe utilitaire pour générer des Problem Details standardisés.</p>
+                    <pre class="text-sm mb-4">// Dans un contrôleur ou un middleware
+[ApiController]
+[Route("api/[controller]")]
+public class ProductsController : ControllerBase
+{
+    [HttpGet("{id}")]
+    public IActionResult Get(int id)
+    {
+        if (id <= 0)
+        {
+            return Problem(
+                title: "Paramètre invalide",
+                detail: "L'identifiant doit être un nombre positif",
+                statusCode: StatusCodes.Status400BadRequest,
+                instance: HttpContext.Request.Path
+            );
+        }
+        // ...
+    }
+}
+
+// Résultat JSON automatique conforme RFC 7807</pre>
+                    <div class="bg-indigo-50 p-3 rounded-lg mt-2">
+                        <p class="text-sm"><strong>Astuce :</strong> La méthode <code>Problem()</code> est disponible dans <code>ControllerBase</code>. Elle génère automatiquement la réponse Problem Details.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 8 : Cas pratiques - exceptions personnalisées -->
+                <div class="slide" id="slide8">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🎯 Gérer des exceptions métier personnalisées</h2>
+                    <p class="text-slate-600 mb-3">On peut créer nos propres exceptions et les traiter différemment dans le middleware.</p>
+                    <pre class="text-sm mb-4">// 1. Exception personnalisée
+public class NotFoundException : Exception
+{
+    public NotFoundException(string message) : base(message) { }
+}
+
+// 2. Dans le middleware
+catch (NotFoundException ex)
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    await context.Response.WriteAsJsonAsync(new ProblemDetails
+    {
+        Title = "Ressource non trouvée",
+        Status = 404,
+        Detail = ex.Message
+    });
+}
+catch (ValidationException ex)
+{
+    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+    // retourner les détails de validation...
+}
+catch (Exception ex)
+{
+    // erreur générique 500
+}</pre>
+                    <div class="bg-yellow-50 p-3 rounded-lg mt-2 text-sm">
+                        <p>📌 Cette approche permet d'avoir des codes HTTP différents selon le type d'erreur.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 9 : Bonnes pratiques et récapitulatif -->
+                <div class="slide" id="slide9">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">📝 Bonnes pratiques</h2>
+                    <ul class="list-disc list-inside space-y-3 text-slate-700">
+                        <li><strong>Ne jamais exposer les détails techniques en production</strong> (stack trace, chemin des fichiers).</li>
+                        <li><strong>Utiliser Problem Details (RFC 7807)</strong> pour une réponse standardisée.</li>
+                        <li><strong>Logger systématiquement</strong> chaque exception avec <code>ILogger</code>.</li>
+                        <li><strong>Distinguer les erreurs prévues</strong> (404, 400) des erreurs imprévues (500).</li>
+                        <li><strong>Ajouter des identifiants de corrélation</strong> pour tracer les requêtes.</li>
+                        <li><strong>Ne pas utiliser <code>try/catch</code> inutilement</strong> : laissez le middleware central capturer.</li>
+                    </ul>
+                    <div class="mt-5 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                        <p class="text-purple-800 font-semibold">✨ À retenir :</p>
+                        <p class="text-sm text-purple-700">Un seul middleware d'exception bien conçu = code plus propre, réponses uniformes, meilleure expérience pour les clients de l'API.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 10 : Quiz rapide -->
+                <div class="slide" id="slide10">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">❓ Auto-évaluation</h2>
+                    <div class="space-y-5" id="quizForm">
+                        <div>
+                            <p class="font-semibold">1. Quel middleware permet de capturer globalement les exceptions non gérées ?</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q1" value="useauth"> app.UseAuthentication()</label>
+                                <label><input type="radio" name="q1" value="exhandler"> app.UseExceptionHandler()</label>
+                                <label><input type="radio" name="q1" value="cors"> app.UseCors()</label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold">2. Quelle norme définit le format standard des réponses d'erreur pour les API REST ?</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q2" value="rfc2616"> RFC 2616</label>
+                                <label><input type="radio" name="q2" value="rfc7807"> RFC 7807 (Problem Details)</label>
+                                <label><input type="radio" name="q2" value="rfc7231"> RFC 7231</label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold">3. Vrai ou faux : En production, il est recommandé de renvoyer la stack trace complète pour faciliter le débogage.</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q3" value="vrai"> Vrai</label>
+                                <label><input type="radio" name="q3" value="faux"> Faux</label>
+                            </div>
+                        </div>
+                        <button id="checkQuiz" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg transition">Vérifier mes réponses</button>
+                        <div id="quizFeedback" class="text-sm text-slate-600 mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-between items-center no-print">
+                <button id="prevBtn" class="nav-btn bg-slate-300 hover:bg-slate-400 text-slate-800 font-medium py-2 px-5 rounded-lg disabled:opacity-50" disabled>◀ Précédent</button>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-slate-500">Slide</span>
+                    <span id="currentSlide" class="font-bold text-purple-700">1</span>
+                    <span class="text-sm text-slate-500">/</span>
+                    <span id="totalSlides" class="font-bold">10</span>
+                </div>
+                <button id="nextBtn" class="nav-btn bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-5 rounded-lg">Suivant ▶</button>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="h-1 bg-slate-200 w-full">
+                <div id="progressBar" class="progress-bar h-full bg-purple-600 w-0"></div>
+            </div>
+        </div>
+
+        <footer class="text-center text-slate-400 text-sm mt-6 no-print">
+            <p>© Enseignant API .NET Cameroun | Cours ASP.NET Core - Gestion robuste des exceptions</p>
+        </footer>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let current = 1;
+            const total = 10;
+            updateButtonsAndProgress();
+
+            function showSlide(index) {
+                $('.slide').removeClass('active');
+                $(`#slide${index}`).addClass('active');
+                $('#currentSlide').text(index);
+                updateButtonsAndProgress();
+            }
+
+            function updateButtonsAndProgress() {
+                $('#prevBtn').prop('disabled', current === 1);
+                $('#nextBtn').prop('disabled', current === total);
+                const progressPercent = ((current - 1) / (total - 1)) * 100;
+                $('#progressBar').css('width', `${progressPercent}%`);
+            }
+
+            $('#prevBtn').click(function() {
+                if (current > 1) {
+                    current--;
+                    showSlide(current);
+                }
+            });
+
+            $('#nextBtn').click(function() {
+                if (current < total) {
+                    current++;
+                    showSlide(current);
+                }
+            });
+
+            // Quiz interactif
+            $('#checkQuiz').click(function() {
+                let score = 0;
+                let feedback = "";
+                const q1 = $('input[name="q1"]:checked').val();
+                const q2 = $('input[name="q2"]:checked').val();
+                const q3 = $('input[name="q3"]:checked').val();
+
+                if (q1 === 'exhandler') { score++; feedback += "✅ Question 1 : app.UseExceptionHandler() est la bonne réponse.\n"; }
+                else if (q1) feedback += "❌ Question 1 : la bonne réponse est app.UseExceptionHandler().\n";
+                else feedback += "⚠️ Question 1 non répondue.\n";
+
+                if (q2 === 'rfc7807') { score++; feedback += "✅ Question 2 : RFC 7807 (Problem Details) est le standard.\n"; }
+                else if (q2) feedback += "❌ Question 2 : la bonne réponse est RFC 7807 (Problem Details).\n";
+                else feedback += "⚠️ Question 2 non répondue.\n";
+
+                if (q3 === 'faux') { score++; feedback += "✅ Question 3 : Faux, on ne renvoie jamais la stack trace en production pour des raisons de sécurité.\n"; }
+                else if (q3) feedback += "❌ Question 3 : c'est faux, les détails techniques doivent rester côté serveur.\n";
+                else feedback += "⚠️ Question 3 non répondue.\n";
+
+                $('#quizFeedback').html(`<div class="p-3 rounded-lg ${score === 3 ? 'bg-green-100 border border-green-400' : 'bg-yellow-100 border border-yellow-400'}">Score : ${score}/3<br><pre class="whitespace-pre-wrap text-xs mt-1">${feedback}</pre></div>`);
+            });
+
+            // Navigation clavier
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowLeft" && current > 1) {
+                    current--;
+                    showSlide(current);
+                } else if (e.key === "ArrowRight" && current < total) {
+                    current++;
+                    showSlide(current);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

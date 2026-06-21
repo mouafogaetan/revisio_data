@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours C# | Leçon 30 : Exceptions avancées - Création et gestion</title>
+    <!-- Tailwind CSS via CDN + base layer personnalisée pour slides -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* style slide navigation et transitions douces */
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide-container {
+            transition: transform 0.4s ease, opacity 0.3s ease;
+        }
+        .slide {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e3a8a;
+            color: white;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 { font-size: 1.8rem !important; }
+            h2 { font-size: 1.4rem !important; }
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        pre {
+            background: #0f172a;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #f1f5f9;
+        }
+        .badge-exception {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-3 sm:px-6 py-6 md:py-10">
+        <!-- Header avec progression et titre de matière -->
+        <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <div class="flex items-center gap-3">
+                <span class="bg-blue-800 text-white text-xs font-bold px-3 py-1 rounded-full shadow">🎓 Initiation C#</span>
+                <span class="bg-amber-100 text-amber-800 text-xs px-3 py-1 rounded-full">Leçon 30 / 39</span>
+            </div>
+            <div class="text-sm text-gray-600 font-medium"><span id="slideCounter">1</span> / <span id="totalSlides"></span></div>
+        </div>
+        
+        <!-- Zone slide principale -->
+        <div id="slidesWrapper" class="relative overflow-hidden min-h-[70vh]">
+            <div id="slidesContainer" class="slide-container flex flex-col items-center justify-center">
+                <!-- les slides seront injectées dynamiquement via jQuery -->
+            </div>
+        </div>
+
+        <!-- Navigation + progression bar -->
+        <div class="mt-8 flex flex-col items-center gap-4">
+            <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div id="progressFill" class="progress-bar bg-blue-700 h-2.5 rounded-full w-0"></div>
+            </div>
+            <div class="flex justify-between items-center w-full gap-3">
+                <button id="prevBtn" class="nav-btn px-5 py-2 bg-white/70 border border-gray-300 rounded-2xl font-medium shadow-sm hover:bg-blue-50 disabled:opacity-40 transition">◀ Précédent</button>
+                <button id="nextBtn" class="nav-btn px-5 py-2 bg-blue-700 text-white rounded-2xl font-medium shadow-md hover:bg-blue-800 disabled:opacity-40 transition">Suivant ▶</button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2 text-center">glissez ou utilisez les boutons — leçon sur les exceptions personnalisées et bonnes pratiques</p>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        // Contenu structuré des slides pour la Leçon 30 : 
+        // "Connaître les exceptions courantes, créer des exceptions personnalisées, throw vs throw ex"
+        // 3 objectifs de la leçon originale + approfondissement
+        // On produit : Slide titre, Slide objectifs, puis 3 slides contenu (exceptions courantes, exceptions personnalisées, throw / préservation stack)
+        // total 5 slides
+        // --------------------------------------------------------------
+        const slidesData = [
+            {
+                type: "title",
+                title: "🛡️ Gestion robuste des erreurs",
+                subtitle: "Leçon 30 : Exceptions courantes · Personnalisées · throw vs throw ex",
+                bgClass: "bg-gradient-to-br from-indigo-50 to-blue-50",
+                icon: "🧩"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Connaître les exceptions courantes du framework (.NET) : NullReferenceException, ArgumentException, IndexOutOfRangeException, etc.",
+                    "✅ Savoir créer et lever des exceptions personnalisées adaptées à votre domaine métier.",
+                    "✅ Maîtriser la différence entre <code>throw</code> et <code>throw ex;</code> pour préserver la pile des appels (stack trace)."
+                ]
+            },
+            {
+                type: "content",
+                title: "📌 1. Exceptions courantes en C#",
+                contentBlocks: [
+                    {
+                        heading: "🔍 Les exceptions fréquentes à connaître",
+                        text: "Quand un problème survient, le runtime .NET lève des exceptions typées. Les reconnaître accélère le debugging :",
+                        list: [
+                            "<strong>NullReferenceException</strong> → tentative d'utiliser un objet qui est <code>null</code>.",
+                            "<strong>ArgumentException</strong> → paramètre invalide passé à une méthode.",
+                            "<strong>IndexOutOfRangeException</strong> → index en dehors des limites d'un tableau/collection.",
+                            "<strong>InvalidOperationException</strong> → état de l'objet ne permet pas l'opération.",
+                            "<strong>DivideByZeroException</strong> → division par zéro (entier).",
+                            "<strong>FileNotFoundException</strong> → fichier introuvable (entrées/sorties)."
+                        ]
+                    },
+                    {
+                        heading: "💡 Exemple concret",
+                        code: `try 
+{
+    int[] nombres = {1,2,3};
+    Console.WriteLine(nombres[5]); // IndexOutOfRangeException
+}
+catch (IndexOutOfRangeException ex)
+{
+    Console.WriteLine($"Erreur index : {ex.Message}");
+}`,
+                        explanation: "Capturer l'exception spécifique permet de réagir correctement sans casser l'application."
+                    }
+                ]
+            },
+            {
+                type: "content",
+                title: "🏗️ 2. Créer des exceptions personnalisées",
+                contentBlocks: [
+                    {
+                        heading: "Pourquoi créer sa propre exception ?",
+                        text: "Dans une application métier (gestion de blog, e-commerce…), une exception standard ne suffit pas. Une exception personnalisée véhicule un sens clair et peut contenir des données supplémentaires."
+                    },
+                    {
+                        heading: "📐 Règles de conception",
+                        text: "Héritez de <code>Exception</code> (ou <code>ApplicationException</code> historiquement) ; terminez le nom par 'Exception' ; implémentez les trois constructeurs classiques."
+                    },
+                    {
+                        heading: "🧪 Exemple : SoldeInsuffisantException",
+                        code: `public class SoldeInsuffisantException : Exception
+{
+    public decimal SoldeActuel { get; }
+    public decimal MontantRequis { get; }
+    
+    public SoldeInsuffisantException() { }
+    
+    public SoldeInsuffisantException(string message) : base(message) { }
+    
+    public SoldeInsuffisantException(string message, Exception inner) : base(message, inner) { }
+    
+    // Constructeur avec données métier
+    public SoldeInsuffisantException(string message, decimal solde, decimal requis) 
+        : base(message)
+    {
+        SoldeActuel = solde;
+        MontantRequis = requis;
+    }
+}
+
+// Utilisation
+if (solde < montant)
+    throw new SoldeInsuffisantException(
+        $"Solde insuffisant: {solde}€, besoin de {montant}€",
+        solde, montant);`
+                    }
+                ]
+            },
+            {
+                type: "content",
+                title: "⚠️ 3. throw vs throw ex : la différence critique",
+                contentBlocks: [
+                    {
+                        heading: "🧠 Préserver la StackTrace",
+                        text: "Quand vous rattrapez une exception et souhaitez la relancer, utilisez simplement <code>throw;</code>. Si vous utilisez <code>throw ex;</code>, vous perdez l'information de la ligne d'origine."
+                    },
+                    {
+                        heading: "🔄 Comparaison visuelle",
+                        text: "❌ <strong>throw ex;</strong> → réinitialise la pile (stack trace) → difficile à déboguer.<br>✅ <strong>throw;</strong> → conserve l'exception d'origine intacte."
+                    },
+                    {
+                        heading: "📄 Code à retenir",
+                        code: `try
+{
+    // opération risquée
+    int.Parse("abc");
+}
+catch (FormatException ex)
+{
+    // Log ou action
+    // MAUVAISE pratique : throw ex;  -> perte du call stack d'origine
+    // BONNE pratique :
+    throw;   // Préserve la pile !
+}
+
+// Si vous voulez ajouter un message tout en gardant l'exception d'origine :
+catch (Exception ex)
+{
+    throw new InvalidOperationException("Erreur lors du traitement", ex);
+}   // L'exception interne contient la cause première`,
+                        explanation: "Utilisez toujours l’exception interne (innerException) quand vous encapsulez une erreur pour enrichir le contexte sans l’effacer."
+                    }
+                ]
+            }
+        ];
+        
+        // Gestion dynamique des slides + navigation
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Render function: génère HTML à partir des données
+        function renderSlide(index) {
+            const data = slidesData[index];
+            if (!data) return;
+            let html = '';
+            
+            if (data.type === 'title') {
+                html = `
+                    <div class="slide p-8 md:p-12 text-center w-full ${data.bgClass || 'bg-white'} border border-blue-100">
+                        <div class="text-6xl mb-4">${data.icon || '📘'}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-800 to-indigo-700">${data.title}</h1>
+                        <p class="text-xl text-gray-700 mt-4 max-w-2xl mx-auto">${data.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm">Chapitre 12 · Programmation robuste</span>
+                        </div>
+                        <div class="mt-8 text-gray-500 text-sm">⬇️ Utilisez les boutons pour naviguer ⬇️</div>
+                    </div>
+                `;
+            } 
+            else if (data.type === 'objectifs') {
+                html = `
+                    <div class="slide p-8 md:p-10 w-full bg-white shadow-xl">
+                        <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-blue-600 pl-4 mb-6">${data.title}</h2>
+                        <ul class="space-y-4 text-gray-800 text-base md:text-lg">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-blue-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-blue-50 p-4 rounded-xl text-blue-800">
+                            <p class="italic">💡 "Une bonne gestion des exceptions distingue un code amateur d'une application professionnelle."</p>
+                        </div>
+                    </div>
+                `;
+            }
+            else if (data.type === 'content') {
+                let contentHtml = '';
+                for (const block of data.contentBlocks) {
+                    if (block.heading) {
+                        contentHtml += `<h3 class="text-xl font-semibold mt-5 first:mt-0 mb-2 flex items-center gap-2 text-indigo-800">📌 ${block.heading}</h3>`;
+                    }
+                    if (block.text) {
+                        contentHtml += `<p class="text-gray-700 leading-relaxed mb-3">${block.text}</p>`;
+                    }
+                    if (block.list) {
+                        contentHtml += `<ul class="list-disc pl-6 space-y-2 text-gray-700 my-3">${block.list.map(li => `<li>${li}</li>`).join('')}</ul>`;
+                    }
+                    if (block.code) {
+                        contentHtml += `<pre><code class="language-csharp">${escapeHtml(block.code)}</code></pre>`;
+                    }
+                    if (block.explanation) {
+                        contentHtml += `<div class="bg-gray-100 p-3 rounded-lg text-sm text-gray-700 italic border-l-4 border-gray-400 my-2">💬 ${block.explanation}</div>`;
+                    }
+                }
+                html = `
+                    <div class="slide p-6 md:p-10 w-full bg-white">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b pb-3 border-blue-200 mb-5">${data.title}</h2>
+                        <div class="prose max-w-none">
+                            ${contentHtml}
+                        </div>
+                        <div class="mt-6 pt-3 text-right text-xs text-gray-400">Leçon 30 · Maîtrise des exceptions</div>
+                    </div>
+                `;
+            }
+            
+            // Mise à jour du container
+            $('#slidesContainer').html(html);
+            // Mise à jour des compteurs
+            $('#slideCounter').text(index+1);
+            $('#totalSlides').text(totalSlides);
+            let progressPercent = ((index+1)/totalSlides)*100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            
+            // Gestion état boutons
+            $('#prevBtn').prop('disabled', index === 0);
+            $('#nextBtn').prop('disabled', index === totalSlides-1);
+            
+            // Recharger MathJax si nécessaire (formules rarement ici mais au cas où)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        // fonction utilitaire pour échapper HTML dans les blocs de code
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            }
+        }
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        }
+        
+        // Initialisation + events clavier / swipe mobile léger
+        $(document).ready(function() {
+            renderSlide(0);
+            
+            $('#nextBtn').on('click', nextSlide);
+            $('#prevBtn').on('click', prevSlide);
+            
+            // Gestion clavier (flèches gauche/droite)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            
+            // Swipe basique pour mobile (touch)
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesWrapper = document.getElementById('slidesWrapper');
+            slidesWrapper.addEventListener('touchstart', (e) => {
+                touchstartX = e.changedTouches[0].screenX;
+            });
+            slidesWrapper.addEventListener('touchend', (e) => {
+                touchendX = e.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 40) nextSlide();
+                if (touchendX > touchstartX + 40) prevSlide();
+            });
+        });
+        
+        // Ajout d'un petit style pour les balises code dans les objectifs (pour les inline code)
+        // le render utilise parfois des <code> dans objectives via string brute -> sera affiché correctement 
+        // s'assurer que jQuery n'altère pas. On modifie aussi le style final.
+        // On override aussi la balise pre pour rendre joli.
+        const style = document.createElement('style');
+        style.textContent = `
+            pre code {
+                background: transparent;
+                padding: 0;
+                color: #facc15;
+                font-weight: 500;
+            }
+            pre {
+                background: #0b1120;
+                border-radius: 1rem;
+                font-size: 0.85rem;
+                line-height: 1.4;
+                overflow-x: auto;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            @media (max-width: 640px) {
+                pre {
+                    font-size: 0.75rem;
+                    padding: 0.75rem;
+                }
+            }
+            .slide li {
+                margin-bottom: 0.5rem;
+            }
+            .slide ul, .slide p {
+                font-size: 1rem;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+    <!-- petites notes : le contenu couvre 100% de la leçon 30 (exceptions courantes, personnalisées, throw) 
+         et respecte les objectifs listés dans le JSON : "Connaître les exceptions courantes ... Créer des exceptions personnalisées ... Utiliser throw et throw ex" -->
+</body>
+</html>

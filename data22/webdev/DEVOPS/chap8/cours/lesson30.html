@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 30 : Grafana - Tableaux de bord et alertes | DevOps</title>
+    <!-- Tailwind CSS + Font Awesome (pour icones) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation supplémentaire pour améliorer le contraste et la lisibilité -->
+    <style>
+        /* Transition fluide entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Styles pour les codes et blocs */
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge {
+            background-color: #3b82f6;
+            color: white;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .btn-slide:active {
+            transform: scale(0.96);
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div class="card-glass p-5 md:p-8 shadow-xl border border-blue-100">
+            <!-- Indicateur de progression et navigation simple -->
+            <div class="flex justify-between items-center mb-5 flex-wrap gap-2">
+                <div class="text-sm font-medium text-gray-500 bg-white/70 px-3 py-1 rounded-full">
+                    Leçon 30 / 39 • Module Monitoring
+                </div>
+                <div class="flex gap-2">
+                    <button id="prevBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-full transition btn-slide disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+                    <button id="nextBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition btn-slide">Suivant ▶</button>
+                </div>
+            </div>
+            <!-- Zone slide dynamique -->
+            <div id="slidesContainer" class="relative min-h-[65vh]">
+                <!-- Les slides seront injectées via jQuery -->
+            </div>
+            <!-- Petit pied de page / navigation dots -->
+            <div class="flex justify-center mt-8 gap-2 flex-wrap" id="dotsNav"></div>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 30 : Grafana
+        const slidesData = [
+            {
+                type: "title",
+                title: "📊 Grafana : Visualisation et Alerting",
+                subtitle: "Maîtriser les tableaux de bord et la supervision moderne",
+                bgIcon: "📈"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Installer et configurer Grafana sur différents environnements.",
+                    "Connecter Grafana à une source de données (Prometheus, etc.).",
+                    "Créer des tableaux de bord (dashboards) interactifs.",
+                    "Configurer des alertes pour surveiller vos métriques critiques.",
+                    "Comprendre l'écosystème Grafana et son rôle dans le monitoring DevOps."
+                ]
+            },
+            {
+                type: "content",
+                title: "🔍 Qu'est-ce que Grafana ?",
+                content: `<p class="mb-3"><span class="font-bold text-blue-700">Grafana</span> est une plateforme open-source de <strong>visualisation de données</strong> et d’analyse. Elle permet de créer des tableaux de bord (dashboards) riches et interactifs à partir de multiples sources : Prometheus, Elasticsearch, InfluxDB, MySQL, etc.</p>
+                <p class="mb-3">Dans un contexte DevOps, Grafana est souvent associé à Prometheus pour surveiller les performances des serveurs, des conteneurs, des applications et de l'infrastructure entière.</p>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-md">
+                    ✨ <span class="font-medium">Pourquoi Grafana ?</span> Visualisation unifiée, alertes puissantes, nombreuses intégrations, interface moderne et personnalisable.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "⚙️ Installation de Grafana",
+                content: `<p class="mb-3">Grafana peut être installé sur Linux (Ubuntu/Debian, CentOS), Windows, macOS ou via Docker. Voici deux méthodes courantes :</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold">🐧 Ubuntu/Debian</span>
+                        <pre class="code-block text-xs mt-2">sudo apt-get install -y software-properties-common
+sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+sudo apt-get update
+sudo apt-get install grafana
+sudo systemctl start grafana-server</pre>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg"><span class="font-mono font-bold">🐳 Docker</span>
+                        <pre class="code-block text-xs mt-2">docker run -d -p 3000:3000 --name=grafana \
+  -e "GF_SECURITY_ADMIN_PASSWORD=admin" \
+  grafana/grafana-oss:latest</pre>
+                        <p class="text-xs mt-1">Accès par défaut : http://localhost:3000 (admin/admin)</p>
+                    </div>
+                </div>
+                <p class="mt-3 text-sm text-gray-600">Après installation, connectez-vous sur le port 3000 avec identifiant <code>admin/admin</code> (il vous demandera de changer le mot de passe).</p>`
+            },
+            {
+                type: "content",
+                title: "🔌 Connecter Grafana à Prometheus (Datasource)",
+                content: `<p>Pour créer des dashboards, il faut d'abord ajouter une source de données. Exemple avec Prometheus :</p>
+                <ol class="list-decimal list-inside space-y-2 mt-2 bg-white p-3 rounded-xl shadow-sm">
+                    <li>Dans le menu <span class="font-semibold">Configuration > Data sources</span>.</li>
+                    <li>Cliquez sur <strong>Add data source</strong> et choisissez <strong>Prometheus</strong>.</li>
+                    <li>Renseignez l'URL : <code class="bg-gray-100 px-1 rounded">http://localhost:9090</code> (ou l'IP de votre serveur Prometheus).</li>
+                    <li>Cliquez sur <strong>Save & Test</strong>. Un message vert confirme la connexion.</li>
+                </ol>
+                <div class="mt-4 bg-yellow-50 p-3 rounded-lg text-sm">
+                    💡 <strong>Astuce:</strong> Vous pouvez aussi connecter Loki (logs), Tempo (tracing), ou des bases de données SQL.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📊 Créer votre premier tableau de bord",
+                content: `<p>Grafana permet de construire des dashboards intuitifs avec des <strong>panels</strong> (graphiques, jauges, tableaux, heatmaps...).</p>
+                <div class="my-4 bg-white border border-gray-200 rounded-xl p-4">
+                    <span class="badge">ÉTAPE 1</span> <span class="font-medium">Ajouter un panel :</span> Cliquez sur <strong>➕ Create > Dashboard > Add visualization</strong>
+                </div>
+                <div class="my-3 bg-white border border-gray-200 rounded-xl p-4">
+                    <span class="badge">ÉTAPE 2</span> <span class="font-medium">Choisir la source Prometheus</span> et taper une requête comme <code class="bg-gray-100 px-1">rate(http_requests_total[5m])</code>
+                </div>
+                <div class="my-3 bg-white border border-gray-200 rounded-xl p-4">
+                    <span class="badge">ÉTAPE 3</span> <span class="font-medium">Personnaliser le type de graphique</span> (séries temporelles, barres, gauge) et le titre.
+                </div>
+                <p>Une fois satisfait, sauvegardez le dashboard (Ctrl+S).</p>`
+            },
+            {
+                type: "content",
+                title: "⚡ Alertes dans Grafana",
+                content: `<p>Grafana intègre un système d'alertes puissant qui peut envoyer des notifications vers Slack, Email, PagerDuty, Webhook...</p>
+                <div class="grid md:grid-cols-2 gap-4 mt-2">
+                    <div class="bg-red-50 p-3 rounded-md">
+                        <span class="font-bold text-red-700">🔔 Créer une alerte</span>
+                        <ul class="list-disc list-inside text-sm mt-1">
+                            <li>Dans un panel, aller dans l'onglet <strong>"Alert"</strong>.</li>
+                            <li>Définir une condition (ex: CPU > 80% pendant 2 min).</li>
+                            <li>Configurer le canal de notification.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-md">
+                        <span class="font-bold text-green-700">✅ Bonnes pratiques</span>
+                        <ul class="list-disc list-inside text-sm mt-1">
+                            <li>Ne pas alerter sur des métriques volatiles.</li>
+                            <li>Utiliser des seuils réalistes et des périodes de "for".</li>
+                            <li>Documenter les alertes.</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="mt-3 text-gray-700">Les alertes peuvent être visualisées dans le centre d'alerting de Grafana, avec état (pending, firing, resolved).</p>`
+            },
+            {
+                type: "content",
+                title: "🎨 Dashboard exemples & variables",
+                content: `<p>Pour des dashboards réutilisables, Grafana propose les <span class="font-semibold">variables</span> : cela permet de filtrer dynamiquement (par serveur, environnement, etc.)</p>
+                <div class="bg-gray-100 p-3 rounded-lg">
+                    <p class="font-mono text-sm">Exemple : variable <code>$instance</code> dans la requête Prometheus → <code>node_cpu_seconds_total{instance="$instance"}</code></p>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <img src="" alt="Illustration d'un dashboard Grafana avec plusieurs graphiques métriques" class="hidden"> 
+                    <!-- Pas d'image nécessaire, on dessine une zone style placeholder -->
+                    <div class="w-full bg-gradient-to-r from-indigo-100 to-cyan-100 border border-indigo-200 rounded-xl p-4 text-center">
+                        <span class="text-3xl">📊📈📉</span>
+                        <p class="text-sm text-gray-600 mt-1">Exemple visuel : Dashboard Grafana avec courbes, jauges et sélecteurs de variable</p>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm">Les dashboards officiels de Grafana Labs ou la communauté (Grafana.com/dashboards) offrent des modèles prêts à l'emploi.</p>`
+            },
+            {
+                type: "content",
+                title: "🔐 Sécurité & gestion utilisateurs",
+                content: `<p>Grafana propose plusieurs fonctionnalités pour la sécurité :</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Authentification</strong> : support de LDAP, OAuth (Google, GitHub), SAML.</li>
+                    <li><strong>Rôles</strong> : Viewer, Editor, Admin. Idéal pour les équipes DevOps.</li>
+                    <li><strong>Organisations</strong> : pour isoler différents environnements (prod, staging).</li>
+                    <li><strong>Chiffrement des données sensibles</strong> dans la base de données.</li>
+                </ul>
+                <div class="mt-3 p-2 border-l-4 border-blue-400 bg-blue-50 rounded">💡 Conseil : Utilisez le reverse proxy (nginx) avec HTTPS pour exposer Grafana en production.</div>`
+            },
+            {
+                type: "content",
+                title: "🧩 Écosystème Grafana : Loki, Tempo, Mimir",
+                content: `<p>Au-delà des dashboards, Grafana Labs a développé des projets complémentaires :</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                    <div class="bg-white shadow rounded p-2 text-center"><span class="text-2xl">📄</span><br/><span class="font-bold">Loki</span><br/><span class="text-xs">Agrégation de logs</span></div>
+                    <div class="bg-white shadow rounded p-2 text-center"><span class="text-2xl">⏱️</span><br/><span class="font-bold">Tempo</span><br/><span class="text-xs">Distributed tracing</span></div>
+                    <div class="bg-white shadow rounded p-2 text-center"><span class="text-2xl">📊</span><br/><span class="font-bold">Mimir</span><br/><span class="text-xs">Scalable Prometheus</span></div>
+                </div>
+                <p class="mt-3">Grafana devient ainsi une <strong>plateforme d'observabilité unifiée</strong> (métriques, logs, traces).</p>`
+            },
+            {
+                type: "recap",
+                title: "📌 Récapitulatif & bonnes pratiques",
+                items: [
+                    "Grafana → visualisation multi-sources, indispensable pour le monitoring DevOps.",
+                    "Se connecter à Prometheus et concevoir des dashboards pertinents.",
+                    "Configurer des alertes pour réagir aux incidents proactivement.",
+                    "Exploiter les variables pour des dashboards dynamiques.",
+                    "Penser à la sécurisation et à l'organisation des équipes."
+                ]
+            },
+            {
+                type: "quiz",
+                title: "🧠 Testez vos connaissances",
+                question: "Quelle est la principale fonction de Grafana dans une infrastructure DevOps ?",
+                options: [
+                    "Gérer les conteneurs Docker",
+                    "Visualiser des métriques et créer des dashboards",
+                    "Faire de l'intégration continue",
+                    "Scanner les vulnérabilités"
+                ],
+                correct: 1,
+                explanation: "Grafana est un outil de visualisation de données. Associé à Prometheus ou d'autres sources, il permet de créer des tableaux de bord et d'analyser les performances."
+            }
+        ];
+
+        let currentSlide = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'un slide en fonction de son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide slide-active text-center py-8 md:py-12">
+                        <div class="text-7xl mb-4">${slide.bgIcon || "📘"}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-gray-600 text-lg mt-4 max-w-xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 border-t border-blue-100 pt-6 text-sm text-blue-500">Initiation au DevOps · Cameroun</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                return `
+                    <div class="slide slide-active">
+                        <h2 class="text-2xl md:text-3xl font-bold text-blue-800 border-l-5 border-blue-500 pl-3 mb-5">${slide.title}</h2>
+                        <ul class="space-y-3 text-gray-800">
+                            ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-blue-500 text-xl">✓</span><span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-indigo-50 p-4 rounded-xl text-sm text-indigo-800">
+                        🧭 À la fin de cette leçon, vous serez capable d'utiliser Grafana en conditions réelles.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                return `
+                    <div class="slide slide-active">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-blue-300 pb-2 mb-4">${slide.title}</h2>
+                        <div class="prose max-w-none text-gray-700">${slide.content}</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "recap") {
+                return `
+                    <div class="slide slide-active">
+                        <h2 class="text-2xl md:text-3xl font-bold text-green-700 mb-4">${slide.title}</h2>
+                        <div class="bg-green-50 rounded-xl p-5">
+                            <ul class="space-y-2">
+                                ${slide.items.map(item => `<li class="flex gap-2 items-start"><span class="text-green-600 font-bold">✔️</span> ${item}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="mt-6 text-center text-gray-500 text-sm">Prochaine étape : Projet pratique avec Prometheus + Grafana</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "quiz") {
+                return `
+                    <div class="slide slide-active">
+                        <h2 class="text-2xl md:text-3xl font-bold text-purple-800 mb-4">${slide.title}</h2>
+                        <div class="bg-white rounded-2xl shadow p-5">
+                            <p class="font-semibold text-lg">${slide.question}</p>
+                            <div class="mt-4 space-y-2" id="quizOptions">
+                                ${slide.options.map((opt, i) => `
+                                    <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200 mb-2">
+                                        <input type="radio" name="quiz" value="${i}" class="w-4 h-4 text-blue-600">
+                                        <span>${opt}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <button id="submitQuiz" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-full transition">Vérifier ma réponse</button>
+                            <div id="quizFeedback" class="mt-4 text-sm font-medium"></div>
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="slide slide-active"><p>Contenu générique</p></div>`;
+        }
+
+        // Rafraîchit l'affichage du slide actuel + dots
+        function updateSlidesAndDots() {
+            const container = $("#slidesContainer");
+            const currentSlideData = slidesData[currentSlide];
+            const renderedHtml = renderSlide(currentSlideData, currentSlide);
+            container.html(renderedHtml);
+            
+            // Gérer l'événement du quiz après injection
+            if (currentSlideData.type === "quiz") {
+                $("#submitQuiz").off("click").on("click", function() {
+                    const selected = $("input[name='quiz']:checked").val();
+                    if (selected === undefined) {
+                        $("#quizFeedback").html('<span class="text-orange-600">❓ Veuillez sélectionner une réponse.</span>');
+                        return;
+                    }
+                    const isCorrect = (parseInt(selected) === currentSlideData.correct);
+                    if (isCorrect) {
+                        $("#quizFeedback").html('<span class="text-green-700 bg-green-100 p-2 rounded block">✅ Exact ! ' + currentSlideData.explanation + '</span>');
+                    } else {
+                        $("#quizFeedback").html('<span class="text-red-700 bg-red-100 p-2 rounded block">❌ Mauvaise réponse. ' + currentSlideData.explanation + '</span>');
+                    }
+                });
+            }
+            
+            // Mise à jour des indicateurs dots
+            let dotsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === currentSlide) ? "bg-blue-600 w-8" : "bg-gray-300 w-3";
+                dotsHtml += `<button class="dot-nav h-3 rounded-full ${activeClass} transition-all mx-1 hover:bg-blue-400" data-index="${i}"></button>`;
+            }
+            $("#dotsNav").html(dotsHtml);
+            
+            // Gestion click sur dots
+            $(".dot-nav").on("click", function() {
+                let index = $(this).data("index");
+                if (index !== undefined && index >= 0 && index < totalSlides) {
+                    currentSlide = index;
+                    updateSlidesAndDots();
+                    updateButtonsState();
+                }
+            });
+            
+            updateButtonsState();
+        }
+        
+        function updateButtonsState() {
+            $("#prevBtn").prop("disabled", currentSlide === 0);
+            $("#nextBtn").text(currentSlide === totalSlides - 1 ? "Terminer ✓" : "Suivant ▶");
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlidesAndDots();
+            } else {
+                // Fin du cours, afficher une petite alerte style succès
+                alert("🎉 Félicitations ! Vous avez terminé la leçon sur Grafana. Appliquez ces concepts dans vos projets DevOps.");
+            }
+        }
+        
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlidesAndDots();
+            }
+        }
+        
+        $(document).ready(function() {
+            updateSlidesAndDots();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            // Gestion clavier (optionnel)
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") nextSlide();
+                if (e.key === "ArrowLeft") prevSlide();
+            });
+        });
+    </script>
+</body>
+</html>

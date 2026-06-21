@@ -1,0 +1,195 @@
+[
+  {
+    "intitule": "Configuration du swipe to delete sur une liste de produits",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un écran Panier, vous affichez la liste des produits sélectionnés par l'utilisateur. Vous souhaitez implémenter une fonctionnalité de suppression par glissement (swipe to delete).</p>",
+      "images": [
+        "Swipe to delete sur iOS - bouton rouge apparaissant lors du glissement vers la gauche",
+        "Swipe to delete sur Android - animation de glissement avec icône corbeille"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier le composant React Native approprié pour implémenter un swipe to delete et expliquer sa configuration de base.",
+        "niveau": "medium",
+        "reponse": "Le composant approprié est 'FlatList' avec la prop 'renderItem' contenant un composant wrapper comme 'Swipeable' de 'react-native-gesture-handler'.\n\nConfiguration de base :\n```javascript\nimport Swipeable from 'react-native-gesture-handler/Swipeable';\nimport { RectButton } from 'react-native-gesture-handler';\n\nconst renderRightActions = (progress, dragX, item) => {\n  return (\n    <RectButton onPress={() => deleteItem(item.id)}>\n      <Text>Supprimer</Text>\n    </RectButton>\n  );\n};\n\n<Swipeable renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}>\n  <View>{/* Contenu de l'item */}</View>\n</Swipeable>\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Nommer la bibliothèque supplémentaire nécessaire pour gérer les gestes de swipe.",
+            "niveau": "easy",
+            "reponse": "react-native-gesture-handler"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Décrire la différence entre renderLeftActions et renderRightActions dans Swipeable.",
+            "niveau": "medium",
+            "reponse": "renderLeftActions : affiche les actions lorsque l'utilisateur glisse vers la droite (reveals left side)\nrenderRightActions : affiche les actions lorsque l'utilisateur glisse vers la gauche (reveals right side)\n\nSur les appareils en mode RTL (Right-To-Left), ces directions peuvent être inversées."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation complète du swipe to delete avec confirmation",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Complétez le code ci-dessous pour implémenter une suppression avec glissement, incluant une boîte de dialogue de confirmation et une animation de suppression.</p>\n<pre><code>\nimport { Swipeable } from 'react-native-gesture-handler';\nimport { RectButton } from 'react-native-gesture-handler';\n\nconst CartItem = ({ item, onDelete }) => {\n  const swipeableRef = useRef(null);\n\n  const handleDelete = () => {\n    // 1. Afficher une alerte de confirmation\n    // 2. Fermer le swipeable\n    // 3. Appeler onDelete\n  };\n\n  const renderRightActions = () => {\n    return (\n      &lt;RectButton\n        style={{ backgroundColor: 'red', justifyContent: 'center', padding: 20 }}\n        onPress={___________}\n      &gt;\n        &lt;Text style={{ color: 'white' }}&gt;Supprimer&lt;/Text&gt;\n      &lt;/RectButton&gt;\n    );\n  };\n\n  return (\n    &lt;Swipeable\n      ref={swipeableRef}\n      renderRightActions={renderRightActions}\n      overshootRight={false}\n    &gt;\n      {/* Contenu de l'item */}\n    &lt;/Swipeable&gt;\n  );\n};\n</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Compléter les parties manquantes du code et expliquer le rôle de overshootRight.",
+        "niveau": "hard",
+        "reponse": "Code complété :\n```javascript\nconst handleDelete = () => {\n  Alert.alert(\n    'Confirmation',\n    'Voulez-vous vraiment supprimer cet article ?',\n    [\n      { text: 'Annuler', style: 'cancel' },\n      { \n        text: 'Supprimer', \n        style: 'destructive',\n        onPress: () => {\n          swipeableRef.current?.close();\n          onDelete(item.id);\n        }\n      }\n    ]\n  );\n};\n\n<RectButton onPress={handleDelete}>\n```\n\novershootRight={false} : empêche le dépassement excessif lors du glissement vers la droite. Quand un utilisateur glisse trop loin, l'animation peut dépasser la largeur du bouton. Overshoot désactive ce comportement pour une expérience plus propre.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Modification des quantités avec gestion d'état",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Chaque produit dans le panier possède un sélecteur de quantité (minimum 1, maximum stock disponible). Implémentez les fonctions d'incrémentation et de décrémentation avec mise à jour du store global.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les fonctions `incrementQuantity` et `decrementQuantity` dans un Zustand cartStore, en respectant les limites (min: 1, max: stock).",
+        "niveau": "medium",
+        "reponse": "```javascript\n// Dans cartStore.js\nconst useCartStore = create((set, get) => ({\n  items: [],\n  \n  incrementQuantity: (productId, maxStock) => {\n    const { items } = get();\n    const updatedItems = items.map(item => {\n      if (item.id === productId && item.quantity < maxStock) {\n        return { ...item, quantity: item.quantity + 1 };\n      }\n      return item;\n    });\n    set({ items: updatedItems });\n  },\n  \n  decrementQuantity: (productId) => {\n    const { items } = get();\n    const updatedItems = items.map(item => {\n      if (item.id === productId && item.quantity > 1) {\n        return { ...item, quantity: item.quantity - 1 };\n      }\n      return item;\n    });\n    set({ items: updatedItems });\n  },\n  \n  updateQuantity: (productId, newQuantity) => {\n    const { items } = get();\n    const updatedItems = items.map(item =>\n      item.id === productId ? { ...item, quantity: Math.max(1, newQuantity) } : item\n    );\n    set({ items: updatedItems });\n  }\n}));\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul du total du panier",
+    "type": "competence",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>À partir du tableau d'items du panier, calculez dynamiquement le montant total hors taxes (HT), le montant de la TVA (taux 20%), et le montant toutes taxes comprises (TTC).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer une fonction `calculateTotals` qui prend les items en paramètre et retourne un objet contenant subtotal, tva, total, et nombre d'articles.",
+        "niveau": "easy",
+        "reponse": "```javascript\nconst calculateTotals = (items) => {\n  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);\n  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);\n  const tva = subtotal * 0.20; // TVA à 20%\n  const total = subtotal + tva;\n  \n  return {\n    itemCount,\n    subtotal: subtotal.toFixed(2),\n    tva: tva.toFixed(2),\n    total: total.toFixed(2)\n  };\n};\n\n// Utilisation dans le composant\nconst cartItems = useCartStore(state => state.items);\nconst totals = calculateTotals(cartItems);\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Animations lors des modifications du panier",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter des animations fluides lors de l'ajout/suppression d'articles et lors des changements de quantité. Utilisez <strong>React Native Reanimated 3</strong> et <strong>LayoutAnimation</strong>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la différence entre LayoutAnimation (API native) et Reanimated pour les animations de liste.",
+        "niveau": "hard",
+        "reponse": "LayoutAnimation : API native intégrée à React Native pour les animations de mise en page simples (insertion, suppression, redimensionnement). Facile à utiliser mais limitée en personnalisation.\n\nReanimated 3 : offre un contrôle granulaire sur les animations (entrée/sortie, transitions partagées, gestures). Plus performant pour les animations complexes mais nécessite plus de code.\n\nPour une liste de panier, Reanimated permet des animations personnalisées comme l'effet 'spring' lors de l'ajout ou la suppression fluide avec fondu.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Donner un exemple d'utilisation de LayoutAnimation pour animer l'ajout d'un article.",
+            "niveau": "medium",
+            "reponse": "```javascript\nimport { LayoutAnimation, UIManager, Platform } from 'react-native';\n\nif (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {\n  UIManager.setLayoutAnimationEnabledExperimental(true);\n}\n\nconst addToCart = (product) => {\n  LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);\n  cartStore.addItem(product);\n};\n```",
+            "sousQuestions": []
+          },
+          {
+            "numero": "1.b",
+            "texte": "Citer les trois types d'effets LayoutAnimation disponibles.",
+            "niveau": "easy",
+            "reponse": "1. LayoutAnimation.Presets.linear - animation linéaire (défaut)\n2. LayoutAnimation.Presets.easeInEaseOut - accélération/décélération progressive\n3. LayoutAnimation.Presets.spring - effet de ressort avec rebond",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Animation de suppression avec fondu et redimensionnement",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Implémentez une animation de suppression personnalisée avec Reanimated : l'item doit disparaître progressivement (opacity 1 → 0) tout en rétrécissant (scale 1 → 0) avant d'être retiré de la liste.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le code d'un composant CartItem avec animation de suppression utilisant useSharedValue, useAnimatedStyle, et withSpring ou withTiming.",
+        "niveau": "very hard",
+        "reponse": "```javascript\nimport Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';\n\nconst CartItem = ({ item, onRemove }) => {\n  const opacity = useSharedValue(1);\n  const scale = useSharedValue(1);\n\n  const animatedStyle = useAnimatedStyle(() => ({\n    opacity: opacity.value,\n    transform: [{ scale: scale.value }]\n  }));\n\n  const handleRemove = () => {\n    opacity.value = withTiming(0, { duration: 300 });\n    scale.value = withTiming(0, { duration: 300 }, (finished) => {\n      if (finished) {\n        runOnJS(onRemove)(item.id);\n      }\n    });\n  };\n\n  return (\n    <Animated.View style={[styles.itemContainer, animatedStyle]}>\n      <Text>{item.name}</Text>\n      <Button title=\"Supprimer\" onPress={handleRemove} />\n    </Animated.View>\n  );\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation des calculs avec useMemo",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un composant Panier, le calcul du total est effectué à chaque rendu. Optimisez ce calcul pour qu'il ne s'exécute que lorsque les articles du panier changent réellement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Réécrire le code en utilisant useMemo pour mémoriser le résultat du calcul du total.",
+        "niveau": "medium",
+        "reponse": "```javascript\nimport { useMemo } from 'react';\n\nfunction CartScreen() {\n  const cartItems = useCartStore(state => state.items);\n  \n  const { subtotal, tva, total, itemCount } = useMemo(() => {\n    const count = cartItems.reduce((sum, item) => sum + item.quantity, 0);\n    const sub = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);\n    const tax = sub * 0.20;\n    const tot = sub + tax;\n    \n    return {\n      itemCount: count,\n      subtotal: sub.toFixed(2),\n      tva: tax.toFixed(2),\n      total: tot.toFixed(2)\n    };\n  }, [cartItems]); // Dépendance : ne recalculer que si cartItems change\n  \n  return (\n    <View>\n      <Text>Articles: {itemCount}</Text>\n      <Text>Total TTC: {total} €</Text>\n    </View>\n  );\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion du swipe to delete sur Android vs iOS",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Les comportements de swipe to delete diffèrent légèrement entre iOS et Android. Analysez ces différences et proposez une configuration unifiée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les différences de comportement de swipe to delete entre iOS et Android, et comment les gérer avec react-native-gesture-handler.",
+        "niveau": "medium",
+        "reponse": "Différences :\n- iOS : swipe partiel révèle le bouton, swipe complet déclenche la suppression automatique\n- Android : swipe révèle toujours le bouton, pas de suppression automatique (l'utilisateur doit taper sur le bouton)\n\nSolution unifiée avec react-native-gesture-handler :\n```javascript\n<Swipeable\n  renderRightActions={renderRightActions}\n  onSwipeableOpen={(direction) => {\n    if (direction === 'right') {\n      // Optionnel : suppression directe sur iOS\n      if (Platform.OS === 'ios') {\n        handleDelete();\n      }\n    }\n  }}\n  overshootRight={false}\n>\n```\n\nRecommandation : pour une expérience cohérente, utiliser toujours un bouton explicite plutôt que la suppression automatique.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul du total avec remises et frais de livraison",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Le panier doit gérer :\n- Une remise de 10% pour les commandes supérieures à 100€ (avant TVA)\n- Des frais de livraison de 5€ pour les commandes inférieures à 50€, gratuits au-delà\n- Un code promo 'CAMEROUN20' offrant 20% sur le sous-total HT (avant TVA)\n\nCréez la logique complète de calcul du panier.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire une fonction `calculateCartTotals` qui prend items, promoCode, et retourne le détail complet des calculs (sous-total, remise, sous-total après remise, frais livraison, TVA, total final).",
+        "niveau": "hard",
+        "reponse": "```javascript\nconst calculateCartTotals = (items, promoCode = null) => {\n  // Calcul du sous-total HT\n  const subtotalHT = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);\n  \n  // Application de la remise automatique (10% si > 100€)\n  let discount = 0;\n  if (subtotalHT > 100) {\n    discount = subtotalHT * 0.10;\n  }\n  \n  // Application du code promo (20%)\n  let promoDiscount = 0;\n  if (promoCode === 'CAMEROUN20') {\n    promoDiscount = subtotalHT * 0.20;\n  }\n  \n  const subtotalAfterDiscount = subtotalHT - discount - promoDiscount;\n  \n  // Calcul des frais de livraison\n  let shippingFees = 0;\n  if (subtotalAfterDiscount < 50) {\n    shippingFees = 5;\n  }\n  \n  // Calcul de la TVA (20% sur le sous-total après remise, hors livraison)\n  const tva = subtotalAfterDiscount * 0.20;\n  \n  // Total final (TTC)\n  const totalTTC = subtotalAfterDiscount + tva + shippingFees;\n  \n  return {\n    subtotalHT: subtotalHT.toFixed(2),\n    volumeDiscount: discount.toFixed(2),\n    promoDiscount: promoDiscount.toFixed(2),\n    subtotalAfterDiscount: subtotalAfterDiscount.toFixed(2),\n    shippingFees: shippingFees.toFixed(2),\n    tva: tva.toFixed(2),\n    totalTTC: totalTTC.toFixed(2),\n    promoApplied: promoCode === 'CAMEROUN20'\n  };\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

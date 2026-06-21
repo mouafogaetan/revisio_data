@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Quelle est la relation correcte entre l'entité `User` et l'entité `Cart` dans une API e-commerce ?",
+    "options": [
+      "`@ManyToMany(() => User)`",
+      "`@OneToOne(() => User, user => user.cart)`",
+      "`@OneToMany(() => User, user => user.cart)`",
+      "`@ManyToOne(() => User)`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La relation correcte est OneToOne : un utilisateur a un seul panier actif et un panier appartient à un seul utilisateur. C'est la conception standard dans les e-commerce pour le panier courant. On utilise `@OneToOne(() => User, user => user.cart)` côté Cart et `@OneToOne(() => Cart, cart => cart.user)` côté User."
+  },
+  {
+    "questionText": "Dans une entité `CartItem` (élément du panier), quel champ est indispensable pour garantir l'intégrité des données ?",
+    "options": [
+      "Seulement `productId` et `quantity`",
+      "`productId`, `quantity` et `unitPrice` (prix au moment de l'ajout)",
+      "Seulement `productId`",
+      "`productId`, `quantity` et `taxRate`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Il est indispensable de stocker `unitPrice` (prix unitaire au moment de l'ajout) car le prix du produit peut changer dans le catalogue. Sans cela, le calcul du total du panier deviendrait incorrect si le prix du produit est modifié après l'ajout. C'est une mesure d'intégrité financière."
+  },
+  {
+    "questionText": "Comment gérer le panier d'un utilisateur non connecté (visiteur anonyme) dans une API REST sans session ?",
+    "options": [
+      "On ne peut pas, il faut obligatoirement que l'utilisateur soit connecté",
+      "Utiliser un cookie avec l'ID du panier stocké côté client",
+      "Générer un `visitorId` (UUID) côté frontend et l'envoyer dans le header de chaque requête",
+      "Stocker le panier dans le localStorage du navigateur uniquement"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "La meilleure pratique est de générer un identifiant unique (UUID) côté frontend, de le stocker dans localStorage, et de l'envoyer dans un header (ex: `X-Visitor-Id`) pour chaque requête du panier. Le backend associe le panier à ce visitorId. À la connexion, on fusionne le panier anonyme avec le panier de l'utilisateur connecté."
+  },
+  {
+    "questionText": "Quelle annotation TypeORM permet d'ajouter automatiquement les champs `createdAt` et `updatedAt` dans une entité ?",
+    "options": [
+      "`@Timestamp()`",
+      "`@AutoDate()`",
+      "`@CreateDateColumn()` et `@UpdateDateColumn()`",
+      "`@DateColumn()`"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "easy",
+    "explanation": "TypeORM fournit `@CreateDateColumn()` qui enregistre automatiquement la date de création, et `@UpdateDateColumn()` qui met à jour automatiquement la date à chaque modification de l'entité. Ces deux colonnes sont très utiles pour le suivi des paniers (expiration, abandon)."
+  },
+  {
+    "questionText": "Lors de la fusion d'un panier anonyme avec le panier d'un utilisateur connecté, que doit-on faire si un même produit existe dans les deux paniers ?",
+    "options": [
+      "Garder uniquement le produit du panier connecté (supprimer l'anonyme)",
+      "Garder uniquement le produit du panier anonyme (supprimer le connecté)",
+      "Additionner les quantités des deux paniers pour ce produit",
+      "Soumettre une erreur à l'utilisateur pour qu'il choisisse manuellement"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "La bonne pratique est d'additionner les quantités : si le panier anonyme a 2 unités du produit X et le panier connecté en a 1, le panier fusionné doit avoir 3 unités. On doit ensuite vérifier que la quantité totale ne dépasse pas le stock disponible."
+  },
+  {
+    "questionText": "Quel est le rôle de l'entité `CartItem` dans une architecture de panier ?",
+    "options": [
+      "Stocke les informations de paiement",
+      "Représente la ligne d'un produit dans le panier avec sa quantité et son prix unitaire",
+      "Stocke l'historique des commandes",
+      "Gère les codes promotionnels"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "`CartItem` (ou `CartItem`) est une entité de jointure qui représente chaque ligne du panier. Elle contient généralement : `id`, `cartId`, `productId`, `quantity`, `unitPrice`, et éventuellement `variationId` pour les variantes de produit (taille, couleur)."
+  },
+  {
+    "questionText": "Comment implémenter une expiration automatique du panier après X minutes d'inactivité ?",
+    "options": [
+      "Ajouter un champ `expiresAt` et un cron job qui supprime les paniers expirés",
+      "Utiliser Redis avec une TTL (Time To Live) sur la clé du panier",
+      "Les deux réponses ci-dessus sont des approches valables",
+      "Aucune des réponses ci-dessus"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "Deux approches sont possibles : 1) Base de données : ajouter un champ `expiresAt` et exécuter un cron job périodique pour supprimer les paniers dont `expiresAt < NOW()`. 2) Redis : stocker le panier dans Redis avec une TTL (par exemple 3600 secondes) pour une expiration automatique sans cron. Redis est plus performant pour ce cas d'usage."
+  },
+  {
+    "questionText": "Quelle est la bonne pratique pour calculer le total d'un panier côté backend ?",
+    "options": [
+      "Faire confiance au total envoyé par le frontend",
+      "Recalculer le total à partir des `unitPrice` et `quantity` stockés en base",
+      "Utiliser le prix actuel du produit multiplié par la quantité",
+      "Ne pas calculer de total, le faire uniquement côté frontend"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La bonne pratique est de recalculer le total côté backend à partir des `unitPrice` stockés dans chaque `CartItem` et des quantités. On ne fait jamais confiance au total envoyé par le client (risque de fraude). On utilise le `unitPrice` stocké (snapshot) plutôt que le prix actuel du produit pour garantir la cohérence avec ce que l'utilisateur a vu au moment de l'ajout."
+  },
+  {
+    "questionText": "Quel décorateur NestJS permet d'extraire l'utilisateur connecté (injecté par JwtAuthGuard) dans un contrôleur ?",
+    "options": [
+      "`@CurrentUser()`",
+      "`@User()`",
+      "`@Req().user`",
+      "`@Request()` puis `req.user`"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "easy",
+    "explanation": "On peut utiliser `@Request()` pour obtenir l'objet Request complet, puis accéder à `req.user`. Ou créer un décorateur personnalisé `@GetUser()` qui extrait `req.user`. Exemple : `async getCart(@Request() req) { const userId = req.user.id; }`. Le JwtAuthGuard injecte automatiquement l'utilisateur dans `request.user`."
+  },
+  {
+    "questionText": "Dans une entité `CartItem`, quelle est l'utilité du champ `variationId` (ou `productVariantId`) ?",
+    "options": [
+      "Il permet de gérer les différentes versions d'un même produit (taille, couleur, capacité)",
+      "Il sert de clé primaire alternative",
+      "Il est utilisé pour les codes promo",
+      "Il stocke le prix après réduction"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Le champ `variationId` (ou `productVariantId`) permet de distinguer les différentes variantes d'un même produit. Par exemple : un t-shirt peut exister en taille S, M, L et en couleur rouge, bleu, vert. Chaque combinaison a son propre stock et parfois son propre prix. Sans ce champ, on ne pourrait pas différencier les variantes dans le panier."
+  }
+]

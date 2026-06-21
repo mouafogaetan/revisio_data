@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 24 : Upload de fichiers avec Multer | Backend Node.js</title>
+    <!-- Tailwind CSS + Font Awesome (icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Personnalisation Tailwind : couleurs douces pour l'éducation -->
+    <style>
+        * {
+            scroll-behavior: smooth;
+        }
+        body {
+            background: #f8fafc;
+        }
+        /* Amélioration du contraste et lisibilité */
+        .slide-card {
+            transition: all 0.2s ease;
+        }
+        .btn-slide {
+            transition: background 0.2s;
+        }
+        /* Personnalisation du défilement sur mobile */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        /* Éviter les reflets trop agressifs */
+        h1, h2, h3, p, li {
+            word-break: break-word;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+        .note {
+            background: #dbeafe;
+            border-left: 5px solid #3b82f6;
+            padding: 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+    <!-- jQuery & MathJax (au cas où, même si pas de formules lourdes) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- Conteneur principal avec padding adapté -->
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        
+        <!-- Navigation slide et zone slide dynamique -->
+        <div id="slides-container" class="relative">
+            <!-- Les slides seront injectées via jQuery -->
+        </div>
+
+        <!-- Contrôles de navigation (précédent / suivant) -->
+        <div class="flex justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm md:text-base">◀ Précédent</button>
+            <div class="text-sm text-slate-500 bg-white px-4 py-1 rounded-full shadow-sm">
+                Slide <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+            </div>
+            <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Définition du contenu des slides pour la leçon 24 (Multer)
+        // Slide 0 : Titre / Présentation
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Introduction - Qu'est-ce que Multer ?
+        // Slide 3 : Installation et configuration de base
+        // Slide 4 : Stockage local et filtres de fichiers
+        // Slide 5 : Upload vers le cloud (AWS S3 / Cloudinary) concept
+        // Slide 6 : Gestion des erreurs et bonnes pratiques
+        // Slide 7 : Exemple complet et résumé
+        
+        const slidesData = [
+            {
+                type: "title",
+                titre: "📁 Upload de fichiers avec Multer",
+                sousTitre: "Gérer facilement les envois de fichiers dans vos API Node.js / Express",
+                icone: "🖼️"
+            },
+            {
+                type: "objectifs",
+                titre: "🎯 Objectifs de la leçon",
+                objectifsList: [
+                    "Installer et configurer Multer pour gérer les fichiers entrants",
+                    "Configurer le stockage local et personnaliser les noms de fichiers",
+                    "Mettre en place des filtres pour accepter certains types de fichiers (images, PDF...)",
+                    "Comprendre les bases de l'upload vers le cloud (AWS S3, Cloudinary)",
+                    "Appliquer les bonnes pratiques (limite de taille, gestion des erreurs)"
+                ]
+            },
+            {
+                type: "content",
+                titre: "🧠 Qu'est-ce que Multer ? Pourquoi l'utiliser ?",
+                contenu: `
+                    <p><strong class="text-indigo-700">Multer</strong> est un middleware Express spécialement conçu pour gérer les formulaires multipart/form-data, c'est-à-dire les requêtes HTTP qui contiennent des fichiers (images, vidéos, documents).</p>
+                    <div class="note">
+                        💡 <span class="font-bold">Pourquoi Multer ?</span> Node.js ne traite pas nativement facilement les fichiers uploadés. Multer facilite la récupération des fichiers, les renomme, les stocke et gère les erreurs.
+                    </div>
+                    <p>🔹 Il repose sur <strong>busboy</strong> (analyseur performant).<br>
+                    🔹 Compatible avec les formulaires HTML classiques et les requêtes AJAX/fetch.<br>
+                    🔹 Permet le stockage local ou l'intégration avec des services cloud.</p>
+                    <div class="bg-indigo-50 p-3 rounded-lg mt-3">
+                        ✅ <span class="font-medium">Cas d'usage :</span> avatar d'utilisateur, téléversement de CV, galerie photo, documents partagés.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                titre: "⚙️ Installation et configuration de base",
+                contenu: `
+                    <p>1️⃣ Installer Multer dans votre projet Node.js :</p>
+                    <div class="code-block">
+                        npm install multer
+                    </div>
+                    <p>2️⃣ Importer et configurer le middleware dans Express :</p>
+                    <div class="code-block">
+                        const multer = require('multer');<br>
+                        const upload = multer({ dest: 'uploads/' });<br>
+                        // Le dossier 'uploads' doit exister<br>
+                        app.post('/upload', upload.single('fichier'), (req, res) => {<br>
+                        &nbsp;&nbsp;res.json({ message: "Fichier reçu !", file: req.file });<br>
+                        });
+                    </div>
+                    <p>🔸 <span class="highlight">upload.single('fichier')</span> : pour un fichier unique dont le champ s'appelle "fichier".<br>
+                    🔸 Multer crée automatiquement des informations comme <code>req.file</code> (nom original, taille, chemin...).</p>
+                    <p class="text-amber-700 text-sm mt-2">⚠️ Important : le dossier de destination doit exister, sinon erreur.</p>
+                `
+            },
+            {
+                type: "content",
+                titre: "🏞️ Stockage personnalisé & Filtres de fichiers",
+                contenu: `
+                    <p>Pour un contrôle plus fin (renommer les fichiers, choisir le dossier, limiter les types), on utilise <strong>diskStorage</strong> et <strong>fileFilter</strong> :</p>
+                    <div class="code-block">
+                        const storage = multer.diskStorage({<br>
+                        &nbsp;&nbsp;destination: (req, file, cb) => { cb(null, 'uploads/'); },<br>
+                        &nbsp;&nbsp;filename: (req, file, cb) => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;cb(null, unique + '-' + file.originalname);<br>
+                        &nbsp;&nbsp;}<br>
+                        });<br>
+                        const fileFilter = (req, file, cb) => {<br>
+                        &nbsp;&nbsp;if (file.mimetype.startsWith('image/')) cb(null, true);<br>
+                        &nbsp;&nbsp;else cb(new Error('Seules les images sont autorisées !'), false);<br>
+                        };<br>
+                        const upload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } }); // 2 Mo max
+                    </div>
+                    <ul class="list-disc pl-5 mt-2 space-y-1">
+                        <li><strong>destination</strong> : dossier où sauvegarder</li>
+                        <li><strong>filename</strong> : personnalisation du nom (éviter les collisions)</li>
+                        <li><strong>fileFilter</strong> : accepter/refuser selon le type MIME</li>
+                        <li><strong>limits</strong> : taille max, nombre de fichiers, etc.</li>
+                    </ul>
+                    <div class="note mt-2">
+                        📌 Exemple : accepter uniquement JPEG, PNG, PDF via <code>file.mimetype === 'application/pdf'</code> etc.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                titre: "☁️ Upload vers le cloud (AWS S3 / Cloudinary) - Concepts",
+                contenu: `
+                    <p>En production, on évite souvent le stockage local (évolutivité, sauvegarde). Multer peut être associé à des moteurs de stockage cloud.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 my-3">
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                            <p class="font-bold text-blue-600">🔹 AWS S3</p>
+                            <p>Utiliser <code>multer-s3</code> pour envoyer directement les fichiers vers un bucket S3. Configuration des credentials et région.</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                            <p class="font-bold text-purple-600">🔹 Cloudinary</p>
+                            <p>Spécialisé images/vidéos, transformations automatiques. Package <code>multer-storage-cloudinary</code>.</p>
+                        </div>
+                    </div>
+                    <p>✔️ Avantages : redondance, CDN, gestion des accès, scaling.<br>
+                    ✔️ Exemple simplifié (concept) :</p>
+                    <div class="code-block">
+                        const { S3Client } = require('@aws-sdk/client-s3');<br>
+                        const multerS3 = require('multer-s3');<br>
+                        const upload = multer({<br>
+                        &nbsp;&nbsp;storage: multerS3({ s3: new S3Client({ region }), bucket: 'mon-bucket' })<br>
+                        });
+                    </div>
+                    <p class="text-sm text-slate-500 mt-2">⚠️ Nécessite SDK AWS et droits IAM. Pour Cloudinary, documentation similaire.</p>
+                `
+            },
+            {
+                type: "content",
+                titre: "🛡️ Gestion des erreurs & Bonnes pratiques",
+                contenu: `
+                    <p>Multer génère des erreurs en cas de fichier trop volumineux, type non autorisé ou absence de fichier. Il faut les capturer :</p>
+                    <div class="code-block">
+                        app.post('/profile', upload.single('avatar'), (req, res) => {<br>
+                        &nbsp;&nbsp;res.json({ file: req.file });<br>
+                        }, (err, req, res, next) => {<br>
+                        &nbsp;&nbsp;if (err.code === 'LIMIT_FILE_SIZE') {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;return res.status(400).json({ error: 'Fichier trop lourd (max 2 Mo)' });<br>
+                        &nbsp;&nbsp;}<br>
+                        &nbsp;&nbsp;res.status(400).json({ error: err.message });<br>
+                        });
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg mt-3">
+                        🌟 <span class="font-semibold">Bonnes pratiques :</span><br>
+                        - Valider le fichier avant upload (antivirus côté backend pour les documents).<br>
+                        - Renommer systématiquement pour éviter les injections de chemins.<br>
+                        - Utiliser des variables d'environnement pour les dossiers/clés cloud.<br>
+                        - Ne pas stocker les fichiers dans le dépôt git (ajouter uploads/ au .gitignore).
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                titre: "🔁 Exemple complet & Résumé",
+                contenu: `
+                    <p><span class="font-bold">Mini API complète avec Express + Multer :</span></p>
+                    <div class="code-block">
+                        const express = require('express');<br>
+                        const multer = require('multer');<br>
+                        const app = express();<br>
+                        const upload = multer({ dest: 'temp/' }); // simplifié<br>
+                        app.post('/upload-avatar', upload.single('photo'), (req, res) => {<br>
+                        &nbsp;&nbsp;if (!req.file) return res.status(400).send('Aucun fichier');<br>
+                        &nbsp;&nbsp;res.send(\`Fichier \${req.file.originalname} reçu avec succès\`);<br>
+                        });<br>
+                        app.listen(3000);
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">📂 Multer = middleware essentiel</span>
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">⚙️ stockage personnalisable</span>
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">🔒 sécuriser les extensions</span>
+                        <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">☁️ cloud ready</span>
+                    </div>
+                    <div class="note mt-4">
+                        🎓 <strong>À retenir :</strong> Multer transforme l'upload de fichiers complexe en quelques lignes de code. Testez toujours les limites et validez les types.
+                    </div>
+                    <p class="mt-3 text-center text-slate-400 text-sm">Prochaine étape : intégrer Multer dans votre projet réel ! 🚀</p>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'une slide selon son type
+        function renderSlide(index) {
+            const data = slidesData[index];
+            if (!data) return "<div class='text-center p-10'>Erreur slide</div>";
+            
+            if (data.type === "title") {
+                return `
+                    <div class="slide-card bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl shadow-xl p-6 md:p-10 text-center border border-indigo-100">
+                        <div class="text-6xl md:text-7xl mb-4">${data.icone}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-indigo-800 mb-3">${data.titre}</h1>
+                        <p class="text-lg md:text-xl text-slate-600 mt-2 max-w-2xl mx-auto">${data.sousTitre}</p>
+                        <div class="mt-8 w-20 h-1 bg-indigo-300 mx-auto rounded-full"></div>
+                        <p class="text-sm text-slate-400 mt-6">Leçon 24 · Backend Node.js</p>
+                    </div>
+                `;
+            }
+            else if (data.type === "objectifs") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8 border-l-8 border-indigo-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 mb-5 flex items-center gap-2">🎯 ${data.titre}</h2>
+                        <ul class="space-y-3">
+                            ${data.objectifsList.map(obj => `<li class="flex items-start gap-3 text-slate-700"><span class="text-indigo-500 text-xl">✓</span> <span class="text-base md:text-lg">${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-indigo-50 rounded-xl p-3 text-center text-sm text-indigo-600">
+                            💪 À la fin de cette leçon, vous saurez gérer l'upload comme un pro !
+                        </div>
+                    </div>
+                `;
+            }
+            else if (data.type === "content") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-b border-indigo-200 pb-3 mb-5">${data.titre}</h2>
+                        <div class="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                            ${data.contenu}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="bg-white rounded-3xl p-6">Contenu non disponible</div>`;
+        }
+
+        // Mise à jour complète de l'affichage
+        function updateSlide() {
+            const slideHtml = renderSlide(currentIndex);
+            $("#slides-container").html(slideHtml);
+            $("#currentSlide").text(currentIndex + 1);
+            $("#totalSlides").text(totalSlides);
+            
+            // Gérer l'état des boutons
+            $("#prevBtn").prop("disabled", currentIndex === 0);
+            $("#nextBtn").prop("disabled", currentIndex === totalSlides - 1);
+            
+            // Scroll en haut du conteneur pour l'expérience mobile
+            $("html, body").animate({ scrollTop: 0 }, 100);
+            
+            // Si MathJax est nécessaire, le forcer à analyser le nouveau contenu (aucune formule complexe mais sécurité)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+
+        // Événements au chargement
+        $(document).ready(function() {
+            updateSlide();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            
+            // Raccourcis clavier (flèches droite/gauche) pour une bonne expérience
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") {
+                    nextSlide();
+                    e.preventDefault();
+                } else if (e.key === "ArrowLeft") {
+                    prevSlide();
+                    e.preventDefault();
+                }
+            });
+            
+            // Optimisation tactile pour mobile : swipe detection simple optionnelle
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesContainer = document.getElementById("slides-container");
+            if(slidesContainer) {
+                slidesContainer.addEventListener('touchstart', (e) => {
+                    touchstartX = e.changedTouches[0].screenX;
+                });
+                slidesContainer.addEventListener('touchend', (e) => {
+                    touchendX = e.changedTouches[0].screenX;
+                    if (touchendX < touchstartX - 50) nextSlide();
+                    if (touchendX > touchstartX + 50) prevSlide();
+                });
+            }
+        });
+    </script>
+    
+    <!-- Pied de page discret avec mention -->
+    <footer class="text-center text-slate-400 text-xs py-6 border-t border-slate-200 mt-6">
+        📘 Cours Backend Node.js – Leçon 24 : Upload de fichiers avec Multer | Enseignant Cameroun 🇨🇲
+    </footer>
+</body>
+</html>

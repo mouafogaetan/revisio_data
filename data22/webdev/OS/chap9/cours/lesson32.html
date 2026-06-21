@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours OS : Planification automatique avec cron & systemd timers</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (utile pour exemples de temps) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.4s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* personnalisation pour la lisibilité */
+        body {
+            background: #f8fafc;
+        }
+        .card-glass {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(2px);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.7rem;
+                padding: 0.5rem;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slides-container" class="relative bg-white/70 rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            
+            <!-- SLIDE 1 : TITRE DE LA LEÇON -->
+            <div class="slide slide-active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col min-h-[60vh] justify-center text-center">
+                    <span class="text-sm uppercase tracking-wider text-indigo-600 font-semibold">Leçon 32 • Administration système</span>
+                    <h1 class="text-3xl md:text-5xl font-extrabold mt-4 bg-gradient-to-r from-indigo-800 to-sky-600 bg-clip-text text-transparent">Planification automatique des tâches</h1>
+                    <p class="text-xl md:text-2xl text-gray-700 mt-6 font-medium">Cron & systemd timers</p>
+                    <div class="mt-10 text-gray-500 border-t pt-6 text-sm">📅 Automatisez vos sauvegardes, scripts et nettoyages • 🇨🇲 Cours pour développeurs web</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="1">
+                <div class="flex flex-col min-h-[55vh]">
+                    <div class="flex items-center gap-3 mb-6 border-b pb-3">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-5 text-lg md:text-xl text-gray-700 list-disc pl-6">
+                        <li>📆 Utiliser <span class="font-mono bg-gray-100 px-2 py-0.5 rounded">cron</span> et <span class="font-mono bg-gray-100 px-2 py-0.5 rounded">crontab</span> pour les tâches planifiées.</li>
+                        <li>⏲️ Comprendre le format cron (minutes, heures, jours, mois, jour_semaine).</li>
+                        <li>⚙️ Découvrir les <span class="font-mono bg-gray-100 px-2 py-0.5 rounded">systemd timers</span> comme alternative moderne.</li>
+                        <li>🧠 Savoir quand utiliser cron ou systemd timer selon le contexte.</li>
+                    </ul>
+                    <div class="mt-8 p-4 bg-indigo-50 rounded-xl text-indigo-800 text-sm md:text-base">
+                        💡 <strong>Pourquoi c'est important ?</strong> Un serveur ou une machine a besoin d'exécuter des actions régulières (sauvegardes, mises à jour, analyses) sans intervention humaine.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : INTRODUCTION & CRON DE BASE -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-5">⏰ Introduction à cron</h2>
+                <p class="text-gray-700 mb-4 leading-relaxed"><span class="font-semibold">Cron</span> est un démon (processus en arrière-plan) présent sur les systèmes UNIX/Linux. Il permet d’exécuter des commandes ou scripts à des moments précis, répétés dans le temps.</p>
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-5 rounded-r">
+                    <p class="font-medium">📌 Commande principale : <code class="bg-gray-200 px-1 rounded">crontab -e</code> pour éditer ses tâches personnelles.</p>
+                </div>
+                <p class="mb-3 font-semibold">Structure d’une ligne cron :</p>
+                <pre class="mb-4"><code>* * * * * commande_à_exécuter
+│ │ │ │ │
+│ │ │ │ └─── jour semaine (0-7, 0=dim)
+│ │ │ └───── mois (1-12)
+│ │ └─────── jour du mois (1-31)
+│ └───────── heure (0-23)
+└─────────── minute (0-59)</code></pre>
+                <p class="text-sm text-gray-600">Exemple : <code class="bg-gray-100 px-1">30 2 * * * /home/user/backup.sh</code> → tous les jours à 2h30.</p>
+            </div>
+
+            <!-- SLIDE 4 : FORMAT CRON AVANCÉ & EXEMPLES -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🧩 Syntaxe détaillée & exemples</h2>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-slate-50 p-4 rounded-xl">
+                        <p class="font-mono text-sm">*/15 * * * *</p>
+                        <p class="text-sm">Toutes les 15 minutes</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl">
+                        <p class="font-mono text-sm">0 9 * * 1-5</p>
+                        <p class="text-sm">9h du matin du lundi au vendredi</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl">
+                        <p class="font-mono text-sm">0 0 1 * *</p>
+                        <p class="text-sm">Le premier jour de chaque mois à minuit</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl">
+                        <p class="font-mono text-sm">30 22 15 * *</p>
+                        <p class="text-sm">Le 15 de chaque mois à 22h30</p>
+                    </div>
+                </div>
+                <div class="mt-6 p-3 bg-gray-100 rounded-lg">
+                    <p class="font-semibold">📁 Commandes pratiques :</p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1 text-sm">
+                        <li><code>crontab -l</code> : lister mes tâches</li>
+                        <li><code>crontab -r</code> : supprimer toutes les tâches</li>
+                        <li><code>crontab -e</code> : éditer</li>
+                    </ul>
+                </div>
+                <p class="mt-4 text-indigo-700 text-sm">💡 <strong>Astuce Cameroun</strong> : planifiez des sauvegardes automatiques la nuit pour ne pas impacter les utilisateurs.</p>
+            </div>
+
+            <!-- SLIDE 5 : SYSTEMD TIMERS (moderne) -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-3">🔄 systemd timers : l’alternative moderne</h2>
+                <p class="mb-4">Sur les distributions récentes (Ubuntu 16.04+, Debian 8+, CentOS 7+), <span class="font-mono bg-gray-200 px-1 rounded">systemd</span> remplace les scripts d'init. Les <strong>timers</strong> offrent plus de flexibilité (monotonic, calendrier, journalisation, persistance après boot).</p>
+                <div class="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded-xl mb-5">
+                    <p class="font-mono text-sm"># Créer deux fichiers :</p>
+                    <p class="font-mono text-xs mt-1">/etc/systemd/system/mon-service.timer</p>
+                    <p class="font-mono text-xs">/etc/systemd/system/mon-service.service</p>
+                </div>
+                <p class="font-medium">✅ Avantages :</p>
+                <ul class="list-disc pl-6 space-y-1 mt-2">
+                    <li>Dépendances entre timers et services.</li>
+                    <li>Exécution après le démarrage réseau, etc.</li>
+                    <li>Meilleure gestion des échecs (journald).</li>
+                </ul>
+            </div>
+
+            <!-- SLIDE 6 : EXEMPLE PRATIQUE SYSTEMD TIMER -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="5">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-3">⚙️ Exemple d’un timer systemd</h2>
+                <p class="mb-2">Nous créons un script qui affiche "Bonjour Cameroun" tous les jours à 14h30.</p>
+                <div class="space-y-3">
+                    <div>
+                        <p class="font-mono text-sm font-semibold">📄 /etc/systemd/system/hello.service</p>
+                        <pre><code>[Unit]
+Description=Script de test
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c 'echo "Bonjour Cameroun - $(date)" >> /tmp/hello.log'</code></pre>
+                    </div>
+                    <div>
+                        <p class="font-mono text-sm font-semibold">⏲️ /etc/systemd/system/hello.timer</p>
+                        <pre><code>[Unit]
+Description=Timer pour hello.service
+
+[Timer]
+OnCalendar=*-*-* 14:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target</code></pre>
+                    </div>
+                </div>
+                <p class="mt-3 text-sm bg-gray-100 p-2 rounded">Commande : <code>sudo systemctl enable hello.timer && sudo systemctl start hello.timer</code> puis <code>systemctl list-timers</code></p>
+            </div>
+
+            <!-- SLIDE 7 : COMPARAISON CRON VS SYSTEMD TIMER -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">⚖️ Cron vs systemd timers : quand utiliser ?</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg border text-sm md:text-base">
+                        <thead class="bg-indigo-100">
+                            <tr><th class="px-4 py-2 text-left">Critère</th><th class="px-4 py-2">Cron</th><th class="px-4 py-2">systemd timers</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b"><td class="px-4 py-2">Simplicité</td><td class="px-4 py-2">✅ Très simple</td><td class="px-4 py-2">⚠️ Courbe d’apprentissage</td></tr>
+                            <tr class="border-b"><td class="px-4 py-2">Journalisation</td><td class="px-4 py-2">Par syslog</td><td class="px-4 py-2">✅ journalctl intégré</td></tr>
+                            <tr class="border-b"><td class="px-4 py-2">Rattrapage tâches manquées</td><td class="px-4 py-2">Non natif</td><td class="px-4 py-2">✅ (Persistent=true)</td></tr>
+                            <tr class="border-b"><td class="px-4 py-2">Environnement utilisateur</td><td class="px-4 py-2">Facile (crontab -e)</td><td class="px-4 py-2">Timers utilisateur possible</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-5 p-3 bg-yellow-50 rounded-lg">
+                    <p class="font-medium">✏️ En entreprise / serveurs modernes : systemd timers recommandé pour les services critiques. Cron reste parfait pour des scripts perso simples.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : ASTUCES & BONNES PRATIQUES -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold flex gap-2 items-center mb-4">🧠 Bonnes pratiques pour la planification</h2>
+                <ul class="space-y-3 list-disc pl-5 text-gray-700">
+                    <li>Toujours rediriger la sortie vers un fichier ou <code>/dev/null</code> pour éviter de remplir la boîte mail locale.</li>
+                    <li>Exemple : <code>0 3 * * * /usr/bin/backup.sh > /var/log/backup.log 2>&1</code></li>
+                    <li>Vérifier que votre script a les droits d’exécution (<code>chmod +x</code>).</li>
+                    <li>Utiliser des chemins absolus dans cron, car l’environnement est minimal.</li>
+                    <li>Pour systemd timer : consulter les logs avec <code>journalctl -u nom.service</code>.</li>
+                </ul>
+                <div class="mt-6 p-4 bg-green-50 text-green-800 rounded-xl">
+                    🌍 <strong>Exemple concret Cameroun :</strong> Planifier l’envoi d’un rapport d’activité du site web chaque lundi à 8h, avec cron : <code>0 8 * * 1 /home/dev/send_report.sh</code>.
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXERCICE RAPIDE (synthèse) -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="8">
+                <h2 class="text-2xl font-bold mb-3">✍️ Activité pratique</h2>
+                <div class="bg-white border rounded-xl p-5 shadow-sm">
+                    <p class="font-semibold">1. Écrire une ligne cron qui exécute <code>/usr/bin/clean-temp.sh</code> tous les dimanches à 4h du matin.</p>
+                    <input type="text" id="cronAnswer" placeholder="Votre réponse ici..." class="w-full border p-2 rounded mt-2 mb-4 font-mono text-sm">
+                    <button id="checkCron" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">Vérifier</button>
+                    <p id="cronFeedback" class="mt-2 text-sm"></p>
+                    
+                    <p class="font-semibold mt-5">2. Quelle commande affiche la liste des timers systemd actifs ?</p>
+                    <input type="text" id="timerCmd" placeholder="commande..." class="w-full border p-2 rounded mt-2 font-mono text-sm">
+                    <button id="checkTimer" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition mt-2">Vérifier</button>
+                    <p id="timerFeedback" class="mt-2 text-sm"></p>
+                </div>
+                <p class="mt-4 text-xs text-gray-500">Rappel: cron semaine: 0=dim, lundi=1 ... samedi=6</p>
+            </div>
+
+            <!-- SLIDE 10 : RÉSUMÉ & CONCLUSION -->
+            <div class="slide slide-hidden p-6 md:p-10" data-slide="9">
+                <div class="flex flex-col text-center min-h-[50vh] justify-center">
+                    <svg class="w-16 h-16 text-green-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <h2 class="text-3xl font-bold">✅ Vous maîtrisez cron & systemd timers</h2>
+                    <p class="text-gray-600 mt-3">Vous pouvez désormais automatiser des sauvegardes, nettoyages, mises à jour ou envois de mails.</p>
+                    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div class="bg-gray-100 p-3 rounded">📘 <strong>Ressources</strong> : <code>man crontab</code> , <code>man systemd.timer</code></div>
+                        <div class="bg-gray-100 p-3 rounded">💻 <strong>Projet suggéré</strong> : script de sauvegarde de base de données planifié chaque nuit.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-t border-slate-200">
+                <button id="prevSlide" class="btn-nav bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md disabled:opacity-40 disabled:cursor-not-allowed">◀ Précédent</button>
+                <span id="slideCounter" class="text-sm text-gray-600 font-medium">Slide 1 / 10</span>
+                <button id="nextSlide" class="btn-nav bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md">Suivant ▶</button>
+            </div>
+        </div>
+        <div class="text-center text-xs text-gray-400 mt-6">© Cours OS - Classe Développement Web | Initiation Systèmes d'exploitation | Lesson 32 : Planification</div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let totalSlides = $('.slide').length;
+            let currentIndex = 0;
+
+            function updateSlides() {
+                $('.slide').each(function(index) {
+                    if(index === currentIndex) {
+                        $(this).removeClass('slide-hidden').addClass('slide-active');
+                    } else {
+                        $(this).removeClass('slide-active').addClass('slide-hidden');
+                    }
+                });
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+                // désactiver précédent si première slide
+                if(currentIndex === 0) {
+                    $('#prevSlide').prop('disabled', true);
+                } else {
+                    $('#prevSlide').prop('disabled', false);
+                }
+                if(currentIndex === totalSlides-1) {
+                    $('#nextSlide').prop('disabled', true);
+                } else {
+                    $('#nextSlide').prop('disabled', false);
+                }
+                // Réappliquer MathJax si nécessaire sur la slide active (formules potentielles)
+                if(window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            }
+
+            $('#nextSlide').on('click', function(){
+                if(currentIndex < totalSlides-1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            });
+            $('#prevSlide').on('click', function(){
+                if(currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            // Gestion du quiz cron
+            $('#checkCron').on('click', function(){
+                let userAnswer = $('#cronAnswer').val().trim();
+                // expression attendue: 0 4 * * 0 /usr/bin/clean-temp.sh (dimanche = 0 ou 7)
+                let regexOk = /^0\s+4\s+\*\s+\*\s+[0,7]\s+\/usr\/bin\/clean-temp\.sh$/;
+                let regexOk2 = /^0\s+4\s+\*\s+\*\s+0\s+\/usr\/bin\/clean-temp\.sh$/;
+                let regexOk7 = /^0\s+4\s+\*\s+\*\s+7\s+\/usr\/bin\/clean-temp\.sh$/;
+                if(regexOk.test(userAnswer) || regexOk2.test(userAnswer) || regexOk7.test(userAnswer)) {
+                    $('#cronFeedback').html('✅ Parfait ! La tâche s\'exécutera chaque dimanche à 04h00.').addClass('text-green-600');
+                } else {
+                    $('#cronFeedback').html('❌ Pas encore. Rappel : minutes heures jours mois jour_semaine, dimanche = 0 ou 7. Exemple : <code>0 4 * * 0 /usr/bin/clean-temp.sh</code>').addClass('text-red-500');
+                }
+            });
+
+            $('#checkTimer').on('click', function(){
+                let cmd = $('#timerCmd').val().trim().toLowerCase();
+                if(cmd === 'systemctl list-timers' || cmd === 'sudo systemctl list-timers' || cmd === 'list-timers') {
+                    $('#timerFeedback').html('✅ Bravo ! <code>systemctl list-timers</code> affiche les timers actifs avec prochaine exécution.').addClass('text-green-600');
+                } else {
+                    $('#timerFeedback').html('❌ La commande standard est <code>systemctl list-timers</code> (ou <code>systemctl list-timers --all</code>). Réessaie.').addClass('text-red-500');
+                }
+            });
+
+            // Initialisation: small cleanup des réponses
+            updateSlides();
+
+            // Gestion responsive & swipe optionnel léger (optionnel)
+            let touchstartX = 0;
+            let touchendX = 0;
+            const slidesContainer = document.getElementById('slides-container');
+            slidesContainer.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; });
+            slidesContainer.addEventListener('touchend', e => {
+                touchendX = e.changedTouches[0].screenX;
+                if(touchendX < touchstartX - 50 && currentIndex < totalSlides-1) { 
+                    currentIndex++; updateSlides();
+                }
+                if(touchendX > touchstartX + 50 && currentIndex > 0) { 
+                    currentIndex--; updateSlides();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Node.js - Middleware avec Express (Leçon 13)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, pour d'éventuelles formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Google Fonts pour une meilleure lisibilité -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f8fafc; }
+        /* Transition smooth pour les slides */
+        .slide-container {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* scroll personnalisé discret */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        /* amélioration des cards */
+        .card-hover {
+            transition: box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+        }
+        /* code block style simple */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        .badge-middleware {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Barre de progression et indicateur de slide -->
+        <div class="sticky top-0 z-20 bg-white/80 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-6 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center space-x-3">
+                <button id="prevSlide" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">◀ Précédent</button>
+                <button id="nextSlide" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-xl transition shadow-sm">Suivant ▶</button>
+            </div>
+            <div class="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+            </div>
+            <div class="text-xs md:text-sm text-gray-500">
+                📘 Leçon 13 : Middleware Express
+            </div>
+        </div>
+
+        <!-- Conteneur principal des slides -->
+        <div class="slide-container bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+            <!-- SLIDE 1 - TITRE -->
+            <div class="slide p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col items-center justify-center min-h-[65vh] text-center">
+                    <div class="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-indigo-100 text-indigo-700 text-3xl">⚙️</div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent mb-4">Middleware dans Express</h1>
+                    <p class="text-lg md:text-xl text-gray-600 max-w-2xl">Personnalisés & intégrés : le cœur du pipeline Express</p>
+                    <div class="mt-8 flex flex-wrap gap-3 justify-center text-sm text-gray-500">
+                        <span class="bg-gray-100 px-3 py-1 rounded-full">📌 Leçon 13</span>
+                        <span class="bg-gray-100 px-3 py-1 rounded-full">🟢 Niveau Intermédiaire</span>
+                        <span class="bg-gray-100 px-3 py-1 rounded-full">⚡ Backend avec Node.js</span>
+                    </div>
+                    <div class="mt-12 w-12 h-1 bg-indigo-200 rounded-full mx-auto"></div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 - OBJECTIFS DE LA LEÇON -->
+            <div class="slide p-6 md:p-10" data-slide="1">
+                <div class="mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">🎯</div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs du cours</h2>
+                </div>
+                <div class="grid md:grid-cols-2 gap-5 mt-6">
+                    <div class="bg-blue-50 p-5 rounded-2xl border-l-8 border-blue-500 shadow-sm">
+                        <div class="font-semibold text-blue-800 text-lg">1️⃣ Middleware personnalisé</div>
+                        <p class="text-gray-700 mt-2">Créer vos propres fonctions middleware pour le logging, l’authentification, etc.</p>
+                    </div>
+                    <div class="bg-emerald-50 p-5 rounded-2xl border-l-8 border-emerald-500 shadow-sm">
+                        <div class="font-semibold text-emerald-800 text-lg">2️⃣ Middleware intégrés</div>
+                        <p class="text-gray-700 mt-2">Utiliser <code class="bg-gray-200 px-1 rounded">express.json()</code>, <code class="bg-gray-200 px-1 rounded">express.static()</code> et autres.</p>
+                    </div>
+                    <div class="bg-amber-50 p-5 rounded-2xl border-l-8 border-amber-500 shadow-sm">
+                        <div class="font-semibold text-amber-800 text-lg">3️⃣ La fonction next()</div>
+                        <p class="text-gray-700 mt-2">Comprendre l’ordre d’exécution et la propagation des requêtes.</p>
+                    </div>
+                    <div class="bg-purple-50 p-5 rounded-2xl border-l-8 border-purple-500 shadow-sm">
+                        <div class="font-semibold text-purple-800 text-lg">4️⃣ Pipeline de traitement</div>
+                        <p class="text-gray-700 mt-2">Maîtriser le flux requête → middleware → réponse.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 - QU'EST-CE QU'UN MIDDLEWARE ? (concept) -->
+            <div class="slide p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 flex items-center gap-2">🔍 Qu'est-ce qu'un middleware ?</h2>
+                <div class="bg-indigo-50 p-5 rounded-xl mb-6">
+                    <p class="text-gray-700 text-lg">Un <strong class="text-indigo-800">middleware</strong> est une fonction qui a accès à l'objet <strong>req</strong> (requête), <strong>res</strong> (réponse) et à la fonction suivante <strong>next</strong> dans le cycle requête-réponse.</p>
+                </div>
+                <!-- Diagramme simple dessiné en HTML/CSS -->
+                <div class="my-8 bg-gray-800 text-white p-4 rounded-2xl text-center font-mono text-sm overflow-x-auto">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+                        <span class="bg-green-700 px-3 py-1 rounded-full">📥 Requête</span>
+                        <span>➡️</span>
+                        <span class="bg-blue-700 px-3 py-1 rounded-full">Middleware 1</span>
+                        <span>➡️</span>
+                        <span class="bg-blue-700 px-3 py-1 rounded-full">Middleware 2</span>
+                        <span>➡️</span>
+                        <span class="bg-purple-700 px-3 py-1 rounded-full">Route finale</span>
+                        <span>➡️</span>
+                        <span class="bg-orange-700 px-3 py-1 rounded-full">📤 Réponse</span>
+                    </div>
+                    <div class="text-gray-300 text-xs mt-3">Chaque middleware peut modifier req/res ou arrêter le cycle</div>
+                </div>
+                <div class="p-4 bg-gray-100 rounded-xl">
+                    <p class="italic text-gray-600">📌 Exemple simple : <code>app.use((req, res, next) => { console.log('Time:', Date.now()); next(); });</code></p>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 - MIDDLEWARE PERSONNALISÉS : création et exemples -->
+            <div class="slide p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✍️ Créer un middleware personnalisé</h2>
+                <p class="mb-4 text-gray-600">Une fonction qui reçoit (req, res, next). N'oubliez pas d'appeler <code class="bg-gray-200 px-1 rounded">next()</code> pour passer au suivant.</p>
+                <div class="space-y-6">
+                    <div class="border-l-4 border-indigo-500 bg-indigo-50/40 p-4 rounded-r-xl">
+                        <h3 class="font-bold text-indigo-800">📝 Middleware de logging</h3>
+                        <pre><code>function logger(req, res, next) {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+}
+app.use(logger);</code></pre>
+                    </div>
+                    <div class="border-l-4 border-emerald-500 bg-emerald-50/40 p-4 rounded-r-xl">
+                        <h3 class="font-bold text-emerald-800">🔐 Middleware d'authentification (simulé)</h3>
+                        <pre><code>function authMiddleware(req, res, next) {
+  const token = req.headers['authorization'];
+  if (token === 'secret123') return next();
+  res.status(401).json({ message: 'Accès non autorisé' });
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 - MIDDLEWARE INTÉGRÉS DANS EXPRESS -->
+            <div class="slide p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚙️ Middleware intégrés dans Express</h2>
+                <p class="mb-5">Express fournit plusieurs middlewares prêts à l'emploi pour les besoins courants.</p>
+                <div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-mono text-indigo-700 font-bold">express.json()</div>
+                        <p class="text-gray-600 mt-1">Analyse les requêtes avec Content-Type <strong>application/json</strong> et remplit <code>req.body</code>.</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-mono text-indigo-700 font-bold">express.urlencoded({extended: true})</div>
+                        <p class="text-gray-600 mt-1">Analyse les données de formulaire HTML (x-www-form-urlencoded).</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-mono text-indigo-700 font-bold">express.static('public')</div>
+                        <p class="text-gray-600 mt-1">Sert des fichiers statiques (CSS, images, JS front).</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl shadow-sm">
+                        <div class="font-mono text-indigo-700 font-bold">express.Router()</div>
+                        <p class="text-gray-600 mt-1">Crée des routeurs modulaires (souvent utilisé comme mini-application).</p>
+                    </div>
+                </div>
+                <div class="mt-6 bg-gray-100 p-3 rounded-lg text-sm">
+                    💡 <span class="font-semibold">Bon à savoir :</span> <code>express.static</code> est idéal pour les images, CSS, etc. Il délivre les fichiers sans traitement dynamique.
+                </div>
+            </div>
+
+            <!-- SLIDE 6 - next() ET ORDRE D'EXÉCUTION -->
+            <div class="slide p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔄 next() et l'ordre d'exécution</h2>
+                <p class="mb-4">L’ordre dans lequel vous déclarez les middlewares <strong>est crucial</strong> : Express les exécute dans l’ordre d’enregistrement.</p>
+                <div class="bg-amber-50 p-5 rounded-xl mb-5">
+                    <pre><code>app.use(middleware1); // s'exécute en premier
+app.use(middleware2); // second
+app.get('/profile', handler); // troisième si next() appelé</code></pre>
+                </div>
+                <div class="flex flex-wrap gap-3 items-start">
+                    <div class="flex-1 min-w-[200px] bg-white border rounded-lg p-3">
+                        <span class="font-bold text-red-600">⚠️ Important :</span>
+                        <p class="text-sm">Si un middleware n'appelle pas <code>next()</code> et n'envoie pas de réponse, la requête reste bloquée !</p>
+                    </div>
+                    <div class="flex-1 min-w-[200px] bg-white border rounded-lg p-3">
+                        <span class="font-bold text-green-600">✅ Bonne pratique :</span>
+                        <p class="text-sm">Toujours terminer par <code>next()</code> ou envoyer une réponse (<code>res.send()</code>).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 - EXEMPLE CONCRET (code combiné) -->
+            <div class="slide p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">💻 Exemple concret : API avec plusieurs middlewares</h2>
+                <pre class="text-sm"><code>const express = require('express');
+const app = express();
+
+// Middleware intégré pour parser le JSON
+app.use(express.json());
+
+// Middleware perso de log
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Middleware d'authentification simple
+app.use('/admin', (req, res, next) => {
+  if (req.headers['x-admin'] === 'yes') next();
+  else res.status(403).send('Accès interdit');
+});
+
+// Route protégée
+app.get('/admin/dashboard', (req, res) => {
+  res.json({ message: 'Bienvenue admin !' });
+});
+
+app.listen(3000);</code></pre>
+                <p class="mt-4 text-gray-600 text-sm italic">🧪 Essayez avec Postman : envoyez un header <code>x-admin: yes</code> pour accéder.</p>
+            </div>
+
+            <!-- SLIDE 8 - BONNES PRATIQUES ET ASTUCES -->
+            <div class="slide p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">✅ Bonnes pratiques des middlewares</h2>
+                <ul class="space-y-3 list-disc pl-6 text-gray-700">
+                    <li>Organiser les middlewares par catégorie (sécurité, logs, validation).</li>
+                    <li>Utiliser des middlewares <strong>spécifiques à une route</strong> : <code>app.get('/route', mid1, mid2, handler)</code></li>
+                    <li>Ne pas surcharger avec des traitements lourds synchro (privilégier asynchrone).</li>
+                    <li>Créer un dossier <code>middlewares/</code> pour mieux structurer le projet.</li>
+                    <li>Utiliser des bibliothèques comme <code>morgan</code> pour les logs ou <code>cors</code> pour les CORS.</li>
+                </ul>
+                <div class="mt-8 flex justify-center">
+                    <div class="bg-indigo-100 p-4 rounded-2xl text-center">
+                        🧩 <span class="font-mono">next('route')</span> permet de passer au middleware/route suivant dans certaines conditions avancées.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 - RÉSUMÉ VISUEL & EXERCICE -->
+            <div class="slide p-6 md:p-10" data-slide="8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📚 Récapitulons</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-8">
+                    <div class="bg-gradient-to-b from-white to-gray-50 p-4 rounded-2xl shadow"><span class="text-3xl">1️⃣</span><br>Fonction <strong>(req,res,next)</strong></div>
+                    <div class="bg-gradient-to-b from-white to-gray-50 p-4 rounded-2xl shadow"><span class="text-3xl">2️⃣</span><br>Middleware <strong>intégré</strong> ou <strong>personnalisé</strong></div>
+                    <div class="bg-gradient-to-b from-white to-gray-50 p-4 rounded-2xl shadow"><span class="text-3xl">3️⃣</span><br>Ordre <strong>d'utilisation</strong> avec app.use()</div>
+                </div>
+                <div class="bg-gray-800 text-white p-5 rounded-2xl">
+                    <p class="font-semibold text-lg">🧪 Mini exercice :</p>
+                    <p class="text-gray-200">Créez un middleware qui mesure le temps d'exécution d'une requête (Date.now() avant et après) et affiche "Temps écoulé : X ms".</p>
+                    <div class="mt-3 text-sm text-indigo-200">Indice : utilisez <code>res.on('finish')</code> ou stocker start dans req.startTime.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 - CONCLUSION & RESSOURCES -->
+            <div class="slide p-6 md:p-10" data-slide="9">
+                <div class="text-center my-8">
+                    <div class="w-20 h-20 mx-auto bg-emerald-100 rounded-full flex items-center justify-center text-3xl mb-4">🏁</div>
+                    <h2 class="text-3xl font-bold text-gray-800">Félicitations ! 🎉</h2>
+                    <p class="text-gray-600 mt-3 max-w-xl mx-auto">Vous maîtrisez maintenant les middlewares dans Express : le cœur du traitement des requêtes. Enrichissez vos API avec des couches personnalisées !</p>
+                    <div class="mt-8 p-4 bg-gray-100 rounded-xl inline-block text-left">
+                        <p class="font-semibold">🔗 Ressources utiles :</p>
+                        <ul class="list-disc pl-5 text-sm">
+                            <li>Documentation officielle Express - Middleware</li>
+                            <li>Middleware de tierce partie : morgan, cors, helmet</li>
+                            <li>Projet final du module : Implémentez 3 middlewares dans votre API</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- petits indicateurs de page (dots) -->
+        <div class="flex justify-center mt-6 gap-2 flex-wrap" id="dotsContainer"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            let current = 0;
+            $('#totalSlides').text(total);
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[current]).addClass('active');
+                $('#currentSlideIdx').text(current+1);
+                $('#prevSlide').prop('disabled', current === 0);
+                $('#nextSlide').prop('disabled', current === total-1);
+                // update dots
+                $('.dot').each(function(idx) {
+                    if(idx === current) $(this).addClass('bg-indigo-600 scale-110').removeClass('bg-gray-300');
+                    else $(this).removeClass('bg-indigo-600 scale-110').addClass('bg-gray-300');
+                });
+                // scroll en haut (optionnel)
+                $('html, body').animate({ scrollTop: $('.slide-container').offset().top - 20 }, 100);
+            }
+
+            function goNext() {
+                if(current < total-1) {
+                    current++;
+                    updateSlides();
+                }
+            }
+            function goPrev() {
+                if(current > 0) {
+                    current--;
+                    updateSlides();
+                }
+            }
+
+            $('#nextSlide').on('click', goNext);
+            $('#prevSlide').on('click', goPrev);
+
+            // Gestion du clavier (flèches droite/gauche)
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') goNext();
+                if(e.key === 'ArrowLeft') goPrev();
+            });
+
+            // Création des dots
+            let dotsContainer = $('#dotsContainer');
+            for(let i=0; i<total; i++) {
+                let dot = $('<div class="dot w-2.5 h-2.5 rounded-full transition-all duration-200 cursor-pointer mx-1 ' + (i===0 ? 'bg-indigo-600 scale-110' : 'bg-gray-300') + '"></div>');
+                dot.attr('data-index', i);
+                dot.on('click', function() {
+                    current = parseInt($(this).attr('data-index'));
+                    updateSlides();
+                });
+                dotsContainer.append(dot);
+            }
+
+            // initialisation : afficher le premier slide
+            updateSlides();
+
+            // petite animation supplémentaire : swipe pour mobile (option basique)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('.slide-container').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('.slide-container').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if(touchStartX - touchEndX > 50) goNext();
+                if(touchEndX - touchStartX > 50) goPrev();
+            });
+        });
+    </script>
+    <!-- Note : Les images ne sont pas nécessaires pour cette leçon purement technique, nous avons privilégié des schémas textuels et diagrammes simples -->
+</body>
+</html>

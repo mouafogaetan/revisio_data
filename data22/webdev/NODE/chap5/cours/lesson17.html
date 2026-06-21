@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 17 : Bases de données relationnelles avec PostgreSQL & Sequelize</title>
+  <!-- Tailwind CSS via CDN + base layer -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (optionnel, présent pour formules si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Ajustements supplémentaires pour le confort visuel et slides */
+    body {
+      background: #f8fafc;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+    .slide-container {
+      transition: all 0.2s ease;
+    }
+    .slide {
+      background: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    .nav-btn {
+      transition: all 0.2s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      background-color: #1e293b;
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* Code blocks mock */
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 0.75rem 0;
+    }
+    code {
+      font-family: 'Fira Code', monospace;
+    }
+    .badge-db {
+      background: #336791;
+      color: white;
+    }
+    @media (max-width: 640px) {
+      .slide {
+        border-radius: 1rem;
+      }
+      pre {
+        font-size: 0.7rem;
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur des slides -->
+    <div class="slide-container relative">
+      <!-- Slides dynamiques via JS -->
+      <div id="slidesWrapper" class="overflow-hidden">
+        <div id="slidesTrack" class="relative">
+          <!-- les slides seront injectées ici par jQuery -->
+        </div>
+      </div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+        <div class="flex gap-3">
+          <button id="prevSlide" class="nav-btn px-5 py-2 bg-slate-700 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed shadow-md">◀ Précédent</button>
+          <button id="nextSlide" class="nav-btn px-5 py-2 bg-slate-800 text-white rounded-xl font-medium shadow-md">Suivant ▶</button>
+        </div>
+        <div class="text-sm text-slate-500 bg-white/70 px-4 py-1 rounded-full">
+          Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+        </div>
+      </div>
+      <!-- Barre de progression -->
+      <div class="mt-4 h-2 bg-slate-200 rounded-full overflow-hidden">
+        <div id="progressBar" class="progress-bar h-full bg-indigo-600 rounded-full" style="width: 0%;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Définition des slides pour la leçon 17 (Node.js/PostgreSQL/Sequelize)
+    // Titre, objectifs, contenu structuré avec explications simples, dessins SVG minimalistes ou descriptions d'images.
+    // Utilisation de données claires pour élèves du Cameroun.
+    
+    const slidesData = [
+      { // Slide 0 : Titre de la leçon
+        type: 'title',
+        content: `
+          <div class="flex flex-col items-center text-center py-6 md:py-12">
+            <span class="badge-db text-sm px-4 py-1 rounded-full font-mono mb-4">Leçon 17</span>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-sky-700 bg-clip-text text-transparent">PostgreSQL & Sequelize</h1>
+            <p class="text-lg text-gray-600 mt-4 max-w-lg">Bases de données relationnelles dans Node.js</p>
+            <div class="mt-8 flex justify-center gap-6 flex-wrap">
+              <div class="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full"><span class="text-2xl">🐘</span> <span>PostgreSQL</span></div>
+              <div class="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full"><span class="text-2xl">📦</span> <span>Sequelize ORM</span></div>
+            </div>
+            <svg class="w-32 h-32 mt-8 text-indigo-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="30" width="60" height="40" rx="6" fill="#C7D2FE" stroke="#4F46E5" stroke-width="2"/>
+              <path d="M40 45 L60 45 M40 55 L55 55" stroke="#1E293B" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="70" cy="35" r="4" fill="#F59E0B"/>
+              <path d="M30 70 L35 78 L65 78 L70 70" fill="#A5B4FC" stroke="#4F46E5" stroke-width="1.5"/>
+            </svg>
+            <p class="text-sm text-slate-500 mt-2">Module : Backend avec Node.js</p>
+          </div>
+        `
+      },
+      { // Slide 1 : Objectifs d'apprentissage
+        type: 'objectives',
+        content: `
+          <div class="py-5 px-2">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-indigo-50 p-4 rounded-xl shadow-sm"><span class="font-bold text-indigo-700">✔️</span> Installer PostgreSQL et Sequelize dans un projet Node.js</div>
+              <div class="bg-indigo-50 p-4 rounded-xl shadow-sm"><span class="font-bold text-indigo-700">✔️</span> Définir des modèles et leurs associations (hasMany, belongsTo)</div>
+              <div class="bg-indigo-50 p-4 rounded-xl shadow-sm"><span class="font-bold text-indigo-700">✔️</span> Effectuer des requêtes CRUD (create, findAll, update, destroy)</div>
+              <div class="bg-indigo-50 p-4 rounded-xl shadow-sm"><span class="font-bold text-indigo-700">✔️</span> Utiliser les options de recherche avancées (where, attributs, ordre)</div>
+            </div>
+            <div class="mt-6 bg-amber-50 p-4 rounded-xl text-amber-800 text-sm">
+              💡 Pourquoi PostgreSQL ? Base de données puissante, gratuite, idéale pour applications web robustes.
+            </div>
+          </div>
+        `
+      },
+      { // Slide 2 : introduction PostgreSQL + installation
+        type: 'content',
+        title: '🐘 Qu’est-ce que PostgreSQL ?',
+        content: `
+          <div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">PostgreSQL – Le roi des bases relationnelles open source</h3>
+            <p class="mb-3">C’est un système de gestion de base de données (SGBD) qui stocke les données dans des <strong>tables</strong> avec des lignes et colonnes. Très fiable, conforme aux standards SQL et utilisé par de grandes entreprises.</p>
+            <div class="grid md:grid-cols-2 gap-4 my-4">
+              <div class="bg-gray-100 p-3 rounded-lg"><span class="font-semibold">🔧 Installation (Windows/Mac/Linux)</span><br/> Téléchargez PostgreSQL depuis <span class="text-blue-600">postgresql.org</span> ou utilisez <code class="bg-gray-800 text-white px-1 rounded">sudo apt install postgresql</code> (Ubuntu).</div>
+              <div class="bg-gray-100 p-3 rounded-lg"><span class="font-semibold">🧰 pgAdmin</span><br/> Interface graphique pour gérer vos bases.</div>
+            </div>
+            <div class="bg-blue-50 p-3 rounded-lg">
+              <p class="font-mono text-sm">⚡ Créer une base de données : <code>CREATE DATABASE ecole_db;</code></p>
+              <p class="mt-2 text-sm">Pour connecter Node.js, nous utilisons <strong>Sequelize</strong> (ORM).</p>
+            </div>
+          </div>
+        `
+      },
+      { // Slide 3 : Sequelize - présentation et installation
+        type: 'content',
+        title: '📦 Sequelize : l’ORM moderne pour Node.js',
+        content: `
+          <div>
+            <p><strong>Sequelize</strong> est un outil qui permet de manipuler la base de données avec du JavaScript, sans écrire de SQL pur. Il traduit vos méthodes JavaScript en requêtes SQL.</p>
+            <pre><code>npm install sequelize pg pg-hstore</code></pre>
+            <p class="text-sm text-gray-500 mt-1">pg et pg-hstore sont les drivers pour PostgreSQL.</p>
+            <div class="bg-green-50 border-l-4 border-green-500 p-3 my-3">
+              <span class="font-bold">🔌 Connexion type :</span>
+              <pre><code>const { Sequelize } = require('sequelize');
+const sequelize = new Sequelize('ecole_db', 'user', 'pass', {
+  host: 'localhost',
+  dialect: 'postgres'
+});</code></pre>
+            </div>
+            <p>✅ Une fois connecté, on peut définir des modèles.</p>
+          </div>
+        `
+      },
+      { // Slide 4 : Définir un modèle (exemple : Etudiant / Cours)
+        type: 'content',
+        title: '🏗️ Créer des modèles (tables)',
+        content: `
+          <div>
+            <p>Un modèle correspond à une table dans la base. Exemple pour une table <strong>Etudiant</strong> :</p>
+            <pre><code>const Etudiant = sequelize.define('Etudiant', {
+  nom: { type: DataTypes.STRING, allowNull: false },
+  prenom: DataTypes.STRING,
+  age: DataTypes.INTEGER,
+  email: { type: DataTypes.STRING, unique: true }
+});</code></pre>
+            <p class="mt-2">✨ Sequelize déduira automatiquement le nom de la table au pluriel (<code>Etudiants</code>).</p>
+            <div class="relative my-3 flex justify-center">
+              <svg width="280" height="120" viewBox="0 0 300 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="10" width="270" height="100" rx="10" fill="#E0E7FF" stroke="#4F46E5" stroke-width="1.5"/>
+                <text x="20" y="35" font-size="12" fill="#1E293B">id (PK, auto-incrément)</text>
+                <text x="20" y="55" font-size="12" fill="#1E293B">nom (STRING)</text>
+                <text x="20" y="75" font-size="12" fill="#1E293B">age (INTEGER)</text>
+                <text x="20" y="95" font-size="12" fill="#1E293B">email (STRING, unique)</text>
+                <rect x="210" y="15" width="55" height="25" fill="#A5B4FC" rx="6"/>
+                <text x="220" y="32" font-size="10" fill="#1E293B">Table Etudiants</text>
+              </svg>
+            </div>
+          </div>
+        `
+      },
+      { // Slide 5 : Associations hasMany, belongsTo (relations)
+        type: 'content',
+        title: '🔗 Associations entre modèles : hasMany & belongsTo',
+        content: `
+          <div>
+            <p class="mb-2">Dans une base relationnelle, on lie des tables. Exemple : un <strong>Etudiant</strong> peut avoir plusieurs <strong>Notes</strong>.</p>
+            <pre><code>// Dans le modèle Note
+Note.belongsTo(Etudiant); // Une note appartient à un étudiant
+
+// Dans Etudiant
+Etudiant.hasMany(Note);   // Un étudiant a plusieurs notes</code></pre>
+            <div class="bg-purple-50 p-3 rounded my-3">
+              📌 <strong>hasMany</strong> → relation un-à-plusieurs <br/>
+              📌 <strong>belongsTo</strong> → définit la clé étrangère.
+            </div>
+            <p>Exemple pratique : pour trouver un étudiant avec ses notes :</p>
+            <pre><code>const etudiant = await Etudiant.findByPk(1, { include: Note });</code></pre>
+          </div>
+        `
+      },
+      { // Slide 6 : Opérations CRUD essentielles (Create, Read, Update, Delete)
+        type: 'content',
+        title: '📝 CRUD complet avec Sequelize',
+        content: `
+          <div>
+            <p>Voici les méthodes principales :</p>
+            <table class="min-w-full bg-slate-50 rounded-lg overflow-hidden text-sm my-3">
+              <thead class="bg-slate-200"><tr><th class="p-2">Action</th><th class="p-2">Méthode Sequelize</th></tr></thead>
+              <tbody>
+                <tr class="border-b"><td class="p-2">➕ Créer</td><td class="p-2 font-mono">Etudiant.create({ nom: "Djibril" })</td></tr>
+                <tr class="border-b"><td class="p-2">📖 Lire tous</td><td class="p-2 font-mono">Etudiant.findAll()</td></tr>
+                <tr class="border-b"><td class="p-2">🔍 Lire avec filtre</td><td class="p-2 font-mono">Etudiant.findAll({ where: { age: 20 } })</td></tr>
+                <tr class="border-b"><td class="p-2">✏️ Mettre à jour</td><td class="p-2 font-mono">Etudiant.update({ nom: "Ali" }, { where: { id: 1 } })</td></tr>
+                <tr class="border-b"><td class="p-2">❌ Supprimer</td><td class="p-2 font-mono">Etudiant.destroy({ where: { id: 5 } })</td></tr>
+              </tbody>
+            </table>
+            <div class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+              ⚡ Exemple réel : <code>const jeunes = await Etudiant.findAll({ where: { age: { [Op.lte]: 22 } }, order: [['nom', 'ASC']] });</code>
+            </div>
+            <p class="mt-2 text-green-700">✨ Toutes ces méthodes retournent des Promesses → utiliser <code>async/await</code>.</p>
+          </div>
+        `
+      },
+      { // Slide 7 : Bonnes pratiques et schéma relationnel exemple
+        type: 'content',
+        title: '🏫 Projet pratique : Gestion d’école',
+        content: `
+          <div>
+            <p>Imaginons une API avec deux tables : <strong>Classes</strong> et <strong>Étudiants</strong> (un étudiant appartient à une classe).</p>
+            <pre><code>// models/Classe.js
+Classe.hasMany(Etudiant);
+
+// models/Etudiant.js
+Etudiant.belongsTo(Classe);   // ajoute colonne ClasseId
+
+// Créer une classe :
+const terminale = await Classe.create({ nom: "Terminale STI" });
+// Créer étudiant lié :
+await Etudiant.create({ nom: "Mbouombouo", ClasseId: terminale.id });</code></pre>
+            <div class="flex justify-center my-2">
+              <svg width="300" height="100" viewBox="0 0 320 80" fill="none">
+                <rect x="10" y="15" width="120" height="50" fill="#DBEAFE" stroke="#2563EB" rx="8"/>
+                <text x="30" y="45" font-size="12" fill="#1E3A8A">Classes</text>
+                <rect x="180" y="15" width="120" height="50" fill="#FCE7F3" stroke="#DB2777" rx="8"/>
+                <text x="200" y="45" font-size="12" fill="#9D174D">Étudiants</text>
+                <path d="M135 40 L175 40" stroke="#EAB308" stroke-width="2" stroke-dasharray="4"/>
+                <text x="140" y="30" font-size="10" fill="#B45309">belongsTo</text>
+              </svg>
+            </div>
+            <p>⚙️ <strong>Migration</strong> : Sequelize peut synchroniser vos modèles (<code>sequelize.sync()</code>) en développement.</p>
+          </div>
+        `
+      },
+      { // Slide 8 : Exercice pratique et résumé
+        type: 'content',
+        title: '📌 À vous de jouer! (Mini projet)',
+        content: `
+          <div>
+            <p class="font-semibold">💻 Consigne :</p>
+            <ul class="list-disc pl-6 space-y-1 mt-2">
+              <li>Initialisez un projet Node.js avec Express + Sequelize + PostgreSQL.</li>
+              <li>Créez un modèle <strong>Produit</strong> (nom, prix, quantité).</li>
+              <li>Implémentez les routes CRUD (créer, afficher, modifier, supprimer).</li>
+              <li>Testez vos requêtes avec Postman.</li>
+            </ul>
+            <div class="mt-4 p-3 bg-yellow-100 rounded">
+              ⭐ Rappel : <strong>hasMany</strong> et <strong>belongsTo</strong> permettent de lier facilement les données et d'éviter la redondance.
+            </div>
+            <p class="mt-3 text-indigo-700">📖 Ressource : Documentation Sequelize (sequelize.org) très complète.</p>
+            <!-- Image simulée : dessin simple d'une base de données -->
+            <div class="flex justify-center mt-3">
+              <svg width="180" height="70" viewBox="0 0 200 60">
+                <ellipse cx="100" cy="25" rx="50" ry="15" fill="#CBD5E1"/>
+                <rect x="50" y="25" width="100" height="30" fill="#94A3B8" rx="4"/>
+                <text x="85" y="45" font-size="12" fill="white">PostgreSQL</text>
+              </svg>
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    let currentIndex = 0;
+    let totalSlides = slidesData.length;
+
+    // Fonction pour rendre un slide complet en fonction des données
+    function renderSlide(index) {
+      const slide = slidesData[index];
+      let html = '';
+      const baseClass = "slide p-6 md:p-8 transition-all duration-200";
+      if (slide.type === 'title') {
+        html = `<div class="${baseClass}">${slide.content}</div>`;
+      } else if (slide.type === 'objectives') {
+        html = `<div class="${baseClass}">${slide.content}</div>`;
+      } else {
+        // content type avec titre optionnel
+        const titleHtml = slide.title ? `<h2 class="text-2xl font-bold text-gray-800 border-b-2 border-indigo-300 pb-2 mb-4">${slide.title}</h2>` : '';
+        html = `<div class="${baseClass}">${titleHtml}${slide.content}</div>`;
+      }
+      return `<div class="slide-item w-full flex-shrink-0" data-slideidx="${index}">${html}</div>`;
+    }
+
+    function buildSlidesTrack() {
+      let slidesHtml = '';
+      for (let i = 0; i < slidesData.length; i++) {
+        slidesHtml += renderSlide(i);
+      }
+      $('#slidesTrack').html(slidesHtml);
+      $('#slidesTrack').css('display', 'flex');
+      $('.slide-item').css({
+        'width': '100%',
+        'flex-shrink': '0',
+        'transition': 'transform 0.3s ease'
+      });
+      $('#totalSlidesCount').text(totalSlides);
+      updateNavigation();
+    }
+
+    function updateSlidePosition() {
+      const offset = -currentIndex * 100;
+      $('#slidesTrack').css('transform', `translateX(${offset}%)`);
+      $('#currentSlideIdx').text(currentIndex + 1);
+      const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+      $('#progressBar').css('width', `${progressPercent}%`);
+      // Gérer état des boutons
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+    }
+
+    function updateNavigation() {
+      updateSlidePosition();
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlidePosition();
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlidePosition();
+      }
+    }
+
+    // Initialisation et gestion des événements jQuery
+    $(document).ready(function () {
+      buildSlidesTrack();
+      // Évènements clics
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      // Raccourci clavier (flèches)
+      $(document).on('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+          nextSlide();
+        } else if (e.key === 'ArrowLeft') {
+          prevSlide();
+        }
+      });
+      // Ajuster le responsive pour éviter tout débordement
+      $(window).on('resize', function() {
+        // rien de spécial, mais assure l'affichage
+      });
+      // Force le rendu mathjax si présent (aucune formule complexe ici mais par précaution)
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    });
+  </script>
+  <!-- Petit style additionnel pour les pré et code -->
+</body>
+</html>

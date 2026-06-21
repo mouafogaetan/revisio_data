@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 6 : Du modèle entité-association aux tables SQL | Cours Base de Données</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel mais présent pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition douce entre slides */
+        .slide {
+            display: none;
+            animation: fade 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fade {
+            from { opacity: 0; transform: translateX(8px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        body {
+            background: #f8fafc;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* Scroll fluide interne */
+        .slide-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+        .slide-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .slide-content::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .slide-content::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        /* Boutons nav */
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* Code blocks */
+        pre {
+            background: #1e293b;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+        code {
+            font-family: 'Menlo', monospace;
+        }
+        .table-example {
+            background: white;
+            border-radius: 1rem;
+            overflow-x: auto;
+        }
+        .badge-sql {
+            background: #e9f0ff;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" data-slide="0">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden border border-gray-100">
+                    <div class="bg-gradient-to-r from-indigo-700 to-blue-800 px-6 py-8 md:py-12 text-white">
+                        <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-semibold mb-3">Bases de données • Leçon 6</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">Du diagramme entité-association<br>aux tables SQL</h1>
+                        <p class="text-indigo-100 text-lg mt-4 max-w-2xl">Transformer la conception en structures de base de données relationnelle</p>
+                        <div class="mt-6 flex gap-2 text-sm text-indigo-100">
+                            <span>🗄️ SQL DDL</span>
+                            <span>• 🔗 Clés étrangères</span>
+                            <span>• 📐 Normalisation 1NF,2NF,3NF</span>
+                        </div>
+                    </div>
+                    <div class="p-6 md:p-8 text-center text-gray-500 text-sm border-t border-gray-100">
+                        Cours pour la classe Développement Web – Initiation aux Bases de données
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide" data-slide="1">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden border border-gray-100">
+                    <div class="bg-amber-50 border-b border-amber-100 px-6 py-4">
+                        <h2 class="text-2xl font-bold text-amber-800 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <ul class="space-y-4">
+                            <li class="flex gap-3 items-start">
+                                <span class="text-indigo-600 font-bold text-xl">✓</span>
+                                <span class="text-gray-700"><strong class="font-semibold">Transformer les entités en tables</strong> : Comprendre comment chaque entité devient une table et chaque attribut une colonne.</span>
+                            </li>
+                            <li class="flex gap-3 items-start">
+                                <span class="text-indigo-600 font-bold text-xl">✓</span>
+                                <span class="text-gray-700"><strong class="font-semibold">Transformer les associations en clés étrangères ou tables d’association</strong> : Modéliser les relations (1-1, 1-N, N-N) proprement en SQL.</span>
+                            </li>
+                            <li class="flex gap-3 items-start">
+                                <span class="text-indigo-600 font-bold text-xl">✓</span>
+                                <span class="text-gray-700"><strong class="font-semibold">Normaliser les données (1NF, 2NF, 3NF)</strong> : Éliminer les redondances et garantir l’intégrité des données.</span>
+                            </li>
+                        </ul>
+                        <div class="mt-8 bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500 text-blue-800 text-sm">
+                            💡 À la fin de cette leçon, vous saurez convertir un diagramme ER en un schéma relationnel fonctionnel, prêt à être implémenté en SQL.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : DES ENTITÉS AUX TABLES (TRANSFORMATION DE BASE) -->
+            <div class="slide" data-slide="2">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">📌 Étape 1 : Transformer les entités en tables</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="mb-4 text-gray-700">Chaque <span class="font-mono bg-gray-100 px-1 rounded">entité</span> du diagramme Entité-Association devient une <strong>table</strong> dans la base de données. Chaque <strong>attribut</strong> devient une colonne avec son type de données.</p>
+                        <div class="grid md:grid-cols-2 gap-5 mt-4">
+                            <div class="bg-green-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-green-800">📇 Exemple : Entité "Étudiant"</h3>
+                                <pre class="mt-2 text-sm"><code>CREATE TABLE Etudiant (
+    id_etudiant INT PRIMARY KEY,
+    nom VARCHAR(50),
+    prenom VARCHAR(50),
+    date_naissance DATE,
+    email VARCHAR(100) UNIQUE
+);</code></pre>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-green-800">📚 Entité "Cours"</h3>
+                                <pre class="mt-2 text-sm"><code>CREATE TABLE Cours (
+    id_cours INT PRIMARY KEY,
+    titre VARCHAR(100),
+    credits INT NOT NULL
+);</code></pre>
+                            </div>
+                        </div>
+                        <p class="mt-4 text-gray-600 text-sm">✅ <strong>Règle d'or</strong> : Une clé primaire (Primary Key) unique est définie pour chaque table, souvent un identifiant technique.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : TRANSFORMER LES ASSOCIATIONS (clés étrangères & tables de liaison) -->
+            <div class="slide" data-slide="3">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">🔗 Étape 2 : Associations → Clés étrangères ou tables d'association</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="mb-3">Selon la cardinalité, le passage au relationnel change :</p>
+                        <div class="space-y-5">
+                            <div class="border-l-4 border-indigo-400 pl-4">
+                                <span class="font-bold text-indigo-800">1 - N (un à plusieurs)</span>
+                                <p class="text-gray-600 text-sm">Ajouter la clé primaire de l'entité "un" comme <strong>clé étrangère</strong> dans la table du côté "plusieurs".</p>
+                                <pre class="mt-2 text-sm"><code>-- Ex: Un professeur donne plusieurs cours
+ALTER TABLE Cours ADD COLUMN professeur_id INT;
+ALTER TABLE Cours ADD FOREIGN KEY (professeur_id) REFERENCES Professeur(id);</code></pre>
+                            </div>
+                            <div class="border-l-4 border-pink-400 pl-4">
+                                <span class="font-bold text-pink-800">N - N (plusieurs à plusieurs)</span>
+                                <p class="text-gray-600 text-sm">Créer une <strong>table d'association</strong> contenant les deux clés étrangères (clé primaire composite).</p>
+                                <pre class="mt-2 text-sm"><code>CREATE TABLE Inscription (
+    id_etudiant INT,
+    id_cours INT,
+    date_inscription DATE,
+    PRIMARY KEY (id_etudiant, id_cours),
+    FOREIGN KEY (id_etudiant) REFERENCES Etudiant(id),
+    FOREIGN KEY (id_cours) REFERENCES Cours(id)
+);</code></pre>
+                            </div>
+                            <div class="border-l-4 border-emerald-400 pl-4">
+                                <span class="font-bold text-emerald-800">1 - 1 (un à un)</span>
+                                <p class="text-gray-600 text-sm">Choisir une table qui référence l'autre avec une clé étrangère unique.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : LA NORMALISATION (1NF, 2NF, 3NF) expliquée simplement -->
+            <div class="slide" data-slide="4">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">📐 Étape 3 : Normaliser les données (1NF, 2NF, 3NF)</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="mb-3">La normalisation évite la redondance et les anomalies. En pratique, on vise au moins la <strong>3e forme normale (3NF)</strong>.</p>
+                        <div class="space-y-4">
+                            <div class="bg-purple-50 rounded-xl p-4">
+                                <h3 class="font-bold text-purple-800">🔹 1NF – Première forme normale</h3>
+                                <p class="text-gray-700 text-sm">Chaque cellule contient une valeur unique (pas de liste ni de groupe répété).</p>
+                                <div class="text-xs mt-1 italic">❌ "téléphones: 677889900, 655112233" → ✅ Créer une table séparée Téléphone.</div>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-4">
+                                <h3 class="font-bold text-purple-800">🔹 2NF – Deuxième forme normale</h3>
+                                <p class="text-gray-700 text-sm">Déjà en 1NF + tous les attributs non clé dépendent de la clé primaire entière (pas de dépendance partielle).</p>
+                                <pre class="text-xs mt-1"><code>-- Table avec clé composite (id_commande, id_produit) -> prix_produit ne dépend que id_produit → 2NF violée</code></pre>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-4">
+                                <h3 class="font-bold text-purple-800">🔹 3NF – Troisième forme normale</h3>
+                                <p class="text-gray-700 text-sm">2NF + aucun attribut non clé ne dépend d'un autre attribut non clé (transitivité).</p>
+                                <p class="text-gray-600 text-xs mt-2">Exemple: <span class="font-mono">(code_postal → ville)</span> : extraire ville dans une table séparée.</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-amber-700 text-sm flex gap-2">
+                            <span>🧠</span> Astuce mémo : "Chaque donnée n’est stockée qu’une seule fois, et dépend directement de la clé."
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : EXEMPLE CONCRET D'UNE TRANSFORMATION COMPLÈTE (Étudiant-Cours-Inscription) -->
+            <div class="slide" data-slide="5">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">🏗️ Exemple complet : Système universitaire</h2>
+                    </div>
+                    <div class="p-6 md:p-8 slide-content">
+                        <p class="text-gray-700 mb-3">À partir du DER suivant (entités : Étudiant, Cours, Professeur). Appliquons transformation + normalisation.</p>
+                        <div class="bg-slate-800 rounded-xl p-4 text-white font-mono text-sm overflow-x-auto">
+                            <pre>
+-- 1. Tables d'entités
+CREATE TABLE Etudiant (
+  id_etudiant INT PRIMARY KEY,
+  nom VARCHAR(40),
+  email VARCHAR(100) UNIQUE
+);
+
+CREATE TABLE Professeur (
+  id_prof INT PRIMARY KEY,
+  nom_prof VARCHAR(40),
+  specialite VARCHAR(80)
+);
+
+CREATE TABLE Cours (
+  id_cours INT PRIMARY KEY,
+  titre VARCHAR(100),
+  professeur_id INT,
+  FOREIGN KEY (professeur_id) REFERENCES Professeur(id_prof)
+);
+
+-- 2. Table d'association (N-N entre Etudiant et Cours)
+CREATE TABLE Inscription (
+  etudiant_id INT,
+  cours_id INT,
+  annee INT,
+  note DECIMAL(4,2),
+  PRIMARY KEY (etudiant_id, cours_id),
+  FOREIGN KEY (etudiant_id) REFERENCES Etudiant(id_etudiant),
+  FOREIGN KEY (cours_id) REFERENCES Cours(id_cours)
+);
+                            </pre>
+                        </div>
+                        <p class="mt-4 text-emerald-700 text-sm bg-emerald-50 p-3 rounded-lg">✨ Résultat : une base propre, sans redondance, prête à interroger avec des jointures.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : PETIT EXERCICE INTÉRACTIF / RÉSUMÉ VISUEL -->
+            <div class="slide" data-slide="6">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">✏️ Vérifions la compréhension</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="bg-indigo-50 p-4 rounded-xl">
+                                <h3 class="font-semibold text-indigo-800">📌 Question 1</h3>
+                                <p class="text-sm text-gray-700">Une association "Plusieurs à plusieurs" se traduit toujours par :</p>
+                                <ul class="list-disc ml-5 text-sm mt-2">
+                                    <li>A) Une clé étrangère dans l’une des deux tables</li>
+                                    <li>B) Une table d’association</li>
+                                    <li>C) Un trigger</li>
+                                </ul>
+                                <button class="show-answer-btn mt-3 text-xs bg-indigo-200 hover:bg-indigo-300 rounded-full px-3 py-1 transition">Afficher la réponse</button>
+                                <p class="answer hidden text-green-700 font-medium text-sm mt-2">✅ Réponse: B) Table d'association (ex: table Inscription).</p>
+                            </div>
+                            <div class="bg-indigo-50 p-4 rounded-xl">
+                                <h3 class="font-semibold text-indigo-800">📌 Question 2</h3>
+                                <p class="text-sm text-gray-700">Que fait la 3ème forme normale (3NF) ?</p>
+                                <ul class="list-disc ml-5 text-sm mt-2">
+                                    <li>A) Supprimer les dépendances transitives</li>
+                                    <li>B) Créer des index</li>
+                                    <li>C) Supprimer les clés étrangères</li>
+                                </ul>
+                                <button class="show-answer-btn mt-3 text-xs bg-indigo-200 hover:bg-indigo-300 rounded-full px-3 py-1 transition">Afficher réponse</button>
+                                <p class="answer hidden text-green-700 font-medium text-sm mt-2">✅ Réponse: A) Supprimer les dépendances transitives (éviter qu’un attribut non clé dépende d’un autre attribut non clé).</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center text-gray-500 text-sm border-t pt-4">
+                            💬 En classe: utilisez un outil comme draw.io pour créer votre DER, puis écrivez le SQL de transformation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RÉCAPITULATIF ET RESSOURCES (encart) -->
+            <div class="slide" data-slide="7">
+                <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h2 class="text-xl font-bold text-gray-800">📌 Points clés de la leçon 6</h2>
+                    </div>
+                    <div class="p-6 md:p-8">
+                        <div class="space-y-3">
+                            <div class="flex gap-2 items-start"><span class="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span><span><strong>Entité → Table</strong> : Chaque entité devient une table, attributs = colonnes.</span></div>
+                            <div class="flex gap-2 items-start"><span class="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span><span><strong>Association 1-N</strong> : clé étrangère dans la table du côté "N".</span></div>
+                            <div class="flex gap-2 items-start"><span class="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span><span><strong>Association N-N</strong> : création d'une table de liaison avec clés étrangères.</span></div>
+                            <div class="flex gap-2 items-start"><span class="bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">4</span><span><strong>Normalisation</strong> : 1NF (valeurs atomiques), 2NF (dépendance totale), 3NF (pas de transitivité).</span></div>
+                        </div>
+                        <div class="mt-6 bg-slate-100 rounded-xl p-4 text-center text-slate-600 text-sm">
+                            ⚡ Exercice pratique : Reprenez un DER d’une librairie (livres, auteurs, éditeurs) et transformez-le en script SQL.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Slides (boutons précédent / suivant) -->
+        <div class="flex justify-between items-center mt-8 gap-4">
+            <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                ← Précédent
+            </button>
+            <span class="text-sm text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm" id="slideCounter">Slide 1 / 8</span>
+            <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-md flex items-center gap-1 transition">
+                Suivant →
+            </button>
+        </div>
+        <!-- Indicateur de progression (mobile friendly) -->
+        <div class="mt-4 text-center">
+            <div class="inline-flex gap-1" id="dotsContainer"></div>
+        </div>
+    </main>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+                updateDots();
+                // Gestion état des boutons
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+            }
+
+            function goNext() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            }
+
+            function goPrev() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            }
+
+            $('#nextSlide').on('click', goNext);
+            $('#prevSlide').on('click', goPrev);
+
+            // Navigation clavier (flèches)
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    goNext();
+                } else if (e.key === 'ArrowLeft') {
+                    goPrev();
+                }
+            });
+
+            // Générer les petits points indicateurs
+            function updateDots() {
+                let dotsHtml = '';
+                for (let i = 0; i < totalSlides; i++) {
+                    let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-6' : 'bg-gray-300 w-2';
+                    dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+                }
+                $('#dotsContainer').html(dotsHtml);
+                $('.dot').on('click', function() {
+                    let idx = parseInt($(this).data('index'));
+                    if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                        currentIndex = idx;
+                        updateSlides();
+                    }
+                });
+            }
+
+            // Système de réponse pour l'exercice
+            $('.show-answer-btn').on('click', function() {
+                let answerDiv = $(this).siblings('.answer');
+                if (answerDiv.hasClass('hidden')) {
+                    answerDiv.removeClass('hidden').slideDown(200);
+                    $(this).text('Masquer la réponse');
+                } else {
+                    answerDiv.addClass('hidden').slideUp(200);
+                    $(this).text('Afficher la réponse');
+                }
+            });
+
+            // initialisation des masquages réponse
+            $('.answer').addClass('hidden').hide();
+            updateSlides();
+
+            // ajustement hauteur slide sur mobile, simple refresh cosmetique
+            $(window).on('resize', function() {
+                // rien de complexe, juste rafraîchir l'affichage
+            });
+        });
+    </script>
+    <!-- Petit pied de page élégant -->
+    <footer class="text-center text-gray-400 text-xs py-6 border-t mt-6">
+        Cours conçu pour la classe Développement Web – Initiation aux bases de données | Enseignant Cameroun 🇨🇲
+    </footer>
+</body>
+</html>

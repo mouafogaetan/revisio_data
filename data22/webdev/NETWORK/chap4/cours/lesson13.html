@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Réseaux - TCP : Protocole de transport fiable</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-family: 'Segoe UI', 'Poppins', system-ui, -apple-system, sans-serif;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .slide {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+            overflow: hidden;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .handshake-diagram {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            font-family: monospace;
+        }
+        @media (max-width: 640px) {
+            .slide-container { padding: 12px; }
+            pre { font-size: 11px; padding: 12px; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
+        .card-hover {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.15);
+        }
+        .tcp-flag {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-family: monospace;
+            margin: 2px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="slide-container">
+        <!-- Slide 1: Titre -->
+        <div class="slide active" id="slide1">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-8 md:p-12">
+                <div class="text-center">
+                    <i class="fas fa-exchange-alt text-6xl text-white mb-4"></i>
+                    <h1 class="text-3xl md:text-5xl font-bold text-white mb-4">TCP : Protocole de transport fiable</h1>
+                    <p class="text-blue-100 text-lg md:text-xl">Transmission Control Protocol</p>
+                    <p class="text-blue-200 mt-4">Lesson 13 - Initiation aux Réseaux informatiques</p>
+                    <div class="mt-8 flex justify-center space-x-2">
+                        <div class="w-12 h-1 bg-white rounded-full opacity-50"></div>
+                        <div class="w-12 h-1 bg-white rounded-full opacity-50"></div>
+                        <div class="w-12 h-1 bg-white rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Objectifs pédagogiques -->
+        <div class="slide" id="slide2">
+            <div class="p-8 md:p-12">
+                <div class="flex items-center mb-6">
+                    <i class="fas fa-bullseye text-3xl text-blue-600 mr-3"></i>
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs du cours</h2>
+                </div>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl card-hover">
+                        <i class="fas fa-plug text-2xl text-blue-600 mb-3"></i>
+                        <p class="text-gray-700">Comprendre les caractéristiques de <strong>TCP</strong> (avec connexion, fiable)</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl card-hover">
+                        <i class="fas fa-handshake text-2xl text-green-600 mb-3"></i>
+                        <p class="text-gray-700">Maîtriser l'<strong>établissement de connexion</strong> (3-way handshake)</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl card-hover">
+                        <i class="fas fa-tachometer-alt text-2xl text-purple-600 mb-3"></i>
+                        <p class="text-gray-700">Comprendre le <strong>contrôle de flux</strong> et <strong>contrôle de congestion</strong></p>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-amber-50 p-6 rounded-xl card-hover">
+                        <i class="fas fa-window-close text-2xl text-orange-600 mb-3"></i>
+                        <p class="text-gray-700">Connaître la <strong>fermeture de connexion</strong> (4-way handshake)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Qu'est-ce que TCP ? -->
+        <div class="slide" id="slide3">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔌 Qu'est-ce que TCP ?</h2>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-xl">
+                    <p class="text-yellow-800"><i class="fas fa-lightbulb mr-2"></i> TCP est le protocole de transport <strong>fiable</strong> utilisé par la majorité des applications sur Internet.</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex items-start space-x-3">
+                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                        <div><strong class="text-gray-800">Avec connexion</strong> – Établissement d’une connexion avant l’échange de données</div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                        <div><strong class="text-gray-800">Fiable</strong> – Accusés de réception (ACK), retransmission en cas de perte</div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                        <div><strong class="text-gray-800">Contrôle de flux</strong> – Ajustement du débit selon la capacité du récepteur</div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                        <div><strong class="text-gray-800">Contrôle de congestion</strong> – Adaptation au trafic réseau</div>
+                    </div>
+                </div>
+                <div class="mt-6 bg-blue-50 p-4 rounded-xl">
+                    <p class="text-blue-800"><i class="fas fa-info-circle mr-2"></i> <strong>Exemples d’applications TCP</strong> : HTTP/HTTPS (web), FTP (transfert de fichiers), SSH (administration), Email (SMTP, IMAP, POP3)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Le 3-way handshake -->
+        <div class="slide" id="slide4">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🤝 Le 3-way handshake (établissement de connexion)</h2>
+                <p class="text-gray-600 mb-6">Avant d’envoyer des données, le client et le serveur échangent 3 paquets pour synchroniser leurs numéros de séquence.</p>
+                <div class="handshake-diagram text-center">
+                    <div class="flex flex-col md:flex-row justify-around items-center">
+                        <div class="text-center mb-4 md:mb-0">
+                            <i class="fas fa-laptop text-3xl text-blue-600"></i>
+                            <p class="font-bold">Client</p>
+                        </div>
+                        <div class="text-center mb-4 md:mb-0">
+                            <i class="fas fa-arrow-right text-2xl text-green-600 mx-4"></i>
+                            <span class="tcp-flag">SYN (seq=x)</span>
+                            <i class="fas fa-arrow-left text-2xl text-green-600 mx-4"></i>
+                        </div>
+                        <div class="text-center">
+                            <i class="fas fa-server text-3xl text-purple-600"></i>
+                            <p class="font-bold">Serveur</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-green-600">↓</div>
+                    <div class="flex flex-col md:flex-row justify-around items-center mt-2">
+                        <div class="text-center"><span class="tcp-flag">SYN-ACK (seq=y, ack=x+1)</span></div>
+                    </div>
+                    <div class="mt-4 text-green-600">↓</div>
+                    <div class="flex flex-col md:flex-row justify-around items-center mt-2">
+                        <div class="text-center"><span class="tcp-flag">ACK (seq=x+1, ack=y+1)</span></div>
+                    </div>
+                    <p class="mt-6 text-gray-600 text-sm">← Connexion établie, transfert des données →</p>
+                </div>
+                <div class="mt-4 bg-gray-100 p-3 rounded-lg">
+                    <p class="text-sm"><i class="fas fa-question-circle text-blue-500 mr-2"></i> <strong>Pourquoi 3 paquets ?</strong> Pour que chaque partie confirme la réception du SYN de l’autre.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Numéros de séquence et accusés -->
+        <div class="slide" id="slide5">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔢 Numéros de séquence et accusés (ACK)</h2>
+                <p class="text-gray-600 mb-4">Chaque octet envoyé reçoit un numéro de séquence. L’acquittement indique le prochain octet attendu.</p>
+                <div class="bg-gray-900 rounded-xl p-5">
+                    <pre class="text-sm"><code>Client → Serveur : SEQ=1000 (10 octets de données)
+Serveur → Client : ACK=1010 (accuse réception des octets 1000-1009)</code></pre>
+                </div>
+                <div class="mt-4 grid md:grid-cols-2 gap-4">
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <i class="fas fa-check-circle text-green-600 mr-2"></i> <strong>Fiabilité</strong> : Pas d’ACK → retransmission
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <i class="fas fa-sort-numeric-up-alt text-blue-600 mr-2"></i> <strong>Réordonnancement</strong> : Tri possible grâce aux SEQ
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Contrôle de flux (fenêtre glissante) -->
+        <div class="slide" id="slide6">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📊 Contrôle de flux – Fenêtre glissante (Sliding Window)</h2>
+                <p class="text-gray-600 mb-4">Le récepteur indique à l’émetteur la taille de sa mémoire disponible (<code>window size</code>).</p>
+                <div class="bg-indigo-50 p-5 rounded-xl">
+                    <p class="font-semibold"><i class="fas fa-chart-line mr-2"></i> Principe :</p>
+                    <p>L’émetteur ne peut pas envoyer plus de données que la fenêtre annoncée par le récepteur. Cela évite de submerger une machine lente.</p>
+                </div>
+                <div class="mt-4 bg-gray-900 rounded-xl p-4">
+                    <pre><code>En-tête TCP – Champ "Window Size" (16 bits)
+Valeur typique : 64 Ko (peut être étendue avec window scaling)</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Contrôle de congestion -->
+        <div class="slide" id="slide7">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🐌 Contrôle de congestion</h2>
+                <div class="space-y-3">
+                    <div class="bg-purple-50 p-4 rounded-xl">
+                        <p class="font-semibold"><i class="fas fa-fast-forward mr-2"></i> Slow start (démarrage lent)</p>
+                        <p class="text-gray-600 text-sm">La fenêtre de congestion double à chaque RTT jusqu’à un seuil.</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-xl">
+                        <p class="font-semibold"><i class="fas fa-equals mr-2"></i> Congestion avoidance</p>
+                        <p class="text-gray-600 text-sm">Augmentation linéaire de la fenêtre (+1 MSS par RTT).</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-xl">
+                        <p class="font-semibold"><i class="fas fa-exclamation-triangle mr-2"></i> Détection de perte</p>
+                        <p class="text-gray-600 text-sm">Timeout ou triple ACK dupliqué → réduction de la fenêtre.</p>
+                    </div>
+                </div>
+                <div class="mt-4 bg-yellow-50 p-3 rounded-lg">
+                    <p><i class="fas fa-shield-alt mr-2 text-yellow-700"></i> But : éviter l’effondrement du réseau (congestion collapse).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Fermeture de connexion (4-way handshake) -->
+        <div class="slide" id="slide8">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🚪 Fermeture de connexion – 4-way handshake</h2>
+                <div class="handshake-diagram">
+                    <div class="flex flex-col md:flex-row justify-around items-center">
+                        <div><i class="fas fa-laptop text-3xl text-blue-600"></i><br>Client</div>
+                        <div class="my-2">
+                            <span class="tcp-flag">FIN (seq=u)</span> →
+                        </div>
+                        <div><i class="fas fa-server text-3xl text-purple-600"></i><br>Serveur</div>
+                    </div>
+                    <div class="flex flex-col md:flex-row justify-around items-center mt-2">
+                        <div></div>
+                        <div>← <span class="tcp-flag">ACK (ack=u+1)</span></div>
+                    </div>
+                    <div class="flex flex-col md:flex-row justify-around items-center mt-2">
+                        <div></div>
+                        <div>← <span class="tcp-flag">FIN (seq=v)</span></div>
+                    </div>
+                    <div class="flex flex-col md:flex-row justify-around items-center mt-2">
+                        <div></div>
+                        <div><span class="tcp-flag">ACK (ack=v+1)</span> →</div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-4 text-center">Chaque extrémité ferme sa direction indépendamment (fermeture en demi-duplex).</p>
+            </div>
+        </div>
+
+        <!-- Slide 9: Principaux flags TCP -->
+        <div class="slide" id="slide9">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🚩 Les flags TCP</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">SYN</span><br>Demande de connexion</div>
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">ACK</span><br>Accusé réception</div>
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">FIN</span><br>Fermeture connexion</div>
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">RST</span><br>Réinitialisation (erreur)</div>
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">PSH</span><br>Livraison immédiate</div>
+                    <div class="bg-gray-100 p-3 rounded-lg text-center"><span class="tcp-flag">URG</span><br>Données urgentes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: TCP vs UDP -->
+        <div class="slide" id="slide10">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">⚖️ Comparaison TCP / UDP</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead><tr class="bg-gray-200"><th class="p-3 border">Critère</th><th class="p-3 border">TCP</th><th class="p-3 border">UDP</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">Connexion</td><td class="p-3">✓ (3-way handshake)</td><td class="p-3">✗ (sans connexion)</td></tr>
+                            <tr class="border-b"><td class="p-3">Fiabilité</td><td class="p-3">✓ (ACK, retransmission)</td><td class="p-3">✗ (pas de garantie)</td></tr>
+                            <tr class="border-b"><td class="p-3">Contrôle flux/congestion</td><td class="p-3">✓</td><td class="p-3">✗</td></tr>
+                            <tr class="border-b"><td class="p-3">Vitesse</td><td class="p-3">Plus lent</td><td class="p-3">Plus rapide</td></tr>
+                            <tr><td class="p-3">Cas d’usage</td><td class="p-3">Web, email, FTP, SSH</td><td class="p-3">Streaming, DNS, VoIP, jeux</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Conclusion -->
+        <div class="slide" id="slide11">
+            <div class="p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🎯 Récapitulatif</h2>
+                <div class="bg-indigo-50 p-6 rounded-xl mb-6">
+                    <p class="text-indigo-900"><i class="fas fa-graduation-cap text-indigo-600 mr-2"></i> Ce qu’il faut retenir :</p>
+                    <ul class="mt-3 space-y-2 text-gray-700">
+                        <li>✓ TCP est <strong>fiable, orienté connexion</strong> avec contrôle de flux et congestion</li>
+                        <li>✓ Établissement : <strong>3-way handshake</strong> (SYN, SYN-ACK, ACK)</li>
+                        <li>✓ Fermeture : <strong>4-way handshake</strong> (FIN, ACK, FIN, ACK)</li>
+                        <li>✓ La <strong>fenêtre glissante</strong> évite de saturer le récepteur</li>
+                        <li>✓ Les algorithmes de congestion évitent l’effondrement du réseau</li>
+                    </ul>
+                </div>
+                <div class="text-center">
+                    <p class="text-gray-600">📚 Suite : Étude des champs détaillés de l’en-tête TCP (lesson 14)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="fixed bottom-4 left-0 right-0 flex justify-center space-x-4 mb-4">
+            <button id="prevBtn" class="nav-btn bg-white text-indigo-600 px-6 py-3 rounded-full shadow-lg hover:shadow-xl font-semibold">
+                <i class="fas fa-arrow-left mr-2"></i> Précédent
+            </button>
+            <button id="nextBtn" class="nav-btn bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl font-semibold">
+                Suivant <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+
+        <div class="fixed bottom-4 right-4 bg-white bg-opacity-90 rounded-full px-4 py-2 shadow-md">
+            <span id="slideCounter" class="text-gray-700 font-semibold">1 / 11</span>
+        </div>
+
+        <div class="fixed top-0 left-0 right-0 h-1 bg-indigo-300">
+            <div id="progressBar" class="progress-bar h-full bg-indigo-600" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 1;
+            const totalSlides = 11;
+            function updateSlides() {
+                $('.slide').removeClass('active');
+                $(`#slide${currentSlide}`).addClass('active');
+                $('#slideCounter').text(`${currentSlide} / ${totalSlides}`);
+                const progress = (currentSlide / totalSlides) * 100;
+                $('#progressBar').css('width', `${progress}%`);
+                $('.slide').css('animation', 'none');
+                setTimeout(() => { $('.slide.active').css('animation', 'fadeIn 0.5s ease-in-out'); }, 10);
+            }
+            $('#nextBtn').click(function() {
+                if (currentSlide < totalSlides) { currentSlide++; updateSlides(); }
+                else { alert('🎉 Félicitations ! Vous avez terminé le cours TCP !'); }
+            });
+            $('#prevBtn').click(function() {
+                if (currentSlide > 1) { currentSlide--; updateSlides(); }
+            });
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowRight') $('#nextBtn').click();
+                else if (e.key === 'ArrowLeft') $('#prevBtn').click();
+            });
+            let touchStartX = 0, touchEndX = 0;
+            $('.slide-container').on('touchstart', function(e) { touchStartX = e.originalEvent.touches[0].clientX; });
+            $('.slide-container').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                const diff = touchStartX - touchEndX;
+                if (Math.abs(diff) > 50) { diff > 0 ? $('#nextBtn').click() : $('#prevBtn').click(); }
+            });
+        });
+    </script>
+</body>
+</html>

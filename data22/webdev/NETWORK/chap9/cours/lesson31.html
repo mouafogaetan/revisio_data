@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Cours Réseaux - Outils de diagnostic réseau (Lesson 31)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .slide { display: none; animation: fadeSlide 0.4s ease; }
+        .slide.active { display: block; }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateX(18px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        body {
+            background: linear-gradient(135deg, #e0f2fe 0%, #ccf0ff 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .cmd-badge {
+            background: #1e293b;
+            color: #38bdf8;
+            border-radius: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            display: inline-block;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #0284c7;
+            color: white;
+        }
+        .progress-bar {
+            height: 5px;
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #0284c7;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .tool-card {
+            background: #f8fafc;
+            border-left: 4px solid;
+            transition: all 0.2s;
+        }
+        .tool-card:hover {
+            transform: translateX(4px);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-3 md:p-5">
+
+<div class="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-sky-100">
+    <!-- En-tête -->
+    <div class="bg-gradient-to-r from-sky-700 to-blue-700 text-white px-5 py-4 flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-terminal text-2xl"></i>
+            <span class="font-bold text-lg">Initiation aux Réseaux</span>
+        </div>
+        <div class="bg-sky-800 px-3 py-1 rounded-full text-sm shadow-sm">
+            Lesson 31 : Outils de diagnostic réseau
+        </div>
+    </div>
+
+    <!-- Zone slides -->
+    <div class="p-5 md:p-8 min-h-[520px] bg-gray-50">
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : Titre -->
+            <div class="slide active" data-index="0">
+                <div class="text-center py-8 md:py-12">
+                    <i class="fas fa-screwdriver-wrench text-6xl text-sky-600 mb-4"></i>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">🛠️ Outils de diagnostic réseau</h1>
+                    <p class="text-xl text-sky-700 font-semibold mt-2">netstat, ipconfig, ifconfig, nslookup, dig</p>
+                    <div class="h-1 w-28 bg-sky-500 mx-auto my-5 rounded-full"></div>
+                    <p class="text-gray-600 max-w-md mx-auto">Les commandes essentielles pour analyser, diagnostiquer et dépanner un réseau</p>
+                    <div class="flex flex-wrap justify-center gap-3 mt-8 text-sm text-gray-500">
+                        <span><i class="fas fa-chart-line mr-1"></i> Connexions réseau</span>
+                        <span><i class="fas fa-network-wired mr-1"></i> Interfaces IP</span>
+                        <span><i class="fas fa-globe mr-1"></i> Résolution DNS</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs -->
+            <div class="slide" data-index="1">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-5">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-plug text-sky-500 mt-1"></i>
+                        <span>Utiliser <strong>netstat</strong> pour afficher les connexions et ports</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-address-card text-sky-500 mt-1"></i>
+                        <span>Utiliser <strong>ipconfig</strong> (Windows) / <strong>ifconfig</strong> (Linux) pour les interfaces réseau</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-search text-sky-500 mt-1"></i>
+                        <span>Utiliser <strong>nslookup</strong> et <strong>dig</strong> pour interroger le DNS</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-chart-simple text-sky-500 mt-1"></i>
+                        <span>Interpréter les résultats pour diagnostiquer des pannes</span>
+                    </div>
+                </div>
+                <div class="mt-6 bg-sky-50 p-4 rounded-xl text-sky-800 text-sm">
+                    💡 Ces commandes sont disponibles sur la plupart des systèmes d'exploitation (Windows, Linux, macOS).
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : netstat - afficher les connexions -->
+            <div class="slide" data-index="2">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">🔌 netstat : afficher les connexions réseau</h2>
+                <p class="mb-2"><span class="cmd-badge">netstat</span> (Network Statistics) affiche les connexions actives, ports d'écoute et statistiques.</p>
+                <div class="code-block mb-3">
+# Connexions actives (simplifié)
+netstat -an
+
+# Connexions avec résolution de noms (plus lent)
+netstat -a
+
+# Afficher uniquement les ports d'écoute
+netstat -an | findstr LISTENING   (Windows)
+netstat -an | grep LISTEN         (Linux)
+
+# Statistiques par protocole
+netstat -s
+
+# Afficher le PID et le programme associé (Windows)
+netstat -ano
+
+# Afficher la table de routage
+netstat -r
+                </div>
+                <div class="bg-gray-100 p-3 rounded text-sm">
+                    <i class="fas fa-info-circle text-sky-600"></i> Interprétation : <span class="font-mono">LISTENING</span> = port ouvert en attente, <span class="font-mono">ESTABLISHED</span> = connexion active, <span class="font-mono">TIME_WAIT</span> = connexion fermée en attente.
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : ipconfig (Windows) et ifconfig (Linux) -->
+            <div class="slide" data-index="3">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">🖥️ ipconfig (Windows) / ifconfig (Linux/macOS)</h2>
+                <p>Affiche la configuration des interfaces réseau (adresses IP, masque, passerelle, DNS).</p>
+                <div class="grid md:grid-cols-2 gap-3 mt-3">
+                    <div class="tool-card border-l-blue-500 p-3">
+                        <span class="font-bold">Windows (ipconfig)</span>
+                        <div class="code-block text-xs mt-2">
+ipconfig                 # configuration de base
+ipconfig /all            # configuration détaillée (MAC, DHCP, DNS)
+ipconfig /release        # libérer l'adresse DHCP
+ipconfig /renew          # renouveler l'adresse DHCP
+ipconfig /flushdns       # vider le cache DNS
+ipconfig /displaydns     # afficher le cache DNS
+                        </div>
+                    </div>
+                    <div class="tool-card border-l-green-500 p-3">
+                        <span class="font-bold">Linux/macOS (ifconfig)</span>
+                        <div class="code-block text-xs mt-2">
+ifconfig                 # interfaces actives
+ifconfig -a              # toutes les interfaces
+ifconfig eth0            # interface spécifique
+sudo ifconfig eth0 up    # activer
+sudo ifconfig eth0 down  # désactiver
+ip addr show             # alternative moderne (iproute2)
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 text-sm text-gray-600"><i class="fas fa-lightbulb text-amber-500"></i> Sur Linux moderne, la commande <span class="font-mono">ip addr</span> remplace avantageusement ifconfig.</div>
+            </div>
+
+            <!-- SLIDE 5 : Interpréter ipconfig /ifconfig -->
+            <div class="slide" data-index="4">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">📊 Exemple d'interprétation</h2>
+                <div class="code-block text-sm">
+Carte Ethernet Ethernet0 :
+   Adresse IPv4. . . . . . . . . . : 192.168.1.25
+   Masque de sous-réseau. . . . . : 255.255.255.0
+   Passerelle par défaut . . . . . : 192.168.1.1
+   Serveur DHCP . . . . . . . . . : 192.168.1.1
+   Serveurs DNS . . . . . . . . . : 8.8.8.8
+                                    1.1.1.1
+                </div>
+                <div class="mt-3 space-y-2 text-sm">
+                    <p>🔹 <strong>Adresse IP</strong> : 192.168.1.25 → Réseau local classe C</p>
+                    <p>🔹 <strong>Masque</strong> : 255.255.255.0 (/24) → réseau de 254 hôtes max</p>
+                    <p>🔹 <strong>Passerelle</strong> : 192.168.1.1 → accès vers Internet</p>
+                    <p>🔹 <strong>DNS</strong> : 8.8.8.8 (Google) → résolution de noms</p>
+                    <p>🔹 Si l'adresse commence par <strong>169.254.x.x</strong> → échec DHCP (APIPA)</p>
+                    <p>🔹 Si pas de passerelle → pas d'accès Internet</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : nslookup - interroger le DNS -->
+            <div class="slide" data-index="5">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">🔍 nslookup : requêtes DNS</h2>
+                <p><span class="cmd-badge">nslookup</span> (Name Server Lookup) interroge les serveurs DNS pour résoudre noms de domaine.</p>
+                <div class="code-block mt-2">
+# Résolution simple
+nslookup google.com
+
+# Résolution inversée (IP → nom)
+nslookup 8.8.8.8
+
+# Changer de serveur DNS
+nslookup google.com 1.1.1.1
+
+# Mode interactif
+nslookup
+> set type=MX
+> gmail.com
+> exit
+
+# Afficher l'enregistrement A (IPv4)
+nslookup -type=A google.com
+                </div>
+                <div class="mt-2 bg-yellow-50 p-2 rounded text-sm">
+                    <i class="fas fa-exclamation-triangle text-yellow-600"></i> nslookup ignore le cache local et interroge directement le DNS.
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : dig - requêtes DNS avancées (Linux/macOS) -->
+            <div class="slide" data-index="6">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">🕵️ dig : requêtes DNS détaillées</h2>
+                <p><span class="cmd-badge">dig</span> (Domain Information Groper) est plus puissant que nslookup, disponible sur Linux/macOS.</p>
+                <div class="code-block mt-2">
+# Requête standard
+dig google.com
+
+# Uniquement l'adresse IP (short answer)
+dig google.com +short
+
+# Enregistrement MX (mail exchange)
+dig gmail.com MX
+
+# Enregistrement TXT (SPF, DKIM)
+dig google.com TXT
+
+# Requête inversée
+dig -x 8.8.8.8
+
+# Suivre les redirections CNAME
+dig www.facebook.com +trace
+                </div>
+                <div class="mt-2 text-sm bg-green-50 p-2 rounded">
+                    <i class="fas fa-check-circle text-green-600"></i> dig affiche le temps de réponse (Query time), le serveur utilisé, et les sections complètes (QUESTION, ANSWER, AUTHORITY, ADDITIONAL).
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Interpréter une réponse dig -->
+            <div class="slide" data-index="7">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">📖 Lecture d'une réponse dig</h2>
+                <div class="code-block text-xs">
+;; QUESTION SECTION:
+;google.com.            IN  A
+
+;; ANSWER SECTION:
+google.com.     300     IN  A     142.250.185.46
+
+;; Query time: 23 msec
+;; SERVER: 192.168.1.1#53(192.168.1.1)
+                </div>
+                <div class="mt-3 space-y-1 text-sm">
+                    <p>🔹 <strong>QUESTION SECTION</strong> : la requête posée (google.com, type A)</p>
+                    <p>🔹 <strong>ANSWER SECTION</strong> : la réponse (IP 142.250.185.46, TTL 300 secondes)</p>
+                    <p>🔹 <strong>Query time</strong> : temps de réponse (23 ms)</p>
+                    <p>🔹 <strong>SERVER</strong> : serveur DNS interrogé</p>
+                    <p>🔹 <strong>TTL (Time To Live)</strong> : durée de mise en cache de la réponse</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Cas pratique - Diagnostiquer une panne -->
+            <div class="slide" data-index="8">
+                <h2 class="text-2xl font-bold text-sky-800 border-l-4 border-sky-500 pl-3 mb-4">🔧 Cas pratique : diagnostiquer une panne</h2>
+                <p>Un utilisateur n'arrive pas à accéder à <span class="font-mono">www.exemple.com</span>. Voici la marche à suivre :</p>
+                <ol class="list-decimal list-inside bg-gray-100 p-4 rounded-lg space-y-2 text-sm mt-2">
+                    <li><span class="cmd-badge">ipconfig /all</span> → vérifier IP, masque, passerelle, DNS</li>
+                    <li><span class="cmd-badge">ping 8.8.8.8</span> → tester connectivité Internet (DNS pas encore testé)</li>
+                    <li><span class="cmd-badge">ping www.exemple.com</span> → tester résolution de nom</li>
+                    <li><span class="cmd-badge">nslookup www.exemple.com</span> → vérifier réponse DNS</li>
+                    <li><span class="cmd-badge">tracert www.exemple.com</span> → tracer le chemin</li>
+                    <li><span class="cmd-badge">netstat -an</span> → vérifier connexions actives</li>
+                </ol>
+                <div class="mt-3 text-sm bg-amber-50 p-2 rounded">
+                    <i class="fas fa-question-circle text-amber-600"></i> Si ping IP fonctionne mais pas ping nom → problème DNS. Si ping passerelle fonctionne mais pas ping 8.8.8.8 → problème routeur/accès Internet.
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : Résumé -->
+            <div class="slide" data-index="9">
+                <h2 class="text-2xl font-bold text-center text-sky-800 mb-5">📌 Récapitulatif</h2>
+                <div class="space-y-3">
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>netstat</strong> : affiche connexions, ports ouverts, table de routage</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>ipconfig/ifconfig</strong> : configuration IP, MAC, DHCP, DNS</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>nslookup</strong> : requêtes DNS simples (interactif possible)</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>dig</strong> : requêtes DNS détaillées (Linux/macOS)</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>Dépannage systématique</strong> : ipconfig → ping → nslookup → tracert</span></div>
+                </div>
+                <div class="mt-8 text-center text-gray-500 text-sm">
+                    <i class="fas fa-chalkboard-user text-sky-400 text-2xl"></i>
+                    <p class="mt-2">Prochaine leçon : Wireshark - Capture et analyse de paquets</p>
+                    <button id="restartBtn" class="mt-4 bg-sky-600 text-white px-5 py-2 rounded-full text-sm hover:bg-sky-700 transition shadow">⟳ Revoir du début</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation & progression -->
+    <div class="bg-white border-t border-gray-200 px-5 py-3 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex gap-2">
+            <button id="prevSlide" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full disabled:opacity-50" disabled>
+                <i class="fas fa-chevron-left"></i> Précédent
+            </button>
+            <button id="nextSlide" class="nav-btn bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-full">
+                Suivant <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="text-sm text-gray-500">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+        <div class="progress-bar w-full sm:w-56">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let slides = $('.slide');
+    let total = slides.length;
+    let current = 0;
+
+    function updateSlides() {
+        slides.removeClass('active');
+        $(slides[current]).addClass('active');
+        $('#currentSlideIdx').text(current+1);
+        let percent = ((current+1)/total)*100;
+        $('#progressFill').css('width', percent+'%');
+        $('#prevSlide').prop('disabled', current === 0);
+        $('#nextSlide').prop('disabled', current === total-1);
+    }
+
+    function next() { if(current < total-1) { current++; updateSlides(); } }
+    function prev() { if(current > 0) { current--; updateSlides(); } }
+
+    $('#nextSlide').on('click', next);
+    $('#prevSlide').on('click', prev);
+    $('#restartBtn').on('click', function() { current = 0; updateSlides(); });
+
+    $(document).on('keydown', function(e) {
+        if(e.key === 'ArrowRight') next();
+        if(e.key === 'ArrowLeft') prev();
+    });
+
+    let startX = 0;
+    $('.slide').on('touchstart', function(e) { startX = e.originalEvent.changedTouches[0].screenX; });
+    $('.slide').on('touchend', function(e) {
+        let endX = e.originalEvent.changedTouches[0].screenX;
+        if(endX < startX - 40) next();
+        if(endX > startX + 40) prev();
+    });
+
+    updateSlides();
+});
+</script>
+</body>
+</html>

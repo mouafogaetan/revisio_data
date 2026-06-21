@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>NestJS + TypeORM : Entités User & Role (API E-commerce)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (prêt au cas où) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body {
+      background: #eef2ff;
+    }
+    .slide-card {
+      transition: all 0.2s ease-in-out;
+    }
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      font-family: 'Courier New', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .nav-dot {
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    @media (max-width: 640px) {
+      .code-block {
+        font-size: 0.7rem;
+        padding: 0.75rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+  <div id="slidesContainer">
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <div class="text-center">
+        <span class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold">📦 Module Utilisateur • NestJS + TypeORM</span>
+        <h1 class="text-3xl md:text-5xl font-extrabold mt-6 text-gray-800">Entités <span class="text-indigo-600">User</span> & <span class="text-indigo-600">Role</span></h1>
+        <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">Relations ManyToMany, timestamps, rôles (admin, customer, seller)<br>Bases solides pour l'authentification e-commerce</p>
+        <div class="flex flex-wrap justify-center gap-3 mt-8">
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🗄️ TypeORM</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">🔐 Rôles & permissions</span>
+          <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">⏱️ createdAt / updatedAt</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl md:text-3xl font-bold border-l-8 border-indigo-500 pl-4 text-gray-800">🎯 Objectifs de la leçon</h2>
+      <div class="grid md:grid-cols-2 gap-5 mt-8">
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Créer l’entité <strong class="font-semibold">User</strong> (id, email, password, firstName, lastName, phone, lastLogin)</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Créer l’entité <strong class="font-semibold">Role</strong> (admin, customer, seller) avec relation ManyToMany</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Ajouter les colonnes <strong class="font-semibold">createdAt, updatedAt</strong> automatiques</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Comprendre les décorateurs TypeORM (<code>@Entity, @Column, @ManyToMany, @JoinTable</code>)</span></div>
+        <div class="flex gap-3 items-start"><span class="text-indigo-600 text-xl">✓</span> <span>Initialiser les rôles par défaut avec un <strong>seed</strong> ou une migration</span></div>
+      </div>
+      <div class="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl text-indigo-800 text-sm">
+        💡 Ces entités sont le socle de toute plateforme e-commerce : gestion des clients, vendeurs et administrateurs.
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : Entité User (détails) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">👤 Entité <code>User</code> – champs et décorateurs</h2>
+      <p class="text-gray-700 mt-2">Chaque utilisateur aura un email unique, un mot de passe hashé, et des informations personnelles.</p>
+      <div class="code-block mt-4">
+        <pre><code>// src/users/user.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Role } from '../roles/role.entity';
+
+@Entity('users')
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  email: string;
+
+  @Column()
+  password: string;
+
+  @Column()
+  firstName: string;
+
+  @Column()
+  lastName: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastLogin: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToMany(() => Role, role => role.users)
+  @JoinTable({ name: 'user_roles' })
+  roles: Role[];
+}</code></pre>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">✨ <code>@CreateDateColumn</code> et <code>@UpdateDateColumn</code> sont gérés automatiquement par TypeORM. <code>@JoinTable</code> est obligatoire du côté propriétaire de la relation ManyToMany.</p>
+    </div>
+
+    <!-- SLIDE 4 : Entité Role -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🔐 Entité <code>Role</code> – définition et relation inverse</h2>
+      <div class="code-block mt-4">
+        <pre><code>// src/roles/role.entity.ts
+import { Entity, Column, PrimaryGeneratedColumn, ManyToMany } from 'typeorm';
+import { User } from '../users/user.entity';
+
+@Entity('roles')
+export class Role {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  name: string;  // 'admin', 'customer', 'seller'
+
+  @Column({ nullable: true })
+  description: string;
+
+  @ManyToMany(() => User, user => user.roles)
+  users: User[];
+}</code></pre>
+      </div>
+      <div class="bg-yellow-50 p-4 rounded-xl mt-4 border-l-4 border-yellow-400">
+        <p class="font-semibold text-yellow-800">📌 Important :</p>
+        <p class="text-yellow-700">Un utilisateur peut avoir plusieurs rôles (ex: admin + seller). La table de liaison <code>user_roles</code> est créée automatiquement grâce à <code>@JoinTable</code>.</p>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 : Relation ManyToMany expliquée (schéma visuel textuel) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🔗 Comprendre la relation ManyToMany</h2>
+      <p class="text-gray-700">Un utilisateur peut avoir plusieurs rôles. Un rôle peut être attribué à plusieurs utilisateurs. TypeORM crée une table de liaison <code>user_roles</code> avec deux clés étrangères.</p>
+      <div class="bg-gray-100 p-4 rounded-xl mt-3 font-mono text-sm">
+        <p><strong>Table users</strong> : id (PK), email, password ...</p>
+        <p><strong>Table roles</strong> : id (PK), name, description</p>
+        <p><strong>Table user_roles</strong> : userId (FK) | roleId (FK)</p>
+      </div>
+      <div class="code-block mt-4">
+        <pre><code>// Exemple d'assignation dans le service
+const user = await userRepo.findOne({ where: { id: 1 }, relations: ['roles'] });
+const adminRole = await roleRepo.findOne({ where: { name: 'admin' } });
+user.roles.push(adminRole);
+await userRepo.save(user);</code></pre>
+      </div>
+      <p class="text-gray-600 text-sm mt-2">✅ Pour récupérer un utilisateur avec ses rôles, il faut toujours préciser <code>relations: ['roles']</code> dans le <code>find</code>.</p>
+    </div>
+
+    <!-- SLIDE 6 : Seed des rôles par défaut -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">🌱 Initialisation des rôles (Seed)</h2>
+      <p class="text-gray-700">Au démarrage de l'application, nous devons garantir l'existence des rôles <code>admin</code>, <code>customer</code>, <code>seller</code>.</p>
+      <div class="code-block mt-4">
+        <pre><code>// src/seeds/role.seed.ts (exécuté via une commande ou dans app.module)
+export const seedRoles = async (dataSource: DataSource) => {
+  const roleRepo = dataSource.getRepository(Role);
+  const roles = ['admin', 'customer', 'seller'];
+  for (const name of roles) {
+    const exists = await roleRepo.findOne({ where: { name } });
+    if (!exists) {
+      await roleRepo.save(roleRepo.create({ name, description: `${name} role` }));
+      console.log(`✅ Rôle ${name} créé`);
+    }
+  }
+};</code></pre>
+      </div>
+      <p class="text-gray-600">On peut appeler cette fonction dans <code>onModuleInit</code> d’un module ou via une migration dédiée.</p>
+    </div>
+
+    <!-- SLIDE 7 : Bonnes pratiques & extensions possibles -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">📌 Bonnes pratiques pour User & Role</h2>
+      <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4">
+        <li>✅ Toujours hacher le mot de passe <strong>avant</strong> de sauvegarder (bcrypt).</li>
+        <li>✅ Utiliser <code>@BeforeInsert</code> / <code>@BeforeUpdate</code> pour hasher automatiquement.</li>
+        <li>✅ Ajouter un <strong>index</strong> sur <code>email</code> pour accélérer les recherches.</li>
+        <li>✅ Préférer les <strong>DTO</strong> pour exposer les données (ne jamais renvoyer le mot de passe).</li>
+        <li>✅ Pour les champs sensibles, utiliser <code>@Exclude()</code> (class-transformer).</li>
+      </ul>
+      <div class="code-block mt-5">
+        <pre><code>// Exemple d'exclusion du mot de passe
+import { Exclude } from 'class-transformer';
+
+@Entity('users')
+export class User {
+  @Column()
+  @Exclude()
+  password: string;
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 : Exercice pratique (intégration) -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800">✏️ Exercice : Créer un utilisateur avec rôle</h2>
+      <p class="text-gray-700">Écrivez un service NestJS qui :</p>
+      <ol class="list-decimal list-inside mt-2 text-gray-700 space-y-1">
+        <li>Crée un utilisateur avec email, password (hashé), firstName, lastName.</li>
+        <li>Lui assigne automatiquement le rôle <code>customer</code>.</li>
+        <li>Retourne l'utilisateur sans le mot de passe.</li>
+      </ol>
+      <div class="code-block mt-4">
+        <pre><code>// Exemple de solution
+async createUser(createUserDto: CreateUserDto): Promise&lt;Partial&lt;User&gt;&gt; {
+  const { email, password, firstName, lastName } = createUserDto;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const customerRole = await this.roleRepo.findOne({ where: { name: 'customer' } });
+  const user = this.userRepo.create({
+    email,
+    password: hashedPassword,
+    firstName,
+    lastName,
+    roles: [customerRole],
+  });
+  const savedUser = await this.userRepo.save(user);
+  const { password: _, ...result } = savedUser;
+  return result;
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 : Récapitulatif et liens -->
+    <div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10">
+      <h2 class="text-2xl font-bold text-gray-800">📋 Récapitulatif – entités User & Role</h2>
+      <ul class="mt-6 space-y-2 text-gray-700">
+        <li>✔️ <code>User</code> : email unique, password, infos perso, lastLogin, timestamps.</li>
+        <li>✔️ <code>Role</code> : name (admin, customer, seller), description, relation ManyToMany.</li>
+        <li>✔️ <code>@JoinTable</code> du côté User (côté propriétaire).</li>
+        <li>✔️ Seed des rôles au démarrage pour éviter les erreurs.</li>
+        <li>✔️ Relation chargée avec <code>relations: ['roles']</code> dans les requêtes.</li>
+      </ul>
+      <div class="mt-6 p-4 bg-indigo-50 rounded-2xl text-center text-indigo-900">
+        <p class="font-semibold">🎯 Prochaine étape : Implémenter l’authentification (JWT, bcrypt, guards).</p>
+      </div>
+      <div class="mt-8 text-center text-gray-500 border-t pt-6 text-sm">
+        📘 Lesson 7 – Entités User & Role (API E-commerce · NestJS + TypeORM) – Cours Cameroun 🇨🇲
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation dots et boutons -->
+  <div class="flex justify-center items-center flex-wrap gap-3 mt-8">
+    <button id="prevSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow disabled:opacity-40 transition">◀ Précédent</button>
+    <div id="dotsPanel" class="flex gap-2 mx-2 flex-wrap justify-center"></div>
+    <button id="nextSlideBtn" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-5 py-2 rounded-full font-medium shadow transition">Suivant ▶</button>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    let slides = $('.slide-card');
+    let currentIndex = 0;
+    const totalSlides = slides.length;
+
+    function updateSlides() {
+      slides.each(function(idx) {
+        if (idx === currentIndex) $(this).show().removeClass('hidden');
+        else $(this).hide();
+      });
+      $('#dotsPanel .dot').each(function(idx) {
+        if (idx === currentIndex) $(this).css('background', '#4f46e5').css({ width: '0.75rem', height: '0.75rem' });
+        else $(this).css('background', '#cbd5e1').css({ width: '0.6rem', height: '0.6rem' });
+      });
+      $('#prevSlideBtn').prop('disabled', currentIndex === 0);
+      $('#nextSlideBtn').prop('disabled', currentIndex === totalSlides - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderDots() {
+      const $container = $('#dotsPanel');
+      $container.empty();
+      for (let i = 0; i < totalSlides; i++) {
+        const $dot = $('<div>')
+          .addClass('dot rounded-full mx-1 transition-all')
+          .css({ width: '0.6rem', height: '0.6rem', background: '#cbd5e1', cursor: 'pointer' });
+        $dot.data('index', i);
+        $dot.on('click', function() { currentIndex = $(this).data('index'); updateSlides(); });
+        $container.append($dot);
+      }
+    }
+
+    $('#nextSlideBtn').on('click', () => { if (currentIndex < totalSlides - 1) { currentIndex++; updateSlides(); } });
+    $('#prevSlideBtn').on('click', () => { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+    $(document).on('keydown', (e) => {
+      if (e.key === 'ArrowRight') $('#nextSlideBtn').trigger('click');
+      if (e.key === 'ArrowLeft') $('#prevSlideBtn').trigger('click');
+    });
+
+    renderDots();
+    updateSlides();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 29 : MongoDB & Redis - Bases de données NoSQL</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules éventuelles, bien que peu de maths ici) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* douceur visuelle, couleurs naturelles */
+        body {
+            background: #f4f7fc;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        /* code block style simple */
+        pre {
+            background: #1e2a3a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        .objectif-item {
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            margin: 1rem 0;
+        }
+        .tip {
+            background: #eef2ff;
+            border-radius: 1rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            pre {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex flex-col items-center justify-center min-h-screen">
+
+    <div class="max-w-4xl w-full mx-auto">
+        <!-- header indicateur matiere/classe -->
+        <div class="text-center mb-4 text-sm text-gray-600 font-medium">
+            📘 Développement Web | Base de données - Leçon 29
+        </div>
+
+        <!-- Slides wrapper -->
+        <div id="slides-wrapper" class="relative">
+            <!-- Les slides seront injectées ici dynamiquement avec jQuery -->
+        </div>
+
+        <!-- Navigation + progression -->
+        <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+            <button id="prevBtn" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-md transition">◀ Précédent</button>
+            <div class="flex-1 text-center text-sm text-gray-500 font-mono" id="slideCounter"></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant ▶</button>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-4 mb-8">
+            <div id="progressFill" class="bg-blue-500 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="text-xs text-center text-gray-400 italic">
+            🧠 Les commandes et concepts NoSQL expliqués simplement | Mongo + Redis
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides : Titre, objectifs (pour slide2) puis contenu structuré
+        const slidesData = [
+            { // slide0 - titre principal
+                type: "title",
+                title: "⚡ Initiation aux Bases de données NoSQL",
+                subtitle: "MongoDB (documents) & Redis (clé-valeur en mémoire)",
+                badge: "Leçon 29 · Cours complet"
+            },
+            { // slide1 - objectifs d'apprentissage
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Installer MongoDB et comprendre les concepts (base, collection, document)",
+                    "Effectuer des opérations CRUD avec MongoDB (find, insert, update, delete)",
+                    "Utiliser les agrégations MongoDB (aggregate pipeline)",
+                    "Installer Redis et comprendre son architecture en mémoire",
+                    "Utiliser les structures de données Redis (strings, hashes, lists, sets, sorted sets)",
+                    "Comprendre les cas d'usage (cache, session, file d'attente)"
+                ]
+            },
+            { // slide2 - Introduction NoSQL & MongoDB
+                type: "content",
+                title: "📌 1. Pourquoi MongoDB ? Concepts fondamentaux",
+                content: `
+                    <p class="mb-3"><span class="font-bold text-blue-700">MongoDB</span> est une base de données <span class="font-semibold">document orientée</span> (famille NoSQL). Contrairement au SQL, pas de schéma fixe : chaque document (JSON-like) peut avoir des champs différents.</p>
+                    <div class="bg-indigo-50 p-4 rounded-xl mb-3">
+                        <p class="font-semibold">🧩 Concepts clés :</p>
+                        <ul class="list-disc ml-6 space-y-1 mt-2">
+                            <li><strong>Base de données</strong> : conteneur logique</li>
+                            <li><strong>Collection</strong> : groupe de documents (équivalent d'une table SQL mais sans schéma)</li>
+                            <li><strong>Document</strong> : enregistrement au format BSON/JSON (ex: { "_id": ObjectId(), "nom": "Alice", "age": 28 })</li>
+                        </ul>
+                    </div>
+                    <div class="tip">
+                        💡 <span class="font-medium">Installation simplifiée</span> : Sur Ubuntu/Debian : <code class="bg-gray-200 px-1 rounded">sudo apt install mongodb</code> ou télécharger depuis MongoDB Atlas (cloud gratuit). Pour Windows/macOS : MongoDB Community Edition.
+                    </div>
+                    <p>Démarrer le service : <code class="bg-gray-200 px-1 rounded">sudo systemctl start mongod</code> (Linux) ou <code class="bg-gray-200 px-1 rounded">mongod</code> en local.</p>
+                `
+            },
+            { // slide3 - Opérations CRUD avec MongoDB (find, insert, update, delete)
+                type: "content",
+                title: "✍️ 2. CRUD avec MongoDB (shell ou drivers)",
+                content: `
+                    <p>Ouvrir le shell Mongo : <code class="bg-gray-200 px-1 rounded">mongosh</code>. Voici les opérations essentielles :</p>
+                    <pre><code>// 1. Créer / utiliser une base
+use ecole
+
+// 2. Insérer un document (INSERT)
+db.etudiants.insertOne({ nom: "Mballa", age: 22, ville: "Douala" })
+db.etudiants.insertMany([{ nom: "Ngo", age: 20 }, { nom: "Kamga", age: 24 }])
+
+// 3. Lire (SELECT) : find()
+db.etudiants.find()                    // tous
+db.etudiants.find({ age: { $gt: 21 } }) // filtre : age > 21
+db.etudiants.findOne({ nom: "Mballa" })
+
+// 4. Mettre à jour (UPDATE)
+db.etudiants.updateOne({ nom: "Mballa" }, { $set: { ville: "Yaoundé" } })
+db.etudiants.updateMany({}, { $inc: { age: 1 } })   // incrémente age de 1
+
+// 5. Supprimer (DELETE)
+db.etudiants.deleteOne({ nom: "Kamga" })
+db.etudiants.deleteMany({ age: { $lt: 18 } })</code></pre>
+                    <div class="bg-green-50 p-3 rounded-lg mt-2">
+                        ✅ <strong>Rappel</strong> : <em>find()</em> retourne un curseur, utilisez <em>.pretty()</em> pour un affichage lisible.
+                    </div>
+                `
+            },
+            { // slide4 - Agrégations MongoDB (pipeline)
+                type: "content",
+                title: "📊 3. Pipeline d'agrégation MongoDB",
+                content: `
+                    <p>L'agrégation permet de traiter et transformer les documents via plusieurs étapes (<code>$match, $group, $sort, $project</code>).</p>
+                    <pre><code>// Exemple : comptage d'étudiants par ville avec âge moyen
+db.etudiants.aggregate([
+  { $match: { age: { $gte: 18 } } },
+  { $group: { _id: "$ville", count: { $sum: 1 }, ageMoyen: { $avg: "$age" } } },
+  { $sort: { count: -1 } },
+  { $project: { ville: "$_id", count: 1, ageMoyen: 1, _id: 0 } }
+])</code></pre>
+                    <p>📌 <strong>Cas typique</strong> : générer des rapports, statistiques directement côté base. Similaire au GROUP BY SQL mais plus puissant.</p>
+                    <div class="tip mt-2">
+                        🔁 Les agrégations peuvent aussi utiliser <code>$lookup</code> (jointure entre collections) et <code>$unwind</code> pour déconstruire les tableaux.
+                    </div>
+                `
+            },
+            { // slide5 - Introduction Redis, architecture mémoire
+                type: "content",
+                title: "⚡ 4. Redis - Base de données clé-valeur ultra-rapide",
+                content: `
+                    <p><span class="font-bold text-red-600">Redis</span> (REmote DIctionary Server) est une base de données <strong>en mémoire</strong> utilisée comme cache, broker de messages ou stockage de session. Sa force : latence microseconde et structures riches.</p>
+                    <div class="bg-gray-100 p-3 rounded-xl mb-3">
+                        <span class="font-semibold">🧠 Installation rapide :</span><br>
+                        <code class="bg-gray-800 text-white px-2 py-1 rounded inline-block mt-1">sudo apt install redis-server   # Linux<br>redis-server (Windows via WSL ou installer MSI)</code>
+                        <br>Se connecter avec <code class="bg-gray-200 px-1 rounded">redis-cli</code>
+                    </div>
+                    <p>Architecture : les données sont stockées en RAM, mais Redis peut persister sur disque (RDB snapshots ou AOF). Idéal pour les lectures/écritures massives.</p>
+                `
+            },
+            { // slide6 - structures de données Redis
+                type: "content",
+                title: "🧬 5. Structures de données Redis (strings, hashes, lists, sets, sorted sets)",
+                content: `
+                    <p>Redis ne se limite pas aux simples chaînes : chaque type a des commandes optimisées.</p>
+                    <pre><code># STRING (chaîne classique)
+SET user:1 "Moussa"
+GET user:1
+
+# HASH (objet)
+HSET eleve:1 nom "Fatima" age 19 ville "Garoua"
+HGETALL eleve:1
+
+# LIST (liste chaînée)
+LPUSH tâches "coder" "tester"
+LRANGE tâches 0 -1
+
+# SET (ensemble non ordonné)
+SADD sports "foot" "basket" "cyclisme"
+SMEMBERS sports
+
+# SORTED SET (avec score)
+ZADD classement 150 "Cameroun" 90 "Sénégal"
+ZRANGE classement 0 -1 WITHSCORES</code></pre>
+                    <div class="tip mt-2">
+                        💡 <strong>À retenir</strong> : Les listes pour files d'attente (LPUSH / RPOP), les sets pour tags uniques, sorted sets pour classements.
+                    </div>
+                `
+            },
+            { // slide7 - Cas d'usage Redis (cache, session, queue)
+                type: "content",
+                title: "🎯 6. Cas d'usage concrets de Redis",
+                content: `
+                    <ul class="list-disc ml-6 space-y-2">
+                        <li><span class="font-semibold">Cache applicatif</span> : stocker les résultats de requêtes SQL fréquentes pour réduire la charge base. Ex: <code>SET article:123 "contenu html" EX 3600</code> (expiration 1h).</li>
+                        <li><span class="font-semibold">Gestion de sessions utilisateur</span> : stocker les données de session (panier, authentification) avec TTL.</li>
+                        <li><span class="font-semibold">File d’attente (message broker)</span> : avec listes (RPUSH pour ajouter, LPOP pour consommer).</li>
+                        <li><span class="font-semibold">Rate limiting</span> : compteur d'API requests avec INCR et expiration.</li>
+                        <li><span class="font-semibold">Classements en temps réel</span> (jeux, top ventes) via Sorted Sets.</li>
+                    </ul>
+                    <div class="bg-blue-50 p-3 rounded-lg mt-3">
+                        🔥 Exemple pour un compteur de vues : <code>INCR page:accueil:compteur</code>
+                    </div>
+                `
+            },
+            { // slide8 - Comparaison schématique & Bonnes pratiques
+                type: "content",
+                title: "📈 7. MongoDB vs Redis : quand utiliser l'un ou l'autre ?",
+                content: `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="border rounded-xl p-3 bg-white shadow-sm">
+                            <div class="font-bold text-green-700">🍃 MongoDB</div>
+                            <ul class="list-disc text-sm ml-5 mt-2">
+                                <li>Base généraliste orientée documents</li>
+                                <li>Requêtes complexes, agrégations, index secondaires</li>
+                                <li>Persistance disque (par défaut)</li>
+                                <li>Cas : catalogues produits, logs, applications évolutives</li>
+                            </ul>
+                        </div>
+                        <div class="border rounded-xl p-3 bg-white shadow-sm">
+                            <div class="font-bold text-red-600">⚡ Redis</div>
+                            <ul class="list-disc text-sm ml-5 mt-2">
+                                <li>Cache ultra-rapide, sessions, files d'attente</li>
+                                <li>Structures de données avancées</li>
+                                <li>Volatilité possible (mémoire + persistance optionnelle)</li>
+                                <li>Cas : rate limiting, realtime analytics, messagerie</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="mt-4 italic">✔️ <strong>Bonnes pratiques</strong> : Utiliser Redis comme cache devant MongoDB pour booster les performances, et MongoDB comme source de vérité.</p>
+                `
+            },
+            { // slide9 - Exercice rapide / mise en pratique
+                type: "content",
+                title: "🧪 8. Mini TP : mettons les mains dans le code !",
+                content: `
+                    <div class="bg-amber-50 p-4 rounded-2xl">
+                        <p class="font-bold">💻 Objectif pratique :</p>
+                        <ol class="list-decimal ml-6 space-y-2 mt-2">
+                            <li>Démarrer MongoDB et créer une collection <strong>clients</strong> avec 3 documents (nom, email, commandes).</li>
+                            <li>Effectuer une agrégation pour compter le nombre de clients par ville.</li>
+                            <li>Lancer Redis, stocker une clé <strong>panier:alice</strong> avec une hash contenant produit, quantité.</li>
+                            <li>Simuler une file d’attente de tâches (LPUSH / RPOP).</li>
+                        </ol>
+                        <div class="mt-3 text-sm">
+                            📌 <em>Solution disponible sur demande du formateur</em>. Ces manipulations renforcent la compréhension des concepts NoSQL.
+                        </div>
+                    </div>
+                `
+            },
+            { // slide10 - Résumé et conclusion
+                type: "conclusion",
+                title: "🏁 Récapitulatif & Ressources",
+                content: `
+                    <ul class="list-disc ml-6 space-y-2">
+                        <li>✔ MongoDB : base documentaire flexible, langage CRUD intuitif, pipeline d'agrégation.</li>
+                        <li>✔ Redis : stockage clé-valeur en mémoire, structures variées (hash, list, set, sorted set).</li>
+                        <li>✔ MongoDB pour persistance et requêtes évoluées ; Redis pour rapidité, cache, files.</li>
+                        <li>✔ Ces deux technologies sont largement utilisées ensemble dans le web moderne.</li>
+                    </ul>
+                    <div class="flex flex-wrap gap-2 mt-5 justify-center">
+                        <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">📖 docs.mongodb.com</span>
+                        <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">⚡ redis.io/documentation</span>
+                        <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">🎓 Try MongoDB Atlas</span>
+                    </div>
+                    <p class="mt-5 text-center text-blue-600">Félicitations ! Vous maîtrisez les bases de MongoDB et Redis. 🔥</p>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // fonction pour afficher le slide courant
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            let html = '';
+            const baseClass = "slide p-6 md:p-8 mb-4";
+            if (slide.type === 'title') {
+                html = `<div class="${baseClass} text-center bg-gradient-to-br from-blue-50 to-indigo-50">
+                            <div class="inline-block px-4 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-semibold mb-3">${slide.badge}</div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+                            <p class="text-xl text-gray-600">${slide.subtitle}</p>
+                            <div class="mt-6 w-16 h-1 bg-blue-400 mx-auto rounded-full"></div>
+                            <p class="mt-6 text-sm text-gray-500">👩‍🏫 Classe Développement Web · Enseignant Cameroun</p>
+                        </div>`;
+            } 
+            else if (slide.type === 'objectives') {
+                let objItems = '';
+                slide.objectives.forEach(obj => {
+                    objItems += `<div class="objectif-item"><p class="text-gray-700">📌 ${obj}</p></div>`;
+                });
+                html = `<div class="${baseClass}">
+                            <h2 class="text-2xl font-bold text-gray-800 border-b-2 border-blue-300 pb-2 mb-5">${slide.title}</h2>
+                            ${objItems}
+                            <div class="mt-4 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">⏱️ Temps estimé : 45 min (théorie + démonstrations)</div>
+                        </div>`;
+            }
+            else if (slide.type === 'content' || slide.type === 'conclusion') {
+                html = `<div class="${baseClass}">
+                            <h2 class="text-2xl font-bold text-gray-800 border-l-4 border-blue-500 pl-3 mb-5">${slide.title}</h2>
+                            <div class="prose prose-lg max-w-none text-gray-700">${slide.content}</div>
+                        </div>`;
+            }
+            else {
+                // fallback
+                html = `<div class="${baseClass}"><h2>${slide.title}</h2><div>${slide.content}</div></div>`;
+            }
+
+            $('#slides-wrapper').html(html);
+            $('#slideCounter').text(`Slide ${index+1} / ${totalSlides}`);
+            const progressPercent = ((index) / (totalSlides - 1)) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            
+            // MathJax re-render si besoin (peu utilisé mais sécurité)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+                scrollToTop();
+            } else {
+                // dernier slide, message optionnel
+                if(currentIndex === totalSlides-1){
+                    alert("✅ Fin du cours ! Vous avez terminé la leçon sur MongoDB et Redis.");
+                }
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+                scrollToTop();
+            } else {
+                // premier slide
+                if(currentIndex === 0) alert("🏁 Vous êtes au début du cours.");
+            }
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Gestion clavier flèches
+        $(document).keydown(function(e) {
+            if (e.key === 'ArrowRight') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+
+        // Initialisation
+        $(document).ready(function() {
+            renderSlide(0);
+            $('#nextBtn').on('click', nextSlide);
+            $('#prevBtn').on('click', prevSlide);
+            // swipe minimal pour mobiles (simple détection)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('#slides-wrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slides-wrapper').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40) {
+                    nextSlide();
+                } else if (touchEndX > touchStartX + 40) {
+                    prevSlide();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

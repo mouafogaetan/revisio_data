@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Cours Réseaux - Couche liaison : MAC, ARP, détection d'erreurs (Lesson 6)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .slide { display: none; animation: fadeSlide 0.4s ease; }
+        .slide.active { display: block; }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateX(18px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        body {
+            background: linear-gradient(135deg, #fef9e6 0%, #fdf0d8 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #d97706;
+            color: white;
+        }
+        .progress-bar {
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 4px;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #d97706;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        .mac-badge {
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .arp-table {
+            background: #f8fafc;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .arp-table th, .arp-table td {
+            border: 1px solid #cbd5e1;
+            padding: 0.5rem;
+            text-align: left;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-3 md:p-5">
+
+<div class="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-amber-100">
+    <!-- En-tête -->
+    <div class="bg-gradient-to-r from-amber-700 to-orange-700 text-white px-5 py-4 flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-ethernet text-2xl"></i>
+            <span class="font-bold text-lg">Initiation aux Réseaux</span>
+        </div>
+        <div class="bg-amber-800 px-3 py-1 rounded-full text-sm shadow-sm">
+            Lesson 6 : Couche liaison (MAC, ARP, erreurs)
+        </div>
+    </div>
+
+    <!-- Zone slides -->
+    <div class="p-5 md:p-8 min-h-[520px] bg-gray-50">
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : Titre -->
+            <div class="slide active" data-index="0">
+                <div class="text-center py-8 md:py-12">
+                    <i class="fas fa-link text-6xl text-amber-600 mb-4"></i>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">🔗 Couche liaison de données</h1>
+                    <p class="text-xl text-amber-700 font-semibold mt-2">Adresses MAC, ARP et fiabilité des trames</p>
+                    <div class="h-1 w-28 bg-amber-500 mx-auto my-5 rounded-full"></div>
+                    <p class="text-gray-600 max-w-md mx-auto">La couche 2 du modèle OSI : communication entre machines voisines sur le même réseau local</p>
+                    <div class="flex flex-wrap justify-center gap-3 mt-8 text-sm text-gray-500">
+                        <span><i class="fas fa-id-card mr-1"></i> Adresse MAC</span>
+                        <span><i class="fas fa-exchange-alt mr-1"></i> ARP</span>
+                        <span><i class="fas fa-shield-alt mr-1"></i> Détection d'erreurs</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs -->
+            <div class="slide" data-index="1">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-5">🎯 Objectifs de la leçon</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-shield-alt text-amber-500 mt-1"></i>
+                        <span>Comprendre le rôle de la <strong>couche liaison</strong> (détection/correction d'erreurs)</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-id-card text-amber-500 mt-1"></i>
+                        <span>Définir l'<strong>adresse MAC</strong> (format 48 bits, OUI)</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-globe text-amber-500 mt-1"></i>
+                        <span>Distinguer <strong>unicast, multicast, broadcast</strong></span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex items-start gap-3">
+                        <i class="fas fa-handshake text-amber-500 mt-1"></i>
+                        <span>Découvrir le protocole <strong>ARP</strong> (résolution IP → MAC)</span>
+                    </div>
+                </div>
+                <div class="mt-6 bg-amber-50 p-4 rounded-xl text-amber-800 text-sm">
+                    💡 La couche liaison permet aux appareils d'un même réseau local de s'identifier et de s'échanger des trames fiables.
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Rôle de la couche liaison -->
+            <div class="slide" data-index="2">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">📡 Rôle de la couche liaison (Data Link)</h2>
+                <p class="mb-3">La couche 2 du modèle OSI a pour missions :</p>
+                <ul class="list-disc list-inside space-y-2 bg-gray-100 p-4 rounded-lg">
+                    <li><strong>Découpage en trames (framing)</strong> : encapsule les paquets IP dans des trames</li>
+                    <li><strong>Adressage physique</strong> : utilise l'adresse MAC (unique par carte réseau)</li>
+                    <li><strong>Détection et correction d'erreurs</strong> : CRC (Cyclic Redundancy Check), checksum</li>
+                    <li><strong>Contrôle d'accès au support</strong> : CSMA/CD (Ethernet), CSMA/CA (WiFi)</li>
+                    <li><strong>Contrôle de flux</strong> (optionnel) : empêche la saturation du récepteur</li>
+                </ul>
+                <div class="mt-3 text-sm text-gray-600"><i class="fas fa-info-circle text-amber-500"></i> Les <strong>switches</strong> sont des équipements de couche 2 (ils lisent les adresses MAC).</div>
+            </div>
+
+            <!-- SLIDE 4 : L'adresse MAC -->
+            <div class="slide" data-index="3">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">🏷️ L'adresse MAC (Media Access Control)</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <p><strong>Caractéristiques :</strong></p>
+                        <ul class="list-disc list-inside space-y-1 text-sm">
+                            <li>48 bits (6 octets)</li>
+                            <li>Notation hexadécimale : <span class="mac-badge">AA:BB:CC:DD:EE:FF</span></li>
+                            <li>Premiers 24 bits = <strong>OUI</strong> (constructeur)</li>
+                            <li>Derniers 24 bits = numéro série unique</li>
+                            <li>Gravée dans la carte réseau (théoriquement unique)</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded">
+                        <p class="font-semibold">Types d'adresses MAC :</p>
+                        <ul class="list-disc list-inside text-sm">
+                            <li><strong>Unicast</strong> : vers une seule interface</li>
+                            <li><strong>Multicast</strong> : vers un groupe (bit de poids faible = 1)</li>
+                            <li><strong>Broadcast</strong> : <span class="mac-badge">FF:FF:FF:FF:FF:FF</span> (vers tout le réseau local)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-3 bg-yellow-50 p-2 rounded text-sm">
+                    <i class="fas fa-info-circle"></i> Commande pour afficher sa MAC : <span class="font-mono">ipconfig /all</span> (Windows) ou <span class="font-mono">ifconfig</span> (Linux/Mac)
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Détection et correction d'erreurs -->
+            <div class="slide" data-index="4">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">🔍 Détection et correction d'erreurs</h2>
+                <p>La couche liaison ajoute un <strong>checksum</strong> ou <strong>CRC</strong> à la fin de chaque trame.</p>
+                <div class="code-block mt-2 text-sm">
++-------------------+-------------------+---------------------+
+| En-tête MAC (14B) | Données (paquet IP) | CRC (4B)            |
++-------------------+-------------------+---------------------+
+                </div>
+                <p class="mt-3"><strong>CRC (Cyclic Redundancy Check)</strong> : calcul mathématique qui permet de détecter les altérations de bits. Si le récepteur recalcule un CRC différent → trame erronée → demande de retransmission.</p>
+                <div class="mt-2 bg-green-50 p-2 rounded text-sm">
+                    <i class="fas fa-check-circle text-green-600"></i> Ethernet utilise CRC-32 (taux de détection > 99,9999%)
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Protocole ARP -->
+            <div class="slide" data-index="5">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">🔄 ARP (Address Resolution Protocol)</h2>
+                <p>ARP permet de trouver l'adresse MAC à partir d'une adresse IP sur un même réseau local.</p>
+                <div class="bg-gray-100 p-3 rounded mt-2">
+                    <p class="font-semibold">Fonctionnement :</p>
+                    <ol class="list-decimal list-inside text-sm space-y-1">
+                        <li>Machine A veut envoyer un paquet à IP X</li>
+                        <li>Elle consulte sa <strong>table ARP</strong> (cache)</li>
+                        <li>Si pas trouvé, elle émet une requête <strong>ARP broadcast</strong> : "Qui a l'IP X ?"</li>
+                        <li>La machine X répond avec son adresse MAC</li>
+                        <li>La table ARP est mise à jour (durée de vie : 15-30 min)</li>
+                    </ol>
+                </div>
+                <div class="mt-3 text-sm">
+                    <span class="font-mono bg-gray-200 px-1 rounded">arp -a</span> (Windows/Linux) pour afficher la table ARP.
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Exemple ARP visuel -->
+            <div class="slide" data-index="6">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">📊 Exemple ARP pas à pas</h2>
+                <div class="bg-white border rounded-lg p-3">
+                    <p class="mb-2"><strong>Scénario</strong> : PC1 (192.168.1.10) veut parler à PC2 (192.168.1.20)</p>
+                    <ol class="list-decimal list-inside space-y-1 text-sm">
+                        <li>PC1 vérifie sa table ARP → pas d'entrée</li>
+                        <li>PC1 envoie un <span class="font-mono bg-red-100 px-1">broadcast MAC FF:FF:FF:FF:FF:FF</span> avec requête ARP</li>
+                        <li>PC2 reçoit la requête, reconnaît son IP</li>
+                        <li>PC2 répond (<span class="font-mono">unicast</span>) avec sa MAC (par ex. AA:BB:CC:11:22:33)</li>
+                        <li>PC1 stocke (192.168.1.20 → AA:BB:CC:11:22:33) dans sa table</li>
+                        <li>Les deux machines peuvent maintenant communiquer directement au niveau Ethernet</li>
+                    </ol>
+                </div>
+                <div class="mt-3 bg-amber-50 p-2 rounded text-sm">
+                    <i class="fas fa-lightbulb"></i> ARP est un protocole de <strong>niveau 2.5</strong> (entre liaison et réseau).
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Vulnérabilité ARP (ARP spoofing) -->
+            <div class="slide" data-index="7">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-4">⚠️ Sécurité : ARP spoofing</h2>
+                <p>ARP n'a pas d'authentification → vulnérabilité : une machine malveillante peut répondre à toutes les requêtes ARP en prétendant être une autre machine.</p>
+                <div class="bg-red-50 p-3 rounded mt-2 border-l-4 border-red-500">
+                    <p class="font-semibold">Conséquences :</p>
+                    <ul class="list-disc list-inside text-sm">
+                        <li>Interception du trafic (MITM)</li>
+                        <li>Détournement de flux</li>
+                        <li>Déni de service</li>
+                    </ul>
+                </div>
+                <p class="mt-2 text-sm">Protections : <strong>ARP statique</strong> (sur réseaux sécurisés), <strong>Dynamic ARP Inspection</strong> (sur switches gérés).</p>
+            </div>
+
+            <!-- SLIDE 9 : Exercice d'application -->
+            <div class="slide" data-index="8">
+                <h2 class="text-2xl font-bold text-amber-800 border-l-4 border-amber-500 pl-3 mb-3">✏️ Exercice : Analyser une trame</h2>
+                <p>Une trame Ethernet contient :</p>
+                <ul class="list-disc list-inside bg-gray-100 p-3 rounded-lg mt-2">
+                    <li>MAC destination : <span class="mac-badge">FF:FF:FF:FF:FF:FF</span></li>
+                    <li>MAC source : <span class="mac-badge">00:14:22:01:23:45</span></li>
+                    <li>Type : 0x0806 (ARP)</li>
+                </ul>
+                <p class="mt-2">Questions :</p>
+                <ol class="list-decimal list-inside text-sm space-y-1">
+                    <li>Quel type de communication est-ce (unicast/multicast/broadcast) ?</li>
+                    <li>Quel est l'OUI du constructeur de la MAC source ?</li>
+                    <li>À quel protocole correspond le type 0x0806 ?</li>
+                </ol>
+                <details class="mt-4 bg-gray-800 text-white p-3 rounded-lg cursor-pointer">
+                    <summary class="font-semibold text-amber-300">🧩 Voir les réponses</summary>
+                    <div class="mt-2 text-xs text-green-300">
+                        1. Broadcast (MAC destination = FF:FF:FF:FF:FF:FF).<br>
+                        2. OUI = 00:14:22 (constructeur Dell, par exemple).<br>
+                        3. 0x0806 = protocole ARP (requête/réponse).
+                    </div>
+                </details>
+            </div>
+
+            <!-- SLIDE 10 : Résumé -->
+            <div class="slide" data-index="9">
+                <h2 class="text-2xl font-bold text-center text-amber-800 mb-5">📌 Récapitulatif</h2>
+                <div class="space-y-3">
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>Couche liaison</strong> : trames, adresses MAC, détection d'erreurs (CRC)</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>Adresse MAC</strong> : 48 bits (OUI + série), gravée dans la carte réseau</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>ARP</strong> : résolution IP → MAC sur réseau local</span></div>
+                    <div class="bg-white p-3 rounded shadow-sm flex gap-3 items-center"><i class="fas fa-check-circle text-green-600"></i> <span><strong>Vulnérabilité</strong> : ARP spoofing (usurpation MAC)</span></div>
+                </div>
+                <div class="mt-8 text-center text-gray-500 text-sm">
+                    <i class="fas fa-network-wired text-amber-400 text-2xl"></i>
+                    <p class="mt-2">Prochaine leçon : Adressage IPv4 (classes, masques, sous-réseaux)</p>
+                    <button id="restartBtn" class="mt-4 bg-amber-600 text-white px-5 py-2 rounded-full text-sm hover:bg-amber-700 transition shadow">⟳ Revoir du début</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation & progression -->
+    <div class="bg-white border-t border-gray-200 px-5 py-3 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex gap-2">
+            <button id="prevSlide" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full disabled:opacity-50" disabled>
+                <i class="fas fa-chevron-left"></i> Précédent
+            </button>
+            <button id="nextSlide" class="nav-btn bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-full">
+                Suivant <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <div class="text-sm text-gray-500">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+        <div class="progress-bar w-full sm:w-56">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let slides = $('.slide');
+    let total = slides.length;
+    let current = 0;
+
+    function updateSlides() {
+        slides.removeClass('active');
+        $(slides[current]).addClass('active');
+        $('#currentSlideIdx').text(current+1);
+        let percent = ((current+1)/total)*100;
+        $('#progressFill').css('width', percent+'%');
+        $('#prevSlide').prop('disabled', current === 0);
+        $('#nextSlide').prop('disabled', current === total-1);
+    }
+
+    function next() { if(current < total-1) { current++; updateSlides(); } }
+    function prev() { if(current > 0) { current--; updateSlides(); } }
+
+    $('#nextSlide').on('click', next);
+    $('#prevSlide').on('click', prev);
+    $('#restartBtn').on('click', function() { current = 0; updateSlides(); });
+
+    $(document).on('keydown', function(e) {
+        if(e.key === 'ArrowRight') next();
+        if(e.key === 'ArrowLeft') prev();
+    });
+
+    let startX = 0;
+    $('.slide').on('touchstart', function(e) { startX = e.originalEvent.changedTouches[0].screenX; });
+    $('.slide').on('touchend', function(e) {
+        let endX = e.originalEvent.changedTouches[0].screenX;
+        if(endX < startX - 40) next();
+        if(endX > startX + 40) prev();
+    });
+
+    updateSlides();
+});
+</script>
+</body>
+</html>

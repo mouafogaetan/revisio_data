@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 20 : Autorisation avec [Authorize] et Rôles - API .NET</title>
+  <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules si besoin, mais on le garde au cas où) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* personnalisation fine pour la navigation slides et transition douce */
+    body {
+      background: #f8fafc;
+    }
+    .slide {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .slide.active {
+      display: block;
+      opacity: 1;
+    }
+    /* code block style simple */
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      margin: 1rem 0;
+    }
+    code {
+      font-family: 'Courier New', monospace;
+    }
+    .badge-role {
+      background: #3b82f6;
+      color: white;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    /* petits ajustements mobile */
+    @media (max-width: 640px) {
+      pre {
+        font-size: 0.75rem;
+        padding: 0.75rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- Conteneur principal des slides -->
+    <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+      
+      <!-- Slide 1 : Titre de la leçon -->
+      <div class="slide active" data-slide="0">
+        <div class="bg-gradient-to-r from-indigo-700 to-blue-800 p-6 md:p-10 text-white">
+          <div class="flex justify-between items-start">
+            <span class="text-xs uppercase tracking-wider bg-white/20 rounded-full px-3 py-1">API .NET Core - Sécurité</span>
+            <span class="text-xs font-mono bg-black/30 px-2 py-1 rounded">Leçon 20/39</span>
+          </div>
+          <div class="mt-10 md:mt-16">
+            <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">Protéger vos endpoints<br>avec <span class="bg-white/20 px-2 py-1 rounded-md">[Authorize]</span> et rôles</h1>
+            <p class="text-indigo-100 text-lg md:text-xl mt-6 max-w-2xl">Maîtrisez l'autorisation dans ASP.NET Core : attributs, politiques, restriction par rôle et bonnes pratiques.</p>
+            <div class="mt-8 flex flex-wrap gap-3 text-sm">
+              <div class="bg-white/20 rounded-full px-4 py-1">🔐 JWT</div>
+              <div class="bg-white/20 rounded-full px-4 py-1">👥 Rôles</div>
+              <div class="bg-white/20 rounded-full px-4 py-1">⚙️ Politiques</div>
+            </div>
+          </div>
+          <div class="mt-12 text-right text-indigo-200 text-sm">Cliquez sur ➡️ pour avancer</div>
+        </div>
+      </div>
+
+      <!-- Slide 2 : Objectifs pédagogiques -->
+      <div class="slide" data-slide="1">
+        <div class="p-6 md:p-8 border-b border-gray-200 bg-gray-50">
+          <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+          <p class="text-gray-600 mt-2">Ce que vous saurez faire après cette leçon :</p>
+        </div>
+        <div class="p-6 md:p-8 space-y-4">
+          <div class="flex items-start gap-3">
+            <span class="text-indigo-600 text-xl">✓</span>
+            <p class="text-gray-700"><span class="font-semibold">Utiliser [Authorize]</span> pour protéger des endpoints API contre les accès non authentifiés.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-indigo-600 text-xl">✓</span>
+            <p class="text-gray-700"><span class="font-semibold">Restreindre l’accès avec [Authorize(Roles = "Admin")]</span> selon les rôles utilisateur.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-indigo-600 text-xl">✓</span>
+            <p class="text-gray-700"><span class="font-semibold">Créer des politiques d’autorisation personnalisées</span> via <code class="bg-gray-200 px-1 rounded">AuthorizationPolicyBuilder</code>.</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-indigo-600 text-xl">✓</span>
+            <p class="text-gray-700">Comprendre l’interaction entre JWT, <code class="bg-gray-200 px-1 rounded">Claims</code> et l’attribut <code class="bg-gray-200 px-1 rounded">[Authorize]</code>.</p>
+          </div>
+        </div>
+        <div class="bg-indigo-50 p-4 rounded-b-xl text-sm text-indigo-800 italic">
+          ⚡ Prérequis : JWT configuré + endpoint de login (leçon 18-19)
+        </div>
+      </div>
+
+      <!-- Slide 3 : Rappel et introduction à [Authorize] -->
+      <div class="slide" data-slide="2">
+        <div class="p-6 md:p-8 bg-white">
+          <h2 class="text-2xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3">🔒 Qu'est-ce que [Authorize] ?</h2>
+          <p class="mt-4 text-gray-700">L’attribut <code class="bg-gray-100 px-1 rounded text-indigo-700">[Authorize]</code> empêche l’accès à un contrôleur ou une action si l’utilisateur n’est <strong>pas authentifié</strong>. Il s’utilise dans les API REST sécurisées par token JWT.</p>
+          <div class="mt-6 bg-gray-800 rounded-xl overflow-hidden shadow-md">
+            <pre><code>// Exemple simple : tout le contrôleur nécessite authentification
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]    // 👈 protège toutes les actions
+public class CommandesController : ControllerBase
+{
+    [HttpGet]
+    public IActionResult GetCommandes() { ... }
+}</code></pre>
+          </div>
+          <div class="mt-6 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+            <p class="text-sm">💡 <span class="font-bold">Important :</span> Sans token valide dans le header <code>Authorization: Bearer &lt;token&gt;</code>, l’API retourne <span class="font-mono">401 Unauthorized</span>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4 : Restriction par rôles [Authorize(Roles = "...")] -->
+      <div class="slide" data-slide="3">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">👑 [Authorize(Roles = "Admin")]</h2>
+          <p class="mt-2 text-gray-600">Permet de limiter l’accès aux utilisateurs possédant un rôle spécifique. Les rôles sont des <strong>claims</strong> inclus dans le token JWT.</p>
+          <div class="mt-5 bg-gray-800 rounded-xl">
+            <pre><code>// Seuls les Admins peuvent créer/supprimer des produits
+[Authorize(Roles = "Admin")]
+[HttpPost]
+public IActionResult CreateProduit(ProduitDto dto) { ... }
+
+// Plusieurs rôles : Admin ou Gestionnaire
+[Authorize(Roles = "Admin, Gestionnaire")]
+[HttpPut("{id}")]
+public IActionResult UpdateProduit(int id, ...) { ... }</code></pre>
+          </div>
+          <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border rounded-lg p-3 bg-green-50">
+              <span class="font-bold text-green-800">✅ Bonne pratique</span>
+              <p class="text-sm">Attribuer des rôles aux claims lors de la génération JWT (ex: <code>new Claim(ClaimTypes.Role, "Admin")</code>).</p>
+            </div>
+            <div class="border rounded-lg p-3 bg-blue-50">
+              <span class="font-bold text-blue-800">🔧 Vérification</span>
+              <p class="text-sm">Le middleware d’authentification valide automatiquement les rôles à chaque requête.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 5 : Exemple concret : génération token incluant rôles + contrôle restreint -->
+      <div class="slide" data-slide="4">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📝 Exemple complet - Login avec rôle</h2>
+          <p class="mb-3 text-gray-600">Lors de la création du token JWT, ajoutez le(s) rôle(s) dans les claims.</p>
+          <div class="bg-gray-800 rounded-xl overflow-auto">
+            <pre><code>// Extrait du endpoint login
+var claims = new List&lt;Claim&gt;
+{
+    new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+    new Claim(ClaimTypes.Email, user.Email),
+    new Claim(ClaimTypes.Role, user.Role) // "Admin" ou "User"
+};
+var token = new JwtSecurityToken(issuer, audience, claims,
+    expires: DateTime.Now.AddHours(1),
+    signingCredentials: creds);
+return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });</code></pre>
+          </div>
+          <div class="mt-5 rounded-lg bg-indigo-50 p-4">
+            <p class="font-semibold">🔐 Contrôleur avec autorisation par rôle :</p>
+            <pre class="mt-2 text-sm bg-gray-800 text-gray-200 overflow-x-auto"><code>[Authorize(Roles = "Admin")]
+[HttpGet("admin/stats")]
+public IActionResult GetStats() => Ok("Données admin sensibles");</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 6 : Politiques personnalisées avec AuthorizationPolicyBuilder -->
+      <div class="slide" data-slide="5">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">⚙️ Politiques d’autorisation sur mesure</h2>
+          <p class="text-gray-600">Si les rôles simples ne suffisent pas, créez des politiques basées sur l’âge, un claim spécifique ou une exigence métier.</p>
+          <div class="mt-4">
+            <p class="font-mono text-sm bg-gray-100 p-2 rounded">Program.cs :</p>
+            <pre><code>builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("MinimumAge18", policy =>
+        policy.RequireClaim("Age", "18", "19", "20+"));
+    options.AddPolicy("RequireAdminOrManager", policy =>
+        policy.RequireRole("Admin", "Manager"));
+});</code></pre>
+          </div>
+          <div class="mt-4">
+            <p class="font-mono text-sm bg-gray-100 p-2 rounded">Utilisation dans un contrôleur :</p>
+            <pre><code>[Authorize(Policy = "MinimumAge18")]
+[HttpGet("adult-content")]
+public IActionResult AdultContent() => Ok("Accès réservé aux +18");</code></pre>
+          </div>
+          <div class="mt-4 p-3 bg-gray-100 rounded text-sm">
+            🧩 <strong>Avantage</strong> : les politiques centralisent les règles complexes et évitent la duplication.
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 7 : bonnes pratiques + combinaisons Authorize -->
+      <div class="slide" data-slide="6">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🧠 Bonnes pratiques & astuces</h2>
+          <ul class="list-disc pl-5 mt-4 space-y-2 text-gray-700">
+            <li>Placer <code>[Authorize]</code> au niveau contrôleur, puis <code>[AllowAnonymous]</code> sur certaines actions (login, register).</li>
+            <li>Ne jamais exposer d’endpoint sensible sans autorisation.</li>
+            <li>Combiner rôles et politiques : <code>[Authorize(Roles = "Admin", Policy = "Premium")]</code> → toutes conditions doivent être remplies.</li>
+            <li>Utiliser <code>[Authorize(Roles = "User")]</code> sur des endpoints de base et <code>[Authorize(Roles = "Admin")]</code> pour l’administration.</li>
+            <li>Vérifier les rôles dans les tests : simulez un utilisateur avec <code>ClaimsPrincipal</code>.</li>
+          </ul>
+          <div class="mt-8 bg-blue-100 border border-blue-300 rounded-lg p-3 flex items-start gap-2">
+            <span class="text-blue-700 text-xl">⚠️</span>
+            <p class="text-blue-800 text-sm">Attention : Par défaut, <code>[Authorize]</code> ne valide que l’authentification. Si aucun rôle n’est précisé, tout utilisateur authentifié (même sans rôle) a accès.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 8 : Test d’exemple avec démonstration interactive (explication via pseudo requête) -->
+      <div class="slide" data-slide="7">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">🧪 Testons notre compréhension</h2>
+          <p class="mb-3">Scénario : API de blog avec rôles "Auteur" et "Lecteur".</p>
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <p class="font-semibold">Endpoint : <code>DELETE /api/articles/{id}</code></p>
+            <p class="text-sm">Seul un "Admin" ou l’Auteur de l’article peut supprimer. Comment faire ?</p>
+            <div class="mt-3">
+              <p class="text-indigo-800 text-sm">Réponse : implémenter une politique personnalisée vérifiant le claim "UserId" et le rôle Admin.</p>
+              <pre class="text-xs mt-2"><code>[Authorize(Policy = "CanDeleteArticle")]
+public IActionResult DeleteArticle(int id) { ... }</code></pre>
+            </div>
+          </div>
+          <div class="mt-6 p-4 border border-green-200 bg-green-50 rounded">
+            <p class="font-bold">✨ À retenir :</p>
+            <p>L’attribut <code>[Authorize]</code> protège votre API, et <code>Roles</code> affine la sécurité. Les politiques personnalisées apportent une flexibilité ultime.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 9 : Résumé / récapitulatif -->
+      <div class="slide" data-slide="8">
+        <div class="p-6 md:p-8">
+          <h2 class="text-2xl font-bold text-gray-800">📌 Récapitulatif de la leçon</h2>
+          <div class="mt-4 space-y-3">
+            <div class="flex items-start"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded mr-2">1.</span> <span><code>[Authorize]</code> = exige authentification.</span></div>
+            <div class="flex items-start"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded mr-2">2.</span> <span><code>[Authorize(Roles = "Admin")]</code> = restreint selon rôles stockés dans le token.</span></div>
+            <div class="flex items-start"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded mr-2">3.</span> <span>Créer des politiques via <code>AuthorizationPolicyBuilder</code> et utiliser <code>[Authorize(Policy = "maPolicy")]</code>.</span></div>
+            <div class="flex items-start"><span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded mr-2">4.</span> <span>Les rôles multiples s'écrivent : <code>"Admin, SuperUser"</code>.</span></div>
+          </div>
+          <div class="mt-8 text-center text-sm text-gray-500">Prochaine leçon : Hashage de mots de passe avec BCrypt (lesson 21)</div>
+        </div>
+      </div>
+
+      <!-- Navigation buttons (précédent/suivant) -->
+      <div class="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <button id="prevBtn" class="bg-white hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow transition disabled:opacity-40 disabled:cursor-not-allowed border">◀ Précédent</button>
+        <div class="text-sm text-gray-500">
+          Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">9</span>
+        </div>
+        <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow transition">Suivant ▶</button>
+      </div>
+    </div>
+    
+    <!-- Petite note pédagogique + source -->
+    <div class="text-center text-xs text-gray-400 mt-6">
+      📘 Cours pour la classe Développement Web (API .NET) - Leçon 20 : [Authorize] et rôles | Enseignant Cameroun ✨
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      let currentSlide = 0;
+      const slides = $('.slide');
+      const total = slides.length;
+      $('#totalSlides').text(total);
+      
+      function updateSlides() {
+        slides.removeClass('active');
+        $(slides[currentSlide]).addClass('active');
+        $('#currentSlideIdx').text(currentSlide + 1);
+        // gestion désactivation boutons
+        if (currentSlide === 0) {
+          $('#prevBtn').prop('disabled', true);
+        } else {
+          $('#prevBtn').prop('disabled', false);
+        }
+        if (currentSlide === total - 1) {
+          $('#nextBtn').prop('disabled', true);
+        } else {
+          $('#nextBtn').prop('disabled', false);
+        }
+        // scroll en haut pour mobile
+        $('html, body').animate({ scrollTop: $('#slides-container').offset().top - 10 }, 100);
+      }
+      
+      $('#nextBtn').on('click', function() {
+        if (currentSlide < total - 1) {
+          currentSlide++;
+          updateSlides();
+        }
+      });
+      
+      $('#prevBtn').on('click', function() {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlides();
+        }
+      });
+      
+      // swiper option simple pour mobile (glissement)
+      let touchstartX = 0;
+      let touchendX = 0;
+      const container = $('#slides-container')[0];
+      container.addEventListener('touchstart', function(e) {
+        touchstartX = e.changedTouches[0].screenX;
+      }, false);
+      container.addEventListener('touchend', function(e) {
+        touchendX = e.changedTouches[0].screenX;
+        if (touchendX < touchstartX - 40 && currentSlide < total - 1) {
+          currentSlide++;
+          updateSlides();
+        }
+        if (touchendX > touchstartX + 40 && currentSlide > 0) {
+          currentSlide--;
+          updateSlides();
+        }
+      }, false);
+      
+      // support clavier: flèches droite/gauche
+      $(document).on('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+          if (currentSlide < total - 1) {
+            currentSlide++;
+            updateSlides();
+          }
+        } else if (e.key === 'ArrowLeft') {
+          if (currentSlide > 0) {
+            currentSlide--;
+            updateSlides();
+          }
+        }
+      });
+      
+      // initialisation
+      updateSlides();
+    });
+  </script>
+  <!-- Note : Les illustrations n'étaient pas complexes ou nécessaires pour cette leçon conceptuelle, 
+       donc on n'a pas utilisé d'image externe. Le dessin était remplacé par blocs de code et schémas clairs -->
+</body>
+</html>

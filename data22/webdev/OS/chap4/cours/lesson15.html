@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 15 : Buffering, Cache et Spooling - Initiation aux Systèmes d'exploitation</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules (si nécessaire, peu de formules ici mais gardé pour cohérence) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome (optionnel mais pour les icônes de navigation) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Custom transitions et styles pour slides */
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #1e3a8a;
+            border-color: #1e3a8a;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .card-glass {
+                border-radius: 1.5rem;
+                margin: 0.5rem;
+            }
+            h1 {
+                font-size: 1.6rem;
+            }
+            .slide-content {
+                padding: 1rem 1rem;
+            }
+        }
+        /* Petites améliorations lisibilité */
+        .objectif-item {
+            background: #f8fafc;
+            border-left: 6px solid #3b82f6;
+            transition: all 0.2s;
+        }
+        .objectif-item:hover {
+            background: #f1f5f9;
+            transform: translateX(4px);
+        }
+        .concept-card {
+            background: white;
+            border-radius: 1.25rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        .diagram-simple {
+            background: #f1f5f9;
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: center;
+            font-family: monospace;
+            border: 1px solid #cbd5e1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <main class="max-w-4xl mx-auto px-3 py-6 md:py-10">
+        <!-- Conteneur principal card -->
+        <div class="card-glass overflow-hidden border border-white/30">
+            <!-- En-tête avec informations de la leçon -->
+            <div class="bg-gradient-to-r from-blue-800 to-indigo-800 px-5 py-4 md:py-5 text-white">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+                    <div>
+                        <p class="text-sm uppercase tracking-wider opacity-80"><i class="fas fa-desktop mr-1"></i> Module: Initiation aux Systèmes d'exploitation | Leçon 15</p>
+                        <h1 class="text-2xl md:text-3xl font-bold mt-1">Buffering, Cache & Spooling</h1>
+                        <p class="text-blue-100 text-sm md:text-base mt-1">Gestion des périphériques : optimisation des transferts de données</p>
+                    </div>
+                    <div class="bg-white/20 rounded-full px-3 py-1 text-sm self-start md:self-center">
+                        <i class="fas fa-chalkboard-teacher mr-1"></i> Enseignant: M. NDZANA (Cameroun)
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone slides -->
+            <div class="slide-content p-5 md:p-8">
+                <!-- Slide 1 : Titre de la leçon -->
+                <div class="slide active" id="slide1">
+                    <div class="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                        <div class="bg-blue-50 p-4 rounded-full mb-4">
+                            <i class="fas fa-database text-5xl text-blue-700"></i>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800">Buffering, Cache & Spooling</h2>
+                        <div class="h-1 w-24 bg-blue-500 my-4 rounded-full"></div>
+                        <p class="text-gray-600 text-lg max-w-lg mx-auto">Optimiser les entrées/sorties entre périphériques lents et processeur rapide</p>
+                        <div class="mt-8 flex gap-4 text-sm text-gray-500">
+                            <span><i class="far fa-clock mr-1"></i> Durée: 45 min</span>
+                            <span><i class="fas fa-graduation-cap mr-1"></i> Niveau: Débutant / Intermédiaire</span>
+                        </div>
+                        <button class="next-slide mt-10 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-full shadow transition"><i class="fas fa-arrow-right mr-2"></i>Commencer</button>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs de la leçon -->
+                <div class="slide" id="slide2">
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-bold text-gray-800 border-l-4 border-blue-600 pl-3"><i class="fas fa-bullseye text-blue-600 mr-2"></i> Objectifs pédagogiques</h3>
+                    </div>
+                    <div class="grid gap-4 mt-4">
+                        <div class="objectif-item p-4 rounded-xl shadow-sm">
+                            <i class="fas fa-check-circle text-green-600 mr-3 text-lg"></i> <span class="font-medium">Comprendre le buffering (tampon)</span> pour lisser les différences de débit entre producteur et consommateur.
+                        </div>
+                        <div class="objectif-item p-4 rounded-xl shadow-sm">
+                            <i class="fas fa-check-circle text-green-600 mr-3 text-lg"></i> <span class="font-medium">Distinguer cache (réutilisation) et buffer (tampon)</span> : finalités et mécanismes.
+                        </div>
+                        <div class="objectif-item p-4 rounded-xl shadow-sm">
+                            <i class="fas fa-check-circle text-green-600 mr-3 text-lg"></i> <span class="font-medium">Comprendre le spooling</span> (simultanéité périphérique lent) et son rôle dans l'impression ou les traitements batch.
+                        </div>
+                    </div>
+                    <div class="mt-10 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm">
+                        <i class="fas fa-lightbulb mr-2"></i> À la fin, vous saurez expliquer pourquoi un lecteur vidéo utilise un buffer, à quoi sert le cache CPU, et pourquoi une imprimante utilise le spooling.
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-5 rounded-full transition"><i class="fas fa-arrow-left mr-2"></i> Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded-full transition">Suivant <i class="fas fa-arrow-right ml-2"></i></button>
+                    </div>
+                </div>
+
+                <!-- Slide 3 : Qu'est-ce que le buffering ? (Concept + schéma) -->
+                <div class="slide" id="slide3">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4"><i class="fas fa-layer-group text-blue-600 mr-2"></i> Le Buffering (Tamponnage)</h3>
+                    <p class="text-gray-700 leading-relaxed mb-4">Un <span class="font-bold text-blue-700">buffer</span> est une zone de mémoire temporaire qui sert à <strong class="text-gray-900">lisser les différences de débit</strong> entre deux composants (ex: disque dur lent / processeur rapide). Sans buffer, le périphérique lent ralentirait tout le système.</p>
+                    
+                    <!-- Petit schéma dessiné en HTML/CSS simple -->
+                    <div class="diagram-simple my-5">
+                        <div class="flex flex-wrap justify-center items-center gap-2 md:gap-4 text-sm">
+                            <div class="bg-red-100 p-3 rounded-lg"><i class="fas fa-microchip"></i> Producteur<br>(rapide)</div>
+                            <i class="fas fa-arrow-right text-gray-500 text-xl"></i>
+                            <div class="bg-green-100 p-3 rounded-lg border-2 border-green-400 shadow"><i class="fas fa-database"></i> <strong>BUFFER</strong><br>(zone tampon)</div>
+                            <i class="fas fa-arrow-right text-gray-500 text-xl"></i>
+                            <div class="bg-yellow-100 p-3 rounded-lg"><i class="fas fa-print"></i> Consommateur<br>(lent)</div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-3">📌 Le buffer emmagasine les données pour éviter d'attendre le périphérique lent.</p>
+                    </div>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        <li><i class="fas fa-video text-purple-500 mr-2"></i> <strong>Exemple concret :</strong> Lecture vidéo en streaming. Le lecteur pré-charge quelques secondes (buffer) pour compenser les variations du réseau.</li>
+                        <li><i class="fas fa-keyboard text-gray-500 mr-2"></i> <strong>Buffering double (double buffer)</strong> : Pendant qu'un buffer est utilisé, l'autre se remplit → fluidité.</li>
+                    </ul>
+                    <div class="mt-6 flex justify-between">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">◀ Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full">Suivant ▶</button>
+                    </div>
+                </div>
+
+                <!-- Slide 4 : Cache vs Buffer - distinctions essentielles -->
+                <div class="slide" id="slide4">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-5"><i class="fas fa-brain text-blue-600 mr-2"></i> Cache vs Buffer : Ne pas confondre !</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="concept-card p-5 border-t-4 border-blue-500">
+                            <div class="flex items-center gap-2 mb-3"><i class="fas fa-tachometer-alt text-2xl text-blue-600"></i><h4 class="text-xl font-semibold">Cache</h4></div>
+                            <p class="text-gray-600">Stocke des <strong>données fréquemment utilisées</strong> pour accélérer les accès futurs (principe de <em>réutilisation</em>). Ex: cache navigateur, cache CPU (L1/L2/L3).</p>
+                            <div class="mt-3 text-sm bg-gray-100 p-2 rounded">✅ Objectif : <strong>Réduire la latence</strong> en évitant de recalculer/recharger.</div>
+                        </div>
+                        <div class="concept-card p-5 border-t-4 border-green-500">
+                            <div class="flex items-center gap-2 mb-3"><i class="fas fa-hourglass-half text-2xl text-green-600"></i><h4 class="text-xl font-semibold">Buffer</h4></div>
+                            <p class="text-gray-600">Zone mémoire <strong>temporaire</strong> pour compenser la différence de vitesse entre deux systèmes (producteur/consommateur). Utilisation unique généralement.</p>
+                            <div class="mt-3 text-sm bg-gray-100 p-2 rounded">✅ Objectif : <strong>Lisser les variations de débit</strong> et éviter les blocages.</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-gray-700">
+                        <i class="fas fa-quote-left mr-2"></i> Résumé : Le cache optimise les accès répétés ; le buffer optimise le flux entre entité de vitesses différentes.
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">◀ Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full">Suivant ▶</button>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : Spooling (Simultaneous Peripheral Operation On-Line) -->
+                <div class="slide" id="slide5">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4"><i class="fas fa-print text-blue-600 mr-2"></i> Le Spooling (Mise en file d'attente)</h3>
+                    <p class="text-gray-700 leading-relaxed mb-3">Le <strong class="text-blue-700">spooling</strong> est une technique qui permet à un système de <span class="font-semibold">mettre en file d'attente</span> les travaux destinés à un périphérique lent (imprimante, modem...). Le processus utilisateur n'attend pas la fin réelle de l'impression.</p>
+                    <div class="diagram-simple my-4">
+                        <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                            <div class="bg-gray-200 p-2 rounded">Application A</div>
+                            <div class="bg-gray-200 p-2 rounded">Application B</div>
+                            <div class="bg-gray-200 p-2 rounded">Application C</div>
+                            <i class="fas fa-arrow-right text-xl"></i>
+                            <div class="bg-indigo-200 p-2 rounded-lg font-bold">SPOOLER (zone disque)</div>
+                            <i class="fas fa-arrow-right text-xl"></i>
+                            <div class="bg-red-200 p-2 rounded"><i class="fas fa-print"></i> Imprimante</div>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-2">Chaque travail est stocké sur le disque, puis l'imprimante les traite un par un.</p>
+                    </div>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        <li><strong>Avantage majeur :</strong> Le programme utilisateur n'est pas bloqué pendant l'impression (découplage).</li>
+                        <li><strong>Exemple classique :</strong> Sous Linux, le démon <code class="bg-gray-100 px-1">cups</code> (spooler d'impression) gère les fichiers dans <code>/var/spool/cups</code>.</li>
+                        <li>Le spooling est aussi utilisé pour les traitements par lots (batch).</li>
+                    </ul>
+                    <div class="bg-green-50 p-3 rounded-lg mt-3">
+                        <i class="fas fa-lightbulb text-green-700 mr-2"></i> Astuce: Le spooling transforme un périphérique exclusif lent en ressource partagée accessible simultanément par plusieurs processus.
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">◀ Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full">Suivant ▶</button>
+                    </div>
+                </div>
+
+                <!-- Slide 6 : Exemples concrets & mise en perspective -->
+                <div class="slide" id="slide6">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-5"><i class="fas fa-microphone-alt text-blue-600 mr-2"></i> Exemples dans la vie quotidienne et l'informatique</h3>
+                    <div class="space-y-5">
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-music text-2xl text-indigo-500 mt-1"></i>
+                            <div><strong class="block">Streaming audio/vidéo</strong> <span class="text-gray-600">Buffer de préchargement pour éviter les saccades.</span></div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-database text-2xl text-indigo-500 mt-1"></i>
+                            <div><strong class="block">Base de données</strong> <span class="text-gray-600">Buffer pool (zone mémoire pour pages de données). Cache de requêtes.</span></div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-print text-2xl text-indigo-500 mt-1"></i>
+                            <div><strong class="block">Système d'impression</strong> <span class="text-gray-600">Spooling : plusieurs utilisateurs peuvent lancer des impressions simultanément sans se bloquer.</span></div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <i class="fas fa-microchip text-2xl text-indigo-500 mt-1"></i>
+                            <div><strong class="block">Cache processeur (L1/L2/L3)</strong> <span class="text-gray-600">Conserve les données et instructions fréquemment utilisées pour accélérer l'exécution.</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-blue-50 rounded-xl p-4 text-sm">
+                        💡 <strong>À retenir :</strong> Le buffering, le caching et le spooling sont des techniques fondamentales de gestion des entrées/sorties que tout OS moderne implémente.
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">◀ Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full">Suivant ▶</button>
+                    </div>
+                </div>
+
+                <!-- Slide 7 : Exercice réflexif et synthèse -->
+                <div class="slide" id="slide7">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4"><i class="fas fa-puzzle-piece text-blue-600 mr-2"></i> Petite question de réflexion</h3>
+                    <div class="bg-white p-5 rounded-xl shadow-md">
+                        <p class="font-medium text-gray-800"><i class="fas fa-question-circle text-blue-500 mr-2"></i> Pourquoi un ordinateur utilise-t-il à la fois un cache (CPU) et un buffer (clavier) ?</p>
+                        <textarea id="answerInput" rows="2" class="w-full mt-3 p-2 border border-gray-300 rounded-lg focus:ring-blue-400" placeholder="Écrivez votre réponse ici..."></textarea>
+                        <button id="checkAnswerBtn" class="mt-3 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-full text-sm transition"><i class="fas fa-check mr-1"></i> Voir un indice</button>
+                        <p id="answerHint" class="mt-3 text-gray-600 italic hidden">Indice : Le cache réduit le temps d'accès aux données répétitives, tandis que le buffer évite de perdre des caractères si le système est occupé (ex: saisie clavier).</p>
+                    </div>
+                    <div class="mt-6 border-t pt-4">
+                        <h4 class="font-semibold">📌 Synthèse de la leçon 15</h4>
+                        <ul class="list-disc pl-5 mt-2 text-gray-700 space-y-1">
+                            <li><strong>Buffer</strong> : mémoire tampon pour compenser les différences de débit (ex: streaming).</li>
+                            <li><strong>Cache</strong> : stockage rapide des données réutilisées (ex: cache navigateur).</li>
+                            <li><strong>Spooling</strong> : mise en file d'attente sur disque pour partager un périphérique lent (imprimante).</li>
+                        </ul>
+                    </div>
+                    <div class="flex justify-between mt-8">
+                        <button class="prev-slide bg-gray-200 hover:bg-gray-300 py-2 px-5 rounded-full">◀ Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-full">Terminer ▶</button>
+                    </div>
+                </div>
+
+                <!-- Slide 8 : Félicitations -->
+                <div class="slide" id="slide8">
+                    <div class="text-center py-8 min-h-[55vh] flex flex-col justify-center">
+                        <i class="fas fa-check-circle text-green-500 text-7xl mb-4"></i>
+                        <h2 class="text-3xl font-bold text-gray-800">Félicitations ! 🎉</h2>
+                        <p class="text-gray-600 text-lg mt-3">Vous avez terminé la leçon sur le Buffering, Cache & Spooling.</p>
+                        <div class="mt-6 bg-blue-100 p-3 rounded-lg inline-block mx-auto">
+                            <i class="fas fa-rocket text-blue-600 mr-2"></i> Prochaine leçon : Gestion des entrées/sorties avancées (Interruptions & DMA)
+                        </div>
+                        <button id="restartBtn" class="mt-8 bg-gray-700 hover:bg-gray-800 text-white py-2 px-6 rounded-full transition"><i class="fas fa-redo-alt mr-2"></i> Revoir la leçon</button>
+                    </div>
+                </div>
+
+                <!-- Indicateur de progression -->
+                <div class="mt-6 pt-2">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Progression</span>
+                        <span id="slideCounter">Slide 1 / 8</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progressFill" class="bg-blue-600 h-2.5 rounded-full progress-bar" style="width: 12.5%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-500 text-xs mt-5">
+            © Enseignant Camerounais - Systèmes d'exploitation | Conçu avec Tailwind CSS & jQuery | Leçon 15
+        </div>
+    </main>
+
+    <script>
+        $(document).ready(function(){
+            let currentSlide = 1;
+            const totalSlides = 8;
+            
+            function updateProgress() {
+                let percent = (currentSlide / totalSlides) * 100;
+                $('#progressFill').css('width', percent + '%');
+                $('#slideCounter').text(`Slide ${currentSlide} / ${totalSlides}`);
+            }
+            
+            function showSlide(slideNumber) {
+                $('.slide').removeClass('active');
+                $(`#slide${slideNumber}`).addClass('active');
+                currentSlide = slideNumber;
+                updateProgress();
+                // Scroll en haut pour une meilleure UX mobile
+                $('html, body').animate({ scrollTop: 0 }, 200);
+            }
+            
+            function nextSlide() {
+                if(currentSlide < totalSlides) {
+                    showSlide(currentSlide + 1);
+                } else {
+                    // si déjà dernier, on reste
+                }
+            }
+            
+            function prevSlide() {
+                if(currentSlide > 1) {
+                    showSlide(currentSlide - 1);
+                }
+            }
+            
+            // Gestion des clics sur boutons "next" et "prev"
+            $(document).on('click', '.next-slide', function(e){
+                e.preventDefault();
+                nextSlide();
+            });
+            
+            $(document).on('click', '.prev-slide', function(e){
+                e.preventDefault();
+                prevSlide();
+            });
+            
+            // Bouton redémarrer (revenir slide1)
+            $('#restartBtn').on('click', function(){
+                showSlide(1);
+            });
+            
+            // Indice pour la question interactive
+            $('#checkAnswerBtn').on('click', function(){
+                $('#answerHint').fadeIn().removeClass('hidden');
+                // Option supplémentaire: si l'utilisateur a saisi un texte, on peut le comparer avec une réponse type, mais simple indice.
+                let userAnswer = $('#answerInput').val().trim();
+                if(userAnswer.length > 5) {
+                    $('#answerHint').html("<i class='fas fa-star text-yellow-500'></i> Bonne réflexion ! Le cache optimise la réutilisation, le buffer garantit la fluidité entre vitesses différentes.");
+                } else {
+                    $('#answerHint').html("<i class='fas fa-lightbulb'></i> Indice: Le cache mémoire garde des données pour un accès rapide ; le buffer protège contre la perte d'informations lors de saisies ou transferts.");
+                }
+            });
+            
+            // Initialiser la progression
+            updateProgress();
+            
+            // Ajouter un petit effet tactile pour les boutons
+            $('.btn-nav, .next-slide, .prev-slide, #restartBtn').on('touchstart', function(){
+                $(this).css('transform', 'scale(0.98)');
+            }).on('touchend', function(){
+                $(this).css('transform', '');
+            });
+        });
+    </script>
+</body>
+</html>

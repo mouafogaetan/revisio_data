@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 21 : Analyser et optimiser les requêtes SQL avec EXPLAIN</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery CDN -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax pour formules mathématiques -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <!-- Personnalisation Tailwind + couleurs agréables -->
+  <style>
+    /* Transition douce entre slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+    }
+    .slide-hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    .slide-active {
+      display: block;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    /* Scrollbar discrète */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 10px;
+    }
+    body {
+      background: #f9fafb;
+    }
+    .card-db {
+      background: linear-gradient(135deg, #ffffff 0%, #fef9e6 100%);
+    }
+    .code-block {
+      background-color: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 1rem;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+    .highlight {
+      background-color: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+  <!-- Conteneur principal des slides -->
+  <div id="slidesContainer" class="relative">
+    
+    <!-- SLIDE 1 : TITRE -->
+    <div class="slide slide-active" id="slide1">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-amber-100 card-db">
+        <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-6 py-8 md:py-12 text-center">
+          <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm font-semibold mb-4">📘 Base de données - Niveau avancé</span>
+          <h1 class="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">Leçon 21</h1>
+          <p class="text-indigo-100 text-xl md:text-2xl mt-3 font-medium">Analyser et optimiser les performances</p>
+          <div class="mt-6 flex justify-center">
+            <div class="bg-indigo-800/50 rounded-full px-5 py-2 text-indigo-50 text-sm">🔍 EXPLAIN · Plans d'exécution · Optimisation SQL</div>
+          </div>
+        </div>
+        <div class="p-6 md:p-8 text-center">
+          <div class="flex flex-wrap justify-center gap-4 text-gray-600">
+            <div class="flex items-center gap-2"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Comprendre EXPLAIN</div>
+            <div class="flex items-center gap-2"><span class="w-2 h-2 bg-blue-500 rounded-full"></span> Identifier les scans coûteux</div>
+            <div class="flex items-center gap-2"><span class="w-2 h-2 bg-amber-500 rounded-full"></span> Optimiser avec les index</div>
+          </div>
+          <div class="mt-8 text-sm text-gray-400">👨‍🏫 Enseignant : Classe Développement Web · Initiation aux Bases de données</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+    <div class="slide slide-hidden" id="slide2">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-amber-50 px-6 py-5 border-b border-amber-200">
+          <h2 class="text-2xl md:text-3xl font-bold text-amber-800 flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+        </div>
+        <div class="p-6 md:p-8">
+          <ul class="space-y-4">
+            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong class="font-semibold">Utiliser EXPLAIN</strong> – Analyser le plan d'exécution d'une requête SQL.</span></li>
+            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong class="font-semibold">Interpréter les types de scan</strong> – Comprendre seq scan, index scan, et leur impact.</span></li>
+            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong class="font-semibold">Optimiser les requêtes lentes</strong> – Appliquer des stratégies d'indexation et restructuration.</span></li>
+          </ul>
+          <div class="mt-8 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+            <p class="text-indigo-800 text-sm italic">💡 À la fin de ce cours, vous saurez diagnostiquer et accélérer vos bases de données comme un pro !</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 : Pourquoi analyser les requêtes ? Introduction à EXPLAIN -->
+    <div class="slide slide-hidden" id="slide3">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">🔧 Pourquoi analyser ses requêtes ? Le rôle d’EXPLAIN</h2>
+        </div>
+        <div class="p-6 md:p-8 space-y-5">
+          <p class="text-gray-700 leading-relaxed">Imaginez que votre application web charge les données de plus en plus lentement. Parfois, une simple requête SQL met plusieurs secondes ! <strong>EXPLAIN</strong> est un outil magique qui montre <strong>comment</strong> le SGBD exécute votre requête : il révèle les accès aux tables, l'ordre des jointures et surtout le type de parcours.</p>
+          <div class="code-block">
+            <span class="text-yellow-300">EXPLAIN</span> SELECT * FROM clients WHERE ville = 'Douala';
+          </div>
+          <div class="highlight">
+            <p class="font-medium">📢 Avec EXPLAIN, on voit :</p>
+            <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+              <li>Si la requête utilise un index ou fait un <span class="font-mono bg-gray-200 px-1 rounded">seq scan</span> (parcours complet de la table).</li>
+              <li>Le nombre estimé de lignes examinées.</li>
+              <li>Les tables jointes et leur ordre.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 : Types de scan (seq scan, index scan, bitmap scan) -->
+    <div class="slide slide-hidden" id="slide4">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-emerald-700 to-teal-700 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">📊 Interpréter les types de scan</h2>
+        </div>
+        <div class="p-6 md:p-8 space-y-6">
+          <div class="grid md:grid-cols-2 gap-5">
+            <div class="border rounded-xl p-4 bg-red-50 border-red-200">
+              <h3 class="font-bold text-red-700 text-lg">🔴 Sequential Scan (Seq Scan)</h3>
+              <p class="text-sm text-gray-600 mt-1">Parcourt chaque ligne de la table, une à une. Très lent pour les grandes tables sans filtre efficace.</p>
+              <div class="mt-2 text-xs bg-gray-100 p-2 rounded font-mono">=> type = ALL dans MySQL / Seq Scan dans PostgreSQL</div>
+            </div>
+            <div class="border rounded-xl p-4 bg-green-50 border-green-200">
+              <h3 class="font-bold text-green-700 text-lg">🟢 Index Scan</h3>
+              <p class="text-sm text-gray-600 mt-1">Utilise un index pour trouver rapidement les lignes correspondantes. Rapide sur des conditions WHERE ciblées.</p>
+              <div class="mt-2 text-xs bg-gray-100 p-2 rounded font-mono">=> Extra: Using index</div>
+            </div>
+            <div class="border rounded-xl p-4 bg-blue-50 border-blue-200 col-span-1 md:col-span-2">
+              <h3 class="font-bold text-blue-700 text-lg">🔷 Bitmap Scan / Index Only Scan</h3>
+              <p class="text-sm text-gray-600 mt-1">Combine plusieurs index, lit des blocs de données de manière efficace. Souvent un bon compromis.</p>
+            </div>
+          </div>
+          <div class="bg-gray-100 p-3 rounded-lg italic text-sm">📌 <strong>Note :</strong> <span class="font-mono">EXPLAIN ANALYZE</span> donne des statistiques réelles (temps, nombre de lignes) mais attention, cela exécute vraiment la requête.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 : Exemple concret avec diagramme simple (dessin fait main) -->
+    <div class="slide slide-hidden" id="slide5">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">✏️ Exemple visuel : Seq Scan vs Index Scan</h2>
+        </div>
+        <div class="p-6 md:p-8">
+          <p class="mb-4 text-gray-700">Voici une illustration simple pour comprendre la différence :</p>
+          <!-- SVG dessiné maison (pas d'image externe) -->
+          <div class="bg-gray-50 p-4 rounded-xl shadow-inner border">
+            <svg viewBox="0 0 500 220" xmlns="http://www.w3.org/2000/svg" class="w-full h-auto">
+              <text x="20" y="30" font-size="12" fill="#333">Séquence Scan :</text>
+              <rect x="20" y="40" width="60" height="30" fill="#fca5a5" stroke="#b91c1c" stroke-width="1.5" rx="4"></rect>
+              <rect x="90" y="40" width="60" height="30" fill="#fca5a5" stroke="#b91c1c" stroke-width="1.5" rx="4"></rect>
+              <rect x="160" y="40" width="60" height="30" fill="#fca5a5" stroke="#b91c1c" stroke-width="1.5" rx="4"></rect>
+              <rect x="230" y="40" width="60" height="30" fill="#fca5a5" stroke="#b91c1c" stroke-width="1.5" rx="4"></rect>
+              <rect x="300" y="40" width="60" height="30" fill="#fca5a5" stroke="#b91c1c" stroke-width="1.5" rx="4"></rect>
+              <path d="M370 55 L400 55" stroke="#333" stroke-width="2" marker-end="url(#arrow)"></path>
+              <text x="410" y="60" font-size="12" fill="#555">Toutes les lignes</text>
+
+              <text x="20" y="120" font-size="12" fill="#333">Index Scan :</text>
+              <rect x="20" y="130" width="80" height="30" fill="#86efac" stroke="#15803d" rx="8"></rect>
+              <text x="35" y="149" font-size="10" fill="#14532d">Index (B-Tree)</text>
+              <path d="M110 145 L140 145" stroke="#15803d" stroke-width="2" stroke-dasharray="4"></path>
+              <rect x="150" y="130" width="80" height="30" fill="#bbf7d0" stroke="#15803d" rx="4"></rect>
+              <text x="165" y="149" font-size="10">Ligne cible</text>
+              <text x="240" y="149" font-size="12" fill="#2d6a4f">✔️ Direct, rapide</text>
+              <defs><marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#333"/></marker></defs>
+            </svg>
+            <p class="text-center text-sm text-gray-500 mt-2">🔍 À gauche : séquentiel (parcours complet). À droite : utilisation d’un index pour accès direct.</p>
+          </div>
+          <div class="mt-5 bg-yellow-50 p-4 rounded-lg border-l-8 border-yellow-400">
+            <p class="font-semibold">💡 Quand privilégier un Index Scan ?</p>
+            <p class="text-sm text-gray-700">Lorsque la condition WHERE filtre un petit pourcentage des lignes (ex: recherche par identifiant, email, date précise). Les index évitent de lire toute la table.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6 : Optimiser les requêtes lentes (stratégies) -->
+    <div class="slide slide-hidden" id="slide6">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-amber-700 to-orange-700 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">⚡ Optimiser les requêtes lentes : bonnes pratiques</h2>
+        </div>
+        <div class="p-6 md:p-8 space-y-4">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="p-3 border rounded-lg">
+              <span class="font-bold text-indigo-700">1️⃣ Créer des index pertinents</span>
+              <p class="text-sm text-gray-600">Index sur les colonnes utilisées dans WHERE, JOIN, ORDER BY.</p>
+            </div>
+            <div class="p-3 border rounded-lg">
+              <span class="font-bold text-indigo-700">2️⃣ Éviter SELECT *</span>
+              <p class="text-sm text-gray-600">Ne lire que les colonnes nécessaires réduit les données déplacées.</p>
+            </div>
+            <div class="p-3 border rounded-lg">
+              <span class="font-bold text-indigo-700">3️⃣ Analyser les jointures</span>
+              <p class="text-sm text-gray-600">Vérifier l’ordre des tables et que les clés étrangères sont indexées.</p>
+            </div>
+            <div class="p-3 border rounded-lg">
+              <span class="font-bold text-indigo-700">4️⃣ Réécrire les sous-requêtes</span>
+              <p class="text-sm text-gray-600">Parfois un JOIN est plus efficace qu’une sous-requête.</p>
+            </div>
+          </div>
+          <div class="code-block mt-3">
+            <span class="text-green-300">-- Exemple : créer un index pour améliorer un scan lent</span><br>
+            CREATE INDEX idx_clients_ville ON clients(ville);<br>
+            EXPLAIN SELECT * FROM clients WHERE ville = 'Yaoundé'; <span class="text-gray-400">-- Désormais type = ref ou index scan</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 : Exercice pratique / cas réel avec EXPLAIN -->
+    <div class="slide slide-hidden" id="slide7">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-violet-700 to-fuchsia-700 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">📝 Étude de cas : Requête lente → requête rapide</h2>
+        </div>
+        <div class="p-6 md:p-8 space-y-5">
+          <p class="font-medium">Scénario : une table <span class="font-mono bg-gray-100 px-1">commandes</span> avec 500 000 lignes. Recherche des commandes d’un client sans index.</p>
+          <div class="bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm">
+            EXPLAIN SELECT * FROM commandes WHERE client_id = 1045;
+          </div>
+          <div class="flex flex-col gap-2">
+            <div class="bg-red-100 p-3 rounded flex items-start gap-2"><span class="font-bold text-red-700">❌ AVANT :</span> <span>Seq Scan sur commandes → 500k lignes analysées, lenteur extrême.</span></div>
+            <div class="bg-green-100 p-3 rounded flex items-start gap-2"><span class="font-bold text-green-700">✅ APRÈS :</span> <span>Création d’un index <span class="font-mono">CREATE INDEX idx_cmd_client ON commandes(client_id);</span> → Index Scan, quelques millisecondes.</span></div>
+          </div>
+          <div class="highlight mt-2">
+            <p>📈 <strong>Message à retenir :</strong> EXPLAIN vous sauve la vie. Si vous voyez "Seq Scan" sur une table volumineuse, demandez-vous si un index peut être ajouté.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 : Résumé et bonnes habitudes -->
+    <div class="slide slide-hidden" id="slide8">
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-r from-stone-700 to-stone-800 px-6 py-4">
+          <h2 class="text-xl md:text-2xl font-bold text-white">📌 Récapitulatif & astuces finales</h2>
+        </div>
+        <div class="p-6 md:p-8">
+          <ul class="space-y-3 list-disc list-inside marker:text-indigo-500">
+            <li><strong>EXPLAIN</strong> est indispensable pour débusquer les goulots d’étranglement.</li>
+            <li>Interprétez les types : <span class="bg-gray-200 px-1 rounded">ALL / Seq Scan</span> = ⚠️ danger sur grandes tables.</li>
+            <li><span class="bg-gray-200 px-1 rounded">index / ref / const</span> = 👍 bonne utilisation d’index.</li>
+            <li>Utilisez des index composites si plusieurs colonnes sont filtrées souvent ensemble.</li>
+            <li>Pensez à la maintenance : <span class="font-mono">ANALYZE</span> tables pour mettre à jour les statistiques.</li>
+          </ul>
+          <div class="mt-6 text-center text-sm text-gray-500 border-t pt-4">
+            🌟 Avec ces outils, vos applications web seront plus rapides et vos utilisateurs contents !
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation buttons -->
+    <div class="flex justify-between items-center mt-8 gap-3">
+      <button id="prevBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed shadow">◀ Précédent</button>
+      <div class="text-sm text-gray-500 bg-white/70 px-3 py-1 rounded-full shadow-sm">
+        Slide <span id="slideCounter">1</span> / <span id="totalSlides">8</span>
+      </div>
+      <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-full transition shadow">Suivant ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    let slides = $('.slide');
+    let total = slides.length;
+    let currentIndex = 0;
+    $('#totalSlides').text(total);
+    
+    function updateSlides() {
+      slides.each(function(idx) {
+        if(idx === currentIndex) {
+          $(this).removeClass('slide-hidden').addClass('slide-active');
+        } else {
+          $(this).removeClass('slide-active').addClass('slide-hidden');
+        }
+      });
+      $('#slideCounter').text(currentIndex + 1);
+      // Gestion désactivation boutons
+      if(currentIndex === 0) {
+        $('#prevBtn').prop('disabled', true).addClass('opacity-50');
+      } else {
+        $('#prevBtn').prop('disabled', false).removeClass('opacity-50');
+      }
+      if(currentIndex === total - 1) {
+        $('#nextBtn').prop('disabled', true).addClass('opacity-50');
+      } else {
+        $('#nextBtn').prop('disabled', false).removeClass('opacity-50');
+      }
+    }
+    
+    $('#nextBtn').on('click', function() {
+      if(currentIndex < total - 1) {
+        currentIndex++;
+        updateSlides();
+        // Scroll en haut pour une meilleure expérience mobile
+        $('html, body').animate({ scrollTop: 0 }, 200);
+      }
+    });
+    
+    $('#prevBtn').on('click', function() {
+      if(currentIndex > 0) {
+        currentIndex--;
+        updateSlides();
+        $('html, body').animate({ scrollTop: 0 }, 200);
+      }
+    });
+    
+    // Touches clavier (optionnel, améliore accessibilité)
+    $(document).on('keydown', function(e) {
+      if(e.key === 'ArrowRight') {
+        $('#nextBtn').trigger('click');
+      } else if(e.key === 'ArrowLeft') {
+        $('#prevBtn').trigger('click');
+      }
+    });
+    
+    updateSlides();
+  });
+</script>
+
+<!-- Petit footer pédagogique -->
+<footer class="text-center text-gray-400 text-xs py-6 border-t mt-8 max-w-4xl mx-auto">
+  Cours conçu pour la classe Développement Web - Initiation aux Bases de données (Cameroun) | Optimisation avec EXPLAIN
+</footer>
+</body>
+</html>

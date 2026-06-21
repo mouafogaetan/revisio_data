@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours DevOps : Écrire un Dockerfile | Initiation au DevOps</title>
+    <!-- Tailwind CSS + Font Awesome + jQuery + MathJax -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Transition douce entre slides */
+        .slide {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+        .active-slide {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f0fa 100%);
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-nav {
+            transition: all 0.2s ease;
+        }
+        .btn-nav:hover {
+            transform: scale(1.03);
+            background-color: #1e293b;
+            color: white;
+        }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge-docker {
+            background-color: #0db7ed;
+            color: white;
+            font-weight: bold;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header avec indicateur de slide -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <div class="flex items-center gap-3">
+                <i class="fab fa-docker text-3xl text-sky-600"></i>
+                <span class="text-sm font-semibold bg-white/70 px-3 py-1 rounded-full shadow-sm">Lesson 17 · Module Docker</span>
+            </div>
+            <div class="text-sm text-gray-600 bg-white/60 px-3 py-1 rounded-full">
+                <span id="slideCounter">1 / 8</span>
+            </div>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div class="card-glass p-6 md:p-10 border border-white/40">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active-slide" id="slide1">
+                <div class="flex flex-col items-center text-center space-y-6">
+                    <div class="bg-sky-100 p-4 rounded-full">
+                        <i class="fab fa-docker text-6xl text-sky-600"></i>
+                    </div>
+                    <h1 class="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-sky-800 to-indigo-700 bg-clip-text text-transparent">Écrire un Dockerfile</h1>
+                    <p class="text-xl text-gray-700 max-w-2xl">Maîtriser l'empaquetage d'applications avec Docker</p>
+                    <div class="flex flex-wrap justify-center gap-4 mt-6">
+                        <span class="bg-gray-200 px-4 py-2 rounded-full text-sm font-medium"><i class="fas fa-code mr-1"></i> Dockerfile</span>
+                        <span class="bg-gray-200 px-4 py-2 rounded-full text-sm font-medium"><i class="fas fa-layer-group mr-1"></i> Multi-stage builds</span>
+                        <span class="bg-gray-200 px-4 py-2 rounded-full text-sm font-medium"><i class="fas fa-file-alt mr-1"></i> .dockerignore</span>
+                    </div>
+                    <div class="mt-8 text-gray-500 text-sm">
+                        <i class="fas fa-arrow-down animate-pulse"></i> Cliquez sur "Suivant" pour commencer
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+            <div class="slide" id="slide2">
+                <div class="border-l-4 border-sky-500 pl-5 mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2>
+                </div>
+                <div class="grid md:grid-cols-2 gap-5 mt-6">
+                    <div class="bg-sky-50 p-4 rounded-xl flex gap-3 items-start">
+                        <i class="fas fa-pen-fancy text-sky-600 mt-1"></i>
+                        <span>Écrire un <span class="font-mono bg-gray-200 px-1">Dockerfile</span> pour une application (FROM, RUN, COPY, CMD, ENTRYPOINT)</span>
+                    </div>
+                    <div class="bg-sky-50 p-4 rounded-xl flex gap-3 items-start">
+                        <i class="fas fa-chart-line text-sky-600 mt-1"></i>
+                        <span>Optimiser la taille des images grâce aux <strong>multi‑stage builds</strong></span>
+                    </div>
+                    <div class="bg-sky-50 p-4 rounded-xl flex gap-3 items-start">
+                        <i class="fas fa-ban text-sky-600 mt-1"></i>
+                        <span>Utiliser <span class="font-mono bg-gray-200 px-1">.dockerignore</span> pour exclure les fichiers inutiles</span>
+                    </div>
+                    <div class="bg-sky-50 p-4 rounded-xl flex gap-3 items-start">
+                        <i class="fas fa-rocket text-sky-600 mt-1"></i>
+                        <span>Comprendre le rôle de chaque instruction clé (WORKDIR, EXPOSE, ENV)</span>
+                    </div>
+                </div>
+                <div class="mt-8 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+                    <i class="fas fa-lightbulb text-amber-500 mr-2"></i>
+                    <strong class="text-amber-800">À la fin de ce cours</strong>
+                    <p class="text-gray-700 mt-1">Vous serez capable de containeriser n'importe quelle application et de produire des images Docker professionnelles, prêtes pour le déploiement.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QU'UN DOCKERFILE ? -->
+            <div class="slide" id="slide3">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-sky-300 pb-2 inline-block">📄 Qu'est‑ce qu'un Dockerfile ?</h2>
+                <p class="mt-4 text-gray-700 leading-relaxed">Un <span class="font-mono bg-gray-200 px-1 font-semibold">Dockerfile</span> est un <strong>fichier texte</strong> contenant une série d’instructions pour construire automatiquement une image Docker. C'est la recette de cuisine de votre application !</p>
+                <div class="mt-6 bg-indigo-50 p-5 rounded-2xl">
+                    <i class="fas fa-check-circle text-indigo-600 mr-2"></i>
+                    <span class="font-semibold">Avantages :</span>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+                        <li>✔️ Reproductibilité : l'image est construite de la même manière partout</li>
+                        <li>✔️ Versionnable (on peut mettre le Dockerfile dans Git)</li>
+                        <li>✔️ Automatisation CI/CD : construction d’image sans intervention manuelle</li>
+                    </ul>
+                </div>
+                <div class="code-block mt-5">
+                    <span class="text-green-400"># Exemple très simple de Dockerfile pour une app Node.js</span><br>
+                    FROM node:18-alpine          <span class="text-gray-400"># image de base</span><br>
+                    WORKDIR /app                 <span class="text-gray-400"># répertoire de travail</span><br>
+                    COPY package*.json ./        <span class="text-gray-400"># copier les fichiers de dépendances</span><br>
+                    RUN npm install              <span class="text-gray-400"># installer les dépendances</span><br>
+                    COPY . .                     <span class="text-gray-400"># copier le code source</span><br>
+                    EXPOSE 3000                  <span class="text-gray-400"># documenter le port</span><br>
+                    CMD ["node", "app.js"]       <span class="text-gray-400"># commande par défaut</span>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INSTRUCTIONS PRINCIPALES (PARTIE 1) -->
+            <div class="slide" id="slide4">
+                <h2 class="text-2xl font-bold text-gray-800">🧱 Instructions essentielles (1/2)</h2>
+                <div class="grid md:grid-cols-2 gap-5 mt-5">
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <span class="badge-docker">FROM</span>
+                        <p class="mt-2 text-gray-700">Définit l'image de base (ex: <code class="bg-gray-100 px-1">alpine, ubuntu, node:18</code>). Toujours en première instruction.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <span class="badge-docker">WORKDIR</span>
+                        <p class="mt-2 text-gray-700">Définit le répertoire courant pour les instructions suivantes (équivalent de <code class="bg-gray-100 px-1">cd</code>).</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <span class="badge-docker">COPY</span>
+                        <p class="mt-2 text-gray-700">Copie des fichiers de l'hôte vers l'image (<code class="bg-gray-100 px-1">COPY src/ /app/src/</code>).</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <span class="badge-docker">ADD</span>
+                        <p class="mt-2 text-gray-700">Similaire à COPY mais peut décompresser des archives .tar et accepter des URLs. <strong>Préférez COPY</strong> par sécurité.</p>
+                    </div>
+                </div>
+                <div class="mt-6 p-3 bg-gray-100 rounded-xl">
+                    <i class="fas fa-terminal text-gray-700 mr-2"></i>
+                    <span class="font-mono text-sm">🚀 Bonne pratique : Utiliser <span class="bg-gray-300 px-1">COPY</span> plutôt que ADD sauf besoin explicite.</span>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : INSTRUCTIONS PRINCIPALES (PARTIE 2) -->
+            <div class="slide" id="slide5">
+                <h2 class="text-2xl font-bold text-gray-800">⚙️ Instructions essentielles (2/2)</h2>
+                <div class="space-y-4 mt-5">
+                    <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-sky-400">
+                        <span class="font-mono font-bold text-sky-700">RUN</span> – Exécute une commande lors de la construction de l'image (ex: <code>RUN apt-get update && apt-get install -y python3</code>).
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-emerald-400">
+                        <span class="font-mono font-bold text-emerald-700">CMD</span> – Commande par défaut quand on lance le conteneur (peut être écrasée). Un seul CMD par Dockerfile.
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-purple-400">
+                        <span class="font-mono font-bold text-purple-700">ENTRYPOINT</span> – Commande qui ne peut pas être écrasée facilement. Combine souvent avec CMD pour les paramètres.
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-amber-400">
+                        <span class="font-mono font-bold text-amber-700">EXPOSE</span> – Indique le port sur lequel l’application écoute (simple documentation, ne publie pas réellement le port).
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-rose-400">
+                        <span class="font-mono font-bold text-rose-700">ENV / ARG</span> – Définit des variables d’environnement (<code>ENV NODE_ENV=production</code>). ARG est temporaire lors du build.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : MULTI-STAGE BUILDS (OPTIMISATION) -->
+            <div class="slide" id="slide6">
+                <h2 class="text-2xl font-bold text-gray-800">⚡ Optimisation : Multi‑stage builds</h2>
+                <p class="mt-2">Construire une image finale légère en séparant l’environnement de compilation de l’environnement d’exécution.</p>
+                <div class="code-block mt-4 text-sm">
+                    <span class="text-yellow-300"># Étape 1 : construction (golang / npm / maven)</span><br>
+                    FROM golang:1.20 AS builder<br>
+                    WORKDIR /src<br>
+                    COPY . .<br>
+                    RUN go build -o myapp<br><br>
+                    <span class="text-yellow-300"># Étape 2 : image finale ultra légère</span><br>
+                    FROM alpine:latest<br>
+                    COPY --from=builder /src/myapp /usr/local/bin/myapp<br>
+                    CMD ["myapp"]
+                </div>
+                <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full"><i class="fas fa-weight-hanging mr-1"></i> Réduction de taille (Go de 500MB → 20MB)</span>
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full"><i class="fas fa-shield-alt mr-1"></i> Moins de vulnérabilités</span>
+                </div>
+                <div class="mt-4 bg-gray-800 text-white p-3 rounded-xl text-center">
+                    <i class="fas fa-lightbulb text-yellow-300 mr-2"></i> Le multi‑stage est indispensable pour les languages compilés (Go, Rust, Java, .NET)
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : .DOCKERIGNORE ET BONNES PRATIQUES -->
+            <div class="slide" id="slide7">
+                <h2 class="text-2xl font-bold text-gray-800">📦 .dockerignore & bonnes pratiques</h2>
+                <div class="bg-gray-900 text-gray-200 p-4 rounded-xl font-mono text-sm mt-4">
+                    <span class="text-gray-400"># Fichier .dockerignore - à placer à côté du Dockerfile</span><br>
+                    node_modules/<br>
+                    .git/<br>
+                    .env<br>
+                    *.log<br>
+                    Dockerfile<br>
+                    README.md
+                </div>
+                <p class="mt-4 text-gray-700"><i class="fas fa-info-circle text-sky-500 mr-2"></i> Le <span class="font-mono bg-gray-200 px-1">.dockerignore</span> empêche l’envoi de fichiers inutiles au contexte de build → builds plus rapides et image plus propre.</p>
+                <div class="grid md:grid-cols-2 gap-3 mt-6">
+                    <div class="flex gap-2"><i class="fas fa-check-circle text-green-600"></i> <span>Chaque instruction RUN doit être regroupée (ex: <code>RUN apt update && apt install -y ...</code>)</span></div>
+                    <div class="flex gap-2"><i class="fas fa-check-circle text-green-600"></i> <span>Éviter de lancer des processus en arrière‑plan dans le Dockerfile</span></div>
+                    <div class="flex gap-2"><i class="fas fa-check-circle text-green-600"></i> <span>Utiliser des images officielles <code>*-alpine</code> pour alléger</span></div>
+                    <div class="flex gap-2"><i class="fas fa-check-circle text-green-600"></i> <span>Ordonner les couches : du moins changeant au plus changeant (bénéficier du cache)</span></div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : RÉCAPITULATIF ET COMMANDES -->
+            <div class="slide" id="slide8">
+                <h2 class="text-2xl font-bold text-gray-800">🏁 Récapitulatif & commandes utiles</h2>
+                <div class="bg-indigo-50 p-5 rounded-2xl mt-4">
+                    <div class="font-mono space-y-2 text-sm md:text-base">
+                        <div><i class="fas fa-terminal text-indigo-600 w-6"></i> <strong>docker build -t monapp:v1 .</strong> <span class="text-gray-600"># Construire l’image à partir du Dockerfile</span></div>
+                        <div><i class="fas fa-terminal text-indigo-600 w-6"></i> <strong>docker images</strong> <span class="text-gray-600"># Lister les images</span></div>
+                        <div><i class="fas fa-terminal text-indigo-600 w-6"></i> <strong>docker run -p 3000:3000 monapp:v1</strong> <span class="text-gray-600"># Lancer le conteneur</span></div>
+                        <div><i class="fas fa-terminal text-indigo-600 w-6"></i> <strong>docker history monapp:v1</strong> <span class="text-gray-600"># Voir les couches de l’image</span></div>
+                    </div>
+                </div>
+                <div class="mt-6 p-4 bg-gradient-to-r from-sky-100 to-blue-100 rounded-xl text-center">
+                    <i class="fas fa-graduation-cap text-2xl text-sky-700"></i>
+                    <p class="font-semibold mt-1">Félicitations ! Vous savez désormais écrire des Dockerfiles professionnels.</p>
+                    <p class="text-sm text-gray-600">Pratiquez en containerisant vos propres projets (API Node.js, Flask, ou même un script bash).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center mt-8 gap-4">
+            <button id="prevBtn" class="btn-nav bg-white/70 backdrop-blur-sm px-5 py-2 rounded-full shadow-md font-medium text-gray-700 hover:bg-sky-100 disabled:opacity-40 transition"><i class="fas fa-arrow-left mr-1"></i> Précédent</button>
+            <div class="flex gap-2">
+                <span class="text-xs text-gray-500">slide</span>
+                <span id="currentSlideNum" class="font-bold text-sky-700">1</span>
+                <span class="text-xs text-gray-500">/</span>
+                <span id="totalSlidesNum" class="text-xs text-gray-600">8</span>
+            </div>
+            <button id="nextBtn" class="btn-nav bg-sky-600 text-white px-5 py-2 rounded-full shadow-md font-medium hover:bg-sky-700 transition">Suivant <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            $('#totalSlidesNum').text(totalSlides);
+            let currentIndex = 0;
+
+            function updateSlides() {
+                slides.removeClass('active-slide');
+                $(slides[currentIndex]).addClass('active-slide');
+                $('#slideCounter').text((currentIndex+1) + ' / ' + totalSlides);
+                $('#currentSlideNum').text(currentIndex+1);
+                // Désactiver boutons si besoin
+                $('#prevBtn').prop('disabled', currentIndex === 0);
+                $('#nextBtn').prop('disabled', currentIndex === totalSlides-1);
+            }
+
+            $('#nextBtn').on('click', function() {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlides();
+                }
+            });
+            $('#prevBtn').on('click', function() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlides();
+                }
+            });
+
+            // gestion clavier (flèches gauche/droite)
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowRight') {
+                    $('#nextBtn').click();
+                } else if (e.key === 'ArrowLeft') {
+                    $('#prevBtn').click();
+                }
+            });
+
+            updateSlides();
+        });
+    </script>
+    <footer class="text-center text-gray-500 text-xs mt-6 pb-2">
+        <i class="fas fa-docker"></i> Formation DevOps - Module Docker | Lesson 17 : Dockerfile
+    </footer>
+</body>
+</html>

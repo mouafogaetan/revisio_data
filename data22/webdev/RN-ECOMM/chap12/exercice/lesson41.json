@@ -1,0 +1,128 @@
+[
+  {
+    "intitule": "Installation et configuration de expo-image-picker",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce camerounaise, vous devez permettre aux utilisateurs de modifier leur photo de profil. Vous choisissez d'utiliser <code>expo-image-picker</code>.</p>",
+      "images": [
+        "Interface de sélection d'image sur mobile avec les options 'Prendre une photo' et 'Choisir dans la galerie'"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Énumérez les commandes d'installation de expo-image-picker dans un projet Expo. Citez également les permissions nécessaires pour iOS et Android.",
+        "niveau": "easy",
+        "reponse": "**Installation :**\n```bash\nnpx expo install expo-image-picker\n```\n\n**Permissions :**\n- **Android** : ajout automatique dans `AndroidManifest.xml` (caméra et stockage).\n- **iOS** : ajout des clés dans `app.json` :\n  - `NSPhotoLibraryUsageDescription` (accès à la galerie)\n  - `NSCameraUsageDescription` (accès à la caméra)",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comparez les deux méthodes de sélection d'image : `launchCameraAsync` et `launchImageLibraryAsync`. Expliquez dans quel contexte utiliser chacune.",
+        "niveau": "medium",
+        "reponse": "- **launchCameraAsync** : ouvre l'appareil photo. Idéal pour prendre une nouvelle photo (avatar en direct, preuve de livraison). Nécessite la permission caméra.\n- **launchImageLibraryAsync** : ouvre la galerie. Idéal pour sélectionner une photo existante (avatar déjà pris, pièce jointe). Plus rapide et ne nécessite pas la permission caméra (seulement galerie).\n\n**Recommandation** : proposer les deux options à l'utilisateur.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédigez un exemple de code TypeScript utilisant `expo-image-picker` pour sélectionner une image depuis la galerie, avec redimensionnement à 200x200 pixels et compression à 0.7.",
+        "niveau": "hard",
+        "reponse": "```typescript\nimport * as ImagePicker from 'expo-image-picker';\nimport { Alert } from 'react-native';\n\nconst pickImageFromGallery = async () => {\n  // Demander la permission\n  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();\n  if (status !== 'granted') {\n    Alert.alert('Permission refusée', 'Vous devez autoriser l\\'accès à la galerie');\n    return null;\n  }\n\n  // Lancer la sélection\n  const result = await ImagePicker.launchImageLibraryAsync({\n    mediaTypes: ImagePicker.MediaTypeOptions.Images,\n    allowsEditing: true,\n    aspect: [1, 1],  // Recadrage carré\n    quality: 0.7,     // Compression à 70%\n    base64: false,\n    exif: false\n  });\n\n  if (!result.canceled) {\n    const asset = result.assets[0];\n    // Redimensionnement manuel si nécessaire ou via un service\n    return {\n      uri: asset.uri,\n      width: asset.width,\n      height: asset.height,\n      type: asset.mimeType\n    };\n  }\n  return null;\n};\n\n// Upload vers le serveur\nconst uploadAvatar = async (imageUri) => {\n  const formData = new FormData();\n  formData.append('avatar', {\n    uri: imageUri,\n    name: 'avatar.jpg',\n    type: 'image/jpeg'\n  });\n  \n  const response = await fetch('https://api.afrimarket.com/user/avatar', {\n    method: 'POST',\n    body: formData,\n    headers: { 'Content-Type': 'multipart/form-data' }\n  });\n  return response.json();\n};\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Upload d'avatar avec preview et gestion d'erreurs",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>L'application AfriMarket permet aux utilisateurs de personnaliser leur profil avec une photo. Actuellement, la fonctionnalité d'upload d'avatar est buggée : les images trop lourdes (plus de 5 Mo) échouent, et il n'y a aucun aperçu avant validation.</p><p>Votre mission : améliorer cette fonctionnalité en implémentant un aperçu local, une compression adaptative et une gestion des erreurs réseau.</p>",
+      "images": [
+        "Maquette d'écran de profil avec zone d'avatar cliquable et aperçu avant validation"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez les étapes pour implémenter un aperçu local de l'image sélectionnée AVANT de l'uploader vers le serveur. Quel hook React utiliseriez-vous ?",
+        "niveau": "medium",
+        "reponse": "**Étapes :**\n1. Créer un state `localAvatarUri` avec `useState`.\n2. Lors de la sélection de l'image, récupérer l'URI local (`result.assets[0].uri`).\n3. Mettre à jour `localAvatarUri` avec cette URI.\n4. Afficher l'image dans l'interface via `<Image source={{ uri: localAvatarUri }} />`.\n5. Au clic sur \"Enregistrer\", envoyer l'URI au serveur.\n\n**Hook utilisé :** `useState` pour stocker l'URI, éventuellement `useEffect` pour réinitialiser si nécessaire.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Rédigez le code complet du composant `AvatarPicker` qui permet de sélectionner une image (caméra ou galerie), affiche un aperçu, et gère les erreurs de permission.",
+            "niveau": "hard",
+            "reponse": "```typescript\nimport React, { useState } from 'react';\nimport { View, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';\nimport * as ImagePicker from 'expo-image-picker';\nimport { Button, Text } from 'react-native-paper';\n\nconst AvatarPicker = ({ initialAvatar, onUpload }) => {\n  const [avatarUri, setAvatarUri] = useState(initialAvatar || null);\n  const [uploading, setUploading] = useState(false);\n\n  const requestPermissions = async (type) => {\n    if (type === 'camera') {\n      const { status } = await ImagePicker.requestCameraPermissionsAsync();\n      if (status !== 'granted') {\n        Alert.alert('Erreur', 'Permission caméra refusée');\n        return false;\n      }\n    } else {\n      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();\n      if (status !== 'granted') {\n        Alert.alert('Erreur', 'Permission galerie refusée');\n        return false;\n      }\n    }\n    return true;\n  };\n\n  const pickImage = async (useCamera) => {\n    const hasPermission = await requestPermissions(useCamera ? 'camera' : 'gallery');\n    if (!hasPermission) return;\n\n    const result = useCamera \n      ? await ImagePicker.launchCameraAsync({\n          allowsEditing: true,\n          aspect: [1, 1],\n          quality: 0.7,\n        })\n      : await ImagePicker.launchImageLibraryAsync({\n          mediaTypes: ImagePicker.MediaTypeOptions.Images,\n          allowsEditing: true,\n          aspect: [1, 1],\n          quality: 0.7,\n        });\n\n    if (!result.canceled) {\n      setAvatarUri(result.assets[0].uri);\n    }\n  };\n\n  const handleUpload = async () => {\n    if (!avatarUri) {\n      Alert.alert('Info', 'Veuillez sélectionner une photo');\n      return;\n    }\n    setUploading(true);\n    try {\n      await onUpload(avatarUri);\n      Alert.alert('Succès', 'Avatar mis à jour');\n    } catch (error) {\n      Alert.alert('Erreur', 'Échec de l\\'upload. Vérifiez votre connexion.');\n    } finally {\n      setUploading(false);\n    }\n  };\n\n  return (\n    <View style={{ alignItems: 'center', padding: 20 }}>\n      <TouchableOpacity onPress={() => Alert.alert('Changer avatar', 'Choisir une source', [\n        { text: 'Appareil photo', onPress: () => pickImage(true) },\n        { text: 'Galerie', onPress: () => pickImage(false) },\n        { text: 'Annuler', style: 'cancel' }\n      ])}>\n        <Image\n          source={{ uri: avatarUri || 'https://via.placeholder.com/120' }}\n          style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: '#ddd' }}\n        />\n      </TouchableOpacity>\n      \n      <Button \n        mode=\"contained\" \n        onPress={handleUpload} \n        loading={uploading}\n        disabled={uploading}\n        style={{ marginTop: 15 }}\n      >\n        Enregistrer la photo\n      </Button>\n    </View>\n  );\n};\n\nexport default AvatarPicker;\n```",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Scan de code-barres pour ajout rapide au panier",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>AfriMarket souhaite innover en permettant aux utilisateurs de scanner directement le code-barres d'un produit en magasin pour l'ajouter rapidement au panier. Cette fonctionnalité est particulièrement utile pour les produits présents dans les supermarchés partenaires.</p><p>Vous devez implémenter un scanner de code-barres utilisant <code>expo-barcode-scanner</code>.</p>",
+      "images": [
+        "Interface de scan de code-barres sur mobile avec vue caméra et rectangle de visée",
+        "Exemple de code-barres EAN-13 sur un produit"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez les étapes d'installation et de configuration de `expo-barcode-scanner` dans un projet Expo. Quelles sont les permissions requises ?",
+        "niveau": "easy",
+        "reponse": "**Installation :**\n```bash\nnpx expo install expo-barcode-scanner\n```\n\n**Permissions :**\n- **Android** : `CAMERA` (ajout automatique dans le manifeste)\n- **iOS** : ajouter `NSCameraUsageDescription` dans `app.json`\n\n**Configuration de base :**\n```typescript\nimport { BarCodeScanner } from 'expo-barcode-scanner';\n\nconst [hasPermission, setHasPermission] = useState(null);\n\nuseEffect(() => {\n  (async () => {\n    const { status } = await BarCodeScanner.requestPermissionsAsync();\n    setHasPermission(status === 'granted');\n  })();\n}, []);\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Rédigez le code complet d'un écran de scan qui, après détection d'un code-barres, recherche le produit correspondant via une API et l'ajoute au panier (via Zustand). Gérez les cas : produit trouvé, produit non trouvé, erreur réseau.",
+            "niveau": "very hard",
+            "reponse": "```typescript\nimport React, { useState, useEffect } from 'react';\nimport { View, Text, Alert, Vibration, ActivityIndicator } from 'react-native';\nimport { BarCodeScanner } from 'expo-barcode-scanner';\nimport { useCartStore } from '../stores/cartStore';\nimport Toast from 'react-native-toast-message';\n\nconst BarcodeScannerScreen = ({ navigation }) => {\n  const [hasPermission, setHasPermission] = useState(null);\n  const [scanned, setScanned] = useState(false);\n  const [loading, setLoading] = useState(false);\n  const addToCart = useCartStore((state) => state.addItem);\n\n  useEffect(() => {\n    (async () => {\n      const { status } = await BarCodeScanner.requestPermissionsAsync();\n      setHasPermission(status === 'granted');\n    })();\n  }, []);\n\n  const handleBarCodeScanned = async ({ type, data }) => {\n    if (scanned || loading) return;\n    setScanned(true);\n    setLoading(true);\n    Vibration.vibrate(200); // Feedback haptique\n\n    try {\n      // Appel API pour trouver le produit par code-barres\n      const response = await fetch(`https://api.afrimarket.com/products/barcode/${data}`);\n      \n      if (response.status === 404) {\n        Toast.show({\n          type: 'error',\n          text1: 'Produit non trouvé',\n          text2: `Aucun produit avec le code ${data}`,\n          position: 'bottom'\n        });\n        setScanned(false);\n        return;\n      }\n\n      const product = await response.json();\n      \n      // Ajout au panier avec Zustand\n      addToCart({ ...product, quantity: 1 });\n      \n      Toast.show({\n        type: 'success',\n        text1: 'Produit ajouté',\n        text2: `${product.name} - ${product.price} FCFA`,\n        position: 'bottom',\n        onPress: () => navigation.navigate('Cart')\n      });\n\n      // Redirection après 1.5s\n      setTimeout(() => {\n        navigation.goBack();\n      }, 1500);\n      \n    } catch (error) {\n      Toast.show({\n        type: 'error',\n        text1: 'Erreur réseau',\n        text2: 'Vérifiez votre connexion internet',\n        position: 'bottom'\n      });\n      setScanned(false);\n    } finally {\n      setLoading(false);\n    }\n  };\n\n  if (hasPermission === null) {\n    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Demande de permission...</Text></View>;\n  }\n  if (hasPermission === false) {\n    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Accès à la caméra refusé</Text></View>;\n  }\n\n  return (\n    <View style={{ flex: 1 }}>\n      <BarCodeScanner\n        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}\n        style={{ flex: 1 }}\n        barCodeTypes={[BarCodeScanner.Constants.BarCodeType.ean13, BarCodeScanner.Constants.BarCodeType.qr]}\n      />\n      \n      {/* Overlay d'instruction */}\n      <View style={{ position: 'absolute', bottom: 50, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 10 }}>\n        <Text style={{ color: 'white', textAlign: 'center' }}>\n          {loading ? 'Recherche du produit...' : 'Scannez le code-barres d\\'un produit'}\n        </Text>\n        {loading && <ActivityIndicator color=\"white\" style={{ marginTop: 10 }} />}\n      </View>\n      \n      {scanned && !loading && (\n        <View style={{ position: 'absolute', top: 50, alignSelf: 'center', backgroundColor: '#f0ad4e', padding: 8, borderRadius: 8 }}>\n          <TouchableOpacity onPress={() => setScanned(false)}>\n            <Text>Scanner à nouveau</Text>\n          </TouchableOpacity>\n        </View>\n      )}\n    </View>\n  );\n};\n\nexport default BarcodeScannerScreen;\n```",
+            "sousQuestions": []
+          },
+          {
+            "numero": "1.b",
+            "texte": "Calculez le gain de temps pour un gérant de supermarché qui doit ajouter 100 produits référencés au panier. Avec le scan (1 sec/produit) vs saisie manuelle du code (10 sec/produit).",
+            "niveau": "easy",
+            "reponse": "**Saisie manuelle :** $100 \\times 10 = 1000$ secondes (≈ 16,7 minutes)\n\n**Scan :** $100 \\times 1 = 100$ secondes (≈ 1,7 minute)\n\n**Gain :** $1000 - 100 = 900$ secondes (15 minutes)\n\n**Pourcentage d'économies :** $\\frac{900}{1000} \\times 100 = 90\\%$ de temps gagné.",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des formats de code-barres",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Les produits vendus sur AfriMarket proviennent de fournisseurs différents : certains utilisent des codes-barres EAN-13 (Europe), d'autres des codes QR, et certains produits locaux utilisent des codes-barres UPC-A.</p>",
+      "images": [
+        "Image montrant différents types de codes-barres : EAN-13, QR Code, UPC-A, Code 128"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les types de codes-barres supportés nativement par `expo-barcode-scanner`. Expliquez comment configurer le scanner pour n'accepter que certains formats.",
+        "niveau": "medium",
+        "reponse": "**Formats supportés :**\n- EAN-13, EAN-8\n- UPC-A, UPC-E\n- Code 39, Code 93, Code 128\n- QR Code, PDF417, Aztec, Data Matrix\n- ITF, Codabar\n\n**Configuration pour limiter les formats :**\n```typescript\n<BarCodeScanner\n  onBarCodeScanned={handleScan}\n  barCodeTypes={[\n    BarCodeScanner.Constants.BarCodeType.ean13,\n    BarCodeScanner.Constants.BarCodeType.qr,\n    BarCodeScanner.Constants.BarCodeType.upca\n  ]}\n/>\n```\n\n**Pourquoi limiter ?** Cela réduit les faux positifs et accélère la détection.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez la différence entre un code EAN-13 et un code QR. Dans quel contexte utiliser l'un plutôt que l'autre pour une application e-commerce ?",
+            "niveau": "medium",
+            "reponse": "**EAN-13 :**\n- 13 chiffres numériques\n- Standard mondial pour produits de consommation\n- Lecture rapide avec scanner laser\n- Idéal pour : rayons de supermarché, inventaire\n\n**QR Code :**\n- Matriciel (carré noir et blanc)\n- Peut contenir jusqu'à 4296 caractères (texte, URL)\n- Idéal pour : liens vers une fiche produit, promotions, codes promo, paiement mobile\n\n**Choix :**\n- Pour un simple identifiant produit : EAN-13 (rapide, compatible caisses)\n- Pour enrichir l'expérience (vidéo, avis, réduction) : QR Code",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  }
+]

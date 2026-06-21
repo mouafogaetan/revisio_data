@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 34 : Tests unitaires avec Flutter | Cours Flutter - Cameroun</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour les éventuelles formules, reste disponible) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Styles personnalisés pour le carrousel / slides */
+        .slide-container {
+            transition: transform 0.3s ease-in-out;
+        }
+        .slide {
+            min-width: 100%;
+            box-sizing: border-box;
+        }
+        /* Pour un meilleur confort visuel */
+        body {
+            background: #f8fafc;
+        }
+        .prose code {
+            background: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+        .prose pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        .btn-slide {
+            transition: all 0.2s;
+        }
+        .btn-slide:active {
+            transform: scale(0.96);
+        }
+        /* masquer les flèches si pas nécessaire sur mobile? mais on garde */
+        @media (max-width: 640px) {
+            .nav-text {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-sky-50 to-indigo-50 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur slides -->
+        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-indigo-100">
+            <!-- header avec indicateur de slide -->
+            <div class="bg-indigo-700 px-5 py-3 flex justify-between items-center text-white">
+                <div class="font-bold text-sm md:text-base">📘 Initiation à Flutter | Leçon 34</div>
+                <div class="bg-indigo-900 px-3 py-1 rounded-full text-xs font-mono">
+                    <span id="slideCounter">1</span> / <span id="totalSlides">0</span>
+                </div>
+            </div>
+
+            <!-- zone des slides (carrousel) -->
+            <div class="relative overflow-hidden">
+                <div id="slidesWrapper" class="slide-container flex flex-nowrap">
+                    <!-- Les slides seront injectées dynamiquement via jQuery -->
+                </div>
+            </div>
+
+            <!-- Navigation + progression -->
+            <div class="bg-gray-50 px-5 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-indigo-100">
+                <button id="prevBtn" class="btn-slide bg-white hover:bg-indigo-50 text-indigo-700 font-semibold py-2 px-5 rounded-full shadow-md border border-indigo-200 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    ⬅️ Précédent
+                </button>
+                <div class="flex gap-2 flex-wrap justify-center" id="dotsContainer"></div>
+                <button id="nextBtn" class="btn-slide bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    Suivant ➡️
+                </button>
+            </div>
+        </div>
+
+        <!-- Petit rappel pédagogique -->
+        <div class="text-center text-xs text-gray-500 mt-6">
+            ✨ Utilise les boutons ou swipe (glisse) sur mobile pour naviguer entre les slides.
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la LEÇON 34 : Tests unitaires avec flutter_test, mocks, widgets
+        // Slide 0 : Titre
+        // Slide 1 : Objectifs pédagogiques
+        // Slides 2..n : Contenu détaillé
+
+        const slidesData = [
+            { // Slide 0 - Titre
+                type: "title",
+                content: `
+                    <div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-6">
+                        <div class="bg-indigo-100 rounded-full p-4 mb-4 inline-block">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-800 to-sky-600 bg-clip-text text-transparent">Tests unitaires avec Flutter</h1>
+                        <p class="text-gray-600 mt-4 text-lg max-w-md">flutter_test · mockito · Tester vos widgets et logique Dart</p>
+                        <div class="mt-8 flex gap-2 text-sm text-indigo-500 font-mono bg-indigo-50 px-4 py-2 rounded-full">
+                            <span>📱 Flutter</span> • <span>🧪 Qualité</span> • <span>✅ Fiabilité</span>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 1 - Objectifs d'apprentissage (format clair)
+                type: "objectives",
+                content: `
+                    <div class="px-6 py-8 md:px-10">
+                        <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-3 mb-6">🎯 Objectifs de la leçon</h2>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="bg-sky-50 rounded-xl p-4 shadow-sm">
+                                <div class="flex items-center gap-3 mb-2"><span class="text-xl">✅</span><span class="font-semibold">Écrire des tests unitaires</span></div>
+                                <p class="text-gray-600 text-sm">Utiliser le package <code class="bg-gray-200 px-1 rounded">flutter_test</code> pour tester les fonctions, les classes et la logique métier.</p>
+                            </div>
+                            <div class="bg-sky-50 rounded-xl p-4 shadow-sm">
+                                <div class="flex items-center gap-3 mb-2"><span class="text-xl">🧩</span><span class="font-semibold">Tester des widgets</span></div>
+                                <p class="text-gray-600 text-sm">Maîtriser <code>pumpWidget</code>, <code>find</code>, <code>expect</code> pour valider l'interface utilisateur.</p>
+                            </div>
+                            <div class="bg-sky-50 rounded-xl p-4 shadow-sm">
+                                <div class="flex items-center gap-3 mb-2"><span class="text-xl">🎭</span><span class="font-semibold">Mocker avec mockito</span></div>
+                                <p class="text-gray-600 text-sm">Simuler des dépendances externes (API, base de données) pour isoler les tests.</p>
+                            </div>
+                            <div class="bg-sky-50 rounded-xl p-4 shadow-sm">
+                                <div class="flex items-center gap-3 mb-2"><span class="text-xl">🏆</span><span class="font-semibold">Bonnes pratiques</span></div>
+                                <p class="text-gray-600 text-sm">Organiser ses tests, exécuter `flutter test` et interpréter la couverture.</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-amber-50 border-l-4 border-amber-400 p-3 rounded text-amber-800 text-sm">
+                            💡 À la fin de ce cours, vous saurez tester votre application Flutter comme un vrai pro !
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 2 - Introduction aux tests unitaires
+                type: "content",
+                content: `
+                    <div class="px-6 py-8 md:px-10 prose max-w-none">
+                        <h2 class="text-2xl font-bold text-indigo-800">🧪 Pourquoi tester son code Flutter ?</h2>
+                        <p>Les tests unitaires permettent de vérifier que chaque petite partie (unité) de votre application fonctionne correctement. En Flutter, le framework intègre <strong class="text-indigo-700">flutter_test</strong> pour écrire et exécuter des tests rapidement.</p>
+                        <div class="bg-indigo-50 p-4 rounded-xl my-4">
+                            <p class="font-semibold">🔍 Avantages :</p>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Détecter les bugs avant la publication.</li>
+                                <li>Refactoriser sans peur.</li>
+                                <li>Documenter le comportement attendu.</li>
+                                <li>Gagner du temps sur le long terme.</li>
+                            </ul>
+                        </div>
+                        <pre><code>// Exemple simple de test unitaire
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('Addition de 2 et 3 doit donner 5', () {
+    int sum = 2 + 3;
+    expect(sum, 5);
+  });
+}</code></pre>
+                        <p class="mt-2 text-gray-600">📌 Exécutez les tests avec <code>flutter test</code> dans votre terminal.</p>
+                    </div>
+                `
+            },
+            { // Slide 3 - Tester des widgets (pumpWidget, find, expect)
+                type: "content",
+                content: `
+                    <div class="px-6 py-8 md:px-10 prose max-w-none">
+                        <h2 class="text-2xl font-bold text-indigo-800">📱 Tester des widgets Flutter</h2>
+                        <p>Avec <code>WidgetTester</code>, vous pouvez construire vos widgets, interagir et vérifier le rendu.</p>
+                        <div class="bg-gray-800 rounded-xl p-4 my-4 overflow-x-auto">
+                            <pre class="text-sm text-gray-100"><code>testWidgets('Mon widget affiche un texte', (WidgetTester tester) async {
+  // Construire le widget
+  await tester.pumpWidget(MyApp());
+
+  // Vérifier qu'un texte est présent
+  expect(find.text('Bienvenue'), findsOneWidget);
+  
+  // Simuler un tap
+  await tester.tap(find.byIcon(Icons.add));
+  await tester.pump(); // Reconstruire
+  expect(find.text('1'), findsOneWidget);
+});</code></pre>
+                        </div>
+                        <ul class="list-disc pl-5">
+                            <li><code>pumpWidget()</code> : monte le widget dans l’arbre de test.</li>
+                            <li><code>find</code> : localise les widgets (par texte, type, clé).</li>
+                            <li><code>expect</code> : assertions (findsOneWidget, findsNothing, findsNWidgets).</li>
+                            <li><code>pump()</code> : déclenche une reconstruction (utile après animation ou setState).</li>
+                        </ul>
+                    </div>
+                `
+            },
+            { // Slide 4 - Mockito : mocker les dépendances
+                type: "content",
+                content: `
+                    <div class="px-6 py-8 md:px-10 prose max-w-none">
+                        <h2 class="text-2xl font-bold text-indigo-800">🎭 Mocker avec Mockito (isoler les tests)</h2>
+                        <p>Quand votre code dépend d’une API, d’une base de données ou d’un plugin, utilisez <strong>mockito</strong> pour simuler ces composants.</p>
+                        <div class="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400 mb-4">
+                            ⚠️ Pensez à ajouter <code>mockito: ^5.4.0</code> et <code>build_runner</code> dans <strong>dev_dependencies</strong>.
+                        </div>
+                        <pre><code>// 1. Créer une classe mockée
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
+
+@GenerateMocks([ApiService])
+void main() {
+  test('récupère les données', () async {
+    final mockApi = MockApiService();
+    when(mockApi.fetchData()).thenAnswer((_) async => "Données mockées");
+    
+    final result = await mockApi.fetchData();
+    expect(result, "Données mockées");
+    verify(mockApi.fetchData()).called(1);
+  });
+}</code></pre>
+                        <p>🎯 Générez les mocks avec <code>flutter pub run build_runner build</code>. Cela rend vos tests rapides et prévisibles.</p>
+                    </div>
+                `
+            },
+            { // Slide 5 - Exemple concret : test d’un compteur
+                type: "content",
+                content: `
+                    <div class="px-6 py-8 md:px-10 prose max-w-none">
+                        <h2 class="text-2xl font-bold text-indigo-800">🔧 Cas pratique : Tester un CounterViewModel</h2>
+                        <p>Prenons une classe simple qui gère un compteur.</p>
+                        <pre><code>class Counter {
+  int value = 0;
+  void increment() => value++;
+  void decrement() => value--;
+}</code></pre>
+                        <p>Test unitaire :</p>
+                        <pre><code>import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  group('Counter', () {
+    test('valeur initiale doit être 0', () {
+      final counter = Counter();
+      expect(counter.value, 0);
+    });
+
+    test('incrément augmente la valeur', () {
+      final counter = Counter();
+      counter.increment();
+      expect(counter.value, 1);
+    });
+  });
+}</code></pre>
+                        <p>✅ Résultat : le terminal affiche "All tests passed!"</p>
+                    </div>
+                `
+            },
+            { // Slide 6 - Bonnes pratiques et astuces
+                type: "content",
+                content: `
+                    <div class="px-6 py-8 md:px-10 prose max-w-none">
+                        <h2 class="text-2xl font-bold text-indigo-800">🏅 Bonnes pratiques pour vos tests</h2>
+                        <ul class="list-disc space-y-2">
+                            <li>🔹 <strong>Organisation</strong> : placez vos tests dans le dossier <code>test/</code> avec le nom <code>nom_fichier_test.dart</code>.</li>
+                            <li>🔹 <strong>Un test = une logique</strong> : chaque test doit valider un seul comportement.</li>
+                            <li>🔹 <strong>Utilisez <code>setUp()</code></strong> pour initialiser des objets communs avant chaque test.</li>
+                            <li>🔹 <strong>Testez les cas limites</strong> : valeurs nulles, erreurs, listes vides.</li>
+                            <li>🔹 <strong>Pour les widgets asynchrones</strong> : utilisez <code>pumpAndSettle()</code> pour attendre les animations.</li>
+                        </ul>
+                        <div class="bg-green-50 p-4 rounded-xl mt-4">
+                            <p class="font-bold text-green-800">📈 Couverture de code :</p>
+                            <p>Exécutez <code>flutter test --coverage</code>, puis ouvrez <code>coverage/index.html</code> pour visualiser les parties non testées.</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 7 - Conclusion / défi
+                type: "content",
+                content: `
+                    <div class="flex flex-col items-center justify-center min-h-[50vh] px-6 text-center">
+                        <div class="bg-indigo-100 rounded-full p-3 mb-4">
+                            <span class="text-3xl">🚀</span>
+                        </div>
+                        <h2 class="text-2xl font-bold text-indigo-800">Prêt à tester vos apps Flutter ?</h2>
+                        <p class="text-gray-600 mt-2 max-w-md">N'oubliez pas : des tests fiables = des applications professionnelles et robustes. Entraînez-vous à écrire des tests unitaires pour chaque fonction que vous codez.</p>
+                        <div class="mt-6 p-3 bg-indigo-50 rounded-xl w-full">
+                            <p class="font-mono text-sm">✨ Exercice : Testez un formulaire de connexion avec des mocks ✨</p>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-6">Leçon 34 - Programme Développement Web (Flutter) - Cameroun 🇨🇲</p>
+                    </div>
+                `
+            }
+        ];
+
+        // Variables globales
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+        let $slidesWrapper = $("#slidesWrapper");
+        let $dotsContainer = $("#dotsContainer");
+        let $prevBtn = $("#prevBtn");
+        let $nextBtn = $("#nextBtn");
+        let $slideCounterSpan = $("#slideCounter");
+        let $totalSlidesSpan = $("#totalSlides");
+
+        // Construction des slides dans le wrapper
+        function buildSlides() {
+            $slidesWrapper.empty();
+            slidesData.forEach((slide, idx) => {
+                const slideDiv = $("<div>").addClass("slide w-full flex-shrink-0").html(slide.content);
+                $slidesWrapper.append(slideDiv);
+            });
+            $totalSlidesSpan.text(totalSlides);
+            updateSlidePosition();
+            generateDots();
+            updateButtonsAndCounter();
+        }
+
+        // Mise à jour de la translation horizontale
+        function updateSlidePosition() {
+            const offset = -currentIndex * 100;
+            $slidesWrapper.css("transform", `translateX(${offset}%)`);
+        }
+
+        // Générer les petits points indicateurs
+        function generateDots() {
+            $dotsContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = $("<button>")
+                    .addClass(`w-2.5 h-2.5 rounded-full mx-1 transition-all duration-200 focus:outline-none ${i === currentIndex ? "bg-indigo-600 w-5" : "bg-gray-300 hover:bg-indigo-300"}`)
+                    .attr("data-index", i);
+                dot.on("click", function() {
+                    const idx = parseInt($(this).attr("data-index"));
+                    if (!isNaN(idx) && idx !== currentIndex) {
+                        currentIndex = idx;
+                        updateSlidePosition();
+                        updateDotsActive();
+                        updateButtonsAndCounter();
+                    }
+                });
+                $dotsContainer.append(dot);
+            }
+            updateDotsActive();
+        }
+
+        function updateDotsActive() {
+            $dotsContainer.children().each(function(idx, el) {
+                if (idx === currentIndex) {
+                    $(el).removeClass("bg-gray-300 w-2.5").addClass("bg-indigo-600 w-5");
+                } else {
+                    $(el).removeClass("bg-indigo-600 w-5").addClass("bg-gray-300 w-2.5");
+                }
+            });
+        }
+
+        function updateButtonsAndCounter() {
+            // Mise à jour compteur affiché
+            $slideCounterSpan.text(currentIndex + 1);
+            // Désactiver précédent si première slide
+            if (currentIndex === 0) {
+                $prevBtn.prop("disabled", true);
+            } else {
+                $prevBtn.prop("disabled", false);
+            }
+            // Désactiver suivant si dernière slide
+            if (currentIndex === totalSlides - 1) {
+                $nextBtn.prop("disabled", true);
+            } else {
+                $nextBtn.prop("disabled", false);
+            }
+        }
+
+        function goNext() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlidePosition();
+                updateDotsActive();
+                updateButtonsAndCounter();
+            }
+        }
+
+        function goPrev() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlidePosition();
+                updateDotsActive();
+                updateButtonsAndCounter();
+            }
+        }
+
+        // Gestion des événements de swipe (pour mobile)
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const minSwipeDistance = 50; // en pixels
+
+        function handleTouchStart(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        }
+
+        function handleTouchEnd(e) {
+            if (touchStartX === 0) return;
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            const diff = touchEndX - touchStartX;
+            if (Math.abs(diff) > minSwipeDistance) {
+                if (diff > 0) {
+                    // swipe droite → précédent
+                    goPrev();
+                } else {
+                    // swipe gauche → suivant
+                    goNext();
+                }
+            }
+            touchStartX = 0;
+        }
+
+        // Initialisation au chargement
+        $(document).ready(function() {
+            buildSlides();
+            // Événements boutons
+            $prevBtn.on("click", goPrev);
+            $nextBtn.on("click", goNext);
+            // Gestion du swipe sur le conteneur des slides
+            const $sliderContainer = $(".overflow-hidden");
+            $sliderContainer.on("touchstart", handleTouchStart);
+            $sliderContainer.on("touchend", handleTouchEnd);
+            // Support clavier (optionnel)
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowLeft") {
+                    goPrev();
+                    e.preventDefault();
+                } else if (e.key === "ArrowRight") {
+                    goNext();
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

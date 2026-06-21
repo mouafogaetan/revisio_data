@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 27 : Hooks personnalisés - useFetch et règles des hooks</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #047857;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            font-family: 'Fira Code', monospace;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .demo-box {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.2rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            border: 1px solid #a7f3d0;
+        }
+        .rule-card {
+            transition: all 0.2s;
+        }
+        .rule-card:hover {
+            transform: translateX(4px);
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.65rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-emerald-200">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active p-6 md:p-10 text-center" data-slide="0">
+            <div class="inline-block bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-sm font-semibold mb-3">React - Hooks Avancés</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent">Hooks personnalisés</h1>
+            <p class="text-lg md:text-xl text-gray-600 mt-4">Créer useFetch et maîtriser les règles des hooks</p>
+            <div class="w-20 h-1 bg-emerald-500 mx-auto rounded-full my-5"></div>
+            <p class="text-gray-500 max-w-md mx-auto">Rendez votre code plus propre, réutilisable et facile à maintenir.</p>
+            <!-- Petit schéma : extraction de logique -->
+            <div class="flex justify-center mt-8">
+                <svg width="260" height="90" viewBox="0 0 300 100">
+                    <rect x="20" y="15" width="110" height="60" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+                    <text x="75" y="40" fill="#064e3b" font-size="9" text-anchor="middle">useState</text>
+                    <text x="75" y="55" fill="#064e3b" font-size="9" text-anchor="middle">useEffect</text>
+                    <text x="75" y="70" fill="#064e3b" font-size="9" text-anchor="middle">fetch()</text>
+                    <text x="30" y="95" fill="#047857" font-size="8">Composant A</text>
+                    
+                    <rect x="170" y="15" width="110" height="60" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+                    <text x="225" y="40" fill="#064e3b" font-size="9" text-anchor="middle">useState</text>
+                    <text x="225" y="55" fill="#064e3b" font-size="9" text-anchor="middle">useEffect</text>
+                    <text x="225" y="70" fill="#064e3b" font-size="9" text-anchor="middle">fetch()</text>
+                    <text x="180" y="95" fill="#047857" font-size="8">Composant B</text>
+                    
+                    <path d="M130 45 L165 45" stroke="#059669" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrowDown)"/>
+                    <text x="148" y="38" fill="#059669" font-size="7">DUPLICATION</text>
+                    <defs>
+                        <marker id="arrowDown" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                            <path d="M0,0 L6,3 L0,6 Z" fill="#059669"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">→ Extraire la logique commune dans <span class="font-mono text-emerald-600">useFetch</span></p>
+            <button class="next-slide mt-6 bg-emerald-600 text-white px-8 py-3 rounded-full font-medium shadow-lg hover:bg-emerald-700 transition">Commencer →</button>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10" data-slide="1">
+            <div class="flex items-center gap-3 border-b border-emerald-200 pb-3 mb-5">
+                <span class="text-3xl">🎯</span>
+                <h2 class="text-2xl md:text-3xl font-bold text-emerald-800">Objectifs de la leçon</h2>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="bg-emerald-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🎣 Hooks personnalisés</span><br>Créer des fonctions qui utilisent des hooks React pour réutiliser la logique.</div>
+                <div class="bg-emerald-50 p-4 rounded-xl shadow-sm"><span class="font-bold">📡 useFetch</span><br>Construire un hook générique pour récupérer des données d'API.</div>
+                <div class="bg-emerald-50 p-4 rounded-xl shadow-sm"><span class="font-bold">📜 Règles des hooks</span><br>Les appeler uniquement au niveau racine et uniquement dans des composants/hooks.</div>
+                <div class="bg-emerald-50 p-4 rounded-xl shadow-sm"><span class="font-bold">♻️ Réutilisabilité</span><br>Partager la logique d'état et d'effets entre plusieurs composants.</div>
+            </div>
+            <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-3 rounded text-sm">💡 Un hook personnalisé commence toujours par <code class="font-mono bg-blue-100 px-1">use</code> (ex: useFetch, useLocalStorage, useToggle).</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 3 : POURQUOI DES HOOKS PERSONNALISÉS ? -->
+        <div class="slide p-6 md:p-10" data-slide="2">
+            <div class="flex gap-2 items-center"><span class="text-3xl">🤔</span><h2 class="text-2xl font-bold text-emerald-800">Pourquoi créer des hooks personnalisés ?</h2></div>
+            <p class="mt-2">Ils permettent d'<span class="font-bold">extraire et de réutiliser</span> la logique avec état entre plusieurs composants.</p>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+                <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                    <p class="font-semibold text-red-700">❌ Sans hook personnalisé</p>
+                    <p class="text-sm mt-1">Logique fetch répétée dans chaque composant. Code dupliqué, difficile à maintenir.</p>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <p class="font-semibold text-green-700">✅ Avec useFetch</p>
+                    <p class="text-sm mt-1">Une seule définition, utilisable partout. Facile à tester et à modifier.</p>
+                </div>
+            </div>
+            <div class="bg-gray-900 rounded-xl mt-4 overflow-auto">
+                <pre><code>// Sans hook : dupliqué dans Users.js et Products.js
+function Users() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => { setData(data); setLoading(false); });
+  }, []);
+  // ...
+}
+
+// Avec useFetch : une seule fois !
+function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    fetch(url)
+      .then(res => res.json())
+      .then(setData)
+      .catch(setError)
+      .finally(() => setLoading(false));
+  }, [url]);
+  return { data, loading, error };
+}</code></pre>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 4 : CRÉATION DE USEFETCH -->
+        <div class="slide p-6 md:p-10" data-slide="3">
+            <h2 class="text-2xl font-bold flex gap-2"><span>📡</span> Création du hook useFetch</h2>
+            <div class="bg-gray-900 rounded-xl mt-3 overflow-auto">
+                <pre><code>// hooks/useFetch.js
+import { useState, useEffect } from 'react';
+
+function useFetch(url, options = {}) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    
+    fetch(url, { ...options, signal: abortController.signal })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(setData)
+      .catch(err => {
+        if (err.name !== 'AbortError') setError(err);
+      })
+      .finally(() => setLoading(false));
+
+    return () => abortController.abort(); // nettoyage
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+export default useFetch;</code></pre>
+            </div>
+            <div class="mt-3 p-2 bg-amber-50 rounded text-sm"><span class="font-bold">✨ Bonus :</span> Ajout d'un AbortController pour annuler la requête si le composant est démonté.</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 5 : UTILISATION DE USEFETCH -->
+        <div class="slide p-6 md:p-10" data-slide="4">
+            <h2 class="text-2xl font-bold">🎮 Utilisation dans un composant</h2>
+            <div class="bg-gray-900 rounded-xl mt-3 overflow-auto">
+                <pre><code>function UsersList() {
+  const { data: users, loading, error } = useFetch('https://api.example.com/users');
+
+  if (loading) return &lt;div&gt;Chargement...&lt;/div&gt;;
+  if (error) return &lt;div&gt;Erreur : {error.message}&lt;/div&gt;;
+  
+  return (
+    &lt;ul&gt;
+      {users?.map(user => (
+        &lt;li key={user.id}&gt;{user.name}&lt;/li&gt;
+      ))}
+    &lt;/ul&gt;
+  );
+}
+
+function ProductsList() {
+  const { data: products, loading, error } = useFetch('https://api.example.com/products');
+  // Même logique, URL différente !
+}</code></pre>
+            </div>
+            <!-- Démo interactive simplifiée -->
+            <div class="demo-box mt-4" id="fetch-demo">
+                <p class="font-semibold text-emerald-700">📡 Démo - Simulation de requête</p>
+                <div class="mt-2">
+                    <button id="load-users" class="bg-emerald-600 text-white px-3 py-1 rounded text-sm mr-2">Charger utilisateurs</button>
+                    <button id="load-posts" class="bg-teal-600 text-white px-3 py-1 rounded text-sm">Charger articles</button>
+                </div>
+                <div id="demo-result" class="mt-3 text-sm text-gray-600">Cliquez sur un bouton pour simuler un fetch.</div>
+                <div id="demo-status" class="mt-2 text-xs text-gray-400"></div>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 6 : LES 2 RÈGLES D'OR DES HOOKS -->
+        <div class="slide p-6 md:p-10" data-slide="5">
+            <h2 class="text-2xl font-bold">📜 Les règles des hooks (indispensables !)</h2>
+            <div class="space-y-3 mt-4">
+                <div class="rule-card bg-white border-l-4 border-emerald-500 p-3 rounded shadow-sm">
+                    <p class="font-bold text-emerald-700">Règle n°1 : Appeler les hooks uniquement au niveau racine</p>
+                    <p class="text-sm text-gray-600">Pas dans des conditions, des boucles ou des fonctions imbriquées. React a besoin que l'ordre des hooks soit identique à chaque rendu.</p>
+                    <pre class="text-xs mt-2 bg-gray-100 text-gray-800 p-2 rounded"><code>// ❌ MAUVAIS
+if (condition) { useState(false); }
+
+// ✅ BON
+const [state, setState] = useState(false);
+if (condition) { /* utiliser state */ }</code></pre>
+                </div>
+                <div class="rule-card bg-white border-l-4 border-emerald-500 p-3 rounded shadow-sm">
+                    <p class="font-bold text-emerald-700">Règle n°2 : Appeler les hooks uniquement depuis React</p>
+                    <p class="text-sm text-gray-600">Depuis un composant fonctionnel OU depuis un autre hook personnalisé. Jamais depuis une fonction JavaScript classique.</p>
+                    <pre class="text-xs mt-2 bg-gray-100 text-gray-800 p-2 rounded"><code>// ❌ MAUVAIS
+function normalFunction() { useState(); }
+
+// ✅ BON
+function useMonHook() { useState(); } // hook personnalisé</code></pre>
+                </div>
+            </div>
+            <div class="mt-4 p-3 bg-red-50 rounded-lg text-sm border border-red-200">
+                ⚠️ <span class="font-bold">Conséquence :</span> Si vous violez ces règles, React ne peut pas garantir le bon fonctionnement des hooks (état mélangé, bugs subtils).
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 7 : EXEMPLE - POURQUOI L'ORDRE COMPTE -->
+        <div class="slide p-6 md:p-10" data-slide="6">
+            <h2 class="text-2xl font-bold">🔍 Pourquoi l'ordre des hooks est important ?</h2>
+            <p>React identifie chaque hook par sa position dans le composant.</p>
+            <div class="bg-gray-900 rounded-xl mt-3 overflow-auto">
+                <pre><code>// Premier rendu
+useState('name')    → Hook n°1 : name
+useEffect(...)      → Hook n°2 : effet
+useState(false)     → Hook n°3 : isActive
+
+// Deuxième rendu (même ordre)
+useState('name')    → Hook n°1 : récupère 'name'
+useEffect(...)      → Hook n°2 : récupère l'effet
+useState(false)     → Hook n°3 : récupère isActive
+
+// SI CONDITION : l'ordre change → 💥 ERREUR !</code></pre>
+            </div>
+            <div class="mt-3 p-3 bg-yellow-50 rounded-lg text-sm">
+                💡 <span class="font-bold">Bon réflexe :</span> Mettez toujours vos hooks en haut du composant, avant les retours conditionnels.
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 8 : AUTRES HOOKS PERSONNALISÉS UTILES -->
+        <div class="slide p-6 md:p-10" data-slide="7">
+            <h2 class="text-2xl font-bold">✨ Autres exemples de hooks personnalisés</h2>
+            <div class="grid md:grid-cols-2 gap-3 mt-4">
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <p class="font-bold">useLocalStorage</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 rounded mt-1"><code>function useLocalStorage(key, initialValue) {
+  const [value, setValue] = useState(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initialValue;
+  });
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+  return [value, setValue];
+}</code></pre>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg border">
+                    <p class="font-bold">useToggle</p>
+                    <pre class="text-xs bg-gray-800 text-white p-2 rounded mt-1"><code>function useToggle(initial = false) {
+  const [state, setState] = useState(initial);
+  const toggle = () => setState(s => !s);
+  return [state, toggle];
+}</code></pre>
+                </div>
+            </div>
+            <div class="mt-3 p-2 bg-emerald-50 rounded text-sm text-center">
+                📦 Les hooks personnalisés sont le meilleur moyen de partager la logique d'état dans React.
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 9 : QUIZ DE VALIDATION -->
+        <div class="slide p-6 md:p-10" data-slide="8">
+            <h2 class="text-2xl font-bold text-emerald-800">🧪 Quiz - Vérifiez vos connaissances</h2>
+            <div class="bg-white rounded-xl shadow p-4 mt-2 space-y-4">
+                <div><p class="font-medium">1️⃣ Quelle est la convention de nommage pour un hook personnalisé ?</p>
+                    <label class="block"><input type="radio" name="quiz1" value="a"> use_nom (snake_case)</label>
+                    <label class="block"><input type="radio" name="quiz1" value="b"> UseNom (PascalCase)</label>
+                    <label class="block"><input type="radio" name="quiz1" value="c"> useNom (camelCase avec préfixe 'use')</label>
+                </div>
+                <div><p class="font-medium">2️⃣ Où peut-on appeler un hook ?</p>
+                    <label class="block"><input type="radio" name="quiz2" value="a"> Dans une fonction classique</label>
+                    <label class="block"><input type="radio" name="quiz2" value="b"> Dans une condition if</label>
+                    <label class="block"><input type="radio" name="quiz2" value="c"> Dans un composant fonctionnel ou un autre hook personnalisé</label>
+                </div>
+                <div><p class="font-medium">3️⃣ Que fait l'AbortController dans notre useFetch ?</p>
+                    <label class="block"><input type="radio" name="quiz3" value="a"> Il accélère la requête</label>
+                    <label class="block"><input type="radio" name="quiz3" value="b"> Il annule la requête si le composant est démonté</label>
+                    <label class="block"><input type="radio" name="quiz3" value="c"> Il met automatiquement en cache les données</label>
+                </div>
+                <button id="checkQuiz" class="bg-emerald-600 text-white px-5 py-2 rounded-full hover:bg-emerald-700">Vérifier</button>
+                <div id="quizResult" class="text-sm font-medium"></div>
+            </div>
+            <div class="flex justify-between mt-6"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-emerald-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 10 : FÉLICITATIONS -->
+        <div class="slide p-6 md:p-10 text-center" data-slide="9">
+            <div class="text-6xl mb-3">🎉🏆</div>
+            <h2 class="text-3xl font-bold text-emerald-700">Félicitations !</h2>
+            <p class="mt-3 text-gray-600">Vous savez maintenant créer des hooks personnalisés, notamment useFetch, et maîtriser les règles fondamentales des hooks.</p>
+            <p class="mt-2 text-sm">Entraînez-vous à créer useLocalStorage et useDebounce pour aller plus loin.</p>
+            <button class="restart-slides mt-8 bg-gray-700 text-white px-6 py-2 rounded-full shadow">Revoir la leçon</button>
+        </div>
+
+    </div>
+
+    <!-- Barre de progression -->
+    <div class="mt-5 flex justify-center items-center gap-3 text-xs text-gray-500">
+        <span id="slide-counter">1</span> / <span id="total-slides">10</span>
+        <div class="w-40 bg-gray-200 rounded-full h-1.5">
+            <div id="progress-fill" class="bg-emerald-600 h-1.5 rounded-full progress-bar" style="width: 10%"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let currentSlide = 0;
+        const slides = $('.slide');
+        const total = slides.length;
+        $('#total-slides').text(total);
+        
+        function updateSlides(){
+            slides.removeClass('active');
+            $(slides[currentSlide]).addClass('active');
+            $('#slide-counter').text(currentSlide+1);
+            let percent = ((currentSlide+1)/total)*100;
+            $('#progress-fill').css('width', percent+'%');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function next(){ if(currentSlide < total-1){ currentSlide++; updateSlides(); } }
+        function prev(){ if(currentSlide > 0){ currentSlide--; updateSlides(); } }
+        
+        $('.next-slide').on('click', next);
+        $('.prev-slide').on('click', prev);
+        $('.restart-slides').on('click', function(){ currentSlide = 0; updateSlides(); });
+        
+        $(document).on('keydown', function(e){
+            if(e.key === 'ArrowRight') next();
+            if(e.key === 'ArrowLeft') prev();
+        });
+        
+        // DEMO : Simulation de useFetch
+        const demoData = {
+            users: [
+                { id: 1, name: "Alice DUPONT" },
+                { id: 2, name: "Brice KAMGA" },
+                { id: 3, name: "Claire BELLA" }
+            ],
+            posts: [
+                { id: 1, title: "Introduction à React" },
+                { id: 2, title: "Les hooks personnalisés" },
+                { id: 3, title: "Déployer sur Vercel" }
+            ]
+        };
+        
+        function simulateFetch(type) {
+            $('#demo-status').text('Chargement...');
+            $('#demo-result').html('<span class="text-gray-500">⏳ Récupération des données...</span>');
+            setTimeout(() => {
+                if (type === 'users') {
+                    let html = '<ul class="list-disc pl-5">';
+                    demoData.users.forEach(u => html += `<li>👤 ${u.name}</li>`);
+                    html += '</ul>';
+                    $('#demo-result').html(html);
+                    $('#demo-status').html('<span class="text-green-600">✅ Requête simulée réussie (useFetch fonctionne !)</span>');
+                } else {
+                    let html = '<ul class="list-disc pl-5">';
+                    demoData.posts.forEach(p => html += `<li>📄 ${p.title}</li>`);
+                    html += '</ul>';
+                    $('#demo-result').html(html);
+                    $('#demo-status').html('<span class="text-green-600">✅ Requête simulée réussie (useFetch fonctionne !)</span>');
+                }
+            }, 500);
+        }
+        
+        $('#load-users').on('click', () => simulateFetch('users'));
+        $('#load-posts').on('click', () => simulateFetch('posts'));
+        
+        // QUIZ
+        $('#checkQuiz').on('click', function(){
+            let q1 = $('input[name="quiz1"]:checked').val();
+            let q2 = $('input[name="quiz2"]:checked').val();
+            let q3 = $('input[name="quiz3"]:checked').val();
+            if(q1 === 'c' && q2 === 'c' && q3 === 'b'){
+                $('#quizResult').html('<span class="text-green-600 font-semibold">✔️ Parfait ! Vous maîtrisez les hooks personnalisés et les règles des hooks.</span>');
+            } else {
+                let feedback = '';
+                if(q1 !== 'c') feedback += 'Un hook personnalisé doit commencer par "use". ';
+                if(q2 !== 'c') feedback += 'Les hooks s\'appellent dans des composants ou d\'autres hooks. ';
+                if(q3 !== 'b') feedback += 'AbortController annule la requête au démontage.';
+                $('#quizResult').html('<span class="text-red-600">❌ ' + feedback + '</span>');
+            }
+        });
+    });
+</script>
+</body>
+</html>

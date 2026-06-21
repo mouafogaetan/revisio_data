@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 21 : Contraintes sur les génériques (keyof, extends, paramètres par défaut)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules éventuelles) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        .slide-container { transition: transform 0.4s ease-in-out; }
+        .slide { min-width: 100%; box-sizing: border-box; scroll-snap-align: start; }
+        .slides-wrapper {
+            scroll-snap-type: x mandatory;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .slides-wrapper::-webkit-scrollbar { height: 6px; }
+        .slides-wrapper::-webkit-scrollbar-track { background: #cbd5e1; border-radius: 10px; }
+        .slides-wrapper::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
+        .card-hover { transition: all 0.2s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 20px 25px -12px rgba(0,0,0,0.15); }
+        .btn-nav:active { transform: scale(0.96); }
+        code {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge {
+            background: #2563eb;
+            color: white;
+            font-size: 0.7rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+        }
+        .keyword {
+            color: #facc15;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-5xl mx-auto px-3 md:px-6 py-5 md:py-8">
+    <!-- Header avec progression -->
+    <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm p-3 mb-5 sticky top-2 z-10 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="text-blue-700 font-bold text-lg">🧬 TypeScript Avancé</span>
+            <span class="text-gray-500 text-sm">Lesson 21</span>
+        </div>
+        <div class="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+            <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+        </div>
+    </div>
+
+    <!-- Slides wrapper -->
+    <div class="slides-wrapper relative flex overflow-x-auto rounded-2xl shadow-xl bg-white" id="slidesWrapper">
+        <div class="slide-container flex" id="slideContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="text-center space-y-5">
+                    <div class="inline-block bg-indigo-100 text-indigo-800 rounded-full px-5 py-1.5 text-sm font-semibold">🎯 Génériques avancés</div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">Contraindre les génériques</h1>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto"><code class="bg-gray-200 text-gray-800">extends</code>, <code class="bg-gray-200 text-gray-800">keyof</code>, paramètres par défaut</p>
+                    <div class="pt-6 flex justify-center gap-4 text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1">🔒 <span>Contraintes</span></span>
+                        <span class="flex items-center gap-1">🔑 <span>keyof</span></span>
+                        <span class="flex items-center gap-1">⚙️ <span>Valeurs par défaut</span></span>
+                    </div>
+                    <div class="mt-8 animate-bounce text-indigo-400 text-sm">👆 Glissez ou boutons de navigation 👆</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide p-6 md:p-12 flex flex-col justify-center min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 border-l-8 border-indigo-500 pl-5 mb-8">🎯 Objectifs de la leçon</h2>
+                    <ul class="space-y-4 text-gray-700 text-lg">
+                        <li class="flex gap-3 items-start"><span class="text-indigo-500 text-xl">✔️</span> Ajouter des contraintes avec <code class="text-sm">extends</code> (ex: <code>T extends HasLength</code>)</li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-500 text-xl">✔️</span> Utiliser <code class="text-sm">keyof</code> pour contraindre à une clé d'objet valide</li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-500 text-xl">✔️</span> Maîtriser les paramètres génériques par défaut <code class="text-sm">&lt;T = string&gt;</code></li>
+                        <li class="flex gap-3 items-start"><span class="text-indigo-500 text-xl">✔️</span> Comprendre quand et pourquoi contraindre les génériques</li>
+                    </ul>
+                    <div class="mt-12 bg-indigo-50 p-5 rounded-xl italic text-gray-700 border border-indigo-200">
+                        💡 <strong>Rappel :</strong> Un générique permet de créer des composants réutilisables tout en gardant la sécurité des types.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : CONTRAINTE AVEC EXTENDS (INTERFACE) -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Contrainte de forme</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">📏 <code>T extends Interface</code></h2>
+                    <p class="text-gray-600 mb-3">On peut exiger que le type générique ait certaines propriétés ou méthodes.</p>
+                    <pre><code>interface AvecLongueur {
+  length: number;
+}
+
+// T doit avoir une propriété 'length' (comme string, Array, etc.)
+function logLength&lt;T extends AvecLongueur&gt;(element: T): T {
+  console.log(`Longueur : ${element.length}`);
+  return element;
+}
+
+logLength("Bonjour");      // ✅ string a .length
+logLength([1, 2, 3]);      // ✅ Array a .length
+// logLength(123);         // ❌ number n'a pas .length → erreur</code></pre>
+                    <div class="bg-green-50 p-4 rounded-lg mt-4 border-l-4 border-green-500">
+                        ✅ <strong>Avantage</strong> : on peut utiliser <code>.length</code> en toute sécurité à l'intérieur de la fonction.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : KEYOF - Contraindre à une clé d'objet -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Sécurité des clés</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🔑 Le mot-clé <code>keyof</code></h2>
+                    <p class="text-gray-600 mb-3"><code>keyof T</code> représente l'union de toutes les clés (noms de propriétés) du type <code>T</code>.</p>
+                    <pre><code>function getProperty&lt;T, K extends keyof T&gt;(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const user = { name: "Alice", age: 30, city: "Douala" };
+const userName = getProperty(user, "name"); // ✅ type: string
+const userAge = getProperty(user, "age");   // ✅ type: number
+// getProperty(user, "invalid"); ❌ Erreur : "invalid" n'est pas une clé de user</code></pre>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-5">
+                        <div class="bg-gray-50 p-3 rounded"><span class="font-mono text-blue-700">keyof User</span> → <code>"name" | "age" | "city"</code></div>
+                        <div class="bg-gray-50 p-3 rounded">✅ <strong>Utile pour</strong> : accès dynamiques sécurisés, transformations d'objets.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : PARAMETRES GENERIQUES PAR DEFAUT -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Flexibilité</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">🎛️ Paramètres par défaut <code>&lt;T = type&gt;</code></h2>
+                    <p class="text-gray-600 mb-3">Si l'utilisateur ne précise pas le type, TypeScript utilise le type par défaut.</p>
+                    <pre><code>class Boite&lt;T = string&gt; {
+  contenu: T;
+  constructor(valeur: T) {
+    this.contenu = valeur;
+  }
+}
+
+let boite1 = new Boite("cadeau");   // T par défaut → string
+let boite2 = new Boite&lt;number&gt;(100); // T est number explicitement
+let boite3 = new Boite(true);       // T devient boolean (inféré)
+
+// Exemple avec fonction
+function createArray&lt;T = string&gt;(length: number, value: T): T[] {
+  return Array(length).fill(value);
+}
+const mots = createArray(3, "mot");     // string[]
+const chiffres = createArray(2, 42);    // number[] (inféré)</code></pre>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-4">📌 Les paramètres par défaut rendent les génériques plus pratiques sans perdre la sécurité.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : COMBINAISON keyof + extends -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <span class="badge mb-2">Pratique avancée</span>
+                    <h2 class="text-3xl font-bold text-gray-800 mt-2 mb-4">⚡ keyof + extends : mise à jour sécurisée</h2>
+                    <pre><code>function updateValue&lt;T, K extends keyof T&gt;(
+  obj: T,
+  key: K,
+  newValue: T[K]
+): void {
+  obj[key] = newValue;
+}
+
+const config = {
+  host: "localhost",
+  port: 8080,
+  ssl: true
+};
+
+updateValue(config, "port", 3000);   // ✅ port est number
+updateValue(config, "host", "127.0.0.1"); // ✅
+// updateValue(config, "port", "http");  ❌ string non assignable à number
+// updateValue(config, "unknown", 42);   ❌ clé invalide</code></pre>
+                    <div class="bg-indigo-100 p-4 rounded-xl mt-4">
+                        🚀 <strong>Résultat</strong> : la fonction est totalement typée — la clé et la valeur doivent correspondre exactement.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : TABLEAU RECAP & BONNES PRATIQUES -->
+            <div class="slide p-6 md:p-12 min-h-[70vh] flex items-center">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">📋 Récapitulatif</h2>
+                    <div class="space-y-4">
+                        <div class="bg-white border rounded-xl p-5 shadow-sm">
+                            <div class="font-bold text-indigo-700 text-xl">1. <code>T extends U</code></div>
+                            <p>Assure que <code>T</code> a au moins les propriétés/méthodes de <code>U</code>.</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-5 shadow-sm">
+                            <div class="font-bold text-indigo-700 text-xl">2. <code>keyof T</code></div>
+                            <p>Union des noms de propriétés de <code>T</code>. Utilisé avec <code>extends</code> pour restreindre un paramètre aux clés valides.</p>
+                        </div>
+                        <div class="bg-white border rounded-xl p-5 shadow-sm">
+                            <div class="font-bold text-indigo-700 text-xl">3. <code>&lt;T = Default&gt;</code></div>
+                            <p>Fournit un type par défaut quand l'utilisateur n'en spécifie pas (ou que l'inférence ne suffit pas).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : EXERCICE INTERACTIF (jQuery) -->
+            <div class="slide p-6 md:p-12 min-h-[70vh]">
+                <div class="max-w-3xl mx-auto">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-5">🧪 Exercice interactif</h2>
+                    <div class="bg-gray-50 p-5 rounded-2xl shadow-inner">
+                        <p class="font-medium">Complétez la fonction générique pour qu'elle <strong>extrait une propriété</strong> d'un objet en toute sécurité :</p>
+                        <pre id="codeEditor" contenteditable="true" class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm my-4 whitespace-pre-wrap outline-none" style="caret-color: white;">function getValue&lt;T, K extends /* ??? */&gt;(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const data = { id: 5, nom: "Cameroun" };
+// Doit fonctionner avec "id" et "nom" mais pas "ville"</pre>
+                        <button id="checkAnswerBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-full btn-nav transition">✅ Vérifier ma solution</button>
+                        <div id="feedbackMsg" class="mt-4 text-sm hidden p-3 rounded-lg"></div>
+                        <div class="text-xs text-gray-400 mt-3">💡 Conseil : utilisez <code class="text-xs">keyof T</code> comme contrainte.</div>
+                    </div>
+                    <p class="text-center text-gray-400 text-sm mt-6">Modifiez le code dans le bloc ci-dessus et vérifiez votre réponse.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation controls -->
+    <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+        <button id="prevBtn" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-5 rounded-full shadow-sm btn-nav disabled:opacity-40">← Précédent</button>
+        <div class="flex gap-2 overflow-x-auto pb-1" id="dotsContainer"></div>
+        <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-sm btn-nav">Suivant →</button>
+    </div>
+    <div class="text-center text-gray-500 text-xs mt-6">
+        📘 Leçon 21 : Ajouter des contraintes aux génériques (extends, keyof, paramètres par défaut) - Chapitre 6
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    const $wrapper = $('.slides-wrapper');
+    let slides = $('.slide');
+    let totalSlides = slides.length;
+    let currentIndex = 0;
+    let isScrolling = false;
+
+    $('#totalSlides').text(totalSlides);
+    updateDots();
+
+    function updateDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            let activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+            dotsHtml += `<button class="dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('#currentSlide').text(currentIndex + 1);
+    }
+
+    function scrollToSlide(index) {
+        if (index < 0) index = 0;
+        if (index >= totalSlides) index = totalSlides - 1;
+        currentIndex = index;
+        const slideWidth = slides.first().outerWidth();
+        $wrapper.animate({ scrollLeft: slideWidth * currentIndex }, 300, 'swing');
+        updateDots();
+        $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+        $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+    }
+
+    $wrapper.on('scroll', function() {
+        if (!isScrolling) {
+            requestAnimationFrame(() => {
+                const scrollPos = $wrapper.scrollLeft();
+                const slideWidth = slides.first().outerWidth();
+                let newIndex = Math.round(scrollPos / slideWidth);
+                if (newIndex !== currentIndex && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    updateDots();
+                    $('#currentSlide').text(currentIndex + 1);
+                    $('#prevBtn').toggleClass('opacity-40', currentIndex === 0);
+                    $('#nextBtn').toggleClass('opacity-40', currentIndex === totalSlides - 1);
+                }
+                isScrolling = false;
+            });
+            isScrolling = true;
+        }
+    });
+
+    $('#nextBtn').click(() => { if (currentIndex < totalSlides - 1) scrollToSlide(currentIndex + 1); });
+    $('#prevBtn').click(() => { if (currentIndex > 0) scrollToSlide(currentIndex - 1); });
+    $(document).on('click', '.dot', function() { scrollToSlide($(this).data('index')); });
+
+    let resizeTimer;
+    $(window).on('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            let slideWidth = slides.first().outerWidth();
+            $wrapper.scrollLeft(slideWidth * currentIndex);
+        }, 100);
+    });
+
+    // Exercice interactif : vérifier la contrainte keyof
+    $('#checkAnswerBtn').click(function() {
+        let userCode = $('#codeEditor').text();
+        let hasKeyofConstraint = /K extends keyof\s*T/.test(userCode);
+        let $feedback = $('#feedbackMsg');
+        $feedback.removeClass('hidden');
+        
+        if (hasKeyofConstraint) {
+            $feedback.removeClass('bg-red-100').addClass('bg-green-100 text-green-800');
+            $feedback.html('🎉 Exact ! La contrainte <code>K extends keyof T</code> assure que la clé passée existe bien dans l\'objet. Vous maîtrisez <strong>keyof</strong> !');
+        } else {
+            $feedback.removeClass('bg-green-100').addClass('bg-red-100 text-red-800');
+            $feedback.html('❌ Pas encore. Il faut écrire : <code>K extends keyof T</code>. Relisez la slide sur <strong>keyof</strong> pour comprendre comment contraindre la clé.');
+        }
+    });
+
+    setTimeout(() => {
+        let slideWidth = slides.first().outerWidth();
+        $wrapper.scrollLeft(slideWidth * currentIndex);
+        $('#prevBtn').addClass('opacity-40');
+    }, 100);
+});
+</script>
+</body>
+</html>

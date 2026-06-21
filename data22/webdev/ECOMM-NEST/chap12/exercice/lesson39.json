@@ -1,0 +1,188 @@
+[
+  {
+    "intitule": "Configuration CORS dans NestJS pour un frontend React",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Votre API NestJS est déployée sur <code>https://api.ma-boutique.com</code> et votre frontend React tourne sur <code>https://www.ma-boutique.com</code>. Vous devez autoriser les requêtes跨域 (CORS).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez la configuration CORS à ajouter dans <code>main.ts</code> pour autoriser uniquement l'origine du frontend.",
+        "niveau": "easy",
+        "reponse": "```typescript\n// main.ts\napp.enableCors({\n  origin: 'https://www.ma-boutique.com',\n  methods: 'GET,POST,PUT,PATCH,DELETE',\n  credentials: true,\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez pourquoi il est important de ne pas utiliser <code>origin: '*'</code> en production.",
+        "niveau": "easy",
+        "reponse": "Autoriser toutes les origines (<code>'*'</code>) expose l'API à des attaques CSRF et permet à n'importe quel site web d'appeler vos endpoints. En production, il est impératif de restreindre aux origines autorisées (vos propres domaines).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémentation du rate limiting par IP avec @nestjs/throttler",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez limiter les requêtes à 100 par minute par adresse IP sur toutes les routes de l'API, sauf pour la route <code>/health</code> qui ne doit pas être limitée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Configurez <code>ThrottlerModule</code> globalement et appliquez <code>@SkipThrottle()</code> sur la route de health check.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// app.module.ts\nThrottlerModule.forRoot({\n  ttl: 60,\n  limit: 100,\n})\n\n// health.controller.ts\n@Controller('health')\n@SkipThrottle()\nexport class HealthController {\n  @Get()\n  check() { return { status: 'ok' }; }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Que se passe-t-il si un client dépasse la limite de 100 requêtes par minute ?",
+        "niveau": "easy",
+        "reponse": "Le serveur renvoie une réponse HTTP <strong>429 Too Many Requests</strong> avec un en-tête <code>Retry-After</code> indiquant le temps d'attente avant de pouvoir effectuer une nouvelle requête.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Personnalisation du rate limiting pour les routes sensibles",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans votre API e-commerce, vous souhaitez des limites différentes :</p><ul><li>Routes publiques : 100 requêtes/minute</li><li>Route <code>/auth/login</code> : 5 tentatives/minute (protection brute force)</li><li>Route <code>/checkout</code> : 10 requêtes/minute</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Configurez <code>@nestjs/throttler</code> avec des <strong>named throttlers</strong> pour répondre à ces exigences.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// app.module.ts\nThrottlerModule.forRoot([\n  { name: 'default', ttl: 60, limit: 100 },\n  { name: 'login', ttl: 60, limit: 5 },\n  { name: 'checkout', ttl: 60, limit: 10 },\n])\n\n// auth.controller.ts\n@Throttle({ login: { ttl: 60, limit: 5 } })\n@Post('login')\nasync login() {}\n\n// order.controller.ts\n@Throttle({ checkout: { ttl: 60, limit: 10 } })\n@Post('checkout')\nasync checkout() {}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposez une stratégie pour différencier les limites par utilisateur (authentifié) de celles par IP (non authentifié).",
+        "niveau": "very hard",
+        "reponse": "On peut étendre <code>ThrottlerGuard</code> et surcharger la méthode <code>getTracker(req)</code> : si <code>req.user</code> existe (utilisateur connecté), on utilise <code>user.id</code> comme clé, sinon on utilise l'IP. Cela permet des limites plus élevées pour les utilisateurs authentifiés.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration d'un reverse proxy Nginx pour l'API NestJS",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous déployez votre API NestJS sur le port 3000 et vous souhaitez utiliser Nginx comme reverse proxy pour :</p><ul><li>Gérer le SSL/TLS (HTTPS)</li><li>Faire du rate limiting au niveau proxy</li><li>Servir les fichiers statiques (images produits)</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez une configuration Nginx de base qui proxy les requêtes vers <code>http://localhost:3000</code> et limite à 200 requêtes/minute par IP.",
+        "niveau": "hard",
+        "reponse": "```nginx\nlimit_req_zone $binary_remote_addr zone=api:10m rate=200r/m;\n\nserver {\n  listen 443 ssl;\n  server_name api.ma-boutique.com;\n\n  ssl_certificate /etc/ssl/certs/ma-boutique.crt;\n  ssl_certificate_key /etc/ssl/private/ma-boutique.key;\n\n  location / {\n    limit_req zone=api burst=10 nodelay;\n    proxy_pass http://localhost:3000;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": "1.a",
+        "texte": "Expliquez le rôle des en-têtes <code>X-Real-IP</code> et <code>X-Forwarded-For</code> dans ce contexte.",
+        "niveau": "medium",
+        "reponse": "Quand Nginx agit comme reverse proxy, l'API NestJS voit l'IP du proxy (127.0.0.1). Les en-têtes <code>X-Real-IP</code> et <code>X-Forwarded-For</code> transmettent l'IP réelle du client. Il faut configurer NestJS pour <strong>trust proxy</strong> : <code>app.set('trust proxy', true)</code>.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse des performances : rate limiting distribué avec Redis",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Votre API est déployée sur plusieurs instances (scale horizontal). Le rate limiting par IP avec stockage en mémoire ne fonctionne plus car chaque instance a son propre compteur.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une solution pour centraliser les compteurs de requêtes et expliquer son implémentation avec NestJS.",
+        "niveau": "very hard",
+        "reponse": "On utilise <strong>Redis</strong> comme stockage centralisé avec <code>@nestjs/throttler-storage-redis</code>. Configuration :\n```typescript\nThrottlerModule.forRoot({\n  storage: new ThrottlerStorageRedisService(redisClient),\n  ttl: 60,\n  limit: 100,\n});\n```\nAinsi, toutes les instances partagent le même compteur pour chaque IP.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Comparez les avantages/inconvénients du rate limiting au niveau Nginx vs au niveau de l'application NestJS.",
+        "niveau": "very hard",
+        "reponse": "| Nginx | Application NestJS |\n|-------|-------------------|\n| ✅ Performance (C, bas niveau) | ✅ Plus flexible (conditions métier) |\n| ✅ Moins de charge sur l'app | ✅ Peut être distribué avec Redis |\n| ❌ Moins granulaire (pas de logique métier) | ❌ Plus de consommation CPU |\n| ❌ Nécessite de transmettre l'IP client | ✅ Fonctionne en serverless |\n\nMeilleure approche souvent combinée : Nginx pour une première barrière (DDoS), puis NestJS pour des règles métier fines.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configuration CORS avancée avec plusieurs origines et credentials",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Votre API doit accepter les requêtes depuis :</p><ul><li><code>https://www.ma-boutique.com</code></li><li><code>https://admin.ma-boutique.com</code></li><li><code>http://localhost:3000</code> (développement)</li></ul><p>Les requêtes incluent des cookies (credentials: true).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez la configuration CORS NestJS correspondante.",
+        "niveau": "medium",
+        "reponse": "```typescript\napp.enableCors({\n  origin: ['https://www.ma-boutique.com', 'https://admin.ma-boutique.com', 'http://localhost:3000'],\n  credentials: true,\n  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],\n  allowedHeaders: ['Content-Type', 'Authorization'],\n});\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Pourquoi ne peut-on pas utiliser <code>origin: '*'</code> avec <code>credentials: true</code> ?",
+        "niveau": "medium",
+        "reponse": "La spécification CORS interdit l'utilisation de <code>Access-Control-Allow-Origin: *</code> lorsque <code>Access-Control-Allow-Credentials: true</code> est envoyé. Le navigateur rejetterait la requête. Il faut explicitement lister les origines autorisées.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Bonnes pratiques : rate limiting et protection contre les attaques DDoS",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre boutique en ligne subit une attaque DDoS ciblant l'endpoint coûteux <code>/products/search</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposez une stratégie de défense en profondeur (3 niveaux) pour atténuer cette attaque.",
+        "niveau": "hard",
+        "reponse": "1. **Niveau Nginx/CDN** : rate limiting global (ex: 50 requêtes/seconde/IP), cache des réponses fréquentes.\n2. **Niveau Application** : <code>@Throttle()</code> spécifique sur <code>/products/search</code> avec limite basse (ex: 10 requêtes/minute/IP).\n3. **Niveau Base de données** : indexation des recherches, mise en cache Redis des résultats.\n4. Optionnel : Cloudflare ou service anti-DDoS avant Nginx.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise en place d'un reverse proxy avec Docker Compose",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous utilisez Docker Compose avec :</p><ul><li>Un service <code>api</code> (NestJS sur port 3000)</li><li>Un service <code>nginx</code> comme reverse proxy</li><li>Un service <code>redis</code> pour le rate limiting distribué</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez un fichier <code>docker-compose.yml</code> minimal et l'extrait de configuration Nginx correspondant.",
+        "niveau": "very hard",
+        "reponse": "```yaml\n# docker-compose.yml\nversion: '3.8'\nservices:\n  api:\n    build: ./api\n    environment:\n      - REDIS_HOST=redis\n  nginx:\n    image: nginx:alpine\n    ports:\n      - \"80:80\"\n      - \"443:443\"\n    volumes:\n      - ./nginx.conf:/etc/nginx/nginx.conf\n    depends_on:\n      - api\n  redis:\n    image: redis:alpine\n```\n```nginx\n# nginx.conf\nupstream backend {\n  server api:3000;\n}\nserver {\n  listen 80;\n  location / {\n    proxy_pass http://backend;\n    proxy_set_header X-Real-IP $remote_addr;\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

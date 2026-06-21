@@ -1,0 +1,159 @@
+[
+  {
+    "intitule": "Comprendre l'affichage des commandes et du suivi",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une application e-commerce mobile, l'écran « Mes commandes » affiche la liste des achats passés par l'utilisateur. Chaque commande contient un numéro, la date, le montant total et un statut (en cours, expédiée, livrée, annulée). Le détail permet de suivre l'évolution avec un tracking (étapes). Réponds aux questions suivantes pour vérifier ta compréhension.</p>",
+      "images": [
+        "capture d'écran d'une liste de commandes sur mobile avec statuts colorés",
+        "schéma de suivi de colis avec étapes : validée, préparée, expédiée, livrée"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifie trois informations essentielles que doit contenir chaque carte de commande dans une liste (ordre récent en premier).",
+        "niveau": "easy",
+        "reponse": "1. Numéro de commande (ou ID unique). 2. Date de la commande. 3. Montant total payé. Optionnellement le statut et le nombre d'articles.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Explique pourquoi il est important d'utiliser une FlatList (ou FlashList) plutôt qu'une ScrollView pour afficher l'historique des commandes.",
+        "niveau": "medium",
+        "reponse": "FlatList permet le rendu paresseux (lazy rendering) : seuls les éléments visibles à l'écran sont montés, ce qui réduit la consommation mémoire, surtout si l'utilisateur a beaucoup de commandes. ScrollView chargerait toutes les commandes d'un coup, ce qui pourrait ralentir l'application et causer des chutes de performance. De plus, FlatList offre le recyclage des composants.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter le suivi de commande pas à pas (tracking)",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Tu développes un écran de détail d’une commande. Le client veut un indicateur visuel des étapes : <strong>Commande validée</strong> → <strong>Préparation</strong> → <strong>Expédiée</strong> → <strong>Livrée</strong>. L'état actuel est récupéré depuis l'API via le champ <code>status</code> (ex: 'preparation', 'shipped', 'delivered'). Les étapes antérieures sont marquées comme complétées.</p>",
+      "images": [
+        "barre de progression horizontale avec 4 étapes, dont les deux premières cochées"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Conçois un composant React Native <code>OrderTracker</code> qui prend en paramètre <code>currentStatus</code> et affiche les quatre étapes avec des icônes (coche pour validé, cercle pour en cours, grisé pour futur). Utilise une <code>FlatList</code> horizontale ou une vue en ligne.",
+        "niveau": "hard",
+        "reponse": "```jsx\nimport React from 'react';\nimport { View, Text, StyleSheet, Dimensions } from 'react-native';\n\nconst steps = ['validée', 'préparation', 'expédiée', 'livrée'];\nconst statusOrder = { validated: 0, preparation: 1, shipped: 2, delivered: 3 };\n\nconst OrderTracker = ({ currentStatus }) => {\n  const activeIndex = statusOrder[currentStatus] ?? 0;\n\n  return (\n    <View style={styles.container}>\n      {steps.map((label, idx) => (\n        <View key={label} style={styles.step}>\n          <View style={[styles.circle, idx <= activeIndex ? styles.activeCircle : styles.inactiveCircle]}>\n            {idx < activeIndex && <Text style={styles.check}>✓</Text>}\n            {idx === activeIndex && <Text style={styles.dot}>●</Text>}\n            {idx > activeIndex && <Text style={styles.num}>{idx+1}</Text>}\n          </View>\n          <Text style={[styles.label, idx <= activeIndex && styles.activeLabel]}>{label}</Text>\n          {idx < steps.length-1 && <View style={[styles.line, idx < activeIndex ? styles.activeLine : styles.inactiveLine]} />}\n        </View>\n      ))}\n    </View>\n  );\n};\n// styles avec flexDirection row, alignItems center etc.\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Ajoute la gestion du responsive : les étapes doivent s'adapter si l'écran est étroit (passage en colonne ou scroll horizontal). Propose une solution.",
+            "niveau": "medium",
+            "reponse": "On peut utiliser une FlatList horizontale avec `horizontal` et `showsHorizontalScrollIndicator={false}` et la largeur de chaque étape calculée dynamiquement (minWidth). Ou utiliser un `ScrollView` horizontal. Pour les très petits écrans, on peut réduire la taille des cercles et des libellés avec des `Dimensions.get('window').width`."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Décris comment tu testerais que le statut 'expédiée' affiche correctement les deux premières étapes comme complétées et la troisième comme active.",
+        "niveau": "medium",
+        "reponse": "Avec React Native Testing Library : on rend le composant avec `currentStatus='shipped'`. On utilise `getByText` et `queryByText` pour vérifier que les étapes 'validée' et 'préparation' ont l'icône ✓ (coche) et que l'étape 'expédiée' a le style actif (cercle plein). On s'assure que 'livrée' n'a pas de coche. On peut aussi vérifier les styles via `toHaveStyle`."
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Fonctionnalité « Commander à nouveau » (re-order)",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans l'écran des détails d'une commande, un bouton « Commander à nouveau » permet de recréer le panier avec les mêmes produits (quantités identiques). L'utilisateur est ensuite redirigé vers l'écran de paiement. Les produits peuvent avoir des prix ou stocks différents depuis la commande d'origine, il faut gérer ce cas.</p>",
+      "images": [
+        "bouton 'Repasser commande' sur une fiche de commande"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédige la logique (pseudo-code ou TypeScript) de la fonction `reorder(orderId)` qui : récupère la commande via API, vérifie la disponibilité de chaque produit, ajoute au panier global (Zustand) les articles encore disponibles, et affiche une alerte si certains produits sont en rupture.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nasync function reorder(orderId: string) {\n  try {\n    const order = await api.getOrder(orderId); // { items: [{ productId, quantity }] }\n    const unavailable: string[] = [];\n    for (const item of order.items) {\n      const product = await api.checkStock(item.productId);\n      if (product.stock >= item.quantity) {\n        cartStore.addItem({ ...product, quantity: item.quantity });\n      } else {\n        unavailable.push(product.name);\n      }\n    }\n    if (unavailable.length > 0) {\n      Alert.alert('Stock insuffisant', `Produits indisponibles : ${unavailable.join(', ')}. Les autres ont été ajoutés.`);\n    }\n    navigation.navigate('CartScreen'); // rediriger vers panier\n  } catch (error) {\n    Alert.alert('Erreur', 'Impossible de récupérer la commande');\n  }\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Que faire si un produit a augmenté de prix depuis la commande d'origine ? Comporte-toi de manière éthique.",
+            "niveau": "medium",
+            "reponse": "On affiche un message d'information à l'utilisateur avant l'ajout : « Le prix du produit X a changé (ancien prix → nouveau prix). Souhaitez-vous l'ajouter au nouveau prix ? » ou on ajoute avec le prix actuel sans surprise. Une pratique éthique est d'informer et de laisser le choix."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Propose deux améliorations UX pour faciliter la ré-commande (ex: quantité modifiable avant ajout, mémorisation des préférences).",
+        "niveau": "easy",
+        "reponse": "1. Afficher une modale avec la liste des produits de l'ancienne commande, permettant à l'utilisateur de modifier les quantités avant de tout ajouter au panier. 2. Proposer un bouton 'Re-order en un clic' qui ajoute directement au panier et passe à la caisse (gain de temps pour les produits courants).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Optimiser l'affichage de l'historique avec pagination",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un utilisateur peut avoir des centaines de commandes. Actuellement, l'API renvoie toutes les commandes en une seule fois, ce qui ralentit l'application. Tu dois implémenter le <strong>chargement infini</strong> (pagination) avec React Query (<code>useInfiniteQuery</code>). Chaque page contient 10 commandes.</p>",
+      "images": [
+        "schéma de pagination : chargement au scroll"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écris un extrait de code utilisant <code>useInfiniteQuery</code> pour récupérer les commandes paginées. L'API renvoie <code>{ data: Order[], nextCursor: number | null }</code>.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport { useInfiniteQuery } from '@tanstack/react-query';\n\nconst fetchOrders = async ({ pageParam = 0 }) => {\n  const res = await api.get(`/orders?page=${pageParam}&limit=10`);\n  return res.data; // { orders, nextPage }\n};\n\nconst { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({\n  queryKey: ['orders'],\n  queryFn: fetchOrders,\n  getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,\n});\n\n// Dans le FlatList\n<FlatList\n  data={data?.pages.flatMap(p => p.orders) || []}\n  onEndReached={() => hasNextPage && fetchNextPage()}\n  onEndReachedThreshold={0.3}\n  ListFooterComponent={isFetchingNextPage && <ActivityIndicator />}\n/>\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment gérer l'affichage d'un message « Aucune commande » lorsque la liste est vide après chargement ?",
+            "niveau": "easy",
+            "reponse": "On vérifie si `data?.pages[0].orders.length === 0` (ou après chargement initial) et on affiche un composant vide (EmptyState) avec une illustration et un message « Vous n'avez pas encore passé de commande »."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Justifie l'utilisation du paramètre <code>onEndReachedThreshold={0.3}</code> dans ce contexte.",
+        "niveau": "medium",
+        "reponse": "Ce paramètre définit la distance (en pourcentage de la longueur visible de la liste) à laquelle la fonction `onEndReached` est déclenchée. 0.3 signifie que lorsque l'utilisateur a défilé jusqu'à 30% avant la fin de la liste, le chargement suivant est déclenché. Cela permet de précharger la page suivante avant que l'utilisateur n'atteigne la fin, offrant une expérience fluide sans attendre."
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyser la gestion des statuts et erreurs réseau",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans l'écran de détail d'une commande, le tracking est affiché via une API. Mais en zone de faible connexion, la requête peut échouer ou être lente. On souhaite afficher des données en cache (si disponibles) et un indicateur de rafraîchissement.</p>",
+      "images": [
+        "icône de synchronisation et message 'Mise à jour échouée, utilisation des données locales'"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Explique comment React Query gère le cache et la revalidation automatique pour améliorer l'expérience utilisateur en mode dégradé.",
+        "niveau": "medium",
+        "reponse": "React Query conserve en cache les données des requêtes précédentes (orders detail). Si la requête échoue (réseau), il renvoie les données du cache tout en signalant l'erreur en arrière-plan. On peut afficher un message « Données potentiellement obsolètes » et proposer un bouton de réessai. De plus, avec la persistance offline (AsyncStorage), les données sont disponibles même après redémarrage. La revalidation automatique se déclenche au retour de connexion (via onlineManager).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Propose une stratégie pour afficher une animation de chargement la première fois, et ne pas afficher de spinner lors des revalidations silencieuses (background)",
+        "niveau": "medium",
+        "reponse": "On utilise `isLoading` (premier chargement) et `isFetching` (revalidation). On peut afficher un spinner seulement si `isLoading && !isFetching` ou alors utiliser `isInitialLoading`. Exemple : si `isInitialLoading` → grand spinner central ; si `isFetching && !isLoading` → petite icône de rafraîchissement en haut de l'écran (Pull to refresh)."
+        "sousQuestions": []
+      }
+    ]
+  }
+]

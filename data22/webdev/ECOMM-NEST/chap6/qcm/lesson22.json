@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Dans un dashboard administrateur, quel est le rôle principal du <strong>chiffre d'affaires (CA)</strong> ?",
+    "options": [
+      "Afficher le nombre total de commandes passées sur la plateforme.",
+      "Calculer la somme totale des commandes dont le statut est 'paid' ou 'shipped' ou 'delivered' sur une période donnée.",
+      "Compter le nombre de nouveaux utilisateurs inscrits.",
+      "Afficher le nombre de paniers abandonnés."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Le chiffre d'affaires (CA) représente la somme totale des ventes réalisées sur une période donnée. Dans un e-commerce, on calcule généralement le CA à partir des commandes confirmées et payées (statuts 'paid', 'shipped', 'delivered'), en excluant les commandes annulées ou en attente de paiement. C'est un indicateur clé de performance (KPI) essentiel pour suivre la santé financière de la plateforme."
+  },
+  {
+    "questionText": "Quelle requête TypeORM permet de calculer le chiffre d'affaires pour le mois en cours ?",
+    "options": [
+      "`this.orderRepository.sum('total', { status: 'paid' })`",
+      "`this.orderRepository.createQueryBuilder('order').select('SUM(order.total)', 'ca').where('order.status IN (:...statuses)', { statuses: ['paid', 'shipped', 'delivered'] }).andWhere('EXTRACT(MONTH FROM order.createdAt) = :month', { month: currentMonth }).getRawOne()`",
+      "`this.orderRepository.count({ where: { status: 'paid' } })`",
+      "`this.orderRepository.find({ where: { createdAt: Between(start, end) } })`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La bonne approche utilise le QueryBuilder pour :\n1. Sélectionner la somme des totaux avec `SUM()`\n2. Filtrer par statuts valides (paid, shipped, delivered)\n3. Filtrer par mois grâce à `EXTRACT(MONTH FROM order.createdAt)`\n\nL'option A n'existe pas nativement dans TypeORM, l'option C compte le nombre de commandes (pas le montant), l'option D récupère les commandes sans agréger."
+  },
+  {
+    "questionText": "Comment identifier les <strong>paniers abandonnés</strong> dans une base de données e-commerce ?",
+    "options": [
+      "Compter les commandes avec statut 'cancelled'.",
+      "Récupérer les paniers (entité Cart) qui ont été créés il y a plus de X minutes et qui n'ont jamais été transformés en commande.",
+      "Analyser les utilisateurs qui n'ont pas validé leur email.",
+      "Compter les sessions utilisateur sans activité."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Un panier abandonné est un panier (Cart) qui a été créé (souvent avec des articles ajoutés) mais qui n'a jamais été converti en commande. On les identifie généralement en sélectionnant les paniers dont `updatedAt` est antérieur à un seuil (ex: 30 minutes) et qui n'ont pas de commande associée, ou en utilisant un champ `abandonedAt` mis à jour par un processeur de tâches planifiées (cron)."
+  },
+  {
+    "questionText": "Quelle est la bonne pratique pour restreindre le <strong>changement manuel de statut</strong> d'une commande à certains rôles uniquement (admin, vendeur) ?",
+    "options": [
+      "Ajouter une validation dans le frontend pour masquer le bouton aux non-admin.",
+      "Utiliser un guard NestJS (`RolesGuard`) sur l'endpoint PATCH /orders/:id/status.",
+      "Vérifier le rôle dans le service après avoir récupéré la commande.",
+      "Les options B et C sont complémentaires et recommandées."
+    ],
+    "correctAnswer": 3,
+    "difficulty": "hard",
+    "explanation": "La sécurité doit être appliquée à plusieurs niveaux :\n- **Guard** (`RolesGuard`) : bloque la requête au niveau du contrôleur avant même d'entrer dans le service. C'est la première ligne de défense.\n- **Vérification dans le service** : vérifie à nouveau les droits, au cas où le guard serait mal configuré ou contourné. Cela protège aussi si le service est appelé directement par d'autres modules.\n\nCes deux couches sont complémentaires (défense en profondeur) et suivent le principe de moindre privilège."
+  },
+  {
+    "questionText": "Voici un extrait de code pour changer le statut d'une commande :<br><code>async updateStatus(orderId: number, newStatus: OrderStatus, user: User) {<br>  if (!user.roles.includes('admin') && !user.roles.includes('seller')) {<br>    throw new ForbiddenException();<br>  }<br>  const order = await this.findOne(orderId);<br>  order.status = newStatus;<br>  return this.orderRepository.save(order);<br>}</code><br>Quelle amélioration critique manque-t-il ?",
+    "options": [
+      "Vérifier que le nouveau statut est valide par rapport à l'ancien (ex: shipped → delivered autorisé, shipped → pending interdit).",
+      "Logger l'action de changement de statut pour audit.",
+      "Notifier le client par email du changement de statut.",
+      "Les trois améliorations sont importantes."
+    ],
+    "correctAnswer": 3,
+    "difficulty": "medium",
+    "explanation": "Trois améliorations sont essentielles :\n1. **Validation de transition** : Toutes les transitions ne sont pas autorisées (ex: une commande livrée ne peut pas repasser en attente). Une machine à états (state machine) doit définir les transitions valides.\n2. **Journalisation (audit)** : Toute modification de commande par un admin/seller doit être tracée (qui, quand, ancienne valeur, nouvelle valeur) pour des raisons de conformité et de débogage.\n3. **Notification client** : Le client doit être informé des changements de statut (email, notification push) pour suivre sa commande."
+  },
+  {
+    "questionText": "Quelle bibliothèque est couramment utilisée avec NestJS pour générer des <strong>factures PDF</strong> ?",
+    "options": [
+      "pdfmake ou @react-pdf/renderer",
+      "exceljs",
+      "chart.js",
+      "sharp"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "explanation": "Pour générer des factures PDF dans un environnement Node.js/NestJS, les bibliothèques les plus courantes sont :\n- **pdfmake** : simple d'utilisation, basée sur une définition de document en JSON.\n- **@react-pdf/renderer** : permet d'utiliser la syntaxe React pour définir le PDF.\n- **Puppeteer** : génère un PDF à partir d'une page HTML/CSS (plus lourd).\nexceljs est pour Excel, chart.js pour les graphiques, sharp pour le traitement d'images."
+  },
+  {
+    "questionText": "Dans la requête des <strong>top produits les plus vendus</strong>, quelle est la jointure SQL correcte ?",
+    "options": [
+      "`Product LEFT JOIN OrderItem ON Product.id = OrderItem.productId`",
+      "`Product INNER JOIN OrderItem ON Product.id = OrderItem.productId INNER JOIN Order ON OrderItem.orderId = Order.id WHERE Order.status = 'paid'`",
+      "`Product RIGHT JOIN OrderItem`",
+      "`Product FULL OUTER JOIN OrderItem`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Pour obtenir les top produits, on doit :\n- Joindre `Product` avec `OrderItem` pour récupérer les quantités vendues\n- Joindre `Order` pour filtrer uniquement les commandes payées (les commandes annulées ou en attente ne doivent pas compter)\n- Utiliser `INNER JOIN` car on ne veut que les produits qui ont effectivement été vendus (pas ceux sans vente)\n- Grouper par produit et sommer les quantités (`SUM(OrderItem.quantity)`), puis trier par ordre décroissant."
+  },
+  {
+    "questionText": "Comment implémenter un <strong>changement de statut séquentiel</strong> (ex: pending → paid → shipped → delivered) avec validation des transitions ?",
+    "options": [
+      "Utiliser une simple condition `if` dans le service.",
+      "Implémenter une machine à états (state machine) avec un mapping des transitions autorisées.",
+      "Utiliser un enum et laisser TypeScript gérer les transitions.",
+      "Créer des endpoints séparés pour chaque statut (`/ship`, `/deliver`)."
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La meilleure pratique est d'implémenter une machine à états (state machine) qui définit explicitement les transitions autorisées. Exemple :\n```typescript\nconst allowedTransitions = {\n  [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],\n  [OrderStatus.PAID]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],\n  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],\n  [OrderStatus.DELIVERED]: [],\n  [OrderStatus.CANCELLED]: [],\n};\n\nif (!allowedTransitions[currentStatus].includes(newStatus)) {\n  throw new BadRequestException(`Transition invalide de ${currentStatus} vers ${newStatus}`);\n}\n```\nC'est plus maintenable et moins sujet aux erreurs que des `if` éparpillés."
+  },
+  {
+    "questionText": "Quel est l'intérêt d'avoir un <strong>dashboard admin</strong> séparé des API clientes ?",
+    "options": [
+      "Permettre une meilleure organisation du code (séparation des préoccupations).",
+      "Appliquer des règles de sécurité différentes (rate limiting plus permissif, authentification renforcée).",
+      "Éviter d'exposer des endpoints sensibles aux clients.",
+      "Toutes ces raisons sont valables."
+    ],
+    "correctAnswer": 3,
+    "difficulty": "easy",
+    "explanation": "Les trois raisons sont valables :\n1. **Séparation des préoccupations** : Le dashboard admin a des besoins spécifiques (statistiques, gestion de stock, etc.) différents de l'API client.\n2. **Sécurité différenciée** : Les endpoints admin nécessitent des gardes plus stricts (rôle admin), mais peuvent avoir un rate limiting plus élevé car moins sollicités.\n3. **Isolation** : Les endpoints sensibles ne sont pas exposés sur les mêmes routes que l'API publique, réduisant la surface d'attaque.\n\nEn pratique, on utilise souvent un préfixe `/admin` pour ces routes, avec des guards dédiés."
+  },
+  {
+    "questionText": "Lors de la génération d'une facture PDF, quelles données doivent obligatoirement figurer pour être <strong>conforme à la législation</strong> (Cameroun / OHADA) ?",
+    "options": [
+      "Numéro de facture unique et séquentiel, date, montant HT/TVA/TTC, identification du vendeur et de l'acheteur.",
+      "Seulement le montant total et la date.",
+      "La liste détaillée des produits sans prix.",
+      "Le numéro de suivi de livraison."
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Une facture légale doit contenir (selon le droit OHADA et les législations nationales) :\n- Un numéro unique et séquentiel (pas de trous)\n- La date d'émission\n- L'identification complète du vendeur (nom, adresse, RCCM, NIU)\n- L'identification complète de l'acheteur\n- La description des produits/services, quantités, prix unitaires\n- Le montant hors taxes, le taux et montant de TVA, le montant TTC\n- Les éventuelles remises\nLes mentions légales (délai de livraison, conditions de garantie) sont également recommandées."
+  }
+]

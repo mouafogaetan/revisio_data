@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 11 : Listes et Grilles performantes | Flutter</title>
+    <!-- Tailwind CSS + Font Awesome pour les icônes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, pour formules si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* styles personnalisés pour slides + défilement doux */
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .slide-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0,0,0,0.25);
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+            background-color: #3b82f6;
+            color: white;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+        }
+        pre {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-radius: 1rem;
+            overflow-x: auto;
+            padding: 1rem;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            .slide-container {
+                border-radius: 1.5rem;
+                margin: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        .card-example {
+            background: #ffffffcc;
+            border: 1px solid #cbd5e1;
+            transition: all 0.2s;
+        }
+        .footer-info {
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="min-h-screen flex flex-col items-center justify-center py-8 px-3 md:px-6">
+        <!-- Conteneur principal des slides -->
+        <div class="w-full slide-container p-5 md:p-8">
+            <!-- Indicateur de progression & compteur -->
+            <div class="flex justify-between items-center mb-5 text-sm text-gray-600 flex-wrap gap-2">
+                <div class="font-medium bg-blue-100 px-3 py-1 rounded-full shadow-sm">
+                    📱 <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+                </div>
+                <div class="w-2/3 progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div class="text-right text-gray-500 text-xs italic">
+                    Flutter · Widgets avancés
+                </div>
+            </div>
+
+            <!-- Zone des slides dynamiques -->
+            <div id="slidesWrapper"></div>
+
+            <!-- Navigation boutons -->
+            <div class="flex justify-between items-center mt-8 pt-4 border-t border-gray-200">
+                <button id="prevBtn" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-md transition">◀ Précédent</button>
+                <div class="flex gap-2">
+                    <button id="slideIndicator" class="text-xs bg-blue-50 px-3 py-1 rounded-full"></button>
+                </div>
+                <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition">Suivant ▶</button>
+            </div>
+        </div>
+        <div class="text-center text-xs text-gray-500 mt-4">
+            ✨ Leçon 11 · ListView, GridView & scrolls performants | Cours Flutter
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 11 (basée sur les objectifs: ListView, GridView, SingleChildScrollView, CustomScrollView)
+        // slide0 = titre, slide1 = objectifs, slide2 = ListView & ListView.builder, slide3 = GridView.builder & grille, slide4 = SingleChildScrollView & CustomScrollView, slide5 = bonnes pratiques & exemple
+        const lessonData = {
+            title: "📱 ListView & GridView · Afficher des données performantes",
+            objectives: [
+                "✅ Utiliser ListView et ListView.builder pour les listes performantes",
+                "✅ Maîtriser GridView.builder pour créer des grilles responsives",
+                "✅ Comprendre SingleChildScrollView et CustomScrollView (scrolls avancés)",
+                "✅ Optimiser le rendu avec des widgets économe en mémoire"
+            ],
+            slidesContent: [
+                { type: "title", content: "" },  // index0
+                { type: "objectives", content: "" }, // index1
+                { type: "lessonListView", content: "ListView et ListView.builder" },
+                { type: "lessonGridView", content: "GridView.builder (grille fluide)" },
+                { type: "lessonScrolls", content: "SingleChildScrollView & CustomScrollView" },
+                { type: "lessonBest", content: "Bonnes pratiques + code pratique" }
+            ]
+        };
+
+        // Génération du HTML pour chaque slide
+        function buildSlideHTML(slideIndex) {
+            const slideType = lessonData.slidesContent[slideIndex]?.type;
+            if (slideType === "title") {
+                return `
+                    <div class="text-center py-6 md:py-12">
+                        <div class="inline-block p-3 bg-blue-100 rounded-full mb-5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                                <rect x="4" y="4" width="16" height="16" rx="2" />
+                            </svg>
+                        </div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-600 bg-clip-text text-transparent">${lessonData.title}</h1>
+                        <p class="text-gray-600 mt-4 max-w-xl mx-auto text-base md:text-lg">Flutter : construisez des interfaces fluides et scalables</p>
+                        <div class="mt-8 flex justify-center gap-2 flex-wrap">
+                            <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">⚡ Performances</span>
+                            <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">📱 Mobile first</span>
+                            <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm">♻️ Builder pattern</span>
+                        </div>
+                    </div>
+                `;
+            }
+            if (slideType === "objectives") {
+                let objList = "";
+                lessonData.objectives.forEach(obj => {
+                    objList += `<li class="flex items-start gap-3 mb-3"><span class="text-blue-600 text-xl">🎯</span><span class="text-gray-700 text-md md:text-lg">${obj}</span></li>`;
+                });
+                return `
+                    <div class="py-4 px-2">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-6">📖 Objectifs pédagogiques</h2>
+                        <div class="bg-white/70 rounded-2xl p-5 shadow-sm">
+                            <ul class="space-y-3">
+                                ${objList}
+                            </ul>
+                            <div class="mt-6 p-3 bg-blue-50 rounded-xl text-sm text-blue-800">
+                                💡 À la fin de ce cours, vous saurez créer des listes infinies, des grilles dynamiques, et gérer des scrolls complexes.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (slideType === "lessonListView") {
+                return `
+                    <div class="space-y-5">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span class="text-3xl">📃</span> ListView : l'essentiel</h2>
+                        <div class="bg-gray-50 rounded-xl p-5 border">
+                            <p class="text-gray-700"><strong class="text-blue-700">ListView</strong> est un widget permettant d'afficher une liste défilante. Pour des milliers d'éléments, utilisez <code class="bg-gray-800 text-white">ListView.builder()</code> qui construit les widgets à la volée.</p>
+                            <pre class="mt-4 text-sm"><code>ListView.builder(
+  itemCount: 100,
+  itemBuilder: (context, index) => ListTile(
+    leading: Icon(Icons.star),
+    title: Text('Élément #\$index'),
+  ),
+);</code></pre>
+                            <p class="mt-3 text-gray-600">✔️ Performant, réutilise les cellules hors écran → pas de ralentissements</p>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <div class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">⚡ builder</div>
+                                <div class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">📌 séparateur (ListView.separated)</div>
+                            </div>
+                            <div class="mt-5 p-3 bg-indigo-50 rounded-lg text-indigo-800">
+                                🔥 Exemple concret: afficher 10 000 contacts sans lag → <strong>ListView.builder</strong> est la clé.
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border">
+                                <h3 class="font-semibold">📜 ListView simple</h3>
+                                <pre class="text-xs"><code>ListView(children: [Text('A'),Text('B')])</code></pre>
+                                <p class="text-sm text-gray-500 mt-2">Utiliser pour petites listes fixes.</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border">
+                                <h3 class="font-semibold">♻️ ListView.builder</h3>
+                                <pre class="text-xs"><code>ListView.builder(itemBuilder: (_,i)=>Text(i.toString()))</code></pre>
+                                <p class="text-sm text-gray-500 mt-2">Idéal pour données distantes / nombreuses.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (slideType === "lessonGridView") {
+                return `
+                    <div class="space-y-5">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span class="text-3xl">📐</span> GridView.builder : grilles adaptatives</h2>
+                        <div class="bg-gray-50 rounded-xl p-5 border">
+                            <p><strong class="text-purple-700">GridView.builder</strong> affiche des éléments sous forme de grille (galeries, catalogue produits). Paramètre clé : <code>gridDelegate</code>.</p>
+                            <pre class="mt-3"><code>GridView.builder(
+  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,  // 2 colonnes
+    crossAxisSpacing: 8,
+    mainAxisSpacing: 8,
+  ),
+  itemCount: 20,
+  itemBuilder: (context, index) => Card(color: Colors.blue.shade100, child: Center(child: Text('$index'))),
+);</code></pre>
+                            <div class="mt-4 bg-white p-3 rounded-lg">
+                                <p class="text-sm font-medium">🎨 Autres délégués :</p>
+                                <ul class="list-disc list-inside text-sm text-gray-700">
+                                    <li><code>SliverGridDelegateWithMaxCrossAxisExtent</code> (largeur max par item)</li>
+                                    <li>Nombre de colonnes auto-adapté au responsive</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <!-- Petit dessin ascii d'une grille "fait main" -->
+                        <div class="bg-slate-800 text-green-200 p-4 rounded-xl font-mono text-xs md:text-sm overflow-x-auto">
+                            <p class="mb-2 text-green-300">📱 Exemple de grille 2x? rendu visuel :</p>
+                            <pre>+---------+  +---------+
+|  Image  |  |  Image  |
+|  produit|  |  produit |
++---------+  +---------+
++---------+  +---------+
+|  ...    |  |  ...    |</pre>
+                            <p class="mt-2 text-yellow-200">GridView.builder n'affiche que les éléments visibles → haute performance.</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-xl">
+                            🌟 <strong>Astuce Cameroun 🇨🇲</strong> : pour une application e-commerce locale, utilisez GridView.builder pour afficher les articles avec image, prix.
+                        </div>
+                    </div>
+                `;
+            }
+            if (slideType === "lessonScrolls") {
+                return `
+                    <div class="space-y-5">
+                        <h2 class="text-2xl font-bold text-gray-800">📜 SingleChildScrollView & CustomScrollView</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="border rounded-xl p-4 bg-white">
+                                <div class="flex items-center gap-2 mb-2"><span class="text-xl">🖱️</span><h3 class="font-bold">SingleChildScrollView</h3></div>
+                                <p class="text-gray-600 text-sm">Permet de faire défiler un contenu unique (formulaire, texte long). Ne pas utiliser pour de longues listes dynamiques car il charge tout en mémoire.</p>
+                                <pre class="text-xs mt-2"><code>SingleChildScrollView(
+  child: Column(children: [Text('long contenu'), ...])
+);</code></pre>
+                            </div>
+                            <div class="border rounded-xl p-4 bg-white">
+                                <div class="flex items-center gap-2 mb-2"><span class="text-xl">🧩</span><h3 class="font-bold">CustomScrollView + Slivers</h3></div>
+                                <p class="text-gray-600 text-sm">Permet d'avoir plusieurs types de scroll (liste + grille + appBar flexible). Utilisez <code>SliverList</code>, <code>SliverGrid</code>.</p>
+                                <pre class="text-xs mt-2"><code>CustomScrollView(slivers: [
+  SliverAppBar(...),
+  SliverList(delegate: ...),
+  SliverGrid(delegate: ...)
+]);</code></pre>
+                                <p class="text-xs text-blue-600 mt-1">✨ Idéal pour profils Instagram / dashboards</p>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-lg border-l-4 border-amber-500">
+                            <h4 class="font-semibold">⚠️ Différence clé :</h4>
+                            <p>ListView/GridView sont des "Slivers" prêts à l'emploi. CustomScrollView vous donne un contrôle total sur l'apparence du scroll (parallax, header collant...).</p>
+                        </div>
+                        <!-- petit dessin "schéma" maison -->
+                        <div class="relative bg-gray-900 rounded-2xl p-4 text-white text-center">
+                            <p class="text-gray-300 text-sm">Schéma : CustomScrollView = combinaison de slivers</p>
+                            <div class="flex flex-wrap justify-center gap-4 mt-2">
+                                <div class="bg-indigo-500 rounded p-2 w-24 text-xs">SliverAppBar</div>
+                                <div class="bg-emerald-500 rounded p-2 w-24 text-xs">SliverList (10 items)</div>
+                                <div class="bg-rose-500 rounded p-2 w-24 text-xs">SliverGrid (2x5)</div>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-2">↓ défilement unifié & fluide</div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (slideType === "lessonBest") {
+                return `
+                    <div class="space-y-6">
+                        <h2 class="text-2xl font-bold text-gray-800">🚀 Bonnes pratiques & mini-exemple complet</h2>
+                        <div class="bg-white rounded-xl shadow-md p-4">
+                            <p class="font-medium text-gray-800">✅ Conseils pour des listes/grilles ultra-rapides :</p>
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+                                <li>Toujours préférer <code>.builder()</code> pour les données non-statiques.</li>
+                                <li>Utiliser <code>const</code> sur les widgets enfants si possible.</li>
+                                <li>Penser à <code>shrinkWrap: true</code> seulement quand nécessaire (sinon impact perf).</li>
+                                <li>Pour images réseaux, utilisez <code>cached_network_image</code> + gestion de mémoire.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-800 rounded-xl overflow-hidden">
+                            <div class="bg-gray-700 px-4 py-2 text-white font-mono text-sm">📁 Exemple concret : blog avec articles (ListView.builder)</div>
+                            <pre class="p-4 text-gray-200"><code>class ArticleList extends StatelessWidget {
+  final List<String> articles;
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: articles.length,
+      itemBuilder: (_, index) => Card(
+        child: ListTile(title: Text(articles[index])),
+      ),
+    );
+  }
+}</code></pre>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-center text-sm">
+                            <div class="bg-green-100 p-3 rounded-xl">
+                                📱 <strong>ListView.builder</strong><br>10000 éléments → 60 fps
+                            </div>
+                            <div class="bg-purple-100 p-3 rounded-xl">
+                                🖼️ <strong>GridView.builder</strong><br>Galerie photos responsive
+                            </div>
+                        </div>
+                        <div class="mt-2 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                            🔁 <strong>Récapitulatif :</strong> pour les listes, pensez builder; pour les grilles, builder + crossAxisCount; pour les mises en page complexes, CustomScrollView. 
+                        </div>
+                        <div class="text-center text-blue-600 text-sm italic">✨ Entraînez-vous en construisant une liste de produits camerounais avec GridView !</div>
+                    </div>
+                `;
+            }
+            return `<div>Contenu en construction</div>`;
+        }
+
+        let currentSlide = 0;
+        let totalSlides = lessonData.slidesContent.length; // 6 slides
+
+        function renderAllSlides() {
+            const wrapper = $("#slidesWrapper");
+            wrapper.empty();
+            for(let i = 0; i < totalSlides; i++) {
+                const slideHtml = buildSlideHTML(i);
+                const slideDiv = $("<div>").addClass("slide").attr("data-slide", i).html(slideHtml);
+                wrapper.append(slideDiv);
+            }
+            updateActiveSlide();
+            updateProgressAndCounter();
+            bindMathJax(); // si besoin de rendre des formules mais cette leçon n'en contient pas explicitement
+        }
+
+        function updateActiveSlide() {
+            $(".slide").removeClass("active");
+            $(`.slide[data-slide="${currentSlide}"]`).addClass("active");
+            updateProgressAndCounter();
+            // désactiver boutons aux extrémités
+            $("#prevBtn").prop("disabled", currentSlide === 0).css("opacity", currentSlide === 0 ? 0.5 : 1);
+            $("#nextBtn").prop("disabled", currentSlide === totalSlides-1).css("opacity", currentSlide === totalSlides-1 ? 0.5 : 1);
+            let indicatorText = `${currentSlide+1} / ${totalSlides}`;
+            $("#slideIndicator").text(indicatorText);
+        }
+
+        function updateProgressAndCounter() {
+            const percent = ((currentSlide + 1) / totalSlides) * 100;
+            $("#progressFill").css("width", `${percent}%`);
+            $("#currentSlideIdx").text(currentSlide+1);
+            $("#totalSlides").text(totalSlides);
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateActiveSlide();
+                // scroll en haut pour meilleur confort sur mobile
+                $("html, body").animate({ scrollTop: 0 }, 200);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateActiveSlide();
+                $("html, body").animate({ scrollTop: 0 }, 200);
+            }
+        }
+
+        function bindMathJax() {
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+
+        // Initialisation
+        $(document).ready(function() {
+            renderAllSlides();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            // navigation clavier
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") nextSlide();
+                if (e.key === "ArrowLeft") prevSlide();
+            });
+            // amélioration tactile (swipe simple via jquery)
+            let touchStartX = 0;
+            $(document).on("touchstart", function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $(document).on("touchend", function(e) {
+                if (touchStartX === 0) return;
+                let endX = e.originalEvent.changedTouches[0].clientX;
+                let diff = endX - touchStartX;
+                if (Math.abs(diff) > 60) {
+                    if (diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+</body>
+</html>

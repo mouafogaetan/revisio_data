@@ -1,0 +1,137 @@
+[
+  {
+    "intitule": "Compréhension des variations de produits",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une boutique e-commerce, un produit peut avoir plusieurs variations (taille, couleur, matière) avec des stocks individuels.</p><p><strong>Question :</strong> Pourquoi est-il important de gérer les variations au niveau de la base de données plutôt que simplement modifier le texte de description ?</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez trois raisons pour lesquelles on doit modéliser les variations comme des entités distinctes.",
+        "niveau": "easy",
+        "reponse": "1. <strong>Suivi de stock précis</strong> : Chaque variation (ex: T-shirt rouge taille M) a son propre compteur de stock. On ne peut pas déduire une variation épuisée d'une autre encore disponible.\n\n2. <strong>Prix différentiels</strong> : Une variation peut avoir un prix différent (ex: cuir véritable plus cher que simili).\n\n3. <strong>Rapports et analyses</strong> : Les variations permettent d'analyser quelles sont les combinaisons les plus vendues, pour optimiser les réassorts.\n\n4. <strong>Filtrage avancé</strong> : Les clients peuvent filtrer par taille/couleur et voir immédiatement la disponibilité.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Modélisation des entités Variation et Stock",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter la gestion des variations de produits à l'API e-commerce. Un produit (Product) peut avoir plusieurs variations (Variation). Chaque variation possède :</p><ul><li>Un identifiant unique</li><li>Des attributs (ex: couleur, taille) stockés dans un objet JSON</li><li>Un prix spécifique (peut être différent du prix de base du produit)</li><li>Une quantité en stock propre</li><li>Un code SKU unique par variation</li></ul><p>De plus, une alerte doit être déclenchée quand le stock d'une variation descend en dessous d'un seuil (ex: 5 unités).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez l'entité TypeORM `Variation` avec toutes les propriétés nécessaires et sa relation avec `Product` (ManyToOne).",
+        "niveau": "medium",
+        "reponse": "```typescript\n// src/products/entities/variation.entity.ts\nimport { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';\nimport { Product } from './product.entity';\n\n@Entity()\nexport class Variation {\n    @PrimaryGeneratedColumn('uuid')\n    id: string;\n\n    @Column({ type: 'json' })\n    attributes: Record<string, string>;  // ex: { \"couleur\": \"rouge\", \"taille\": \"M\" }\n\n    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })\n    price: number | null;  // null = utiliser le prix du produit parent\n\n    @Column({ type: 'int', default: 0 })\n    stock: number;\n\n    @Column({ unique: true, length: 100 })\n    sku: string;  // Code unique par variation\n\n    @Column({ type: 'int', default: 5 })\n    lowStockThreshold: number;  // Seuil d'alerte personnalisable\n\n    @ManyToOne(() => Product, (product) => product.variations, { onDelete: 'CASCADE' })\n    product: Product;\n}\n```\n\nDans l'entité Product, ajouter :\n```typescript\n@OneToMany(() => Variation, (variation) => variation.product, { cascade: true })\nvariations: Variation[];\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Expliquez pourquoi on utilise un type `json` pour les attributs plutôt que des colonnes séparées (couleur, taille, matière).",
+            "niveau": "medium",
+            "reponse": "L'utilisation d'une colonne JSON permet une flexibilité totale : les attributs de variation peuvent différer selon la catégorie de produit. Un t-shirt aura {couleur, taille}, un ordinateur aura {processeur, RAM, stockage}. Avec des colonnes fixes, il faudrait ajouter des colonnes pour chaque attribut possible (impraticable) ou créer une table d'attributs EAV complexe. Le JSON offre l'équilibre entre flexibilité et simplicité, tout en restant requêtable avec les fonctions JSON de PostgreSQL."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Vérification de stock et alerte bas stock",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Lorsqu'un client ajoute un produit (ou une variation) au panier, il faut vérifier la disponibilité. Implémentez une méthode dans le service qui :</p><ul><li>Vérifie que la quantité demandée est ≤ au stock disponible</li><li>Si le stock devient inférieur ou égal au seuil d'alerte après une commande, déclenche une notification (simulation par console.log)</li><li>Utilise une transaction pour éviter les problèmes de concurrence (race conditions)</li></ul><p>Le seuil d'alerte par défaut est 5, mais peut être personnalisé par variation.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez la méthode `checkAndReserveStock(variationId: string, quantity: number)` qui retourne un booléen et gère l'alerte.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// Dans VariationService\nasync checkAndReserveStock(variationId: string, quantity: number): Promise<boolean> {\n    // Utilisation d'une transaction QueryRunner pour éviter les race conditions\n    const queryRunner = this.dataSource.createQueryRunner();\n    await queryRunner.connect();\n    await queryRunner.startTransaction();\n    \n    try {\n        // Verrouillage pessimiste (FOR UPDATE) pour la ligne concernée\n        const variation = await queryRunner.manager.findOne(Variation, {\n            where: { id: variationId },\n            lock: { mode: 'pessimistic_write' }\n        });\n        \n        if (!variation) {\n            throw new Error('Variation non trouvée');\n        }\n        \n        if (variation.stock < quantity) {\n            await queryRunner.rollbackTransaction();\n            return false;\n        }\n        \n        // Réservation temporaire (réduction du stock)\n        variation.stock -= quantity;\n        await queryRunner.manager.save(variation);\n        \n        // Vérification du seuil d'alerte\n        const seuil = variation.lowStockThreshold ?? 5;\n        if (variation.stock <= seuil && variation.stock + quantity > seuil) {\n            // Le stock vient de passer sous le seuil\n            console.log(`⚠️ ALERTE STOCK BAS : Variation ${variation.id} - Stock restant : ${variation.stock} (seuil: ${seuil})`);\n            // En production : envoyer email, webhook, queue Bull, etc.\n        }\n        \n        await queryRunner.commitTransaction();\n        return true;\n        \n    } catch (error) {\n        await queryRunner.rollbackTransaction();\n        throw error;\n    } finally {\n        await queryRunner.release();\n    }\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Qu'est-ce qu'une race condition et pourquoi le verrouillage pessimiste est-il nécessaire ici ?",
+            "niveau": "medium",
+            "reponse": "Une race condition survient quand deux requêtes simultanées tentent de modifier la même ressource. Exemple : deux clients tentent d'acheter le dernier article en stock en même temps. Sans verrouillage, les deux lectures pourraient voir `stock=1`, chacun valider sa commande, et le stock deviendrait -1.\n\nLe verrouillage pessimiste (`FOR UPDATE`) bloque la ligne en base de données pendant la transaction. La première requête verrouille la ligne, la seconde attend que la première termine. Ainsi, la seconde verra le stock mis à jour (`stock=0`) et refusera la commande.\n\nAlternative : versioning optimiste avec `@VersionColumn`, mais plus complexe à gérer."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposez une amélioration avec une file d'attente Bull/Redis pour les alertes.",
+            "niveau": "hard",
+            "reponse": "```typescript\n// low-stock.processor.ts\n@Processor('low-stock')\nexport class LowStockProcessor {\n  @Process('sendAlert')\n  async handleAlert(job: Job<{ variationId: string; stock: number; seuil: number }>) {\n    const { variationId, stock, seuil } = job.data;\n    // Envoi d'email au vendeur\n    await this.emailService.sendLowStockAlert(variationId, stock, seuil);\n    // Ou webhook vers système externe\n    await this.webhookService.notify(variationId, { stock, seuil });\n  }\n}\n\n// Dans checkAndReserveStock\nif (variation.stock <= seuil && variation.stock + quantity > seuil) {\n  await this.lowStockQueue.add('sendAlert', {\n    variationId: variation.id,\n    stock: variation.stock,\n    seuil: seuil\n  });\n}\n```\nL'utilisation d'une queue permet de ne pas bloquer la transaction principale et de gérer les tentatives en cas d'échec d'envoi."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Calcul automatique du stock total d'un produit",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour optimiser l'affichage en liste, les produits ont une colonne `totalStock` qui doit être la somme des stocks de toutes ses variations.</p><p><strong>Consigne :</strong> Implémentez un mécanisme qui met à jour automatiquement `product.totalStock` chaque fois qu'une variation est modifiée (création, mise à jour du stock, suppression).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Utilisez les subscribers TypeORM pour maintenir la cohérence du totalStock.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// src/products/subscribers/product-stock.subscriber.ts\nimport { EventSubscriber, EntitySubscriberInterface, UpdateEvent, InsertEvent, RemoveEvent } from 'typeorm';\nimport { Variation } from '../entities/variation.entity';\nimport { Product } from '../entities/product.entity';\n\n@EventSubscriber()\nexport class ProductStockSubscriber implements EntitySubscriberInterface<Variation> {\n    listenTo() {\n        return Variation;\n    }\n\n    async afterInsert(event: InsertEvent<Variation>): Promise<void> {\n        await this.updateProductTotalStock(event.entity.product.id, event.manager);\n    }\n\n    async afterUpdate(event: UpdateEvent<Variation>): Promise<void> {\n        if (event.entity?.product?.id) {\n            await this.updateProductTotalStock(event.entity.product.id, event.manager);\n        }\n    }\n\n    async afterRemove(event: RemoveEvent<Variation>): Promise<void> {\n        if (event.entity?.product?.id) {\n            await this.updateProductTotalStock(event.entity.product.id, event.manager);\n        }\n    }\n\n    private async updateProductTotalStock(productId: string, manager: any): Promise<void> {\n        const result = await manager\n            .createQueryBuilder(Variation, 'variation')\n            .select('SUM(variation.stock)', 'total')\n            .where('variation.productId = :productId', { productId })\n            .getRawOne();\n\n        await manager.update(Product, productId, {\n            totalStock: parseInt(result.total) || 0\n        });\n    }\n}\n```\n\n**Alternative avec un trigger SQL** (plus performant) :\n```sql\nCREATE OR REPLACE FUNCTION update_product_total_stock()\nRETURNS TRIGGER AS $$\nBEGIN\n    UPDATE product\n    SET \"totalStock\" = (\n        SELECT COALESCE(SUM(stock), 0)\n        FROM variation\n        WHERE \"productId\" = NEW.\"productId\"\n    )\n    WHERE id = NEW.\"productId\";\n    RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Endpoint de réapprovisionnement",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Le vendeur souhaite pouvoir réapprovisionner une variation via l'API. Créez un endpoint PATCH `/variations/:id/replenish` qui permet d'ajouter une quantité au stock existant.</p><p>Le corps de la requête contient : <code>{ \"quantity\": 20 }</code></p><p>Après l'opération, si le stock repasse au-dessus du seuil d'alerte, une notification \"Stock rétabli\" doit être loguée.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez le DTO, la méthode du service et le contrôleur correspondant.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// replenish-variation.dto.ts\nexport class ReplenishVariationDto {\n    @IsInt()\n    @Min(1)\n    @ApiProperty({ example: 20, description: 'Quantité à ajouter au stock' })\n    quantity: number;\n}\n\n// variation.service.ts\nasync replenishStock(variationId: string, quantity: number): Promise<Variation> {\n    const variation = await this.variationRepository.findOne({\n        where: { id: variationId },\n        relations: ['product']\n    });\n    \n    if (!variation) {\n        throw new NotFoundException('Variation non trouvée');\n    }\n    \n    const etaitEnAlerte = variation.stock <= variation.lowStockThreshold;\n    const ancienStock = variation.stock;\n    \n    variation.stock += quantity;\n    const nouveauStock = variation.stock;\n    const estToujoursEnAlerte = nouveauStock <= variation.lowStockThreshold;\n    \n    await this.variationRepository.save(variation);\n    \n    // Notification si on sort de l'état d'alerte\n    if (etaitEnAlerte && !estToujoursEnAlerte) {\n        console.log(`✅ STOCK RÉTABLI : Variation ${variationId} - Nouveau stock : ${nouveauStock}`);\n        // En production : envoyer email au vendeur\n    }\n    \n    return variation;\n}\n\n// variation.controller.ts\n@Patch(':id/replenish')\n@UseGuards(JwtAuthGuard, RolesGuard)\n@Roles('admin', 'seller')\n@ApiOperation({ summary: 'Réapprovisionner une variation' })\n@ApiResponse({ status: 200, description: 'Stock mis à jour' })\nasync replenishStock(\n    @Param('id', ParseUUIDPipe) id: string,\n    @Body() replenishDto: ReplenishVariationDto\n): Promise<Variation> {\n    return this.variationService.replenishStock(id, replenishDto.quantity);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Requête complexe : produits avec stock bas",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>L'administrateur veut un rapport de tous les produits ayant au moins une variation en stock bas (stock ≤ seuil d'alerte).</p><p>Écrivez une requête TypeORM (QueryBuilder) qui retourne :</p><ul><li>L'ID et le nom du produit</li><li>Pour chaque variation en alerte : ses attributs, son stock actuel et son seuil</li><li>Trier par date de dernière modification décroissante</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédigez la requête QueryBuilder complète.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync getLowStockProducts(): Promise<any[]> {\n    return this.productRepository\n        .createQueryBuilder('product')\n        .leftJoinAndSelect('product.variations', 'variation')\n        .where('variation.stock <= variation.lowStockThreshold')\n        .andWhere('variation.stock > 0') // Exclure ruptures totales si besoin\n        .select([\n            'product.id',\n            'product.name',\n            'variation.id',\n            'variation.attributes',\n            'variation.stock',\n            'variation.lowStockThreshold'\n        ])\n        .orderBy('product.updatedAt', 'DESC')\n        .getMany();\n}\n\n// Version SQL équivalente\n// SELECT p.id, p.name, v.id, v.attributes, v.stock, v.\"lowStockThreshold\"\n// FROM product p\n// JOIN variation v ON v.\"productId\" = p.id\n// WHERE v.stock <= v.\"lowStockThreshold\"\n// ORDER BY p.\"updatedAt\" DESC;\n```\n\n**Avec agrégation (un produit par ligne + comptage) :**\n```typescript\nasync getLowStockProductSummary(): Promise<any[]> {\n    return this.productRepository\n        .createQueryBuilder('product')\n        .leftJoin('product.variations', 'variation')\n        .where('variation.stock <= variation.lowStockThreshold')\n        .groupBy('product.id')\n        .select([\n            'product.id',\n            'product.name',\n            'COUNT(variation.id) AS lowStockVariationsCount',\n            'MIN(variation.stock) AS minStock'\n        ])\n        .getRawMany();\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment amélioreriez-vous les performances si le catalogue contient des millions de produits ?",
+            "niveau": "hard",
+            "reponse": "1. **Index sur la colonne `stock`** : Créer un index sur `variation.stock` et `variation.lowStockThreshold`.\n```sql\nCREATE INDEX idx_variation_stock_alert ON variation(stock, \"lowStockThreshold\");\n```\n\n2. **Dénormalisation** : Ajouter une colonne `hasLowStock` sur Product, mise à jour par trigger/subscriber.\n\n3. **Cache Redis** : Mettre en cache le résultat du rapport pour 5 minutes.\n\n4. **Pagination** : Ne pas tout charger d'un coup, utiliser `skip/take`.\n\n5. **Vue matérialisée** : Créer une vue matérialisée rafraîchie périodiquement (si les données en temps réel ne sont pas critiques)."
+          }
+        ]
+      }
+    ]
+  }
+]

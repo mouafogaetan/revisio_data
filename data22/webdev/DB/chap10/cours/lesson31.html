@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 31 : Gestion des utilisateurs et privilèges | Cours BD</title>
+    <!-- Tailwind CSS + FontAwesome (pour quelques icones) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Smooth slide transition & custom scroll for tiny screens */
+        .slide-container {
+            transition: transform 0.3s ease-out;
+        }
+        .slide {
+            min-height: 85vh;
+            background: #ffffffdd;
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.15);
+        }
+        body {
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        .glass-nav {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .btn-slide {
+            transition: all 0.2s;
+            background: #1e3a8a;
+        }
+        .btn-slide:hover {
+            background: #1e40af;
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            background: #2563eb;
+            height: 4px;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        @media (max-width: 640px) {
+            .slide {
+                padding: 1.25rem !important;
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem !important;
+            }
+            h2 {
+                font-size: 1.4rem !important;
+            }
+        }
+        code {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 0.2rem 0.4rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1.2rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        .card-sql {
+            background: #f8fafc;
+            border-left: 6px solid #2563eb;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-5 md:py-8">
+        <!-- Navigation avec compteur et progress bar -->
+        <div class="glass-nav p-2 md:p-3 flex flex-wrap justify-between items-center gap-3 sticky top-4 z-20 mb-6">
+            <div class="flex items-center gap-3">
+                <span class="font-bold text-blue-800 bg-white/60 px-3 py-1 rounded-full text-sm">📘 Base de données</span>
+                <span class="text-gray-700 text-sm hidden sm:inline">Leçon 31 · Sécurité & utilisateurs</span>
+            </div>
+            <div class="flex gap-3 items-center">
+                <button id="prevBtn" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-full transition flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed" disabled>◀ Précédent</button>
+                <span id="slideCounter" class="bg-white text-gray-800 px-3 py-1 rounded-full text-sm font-semibold">1 / 6</span>
+                <button id="nextBtn" class="btn-slide text-white px-5 py-2 rounded-full flex items-center gap-1">Suivant ▶</button>
+            </div>
+        </div>
+        <div class="progress-bar rounded-full mb-4"></div>
+
+        <!-- Slides wrapper -->
+        <div class="overflow-hidden relative">
+            <div id="slidesWrapper" class="slide-container flex flex-nowrap transition-transform duration-300 ease-in-out">
+                
+                <!-- SLIDE 1 : TITRE -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4 backdrop-blur-sm">
+                    <div class="flex flex-col justify-center min-h-[70vh]">
+                        <div class="mb-6 text-blue-600 text-sm font-semibold uppercase tracking-wide">Chapitre 10 · Administration & sécurité</div>
+                        <h1 class="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-indigo-800 to-blue-700 bg-clip-text text-transparent mb-4">👥 Gestion des utilisateurs<br>et des privilèges</h1>
+                        <p class="text-xl text-gray-700 max-w-2xl mt-4">Apprenez à créer des utilisateurs, accorder des droits et appliquer le principe du moindre privilège pour sécuriser vos bases de données.</p>
+                        <div class="mt-10 flex gap-3 text-gray-500 text-sm flex-wrap">
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">📌 CREATE USER</span>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">🔑 GRANT / REVOKE</span>
+                            <span class="bg-gray-100 px-3 py-1 rounded-full">🛡️ Moindre privilège</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4">
+                    <h2 class="text-3xl font-bold text-indigo-800 border-b-4 border-indigo-300 pb-2 inline-block mb-6">🎯 Objectifs de la leçon</h2>
+                    <div class="grid md:grid-cols-2 gap-6 mt-4">
+                        <div class="bg-blue-50 rounded-2xl p-5 flex items-start gap-3">
+                            <span class="text-2xl">1️⃣</span>
+                            <p class="font-medium text-gray-800">Créer des utilisateurs avec <code class="bg-gray-800 text-white">CREATE USER</code> et gérer l’authentification.</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-2xl p-5 flex items-start gap-3">
+                            <span class="text-2xl">2️⃣</span>
+                            <p class="font-medium text-gray-800">Accorder des privilèges précis avec <code>GRANT</code> et les révoquer avec <code>REVOKE</code>.</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-2xl p-5 flex items-start gap-3">
+                            <span class="text-2xl">3️⃣</span>
+                            <p class="font-medium text-gray-800">Appliquer le principe du moindre privilège pour sécuriser les accès.</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-2xl p-5 flex items-start gap-3">
+                            <span class="text-2xl">4️⃣</span>
+                            <p class="font-medium text-gray-800">Visualiser les droits existants et gérer les rôles utilisateurs.</p>
+                        </div>
+                    </div>
+                    <div class="mt-8 p-4 bg-amber-50 rounded-xl border-l-8 border-amber-400 text-amber-800 text-sm">
+                        💡 <strong>Pourquoi c'est important ?</strong> Une mauvaise gestion des droits peut entraîner des fuites de données ou des suppressions accidentelles. La sécurité commence par les utilisateurs !
+                    </div>
+                </div>
+
+                <!-- SLIDE 3 : CRÉATION D'UTILISATEUR (CREATE USER) -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">👤 1. Créer des utilisateurs</h2>
+                    <p class="text-gray-600 mt-2">Chaque personne ou application qui accède à la base doit avoir un compte utilisateur distinct.</p>
+                    
+                    <div class="mt-6 bg-gray-900 rounded-xl p-5 text-white font-mono text-sm overflow-x-auto">
+                        <pre class="text-green-300">-- Syntaxe de base (MySQL / PostgreSQL)</pre>
+                        <pre class="text-gray-200">CREATE USER 'nom_utilisateur'@'hôte' IDENTIFIED BY 'mot_de_passe_secure';</pre>
+                        <pre class="text-gray-400 mt-2">-- Exemple : utilisateur 'webapp' qui se connecte depuis localhost</pre>
+                        <pre class="text-yellow-200">CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'SuperP@ssw0rd!';</pre>
+                        <pre class="text-blue-300 mt-2">-- Pour PostgreSQL:</pre>
+                        <pre class="text-cyan-200">CREATE USER webapp WITH PASSWORD 'SuperP@ssw0rd!';</pre>
+                    </div>
+                    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-indigo-50 p-4 rounded-xl">
+                            <span class="font-bold">🔐 Bonnes pratiques</span>
+                            <ul class="list-disc ml-5 mt-2 text-gray-700 text-sm space-y-1">
+                                <li>Mot de passe robuste (12+ caractères, chiffres, symboles)</li>
+                                <li>Limiter l'hôte d'origine (<code>localhost</code> plutôt que <code>%</code>)</li>
+                                <li>Ne jamais partager de compte générique</li>
+                            </ul>
+                        </div>
+                        <div class="bg-indigo-50 p-4 rounded-xl">
+                            <span class="font-bold">🧑‍🏫 Vérifier les utilisateurs</span>
+                            <p class="text-sm mt-1">MySQL : <code>SELECT user, host FROM mysql.user;</code><br>PostgreSQL : <code>\du</code> ou <code>SELECT usename FROM pg_user;</code></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SLIDE 4 : GRANT & REVOKE (privilèges) -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">🎖️ 2. Accorder & révoquer les privilèges</h2>
+                    <p class="text-gray-600">Une fois l'utilisateur créé, on lui donne les droits nécessaires (SELECT, INSERT, UPDATE, DELETE, etc.)</p>
+                    
+                    <div class="mt-4 bg-gray-800 p-4 rounded-xl">
+                        <pre class="text-green-300">-- GRANT : donner des droits</pre>
+                        <pre class="text-white">GRANT SELECT, INSERT ON base_entreprise.* TO 'webapp'@'localhost';</pre>
+                        <pre class="text-white mt-2">GRANT ALL PRIVILEGES ON projet_db.* TO 'admin_local'@'localhost' WITH GRANT OPTION;</pre>
+                        <pre class="text-red-300 mt-3">-- REVOKE : retirer des droits</pre>
+                        <pre class="text-white">REVOKE DELETE ON base_entreprise.stock FROM 'webapp'@'localhost';</pre>
+                        <pre class="text-amber-200 mt-2">-- Appliquer les changements (MySQL)</pre>
+                        <pre class="text-white">FLUSH PRIVILEGES;</pre>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mt-5 text-sm">
+                        <div class="bg-green-100 rounded-full px-4 py-2">✅ SELECT (lire)</div>
+                        <div class="bg-green-100 rounded-full px-4 py-2">✏️ INSERT / UPDATE</div>
+                        <div class="bg-red-100 rounded-full px-4 py-2">🗑️ DELETE</div>
+                        <div class="bg-purple-100 rounded-full px-4 py-2">🔧 CREATE / ALTER / DROP</div>
+                        <div class="bg-blue-100 rounded-full px-4 py-2">👑 ALL PRIVILEGES</div>
+                    </div>
+                    <div class="mt-5 p-3 bg-gray-100 rounded-lg text-gray-800 border">
+                        ⚡ <span class="font-semibold">Remarque :</span> Dans PostgreSQL, on utilise également <code>GRANT</code> sur les schémas et tables. Ex: <code>GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_user;</code>
+                    </div>
+                </div>
+
+                <!-- SLIDE 5 : PRINCIPE DU MOINDRE PRIVILÈGE + cas pratiques -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">🛡️ 3. Principe du moindre privilège</h2>
+                    <p class="text-gray-700 mt-1">Un utilisateur ne doit avoir que les droits strictement nécessaires à son travail. Ni plus, ni moins.</p>
+                    
+                    <div class="mt-5 grid md:grid-cols-2 gap-5">
+                        <div class="card-sql p-5 rounded-2xl shadow-sm">
+                            <div class="font-black text-red-700">❌ Mauvais exemple</div>
+                            <pre class="bg-gray-800 text-xs mt-2">GRANT ALL PRIVILEGES ON *.* TO 'appli_web'@'%';</pre>
+                            <p class="text-sm text-gray-600 mt-2">⚠️ L'application peut supprimer des tables critiques, modifier la structure, risquer une injection SQL dévastatrice.</p>
+                        </div>
+                        <div class="card-sql p-5 rounded-2xl shadow-sm border-l-6 border-green-600">
+                            <div class="font-black text-green-700">✅ Bonne pratique</div>
+                            <pre class="bg-gray-800 text-xs mt-2">GRANT SELECT, INSERT, UPDATE ON blog.* TO 'webapp_front'@'localhost';<br>REVOKE DELETE, DROP ON blog.* FROM 'webapp_front'@'localhost';</pre>
+                            <p class="text-sm text-gray-600 mt-2">✔️ L'application peut lire, ajouter, modifier des articles mais pas supprimer en masse ni altérer le schéma.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-blue-100 p-4 rounded-xl flex flex-col md:flex-row gap-3 items-start">
+                        <span class="text-3xl">🧠</span>
+                        <div><span class="font-bold">Astuce métier :</span> Séparez les rôles. Ex: un compte pour les rapports (lecture seule), un autre pour la saisie (INSERT/UPDATE), un super-admin pour la maintenance. En cas de piratage, les dégâts sont limités.</div>
+                    </div>
+                    <!-- Mini-dessin SVG concept "principe" fait maison -->
+                    <div class="mt-6 flex justify-center">
+                        <svg width="280" height="90" viewBox="0 0 400 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="20" width="70" height="50" rx="10" fill="#2563EB" fill-opacity="0.8" />
+                            <text x="25" y="52" fill="white" font-size="11" font-weight="bold">User</text>
+                            <path d="M85 45 L115 45" stroke="#1E293B" stroke-width="3" stroke-dasharray="4 2"/>
+                            <rect x="120" y="15" width="100" height="60" rx="12" fill="#FACC15" fill-opacity="0.9" stroke="#CA8A04" stroke-width="1.5"/>
+                            <text x="130" y="45" fill="#422006" font-size="10">Droits MINIMAUX</text>
+                            <path d="M225 45 L255 45" stroke="#1E293B" stroke-width="3" stroke-dasharray="4 2"/>
+                            <rect x="260" y="15" width="100" height="60" rx="12" fill="#10B981" fill-opacity="0.8"/>
+                            <text x="275" y="45" fill="white" font-size="10" font-weight="bold">Base sécurisée</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- SLIDE 6 : VÉRIFICATION DES PRIVILÈGES + RÉSUMÉ / BONNES PRATIQUES -->
+                <div class="slide w-full flex-shrink-0 p-8 md:p-12 bg-white/90 shadow-xl mx-2 md:mx-4">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">🔎 4. Vérifier & gérer les droits existants</h2>
+                    
+                    <div class="overflow-x-auto mt-4">
+                        <table class="min-w-full bg-gray-50 rounded-2xl text-sm">
+                            <thead class="bg-gray-200">
+                                <tr><th class="p-3 text-left">SGBD</th><th class="p-3 text-left">Commande / Requête</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b"><td class="p-3 font-mono">MySQL</td><td class="p-3"><code>SHOW GRANTS FOR 'user'@'host';</code></td></tr>
+                                <tr class="border-b"><td class="p-3 font-mono">PostgreSQL</td><td class="p-3"><code>\dp nom_table</code> ou <code>SELECT * FROM information_schema.role_table_grants;</code></td></tr>
+                                <tr><td class="p-3 font-mono">SQLite</td><td class="p-3">(pas de gestion utilisateur native) → géré au niveau OS</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-100 p-4 rounded-xl">
+                            <h3 class="font-bold text-indigo-800">📋 Supprimer un utilisateur</h3>
+                            <pre class="bg-black text-white text-xs p-2 rounded mt-1">DROP USER 'nom'@'hôte';</pre>
+                            <p class="text-xs text-gray-500 mt-2">N'oubliez pas de révoquer d'abord ses privilèges ou de gérer la dépendance.</p>
+                        </div>
+                        <div class="bg-slate-100 p-4 rounded-xl">
+                            <h3 class="font-bold text-indigo-800">🔄 Rôles (MySQL 8+ / PostgreSQL)</h3>
+                            <pre class="bg-black text-white text-xs p-2 rounded mt-1">CREATE ROLE 'lecture_seule';<br>GRANT SELECT ON *.* TO 'lecture_seule';<br>GRANT 'lecture_seule' TO 'jean'@'localhost';</pre>
+                        </div>
+                    </div>
+                    <div class="mt-7 bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200">
+                        <p class="font-bold text-green-800">✨ À retenir absolument :</p>
+                        <ul class="list-disc ml-6 mt-2 space-y-1">
+                            <li>Jamais de <code>GRANT ALL</code> sur toutes les bases à une application lambda.</li>
+                            <li>Utilisez <code>REVOKE</code> quand un collaborateur quitte l’équipe.</li>
+                            <li>Auditez régulièrement les droits (moindre privilège) pour éviter les failles.</li>
+                            <li>Préférez les connexions via localhost ou réseau sécurisé.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicateur de slide (dots) -->
+        <div class="flex justify-center gap-2 mt-6 mb-8">
+            <div class="dots-container flex gap-2"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('#slidesWrapper .slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+            
+            // Afficher les dots
+            function updateDots() {
+                $('.dots-container').empty();
+                for(let i=0; i<totalSlides; i++) {
+                    let dot = $('<div>').addClass('w-2.5 h-2.5 rounded-full transition-all duration-200 cursor-pointer');
+                    if(i === currentIndex) {
+                        dot.addClass('bg-blue-700 w-4 h-4');
+                    } else {
+                        dot.addClass('bg-gray-400 hover:bg-gray-500');
+                    }
+                    dot.on('click', function(){
+                        goToSlide(i);
+                    });
+                    $('.dots-container').append(dot);
+                }
+            }
+            
+            function goToSlide(index) {
+                if(index < 0) index = 0;
+                if(index >= totalSlides) index = totalSlides-1;
+                currentIndex = index;
+                let translatePercent = -currentIndex * 100;
+                $('#slidesWrapper').css('transform', 'translateX('+translatePercent+'%)');
+                // Mise à jour compteur
+                $('#slideCounter').text((currentIndex+1)+' / '+totalSlides);
+                // Mise à jour progress bar (en pourcentage)
+                let progress = ((currentIndex+1) / totalSlides) * 100;
+                $('.progress-bar').css('width', progress+'%');
+                // Gestion état boutons
+                $('#prevBtn').prop('disabled', currentIndex === 0);
+                $('#nextBtn').prop('disabled', currentIndex === totalSlides-1);
+                updateDots();
+            }
+            
+            $('#nextBtn').on('click', function(){
+                if(currentIndex < totalSlides-1) {
+                    goToSlide(currentIndex+1);
+                }
+            });
+            $('#prevBtn').on('click', function(){
+                if(currentIndex > 0) {
+                    goToSlide(currentIndex-1);
+                }
+            });
+            
+            // initialisation
+            goToSlide(0);
+            
+            // gestion clavier flèches gauche/droite
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') {
+                    $('#nextBtn').click();
+                } else if(e.key === 'ArrowLeft') {
+                    $('#prevBtn').click();
+                }
+            });
+            
+            // petite optimisation touch swipe pour mobile (simplifié)
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('#slidesWrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesWrapper').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if(touchEndX < touchStartX - 40) {
+                    $('#nextBtn').click();
+                } else if(touchEndX > touchStartX + 40) {
+                    $('#prevBtn').click();
+                }
+            });
+        });
+    </script>
+    <!-- petit ajustement pour la lisibilité sur mobile -->
+    <style>
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+            .glass-nav {
+                padding: 0.5rem 1rem;
+            }
+            .btn-slide, #prevBtn {
+                padding: 0.3rem 1rem;
+                font-size: 0.85rem;
+            }
+            .slide {
+                padding: 1rem !important;
+            }
+        }
+    </style>
+</body>
+</html>

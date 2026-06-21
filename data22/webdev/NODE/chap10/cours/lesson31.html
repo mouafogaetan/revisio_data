@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Socket.IO - Communication temps réel</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Styles personnalisés pour améliorer l'expérience */
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:hover {
+            transform: scale(1.05);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.2);
+        }
+        progress {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        code {
+            background: #1e293b;
+            color: #facc15;
+            padding: 0.2rem 0.4rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto max-w-4xl py-8 px-4 sm:px-6">
+        <!-- Barre de progression -->
+        <div class="mb-6 bg-white/30 rounded-full h-2 overflow-hidden shadow-inner">
+            <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Indicateur de slide -->
+        <div class="text-center mb-4 text-sm text-gray-700 font-medium">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+        </div>
+
+        <!-- Conteneur des slides -->
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <div class="text-center">
+                    <div class="inline-block p-4 bg-blue-100 rounded-full mb-6">
+                        <i class="fas fa-broadcast-tower text-5xl text-blue-600"></i>
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-800 mb-4">
+                        Socket.IO
+                    </h1>
+                    <p class="text-xl text-gray-700 mb-3">Communication temps réel avec Node.js</p>
+                    <div class="border-t border-gray-300 w-24 mx-auto my-6"></div>
+                    <p class="text-gray-600">📡 Événements en direct • 🔄 Bidirectionnel • 💬 Chat & Notifications</p>
+                    <div class="mt-8 text-sm text-gray-500">
+                        <i class="fas fa-graduation-cap"></i> Niveau: Intermédiaire | <i class="fas fa-clock"></i> Durée: 45 min
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-6">
+                    🎯 Objectifs de la leçon
+                </h2>
+                <ul class="space-y-4 text-gray-700">
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Installer et configurer <strong>socket.io</strong> côté serveur avec Express.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Installer et configurer <strong>socket.io-client</strong> côté navigateur.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Comprendre l'émission et la réception d'événements avec <code>emit()</code> et <code>on()</code>.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Utiliser les <strong>namespaces</strong> pour séparer la logique.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-600 mt-1"></i> <span>Créer des <strong>rooms</strong> pour diffuser à des groupes spécifiques.</span></li>
+                </ul>
+                <div class="mt-8 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm">
+                    <i class="fas fa-lightbulb"></i> À la fin, vous serez capable de construire une application de chat ou des notifications en direct !
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : QU'EST-CE QUE SOCKET.IO ? -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🔌 Qu'est-ce que Socket.IO ?</h2>
+                <p class="text-gray-700 mb-4">Socket.IO est une bibliothèque JavaScript qui permet une <strong class="text-blue-700">communication bidirectionnelle et en temps réel</strong> entre un client (navigateur) et un serveur Node.js.</p>
+                <div class="bg-gray-100 p-4 rounded-xl mb-4 text-center">
+                    <i class="fas fa-exchange-alt text-4xl text-blue-500 mb-2 block"></i>
+                    <p class="font-mono">Client ↔️ Serveur (WebSocket + fallbacks)</p>
+                </div>
+                <p class="text-gray-700">Il utilise WebSocket quand c'est possible, sinon des techniques alternatives (long polling, etc.). Idéal pour les chats, jeux multijoueurs, notifications push, collaboration en direct.</p>
+                <!-- Dessin simple d'un schéma client-serveur -->
+                <div class="my-6 flex justify-center">
+                    <svg width="280" height="120" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="10" y="30" width="70" height="40" fill="#3b82f6" rx="8" />
+                        <text x="45" y="55" fill="white" font-size="12" text-anchor="middle">Client</text>
+                        <rect x="210" y="30" width="70" height="40" fill="#10b981" rx="8" />
+                        <text x="245" y="55" fill="white" font-size="12" text-anchor="middle">Serveur</text>
+                        <path d="M80 50 L200 50" stroke="#f59e0b" stroke-width="3" stroke-dasharray="6 4" />
+                        <text x="140" y="40" fill="#f59e0b" font-size="10" text-anchor="middle">Événements temps réel</text>
+                        <path d="M200 70 L80 70" stroke="#f59e0b" stroke-width="2" />
+                        <text x="140" y="90" fill="#6b7280" font-size="9">emit() / on()</text>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INSTALLATION ET CONFIGURATION -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Installation côté serveur</h2>
+                <pre><code>npm init -y
+npm install express socket.io</code></pre>
+                <p class="mt-4 text-gray-700">Création d'un serveur Express de base avec Socket.IO :</p>
+                <pre><code>const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+io.on('connection', (socket) => {
+  console.log('Nouvel utilisateur connecté');
+});
+
+server.listen(3000, () => console.log('Serveur sur port 3000'));</code></pre>
+                <div class="bg-yellow-50 p-3 rounded-lg mt-3 text-yellow-800 text-sm">
+                    ⚡ <strong>Important :</strong> Le client doit inclure <code>/socket.io/socket.io.js</code> automatiquement servie par le module.
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : CÔTÉ CLIENT (HTML/JS) -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🌐 Côté client (navigateur)</h2>
+                <p class="text-gray-700">Dans votre fichier HTML, incluez la bibliothèque client et connectez-vous :</p>
+                <pre><code>&lt;script src="https://cdn.socket.io/4.5.0/socket.io.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const socket = io('http://localhost:3000');
+  // Écouter un événement
+  socket.on('connect', () => {
+    console.log('Connecté au serveur');
+  });
+&lt;/script&gt;</code></pre>
+                <p class="text-gray-700 mt-3">La fonction <code>io()</code> retourne un objet socket qui permet d'envoyer/recevoir des événements.</p>
+                <div class="bg-green-50 p-3 rounded-lg mt-2">
+                    <i class="fas fa-plug"></i> La connexion est automatique et se maintient en vie.
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : ÉMETTRE ET RECEVOIR (emit / on) -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📡 Émettre et recevoir des événements</h2>
+                <p class="font-semibold text-gray-800">Depuis le serveur :</p>
+                <pre><code>// Envoyer un message à TOUS les clients connectés
+io.emit('nouveauMessage', { texte: 'Bonjour tout le monde' });
+
+// Envoyer à un client spécifique
+socket.emit('messagePrive', 'Ceci est privé');</code></pre>
+                <p class="font-semibold text-gray-800 mt-4">Depuis le client :</p>
+                <pre><code>// Émettre un événement
+socket.emit('chatMessage', 'Salut !');
+
+// Écouter un événement
+socket.on('nouveauMessage', (data) => {
+  console.log('Message reçu:', data);
+});</code></pre>
+                <div class="bg-indigo-50 p-3 rounded-lg text-indigo-800 text-sm mt-2">
+                    💡 Les événements peuvent transporter n'importe quel objet JSON (chaînes, nombres, tableaux, objets).
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : NAMESPACES (séparation) -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🏷️ Namespaces</h2>
+                <p class="text-gray-700">Les namespaces permettent de <strong>séparer la logique</strong> de communication (ex: un namespace pour le chat, un autre pour les notifications).</p>
+                <pre><code>// Côté serveur
+const chatNamespace = io.of('/chat');
+chatNamespace.on('connection', (socket) => {
+  socket.on('message', (msg) => {
+    chatNamespace.emit('message', msg);
+  });
+});
+
+// Côté client
+const chatSocket = io('/chat');
+chatSocket.emit('message', 'Hello depuis namespace');</code></pre>
+                <p class="text-gray-700 mt-2">Namespace par défaut : <code>/</code> . Utile pour organiser de grosses applications.</p>
+            </div>
+
+            <!-- SLIDE 8 : ROOMS (groupes dans un namespace) -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🚪 Rooms (salons)</h2>
+                <p class="text-gray-700">Une <strong>room</strong> est un canal à l'intérieur d'un namespace. Les clients peuvent rejoindre/quitter une room pour recevoir des messages groupés.</p>
+                <pre><code>// Serveur : rejoindre une room
+socket.join('salleJeu');
+// Envoyer un message à tous dans la room
+io.to('salleJeu').emit('evenementRoom', 'Données importantes');
+
+// Client : rien de spécial, l'événement est reçu normalement</code></pre>
+                <div class="flex flex-wrap gap-2 justify-center mt-4">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-door-open"></i> Room "générale"</span>
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-gamepad"></i> Room "jeu"</span>
+                    <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-users"></i> Room "admin"</span>
+                </div>
+                <p class="mt-3 text-gray-600 text-sm">Les rooms sont gérées automatiquement par Socket.IO, idéal pour des discussions privées ou des groupes.</p>
+            </div>
+
+            <!-- SLIDE 9 : EXEMPLE PRATIQUE - CHAT SIMPLE -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">💬 Exemple: Chat en direct</h2>
+                <p class="text-gray-700">Structure basique d'un chat avec Socket.IO :</p>
+                <pre><code>// Serveur
+io.on('connection', (socket) => {
+  socket.on('chatMessage', (msg) => {
+    io.emit('chatMessage', msg);
+  });
+});
+
+// Client
+socket.emit('chatMessage', 'Bonjour !');
+socket.on('chatMessage', (msg) => {
+  $('#messages').append(`&lt;div&gt;${msg}&lt;/div&gt;`);
+});</code></pre>
+                <div class="bg-gradient-to-r from-blue-100 to-cyan-100 p-4 rounded-xl mt-3 text-center">
+                    <i class="fas fa-comment-dots text-blue-600 text-2xl"></i>
+                    <p class="font-medium">Résultat : chaque message est diffusé instantanément à tous les utilisateurs connectés.</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : RÉSUMÉ ET BONNES PRATIQUES -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Synthèse & Astuces</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                    <li>Socket.IO utilise WebSocket par défaut, mais avec fallback automatique.</li>
+                    <li>Toujours gérer la déconnexion : <code>socket.on('disconnect', ...)</code>.</li>
+                    <li>Pour les applications à grande échelle, utilisez <strong>Redis adapter</strong>.</li>
+                    <li>Les événements personnalisés doivent avoir des noms explicites.</li>
+                    <li>Pensez à la sécurité : valider les données entrantes côté serveur.</li>
+                </ul>
+                <div class="mt-6 p-3 bg-gray-100 rounded-lg text-center text-gray-700">
+                    <i class="fas fa-link"></i> Documentation officielle : <a href="https://socket.io/docs/v4/" target="_blank" class="text-blue-600 underline">socket.io/docs</a>
+                </div>
+            </div>
+
+            <!-- SLIDE 11 : EXERCICE D'APPLICATION -->
+            <div class="slide bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🧪 Exercice pratique</h2>
+                <p class="text-gray-700 mb-3">Créez un mini tableau de bord temps réel avec les étapes suivantes :</p>
+                <ol class="list-decimal pl-5 space-y-2 text-gray-700">
+                    <li>Installer Express + Socket.IO.</li>
+                    <li>Afficher une page HTML avec un compteur.</li>
+                    <li>Quand un client se connecte, incrémenter un compteur global et diffuser la nouvelle valeur à tous.</li>
+                    <li>Sur déconnexion, décrémenter.</li>
+                </ol>
+                <div class="mt-5 bg-green-100 p-4 rounded-xl text-green-800">
+                    <i class="fas fa-smile-wink"></i> <strong>Bonus</strong> : Ajouter un namespace /admin et une room "dashboard".
+                </div>
+                <button id="showHint" class="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition">
+                    <i class="fas fa-lightbulb"></i> Voir un indice
+                </button>
+                <p id="hintText" class="hidden mt-3 text-gray-600 italic">Utilisez <code>io.emit('compteur', count)</code> et écoutez sur le client pour mettre à jour l'affichage.</p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center mt-6 gap-4">
+            <button id="prevBtn" class="nav-btn bg-white hover:bg-gray-100 text-gray-800 font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-arrow-left"></i> Précédent
+            </button>
+            <div class="flex gap-2" id="dotsContainer"></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">
+                Suivant <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            let current = 0;
+            $('#totalSlides').text(total);
+            updateDots();
+
+            function updateProgress() {
+                let percent = ((current + 1) / total) * 100;
+                $('#progressBar').css('width', percent + '%');
+                $('#currentSlideIdx').text(current + 1);
+            }
+
+            function showSlide(index) {
+                slides.removeClass('active');
+                $(slides[index]).addClass('active');
+                current = index;
+                updateProgress();
+                updateDots();
+                // Gérer l'état des boutons
+                $('#prevBtn').prop('disabled', current === 0);
+                $('#nextBtn').text(current === total-1 ? 'Terminer' : 'Suivant').append(current === total-1 ? '' : '<i class="fas fa-arrow-right ml-2"></i>');
+                if(current === total-1) {
+                    $('#nextBtn').html('Terminer <i class="fas fa-check-circle"></i>');
+                } else {
+                    $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+                }
+                // Recharger MathJax pour les formules si nécessaire
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            }
+
+            function updateDots() {
+                $('#dotsContainer').empty();
+                for(let i=0; i<total; i++) {
+                    let dot = $('<div>').addClass('w-3 h-3 rounded-full transition-all duration-200 cursor-pointer mx-1')
+                        .css('background-color', i === current ? '#3b82f6' : '#cbd5e1');
+                    dot.on('click', (function(idx) { return function() { showSlide(idx); }; })(i));
+                    $('#dotsContainer').append(dot);
+                }
+            }
+
+            $('#nextBtn').click(function() {
+                if(current < total-1) {
+                    showSlide(current+1);
+                } else {
+                    alert('🎉 Félicitations ! Vous avez terminé cette leçon. Passez à la pratique avec Socket.IO.');
+                }
+            });
+            $('#prevBtn').click(function() {
+                if(current > 0) {
+                    showSlide(current-1);
+                }
+            });
+            // Indice exercice
+            $('#showHint').click(function() {
+                $('#hintText').toggleClass('hidden');
+            });
+            // Initialisation
+            showSlide(0);
+        });
+    </script>
+    <footer class="text-center text-gray-600 text-sm py-6 border-t border-gray-200 mt-8">
+        <p><i class="fas fa-chalkboard-teacher"></i> Cours conçu pour le programme Développement Web - Cameroun | Node.js | Socket.IO</p>
+        <p class="text-xs">© 2026 - Tous droits réservés à usage pédagogique</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Lesson 24 : Infrastructure as Code (IaC) - DevOps</title>
+  <!-- Tailwind CSS + Google Fonts pour lisibilité -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax pour formules (optionnel ici, mais inclu pour compatibilité) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* styles additionnels pour améliorer le confort visuel et l'effet slide */
+    body {
+      background: #f4f7fc;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+    .slide-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .slide-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      background: #ffffff;
+      border-radius: 2rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    .nav-btn {
+      transition: all 0.2s;
+      background-color: #1e3a5f;
+      color: white;
+      border-radius: 9999px;
+      padding: 0.6rem 1.2rem;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+    .nav-btn:hover {
+      background-color: #0f2c44;
+      transform: scale(0.97);
+    }
+    .progress-bar {
+      height: 6px;
+      background-color: #cbd5e1;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background-color: #2c7da0;
+      transition: width 0.3s ease;
+    }
+    h1, h2, h3 {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .bullets-list li {
+      margin-bottom: 0.75rem;
+      position: relative;
+      padding-left: 1.6rem;
+    }
+    .bullets-list li:before {
+      content: "▹";
+      color: #2c7da0;
+      font-weight: bold;
+      position: absolute;
+      left: 0;
+    }
+    @media (max-width: 640px) {
+      .slide-card {
+        border-radius: 1.5rem;
+      }
+      .nav-btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+      }
+    }
+    footer {
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-6">
+
+<div class="slide-container w-full">
+  <!-- indicateur de progression + slide counter -->
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+    <div class="text-sm font-medium text-gray-600 bg-white/70 px-3 py-1 rounded-full shadow-sm">
+      📘 <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+    </div>
+    <div class="flex-1 max-w-md mx-2">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+    <div class="text-sm text-gray-500">🎓 DevOps - Initiation</div>
+  </div>
+
+  <!-- conteneur dynamique des slides -->
+  <div id="slidesWrapper" class="relative"></div>
+
+  <!-- boutons de navigation + message pédagogique -->
+  <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+    <button id="prevSlide" class="nav-btn flex items-center gap-1 px-5 py-2 disabled:opacity-40 disabled:cursor-not-allowed" disabled>← Précédent</button>
+    <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">📖 Cliquez sur les flèches pour naviguer</div>
+    <button id="nextSlide" class="nav-btn flex items-center gap-1 px-5 py-2">Suivant →</button>
+  </div>
+  <footer class="text-center text-gray-500 mt-8 border-t pt-4">
+    🇨🇲 Cours conçu pour les étudiants du Cameroun – Infrastructure as Code (Lesson 24) | Approche simple & pratique
+  </footer>
+</div>
+
+<script>
+  // Définition des slides : titre, objectifs, contenu structuré
+  // D'après la lesson24 du JSON : "Automatiser le provisionnement d'infrastructure"
+  // Competence: "Définir Infrastructure as Code et ses bénéfices, comparer déclaratif/impératif, comprendre idempotence"
+  // On va construire des slides pédagogiques accessibles.
+  
+  const slidesData = [
+    {
+      type: "title",
+      title: "🧩 Infrastructure as Code (IaC)",
+      subtitle: "Automatiser le provisionnement d'infrastructure",
+      description: "Lesson 24 · Cours DevOps · Niveau débutant",
+      badge: "⚙️ Déclaratif vs Impératif · Idempotence"
+    },
+    {
+      type: "objectifs",
+      title: "🎯 Objectifs d'apprentissage",
+      objectives: [
+        "Définir Infrastructure as Code (IaC) et ses bénéfices (reproductibilité, versioning, rapidité).",
+        "Comparer les approches déclarative (Terraform) et impérative (Ansible).",
+        "Comprendre le concept d'idempotence : pourquoi c'est fondamental en automatisation."
+      ]
+    },
+    {
+      type: "content",
+      title: "📌 Qu'est-ce que l'Infrastructure as Code ?",
+      paragraphs: [
+        "L'Infrastructure as Code, c'est la gestion et le provisionnement de l'infrastructure (serveurs, bases de données, réseaux, stockage) à l'aide de fichiers de configuration lisibles par machine, plutôt qu'avec des manipulations manuelles ou des interfaces graphiques.",
+        "Avec IaC, on écrit du code qui décrit l'état souhaité de l'infrastructure. Ce code est stocké dans Git, versionné, testé et relu comme n'importe quel logiciel. Cela apporte rigueur, collaboration et traçabilité."
+      ],
+      illustration: "draw",
+      drawDesc: "Cycle IaC : Code -> Versionner -> Déployer automatiquement -> Infrastructure"
+    },
+    {
+      type: "content",
+      title: "✅ Les bénéfices de l'IaC",
+      points: [
+        "🔁 Reproductibilité : Créez des environnements identiques (dev, test, prod) sans erreurs manuelles.",
+        "📦 Versioning : Utilisez Git pour suivre chaque modification, revenir en arrière, auditer.",
+        "⚡ Rapidité : Provisionnez des serveurs en quelques minutes au lieu de jours.",
+        "🤝 Collaboration : Toute l'équipe DevOps peut travailler sur la même configuration.",
+        "📉 Réduction des coûts : Supprimez rapidement des ressources inutilisées (Infra éphémère)."
+      ]
+    },
+    {
+      type: "content",
+      title: "🔄 Déclarative vs Impérative : Deux philosophies",
+      sub: "Bien comprendre la différence est essentiel en IaC",
+      comparison: [
+        { label: "Approche Déclarative", description: "On décrit l'état final souhaité (ce que l'on veut), l'outil se charge d'atteindre cet état. Exemple : Terraform, CloudFormation.", traits: "Plus simple à maintenir, idempotent par nature." },
+        { label: "Approche Impérative", description: "On décrit les étapes précises pour arriver à l'état (faire ceci, puis cela). Exemple : Ansible (playbooks impératifs mais peuvent être déclaratifs par modules), scripts bash.", traits: "Donne plus de contrôle, mais peut être plus complexe et moins prévisible." }
+      ],
+      note: "💡 En pratique, Terraform (déclaratif) pour provisionner l’infra (VM, réseaux) et Ansible (impératif orienté configuration) pour configurer les serveurs."
+    },
+    {
+      type: "content",
+      title: "🪄 L'idempotence : concept magique en automatisation",
+      paragraphs: [
+        "Une opération est idempotente si, appliquée plusieurs fois, elle produit le même résultat qu'une seule application. En IaC, cela signifie que vous pouvez exécuter votre code de provisionnement 1 fois ou 100 fois, l'infrastructure restera dans l'état désiré, sans duplication ni erreur.",
+        "Par exemple : 'créer un dossier s'il n'existe pas' est idempotent, 'ajouter une ligne dans un fichier' sans vérification ne l'est pas. Les outils comme Terraform sont conçus pour être idempotents via un plan d'action."
+      ],
+      highlight: "L'idempotence évite les effets de bord et rend l'automatisation fiable."
+    },
+    {
+      type: "content",
+      title: "🧠 Exemple concret : Terraform vs script bash",
+      codeExample: true,
+      codeTitle: "Script impératif (bash non idempotent)",
+      codeContent: `#!/bin/bash
+# ATTENTION : ce script ajoute une ligne à chaque exécution !
+echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+# Exécuté deux fois => ligne en double, erreur possible`,
+      codeDesc: "❌ Pas idempotent : répéter la commande modifie l'état.",
+      codeTitle2: "Approche déclarative (Terraform HCL)",
+      codeContent2: `resource "aws_instance" "web" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+  tags = {
+    Name = "MonServeur"
+  }
+}`,
+      codeDesc2: "✅ Idempotent : Appliquer plusieurs fois ne crée qu'une seule instance."
+    },
+    {
+      type: "content",
+      title: "🏗️ Infrastructure as Code en pratique",
+      paragraphs: [
+        "Imaginez que vous déployez une application web : au lieu de cliquer manuellement sur une console cloud, vous écrivez un fichier Terraform qui décrit tout : serveurs, base de données, équilibreurs de charge.",
+        "Vous exécutez 'terraform apply', et en quelques minutes l'infrastructure est prête. Toute modification se fait via le code, et l'équipe peut relire et valider. En cas de problème, 'terraform destroy' nettoie tout."
+      ],
+      illustration: "simple",
+      drawManual: "[Code IaC] -> (Git) -> Pipeline CI/CD -> (apply) -> Cloud (AWS/Azure/GCP) -> Infrastructure finale"
+    },
+    {
+      type: "content",
+      title: "📚 Résumé & mots-clés à retenir",
+      recapList: [
+        "IaC = gestion automatisée de l'infrastructure par du code versionné.",
+        "Avantages : reproductibilité, rapidité, réduction des erreurs, collaboration.",
+        "Deux styles : déclaratif (quoi) vs impératif (comment). Terraform (décl.), Ansible (mixte).",
+        "Idempotence : exécuter plusieurs fois le code ne change pas le résultat final, critique pour DevOps."
+      ],
+      finalMessage: "Prochaine étape : pratiquer avec Terraform !"
+    }
+  ];
+  
+  let currentIndex = 0;
+  let totalSlides = slidesData.length;
+  
+  // Fonction utilitaire pour dessiner une représentation ascii / graphique simple inline (svg simple)
+  function renderSimpleDrawing(desc) {
+    // dessin fait maison : boîtes et flèches
+    return `
+      <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 my-4 text-center">
+        <div class="flex flex-wrap justify-center items-center gap-3 md:gap-6 text-sm font-mono">
+          <div class="bg-indigo-100 px-4 py-2 rounded-lg shadow-sm">📄 Code IaC</div>
+          <span class="text-xl">→</span>
+          <div class="bg-green-100 px-4 py-2 rounded-lg shadow-sm">📦 Versionnement Git</div>
+          <span class="text-xl">→</span>
+          <div class="bg-blue-100 px-4 py-2 rounded-lg shadow-sm">⚙️ Pipeline CI/CD</div>
+          <span class="text-xl">→</span>
+          <div class="bg-purple-100 px-4 py-2 rounded-lg shadow-sm">☁️ Cloud / Serveurs</div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">${desc || "Flux de travail Infrastructure as Code"}</p>
+      </div>
+    `;
+  }
+  
+  function renderSlide(slide, idx) {
+    const isActive = (idx === currentIndex);
+    if (!isActive) return '<div class="slide-card hidden" data-slide="'+idx+'"></div>';
+    
+    let innerHtml = '';
+    if (slide.type === 'title') {
+      innerHtml = `
+        <div class="slide-card p-6 md:p-10 text-center">
+          <div class="inline-block bg-blue-100 text-blue-800 rounded-full px-4 py-1 text-sm font-semibold mb-4">${slide.badge || 'Lesson 24'}</div>
+          <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">${slide.title}</h1>
+          <p class="text-xl text-gray-600 mb-2">${slide.subtitle}</p>
+          <p class="text-gray-500 max-w-lg mx-auto">${slide.description}</p>
+          <div class="mt-8 border-t pt-6 text-left bg-gray-50 rounded-2xl p-5">
+            <p class="font-medium">🎯 À la fin de ce cours, vous saurez :</p>
+            <ul class="bullets-list mt-2 list-none">
+              <li>Expliquer l'IaC et ses bénéfices</li>
+              <li>Distinguer déclaratif et impératif</li>
+              <li>Définir l'idempotence</li>
+            </ul>
+          </div>
+        </div>
+      `;
+    } 
+    else if (slide.type === 'objectifs') {
+      innerHtml = `
+        <div class="slide-card p-6 md:p-9">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-6">${slide.title}</h2>
+          <div class="grid md:grid-cols-1 gap-5">
+            <ul class="bullets-list text-gray-700 text-lg space-y-3">
+              ${slide.objectives.map(obj => `<li>${obj}</li>`).join('')}
+            </ul>
+            <div class="bg-blue-50 p-4 rounded-xl mt-4 text-blue-800 text-sm">💡 Ces objectifs seront validés par des exercices pratiques plus tard dans le module.</div>
+          </div>
+        </div>
+      `;
+    }
+    else if (slide.type === 'content') {
+      // plusieurs variations selon la présence de points, paragraphes, comparaison, code...
+      if (slide.points) {
+        innerHtml = `
+          <div class="slide-card p-6 md:p-9">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>
+            <ul class="bullets-list space-y-3 text-gray-700">
+              ${slide.points.map(p => `<li class="text-base md:text-lg">${p}</li>`).join('')}
+            </ul>
+            ${slide.illustration ? renderSimpleDrawing(slide.drawDesc || 'Illustration du concept') : ''}
+          </div>
+        `;
+      }
+      else if (slide.comparison) {
+        innerHtml = `
+          <div class="slide-card p-6 md:p-9">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-2">${slide.title}</h2>
+            <p class="text-gray-600 mb-5">${slide.sub || ''}</p>
+            <div class="flex flex-col md:flex-row gap-6">
+              ${slide.comparison.map(comp => `
+                <div class="flex-1 bg-gray-50 p-5 rounded-2xl shadow-sm border-l-4 ${comp.label.includes('Déclarative') ? 'border-green-500' : 'border-amber-500'}">
+                  <h3 class="font-bold text-xl mb-2">${comp.label}</h3>
+                  <p class="text-gray-600 mb-2">${comp.description}</p>
+                  <p class="text-sm text-gray-500 italic">${comp.traits}</p>
+                </div>
+              `).join('')}
+            </div>
+            <div class="mt-5 text-sm bg-gray-100 p-3 rounded-lg">${slide.note || ''}</div>
+          </div>
+        `;
+      }
+      else if (slide.codeExample) {
+        innerHtml = `
+          <div class="slide-card p-6 md:p-9">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-4">${slide.title}</h2>
+            <div class="mb-4">
+              <p class="font-semibold text-gray-700">${slide.codeTitle}</p>
+              <pre class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto text-sm"><code>${escapeHtml(slide.codeContent)}</code></pre>
+              <p class="text-red-600 text-sm mt-1">${slide.codeDesc}</p>
+            </div>
+            <div class="mt-4">
+              <p class="font-semibold text-gray-700">${slide.codeTitle2}</p>
+              <pre class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto text-sm"><code>${escapeHtml(slide.codeContent2)}</code></pre>
+              <p class="text-green-600 text-sm mt-1">${slide.codeDesc2}</p>
+            </div>
+          </div>
+        `;
+      }
+      else {
+        // Paragraphes classiques
+        let paragraphsHtml = `<div class="space-y-4 text-gray-700">${slide.paragraphs.map(p => `<p class="text-base md:text-lg leading-relaxed">${p}</p>`).join('')}</div>`;
+        let highlightHtml = slide.highlight ? `<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded my-4 text-yellow-800">✨ ${slide.highlight}</div>` : '';
+        let recapHtml = '';
+        if (slide.recapList) {
+          recapHtml = `<ul class="bullets-list bg-blue-50 p-5 rounded-xl mt-4">${slide.recapList.map(r => `<li>${r}</li>`).join('')}</ul>`;
+        }
+        let finalMsg = slide.finalMessage ? `<div class="mt-6 text-center text-blue-700 font-medium bg-blue-50 p-3 rounded-full">${slide.finalMessage}</div>` : '';
+        let draw = '';
+        if (slide.illustration === 'simple') {
+          draw = renderSimpleDrawing(slide.drawManual || "Schéma simplifié IaC");
+        }
+        innerHtml = `
+          <div class="slide-card p-6 md:p-9">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>
+            ${paragraphsHtml}
+            ${highlightHtml}
+            ${recapHtml}
+            ${draw}
+            ${finalMsg}
+          </div>
+        `;
+      }
+    }
+    
+    // Pour les slides sans dessin forcé mais où une illustration était prévue (drawDesc)
+    if (slide.illustration === "draw" && !innerHtml.includes('renderSimpleDrawing')) {
+      innerHtml += renderSimpleDrawing(slide.drawDesc || "Cycle de l'Infrastructure as Code");
+    }
+    
+    return `<div class="slide-card" data-slide="${idx}">${innerHtml}</div>`;
+  }
+  
+  function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+      return c;
+    });
+  }
+  
+  function updateSlides() {
+    const wrapper = $('#slidesWrapper');
+    let newHtml = '';
+    for (let i = 0; i < slidesData.length; i++) {
+      if (i === currentIndex) {
+        newHtml += renderSlide(slidesData[i], i);
+      } else {
+        newHtml += `<div class="hidden slide-card" data-slide="${i}"></div>`;
+      }
+    }
+    wrapper.html(newHtml);
+    $('#currentSlideIdx').text(currentIndex + 1);
+    $('#totalSlides').text(totalSlides);
+    const progressPercent = ((currentIndex + 1) / totalSlides) * 100;
+    $('#progressFill').css('width', `${progressPercent}%`);
+    
+    // gestion boutons prev/next state
+    $('#prevSlide').prop('disabled', currentIndex === 0);
+    $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+    
+    // déclencher MathJax si nécessaire (pas de grosses formules mais sécurité)
+    if (window.MathJax) {
+      MathJax.typesetPromise?.();
+    }
+  }
+  
+  function nextSlide() {
+    if (currentIndex < totalSlides - 1) {
+      currentIndex++;
+      updateSlides();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+  
+  function prevSlide() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      updateSlides();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+  
+  $(document).ready(function() {
+    totalSlides = slidesData.length;
+    updateSlides();
+    $('#nextSlide').on('click', nextSlide);
+    $('#prevSlide').on('click', prevSlide);
+    // Navigation clavier droite/gauche
+    $(document).on('keydown', function(e) {
+      if (e.key === 'ArrowRight') {
+        nextSlide();
+        e.preventDefault();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+        e.preventDefault();
+      }
+    });
+  });
+</script>
+</body>
+</html>

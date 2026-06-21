@@ -1,0 +1,148 @@
+[
+  {
+    "intitule": "Configuration du cache Redis dans NestJS",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un projet NestJS utilisant <code>@nestjs/cache-manager</code> avec Redis, vous devez configurer le cache pour améliorer les performances du catalogue produits.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Listez les trois dépendances npm principales à installer pour intégrer Redis comme cache dans NestJS.",
+        "niveau": "easy",
+        "reponse": "`@nestjs/cache-manager`, `cache-manager`, `cache-manager-redis-store` (ou `@keyv/redis` selon les versions).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez la configuration d'import du module CacheModule dans `AppModule` avec Redis comme store, un TTL par défaut de 60 secondes et un hôte Redis localhost.",
+        "niveau": "medium",
+        "reponse": "```typescript\nimport { Module } from '@nestjs/common';\nimport { CacheModule } from '@nestjs/cache-manager';\nimport * as redisStore from 'cache-manager-redis-store';\n\n@Module({\n  imports: [\n    CacheModule.register({\n      store: redisStore,\n      host: 'localhost',\n      port: 6379,\n      ttl: 60, // secondes\n    }),\n  ],\n})\nexport class AppModule {}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise en cache d'un endpoint GET",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous avez un contrôleur <code>ProductsController</code> avec une méthode <code>findAll()</code> qui interroge la base de données. Cette méthode est appelée très fréquemment. Vous souhaitez mettre en cache le résultat pendant 30 secondes.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez comment utiliser le décorateur <code>@CacheKey()</code> et <code>@CacheTTL()</code> pour cacher cette méthode.",
+        "niveau": "medium",
+        "reponse": "On utilise `@UseInterceptors(CacheInterceptor)` au niveau du contrôleur ou de la méthode. On peut personnaliser la clé avec `@CacheKey('all_products')` et la durée avec `@CacheTTL(30)`. Exemple :\n```typescript\n@Get()\n@UseInterceptors(CacheInterceptor)\n@CacheKey('all_products')\n@CacheTTL(30)\nasync findAll() {\n  return this.productsService.findAll();\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Quel est l'inconvénient de mettre en cache une liste de produits si celle-ci est différente selon l'utilisateur connecté (ex: prix spécifiques) ?",
+        "niveau": "hard",
+        "reponse": "Le cache serait partagé entre tous les utilisateurs, ce qui pourrait exposer des données inappropriées. Il faut alors inclure l'identifiant de l'utilisateur dans la clé de cache (ex: `products:user:${userId}`) ou désactiver le cache pour ce type de requête personnalisée. On peut utiliser `@CacheKey('products_' + userId)` dynamiquement via un intercepteur personnalisé.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Invalider le cache après modification",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, le catalogue produits est mis en cache pour optimiser les performances. Un administrateur peut modifier un produit (prix, stock, description). Il faut que le cache soit invalidé pour que les changements soient visibles immédiatement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrivez la stratégie d'invalidation du cache après la mise à jour d'un produit (endpoint PUT /products/:id).",
+        "niveau": "hard",
+        "reponse": "Après avoir modifié le produit en base de données, on doit supprimer les clés de cache concernées : la clé du produit individuel (ex: `product:${id}`) et la clé de la liste globale (ex: `all_products`). On peut injecter `CacheManager` et appeler `await this.cacheManager.del(key)`. On peut aussi utiliser `@Inject(CACHE_MANAGER)` pour accéder au gestionnaire.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez un extrait de code dans `ProductsService` qui invalide le cache après la mise à jour. Supprimez à la fois le produit individuel et la liste complète.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport { Inject, Injectable } from '@nestjs/common';\nimport { CACHE_MANAGER } from '@nestjs/cache-manager';\nimport { Cache } from 'cache-manager';\n\n@Injectable()\nexport class ProductsService {\n  constructor(\n    @Inject(CACHE_MANAGER) private cacheManager: Cache,\n    @InjectRepository(Product) private productRepo: Repository<Product>,\n  ) {}\n\n  async updateProduct(id: number, updateData: UpdateProductDto) {\n    await this.productRepo.update(id, updateData);\n    // invalidation\n    await this.cacheManager.del(`product:${id}`);\n    await this.cacheManager.del('all_products');\n    return this.findOne(id);\n  }\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposez une solution pour invalider également le cache si un produit est supprimé (DELETE).",
+        "niveau": "hard",
+        "reponse": "Dans la méthode `remove(id)`, après suppression en base, on invalide la clé individuelle et la liste globale, comme pour la mise à jour. Si la suppression échoue (produit non trouvé), on peut ne pas invalider. Il faut gérer les erreurs pour ne pas casser l'opération principale.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Cache personnalisé avec contexte utilisateur",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un site e-commerce affiche des recommandations personnalisées pour chaque utilisateur connecté. Ces recommandations sont calculées par un service qui prend du temps (10 secondes). Vous souhaitez les mettre en cache mais de manière isolée par utilisateur.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez comment construire une clé de cache unique pour chaque utilisateur (ex: recommandations).",
+        "niveau": "medium",
+        "reponse": "On utilise l'identifiant de l'utilisateur dans la clé : `recommandations:user:${userId}`. On peut aussi inclure d'autres paramètres comme le nombre de résultats. Cette clé doit être générée dynamiquement dans un intercepteur personnalisé ou directement dans le service.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez un intercepteur personnalisé `UserCacheInterceptor` qui construit automatiquement la clé de cache à partir de `request.user.id` et du nom de la méthode.",
+        "niveau": "very hard",
+        "reponse": "```typescript\nimport { Injectable, ExecutionContext, CallHandler } from '@nestjs/common';\nimport { CacheInterceptor } from '@nestjs/cache-manager';\nimport { Observable } from 'rxjs';\n\n@Injectable()\nexport class UserCacheInterceptor extends CacheInterceptor {\n  protected trackBy(context: ExecutionContext): string | undefined {\n    const request = context.switchToHttp().getRequest();\n    const userId = request.user?.id;\n    if (!userId) return undefined;\n    \n    const handler = context.getHandler();\n    const className = context.getClass().name;\n    const key = `${className}:${handler.name}:user:${userId}`;\n    return key;\n  }\n}\n```\nPuis on utilise `@UseInterceptors(UserCacheInterceptor)` sur la méthode.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Quand faut-il invalider ce cache personnalisé ? Proposez une stratégie.",
+        "niveau": "hard",
+        "reponse": "Le cache des recommandations doit être invalidé lorsque les données sous-jacentes changent : nouvel achat, nouveau produit consulté, changement de notes, etc. On peut le faire de manière déclenchée (événement) ou avec un TTL court (5 minutes). Il est aussi possible d'invalider lors de la déconnexion (moins critique).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse des performances avec et sans cache",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un endpoint GET /products/popular interroge une base de données avec une requête complexe (jointures, agrégations). Sans cache, le temps de réponse moyen est de 800 ms pour 100 requêtes simultanées. Avec Redis en cache, le temps descend à 15 ms.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculez le gain en latence (en pourcentage) apporté par le cache sur une requête individuelle.",
+        "niveau": "medium",
+        "reponse": "Gain = ((800 - 15) / 800) * 100 = (785 / 800) * 100 = 98,125 %.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez pourquoi il est important de définir un TTL (Time To Live) même si les données ne changent pas souvent.",
+        "niveau": "easy",
+        "reponse": "Le TTL évite que des données obsolètes restent en cache indéfiniment. En cas de mise à jour manquée (oubli d'invalidation), les données seront automatiquement rafraîchies après expiration. Cela limite la durée d'incohérence.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposez une stratégie de cache hybride où les produits les plus consultés restent en cache plus longtemps que les produits peu populaires.",
+        "niveau": "very hard",
+        "reponse": "On peut utiliser un cache avec TTL variable : compter le nombre de consultations par produit (avec Redis incr). Les produits avec un score élevé se voient attribuer un TTL plus long (ex: 1 heure au lieu de 10 minutes). On peut aussi implémenter un cache 'LRU' (Least Recently Used) via Redis `maxmemory-policy allkeys-lru`.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

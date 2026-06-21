@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 15 : React Query & persistance offline | React Native e-commerce</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- MathJax (prêt pour d'éventuelles formules) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide {
+      transition: opacity 0.25s ease-in-out;
+    }
+    body {
+      background: #f0f7ff;
+    }
+    .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-indigo-50 font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+      
+      <!-- En-tête -->
+      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-database text-lg"></i>
+          <span class="font-semibold text-sm md:text-base">API & Offline first · React Query</span>
+        </div>
+        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
+          Leçon 15 / 55
+        </div>
+      </div>
+
+      <!-- conteneur slides -->
+      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+
+      <!-- navigation -->
+      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
+          Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="text-center text-sm text-gray-500 mt-6">
+      <i class="fas fa-cloud-upload-alt"></i> Requêtes, cache, persistance offline et synchronisation auto
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------------------------
+    // Données des slides - Leçon 15: @tanstack/react-query
+    // Configuration QueryClient, persistance offline, useQuery, useMutation
+    // ----------------------------------------------
+    const slidesData = [
+      {
+        type: "title",
+        title: "📡 React Query : requêtes & cache intelligent",
+        subtitle: "Gestion des appels API, offline first et synchronisation",
+        icon: "fa-query",
+        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Installer et configurer @tanstack/react-query avec QueryClient",
+          "Utiliser useQuery pour récupérer des produits et le panier",
+          "Implémenter useMutation pour les actions (ajout au panier, commande)",
+          "Mettre en place la persistance offline des requêtes",
+          "Synchroniser automatiquement au retour de connexion"
+        ]
+      },
+      {
+        type: "content",
+        title: "🧩 Pourquoi React Query dans une app e-commerce ?",
+        content: `<p>React Query (maintenant TanStack Query) est une bibliothèque qui facilite la gestion des états asynchrones (API, base de données). En mobile e-commerce, on doit :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li>✅ Mettre en cache les données (catalogue produits) pour éviter des appels réseau inutiles</li>
+          <li>✅ Revalider les données en arrière-plan (vérifier si les prix ont changé)</li>
+          <li>✅ Gérer le chargement et les erreurs facilement</li>
+          <li>✅ Synchroniser en mode offline ( grâce à des plugins de persistance)</li>
+        </ul>
+        <div class="mt-4 bg-indigo-50 p-4 rounded-xl">
+          <i class="fas fa-brain text-indigo-600"></i> <strong>Avantage clé</strong> : Moins de code boilerplate, état global simplifié.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🔧 Installation & configuration de base",
+        content: `<p>Commence par installer la librairie :</p>
+        <pre class="bg-gray-800 text-green-300 p-3 rounded-lg text-sm overflow-auto">
+npm install @tanstack/react-query
+        </pre>
+        <p class="mt-3">Crée un <strong>QueryClient</strong> et enveloppe ton application avec <strong>QueryClientProvider</strong> :</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+// App.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 min
+      cacheTime: 1000 * 60 * 10,
+      retry: 2,
+    },
+  },
+});
+
+export default function App() {
+  return (
+    &lt;QueryClientProvider client={queryClient}&gt;
+      {/* le reste de l'app */}
+    &lt;/QueryClientProvider&gt;
+  );
+}
+        </pre>
+        <p class="text-sm text-gray-600 mt-2"><i class="fas fa-hourglass-half"></i> <code>staleTime</code> : temps avant de considérer les données "périmées". <code>cacheTime</code> : durée de conservation en cache.</p>`
+      },
+      {
+        type: "content",
+        title: "📥 useQuery : récupérer des produits",
+        content: `<p>Un exemple simple pour afficher une liste de produits depuis une API :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm overflow-auto">
+import { useQuery } from '@tanstack/react-query';
+import { getProducts } from '../services/api';
+
+function ProductList() {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
+  });
+
+  if (isLoading) return &lt;ActivityIndicator /&gt;;
+  if (error) return &lt;Text&gt;Erreur : {error.message}&lt;/Text&gt;;
+
+  return (
+    &lt;FlatList 
+      data={data}
+      renderItem={({item}) => &lt;ProductCard product={item} /&gt;}
+    /&gt;
+  );
+}
+        </pre>
+        <div class="mt-3 p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
+          💡 <strong>Explication</strong> : <code>queryKey</code> identifie la donnée (utile pour l'invalidation). React Query gère le cache, les recharges automatiques.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "✍️ useMutation : modifier le panier (POST / PUT)",
+        content: `<p>Pour les actions qui modifient le serveur (ajout au panier, checkout, like), on utilise <strong>useMutation</strong> :</p>
+        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { addToCart } from '../services/api';
+
+function AddToCartButton({ productId }) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (id) => addToCart(id),
+    onSuccess: () => {
+      // invalider le cache du panier pour le rafraîchir
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      // Afficher un toast
+      Toast.show('Produit ajouté');
+    },
+  });
+
+  return &lt;Button onPress={() => mutation.mutate(productId)} 
+            loading={mutation.isPending} /&gt;;
+}
+        </pre>
+        <p class="mt-2"><i class="fas fa-sync-alt"></i> <strong>OnSuccess</strong> permet de revalider les requêtes liées (panier, total).</p>`
+      },
+      {
+        type: "content",
+        title: "📀 Persistance offline avec AsyncStorage + react-query",
+        content: `<p>Pour permettre une expérience hors ligne, on utilise <strong>@tanstack/react-query-persist-client</strong> et <strong>AsyncStorage</strong>.</p>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+npm install @tanstack/react-query-persist-client @react-native-async-storage/async-storage
+        </pre>
+        <p>Configuration : sauvegarder le cache dans AsyncStorage.</p>
+        <pre class="bg-gray-800 text-gray-200 p-3 rounded-lg text-sm overflow-auto">
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  throttleTime: 1000,
+});
+
+&lt;PersistQueryClientProvider
+  client={queryClient}
+  persistOptions={{ persister }}
+&gt;
+  {/* app */}
+&lt;/PersistQueryClientProvider&gt;
+        </pre>
+        <p>✅ Dès que l'utilisateur revient en ligne, React Query revalide automatiquement les données périmées.</p>`
+      },
+      {
+        type: "content",
+        title: "🌐 Détection de connexion avec NetInfo + synchronisation",
+        content: `<p>React Query ne détecte pas nativement le retour de connexion. On utilise <strong>NetInfo</strong> pour surveiller et déclencher des revalidations.</p>
+        <pre class="bg-gray-800 text-yellow-200 p-3 rounded-lg text-sm">
+import NetInfo from '@react-native-community/netinfo';
+import { onlineManager } from '@tanstack/react-query';
+
+// Dans un useEffect ou au démarrage
+NetInfo.addEventListener(state => {
+  onlineManager.setOnline(state.isConnected ?? false);
+});
+        </pre>
+        <div class="bg-green-50 p-3 rounded-lg mt-3">
+          <i class="fas fa-wifi text-green-600"></i> <strong>Fonctionnement :</strong> Quand la connexion revient, React Query relance les requêtes en échec ou marquées comme "périmées". Parfait pour les paniers offline !
+        </div>
+        <p class="mt-2 text-sm">On peut aussi ajouter un <strong>refetchOnReconnect</strong> dans les options par défaut.</p>`
+      },
+      {
+        type: "content",
+        title: "⚙️ Mettre en file d'attente les actions offline (avancé)",
+        content: `<p>Pour les mutations hors ligne (ex: ajout produit sans connexion), on peut combiner <strong>React Query + persisted mutations</strong> ou une librairie dédiée. Une approche simple :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li>Utiliser <strong>Zustand</strong> pour stocker les actions en attente.</li>
+          <li>Lorsque NetInfo indique "online", exécuter les mutations en série.</li>
+        </ul>
+        <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">
+const offlineQueue = useRef([]);
+const addOfflineAction = (action) => {
+  offlineQueue.current.push(action);
+  AsyncStorage.setItem('pendingActions', JSON.stringify(offlineQueue.current));
+};
+
+// useEffect sur la connexion
+NetInfo.addEventListener(state => {
+  if (state.isConnected && offlineQueue.current.length) {
+    offlineQueue.current.forEach(mut => mutation.mutate(mut));
+    offlineQueue.current = [];
+  }
+});
+        </pre>
+        <p class="mt-2"><i class="fas fa-tasks"></i> <strong>Métier :</strong> Idéal pour les zones à faible réseau (Cameroun, zones rurales). L'utilisateur navigue et ses actions sont jouées plus tard.</p>`
+      },
+      {
+        type: "content",
+        title: "📊 Optimisation et revalidation intelligente",
+        content: `<div class="grid md:grid-cols-2 gap-4">
+          <div class="bg-white p-3 rounded-lg shadow-sm">
+            <i class="fas fa-hourglass-start"></i>
+            <h3 class="font-bold">staleTime vs cacheTime</h3>
+            <p class="text-sm">staleTime : durée avant que donnée ne soit considérée "périmée" (défaut 0). cacheTime : durée avant suppression du cache (défaut 5 min).</p>
+          </div>
+          <div class="bg-white p-3 rounded-lg shadow-sm">
+            <i class="fas fa-sync"></i>
+            <h3 class="font-bold">Revalidation automatique</h3>
+            <p class="text-sm">Focus sur l'app, reconnexion réseau, ou invalidation manuelle via <code>invalidateQueries</code>.</p>
+          </div>
+        </div>
+        <pre class="bg-gray-100 p-3 rounded mt-3 text-sm">
+// Invalider la liste produits après un changement
+queryClient.invalidateQueries({ queryKey: ['products'] });
+// ou recharger spécifiquement
+queryClient.refetchQueries({ queryKey: ['cart'] });
+        </pre>
+        <p class="mt-2">Ainsi l'interface reste toujours à jour sans effort !</p>`
+      },
+      {
+        type: "summary",
+        title: "📦 Récapitulatif : React Query offline-ready",
+        points: [
+          "Installation de @tanstack/react-query et QueryClientProvider",
+          "useQuery : lecture et mise en cache (produits, commandes)",
+          "useMutation : écriture (ajout panier, login) avec invalidation",
+          "Persistance AsyncStorage pour mode hors ligne",
+          "NetInfo + onlineManager pour synchronisation automatique",
+          "Possibilité de file d'attente offline pour mutations"
+        ],
+        icon: "fa-check-double"
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    // Rendu slide
+    function renderSlide(slide, idx) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
+            <i class="fas ${slide.icon || 'fa-database'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
+            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
+            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">TanStack Query · Offline-first</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "objectives") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
+            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+            </div>
+            <ul class="space-y-4 flex-1">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Naviguez pour maîtriser React Query</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "content") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "summary") {
+        return `
+          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
+            <div class="text-center">
+              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+              <ul class="text-left max-w-md mx-auto space-y-3">
+                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
+                <i class="fas fa-mobile-alt"></i> Application e-commerce réactive, même sans réseau !
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `<div class="p-8 text-red-500">Erreur contenu</div>`;
+    }
+
+    function updateSlide() {
+      const slideHtml = renderSlide(slidesData[currentIndex], currentIndex);
+      $('#slides-container').fadeOut(150, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      let indicatorsHtml = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+      }
+      $('#slide-indicators').html(indicatorsHtml);
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlide();
+      } else {
+        alert('🎉 Félicitations ! Vous maîtrisez React Query avec persistance offline. Entraînez-vous sur les exercices !');
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    $(document).ready(function() {
+      updateSlide();
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      
+      $(document).on('click', '.indicator-dot', function() {
+        const idx = $(this).data('index');
+        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
+          currentIndex = idx;
+          updateSlide();
+        }
+      });
+      
+      // Swipe mobile
+      let touchStartX = 0, touchEndX = 0;
+      const container = document.getElementById('slides-container');
+      if (container) {
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        });
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) nextSlide();
+          if (touchEndX > touchStartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

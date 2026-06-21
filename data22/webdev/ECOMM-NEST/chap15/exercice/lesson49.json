@@ -1,0 +1,134 @@
+[
+  {
+    "intitule": "Configuration des logs structurés avec Winston",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API NestJS en production, vous devez remplacer <code>console.log</code> par un système de logs structurés. Vous choisissez Winston. Les logs doivent inclure : timestamp, niveau (info/error/warn), contexte (module), message, et éventuellement des métadonnées (userId, ip).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi les logs structurés (JSON) sont préférables aux logs texte brut en production.",
+        "niveau": "easy",
+        "reponse": "Les logs structurés (JSON) sont facilement analysables par des outils comme ELK, Datadog ou Loki. On peut filtrer par niveau, contexte, ou champ personnalisé. Les logs texte brut nécessitent du parsing manuel ou des regex fragiles.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la configuration minimale d'un logger Winston personnalisé dans un module NestJS (sans code complet, mais en expliquant les transports et formats).",
+        "niveau": "medium",
+        "reponse": "Il faut créer un fournisseur personnalisé avec `winston.createLogger()`. On utilise `winston.format.json()` ou `winston.format.printf()` pour la structure. Transports : `Console` en dev, `File` ou `DailyRotateFile` en production. On peut ajouter `winston.format.timestamp()` et `winston.format.errors({ stack: true })`.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Analyser la différence entre un log niveau 'error' avec stack trace et un log niveau 'info' en termes de sécurité et de performance.",
+        "niveau": "hard",
+        "reponse": "Les logs 'error' avec stack trace exposent potentiellement des chemins de fichiers, versions de dépendances ou noms de fonctions (risque de fuite d'information). Ils sont plus lourds en performance à cause de la génération de la stack. Les logs 'info' doivent éviter toute donnée sensible (email, token). En production, on peut éliminer les stacks des logs non-errors ou les envoyer uniquement à Sentry.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Intégration et analyse de Sentry pour le suivi d'erreurs",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Votre API e-commerce plante sporadiquement sur la route <code>POST /orders</code> avec une erreur interne. Les utilisateurs ne signalent pas toujours le problème. Vous devez intégrer Sentry pour capturer automatiquement ces erreurs et prioriser les corrections.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes pour intégrer Sentry dans une application NestJS.",
+        "niveau": "easy",
+        "reponse": "1. Installer `@sentry/nestjs` et `@sentry/profiling-node`. 2. Initialiser Sentry dans `main.ts` avec `Sentry.init()` et le DSN. 3. Ajouter le `SentryModule` ou utiliser le global filter `SentryGlobalFilter`. 4. Capturer manuellement des erreurs avec `Sentry.captureException()` dans les try/catch. 5. Configurer les variables d'environnement (DSN, environment, release).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment Sentry permet de distinguer une erreur récurrente d'une erreur ponctuelle, et comment cela aide à prioriser les correctifs.",
+        "niveau": "medium",
+        "reponse": "Sentry regroupe les erreurs identiques par fingerprint (type d'erreur, stack trace, message). Il affiche le nombre d'occurrences, le nombre d'utilisateurs affectés, la première et dernière occurrence. On peut voir l'évolution dans le temps. Une erreur avec 1000 occurrences et 500 utilisateurs est prioritaire par rapport à une erreur unique sur un environnement de test. Il propose un score 'Issues' basé sur fréquence et tendance.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Créer une stratégie pour ne pas polluer Sentry avec des erreurs attendues (ex: validation échouée, 404) tout en capturant les exceptions inattendues.",
+        "niveau": "hard",
+        "reponse": "On peut utiliser un filtre global personnalisé qui appelle `Sentry.captureException()` seulement si le statut HTTP est >= 500 ou si l'erreur n'est pas une instance de `BadRequestException`, `NotFoundException`, `UnauthorizedException`. On peut aussi ajouter une vérification sur le message : ignorer 'Validation failed' ou 'User not found'. Pour les erreurs métier contrôlées, on log simplement avec Winston sans envoyer à Sentry.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Surveillance des performances avec PM2",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Vous gérez un VPS avec plusieurs applications Node.js. Vous utilisez PM2 comme processus manager. Vous devez surveiller en temps réel la mémoire, le CPU et les redémarrages de votre API NestJS.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Énumérer trois commandes PM2 permettant de surveiller les performances d'une application.",
+        "niveau": "easy",
+        "reponse": "1. `pm2 monit` : affiche en temps réel CPU/mémoire par processus. 2. `pm2 list` : montre le statut, uptime, redémarrages. 3. `pm2 describe <app>` : donne les détails complets (logs path, version, arguments).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer ce qu'indique un taux de 'restarts' élevé (> 10 en 1 heure) et comment investiguer.",
+        "niveau": "medium",
+        "reponse": "Un taux de redémarrages élevé signifie que l'application crash fréquemment. Causes possibles : fuite mémoire (process kills par OOM killer), exception non capturée, dépendance externe instable (base de données, Redis). Investigation : `pm2 logs --err` pour voir les dernières erreurs, vérifier les limites de mémoire avec `pm2 restart --max-memory-restart`, utiliser `--node-args=\"--expose-gc\"` et `pm2 monit` pour observer la mémoire.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Mise en place d'une surveillance proactive avec New Relic",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Votre API e-commerce commence à avoir des ralentissements sur le endpoint <code>GET /products/search</code> le vendredi soir. Vous devez configurer New Relic APM pour identifier le goulot d'étranglement (base de données, cache, ou code applicatif).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les informations que New Relic APM peut fournir sur une transaction lente.",
+        "niveau": "medium",
+        "reponse": "New Relic montre le temps total, le breakdown par segment (middleware, controller, service, requête SQL/Redis, appel externe). Il donne la stack trace complète, les paramètres de requête (anonymisés si configuré), le contexte HTTP (user-agent, IP). On voit aussi les bases de données impliquées et les requêtes SQL individuelles. Cela permet de savoir si le temps est passé dans la DB ou dans le code Node.js.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Concevoir une stratégie d'alerte dans New Relic pour détecter automatiquement une augmentation de 200% du temps de réponse sur les 5 dernières minutes pour l'endpoint critique /products/search.",
+        "niveau": "hard",
+        "reponse": "On crée une condition NRQL : `SELECT average(duration) FROM Transaction WHERE appName='ecommerce-api' AND transactionName='WebTransaction/NestJS/GET /products/search' TIMESERIES`. Puis on ajoute une alerte : seuil basé sur la variation relative (ex: si average > baseline moyenne des 24h * 3) ou seuil absolu (ex: > 800ms). On utilise un window de 5 minutes, avec une période de rétrospection de 5 minutes et une fonction de seuil `above (200% of baseline)`. Notification par email ou webhook (Slack).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Choix d'une solution de monitoring adaptée",
+    "type": "ressource",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Vous devez présenter un comparatif technique entre PM2, Sentry et New Relic pour un projet e-commerce à fort trafic (1000 requêtes/seconde). Votre CTO demande une analyse des avantages, inconvénients et cas d'usage complémentaires.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Comparer PM2, Sentry et New Relic selon 3 critères : (a) type de données collectées, (b) impact performance, (c) capacité d'alerte proactive.",
+        "niveau": "very hard",
+        "reponse": "**PM2** : (a) métriques process (CPU, mémoire, uptime, restarts) - pas d'erreurs détaillées ni traces. (b) très faible impact (<1%). (c) alertes basiques via `pm2 web` ou scripts externes, pas proactif.<br>**Sentry** : (a) erreurs, stack traces, breadcrumbs, profils utilisateur, releases. (b) impact faible à modéré (bufferisation asynchrone). (c) alertes sur nouveaux problèmes ou pics d'erreurs.<br>**New Relic** : (a) traces distribuées, temps de réponse, throughput, bases de données, appels externes, profiles CPU heap. (b) impact modéré (2-5%) car instrumentation profonde. (c) alertes sophistiquées par anomalies, seuils dynamiques, prédictives.<br>**Complémentarité** : PM2 pour surveiller la santé du processus (crash, redémarrage), Sentry pour les erreurs, New Relic pour les performances.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

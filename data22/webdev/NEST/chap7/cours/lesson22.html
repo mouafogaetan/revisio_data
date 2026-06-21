@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>NestJS | Lesson 22 : Configuration asynchrone & Modules dynamiques</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body { background: #f1f5f9; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        .slide { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; }
+        .slide.active { display: block; opacity: 1; }
+        .slide:not(.active) { display: none; }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { transform: scale(1.02); background-color: #1e293b; }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            background: #d9f99d;
+            color: #3f6212;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .code-block { font-size: 0.7rem; padding: 0.75rem; }
+            h2 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active" id="slide1">
+            <div class="bg-gradient-to-r from-blue-800 to-indigo-700 text-white px-6 py-12 md:py-16 text-center">
+                <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-4">⚙️ NestJS – Configuration avancée</span>
+                <h1 class="text-3xl md:text-5xl font-extrabold mb-4">Configuration asynchrone<br>& Imports dynamiques</h1>
+                <p class="text-indigo-100 text-lg md:text-xl max-w-2xl mx-auto">useFactory • inject • ConfigModule • TypeORM asynchrone</p>
+                <div class="mt-8 flex justify-center gap-3 text-sm font-medium">
+                    <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Lesson 22</span>
+                    <span class="bg-white/20 px-3 py-1 rounded-full">⏱️ 40 min</span>
+                </div>
+            </div>
+            <div class="p-6 text-center text-gray-500 text-sm border-t">NestJS – Framework Node.js progressif</div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide" id="slide2">
+            <div class="bg-blue-50 border-b px-6 py-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-blue-800 flex items-center gap-2">📌 Objectifs de la leçon</h2>
+                <p class="text-gray-600 mt-1">À la fin, vous saurez :</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Configurer des modules de manière <strong>asynchrone</strong> avec <code class="bg-gray-100 px-1 rounded">useFactory</code>.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Injecter <code class="bg-gray-100 px-1 rounded">ConfigService</code> dans les imports dynamiques (ex: TypeORM, JWT).</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Utiliser <code class="bg-gray-100 px-1 rounded">@nestjs/config</code> avec TypeORM pour une configuration flexible.</div></div>
+                <div class="flex items-start gap-3"><div class="text-green-600 text-xl">✓</div><div>Comprendre <strong>l'import de modules conditionnels</strong> et les <strong>modules globaux</strong>.</div></div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : POURQUOI UNE CONFIGURATION ASYNCHRONE ? -->
+        <div class="slide" id="slide3">
+            <div class="bg-amber-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-amber-800">🔄 Pourquoi asynchrone ?</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <p>Parfois la configuration d'un module nécessite :</p>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li>De lire des variables d'environnement via <code>ConfigService</code> (qui peut être asynchrone).</li>
+                    <li>De récupérer des secrets depuis un gestionnaire externe (Vault, AWS Secrets Manager).</li>
+                    <li>D'attendre la connexion à une base de données avant d'exposer certaines routes.</li>
+                </ul>
+                <div class="bg-gray-100 p-3 rounded-lg text-sm font-mono">
+                    Exemple : TypeORM a besoin de connaître l'URL de la base de données après chargement du fichier .env.
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    💡 La solution : <strong>registerAsync() / forRootAsync()</strong> avec <code>useFactory</code> et <code>inject</code>.
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 : CONFIGMODULE.REGISTERASYNC -->
+        <div class="slide" id="slide4">
+            <div class="bg-slate-800 text-white px-6 py-5">
+                <h2 class="text-2xl font-bold">📦 ConfigModule asynchrone (exemple simple)</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.development', '.env'],
+    }),
+    // Autre module asynchrone
+    DatabaseModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class AppModule {}
+</code>
+                </div>
+                <p class="mt-3 text-sm"><code>useFactory</code> est appelée après que ConfigService soit prêt. Les valeurs sont injectées dynamiquement.</p>
+                <div class="bg-green-50 p-3 rounded mt-3 text-sm">✅ <strong>Bonnes pratiques :</strong> Toujours utiliser <strong>inject</strong> pour que NestJS résolve les dépendances automatiquement.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 : TYPEORM ASYNCHRONE AVEC CONFIGSERVICE -->
+        <div class="slide" id="slide5">
+            <div class="bg-purple-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-purple-800">🗄️ TypeORM asynchrone – Exemple concret</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// database.module.ts
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+        username: configService.get('DB_USER'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+        synchronize: configService.get('NODE_ENV') !== 'production',
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class DatabaseModule {}
+</code>
+                </div>
+                <p class="mt-3 text-sm">Grâce à cette approche, on évite de dupliquer la configuration. La synchronisation automatique est désactivée en production.</p>
+                <div class="bg-yellow-50 p-2 rounded mt-2 text-xs">⚠️ synchronize: true en développement uniquement — dangereux en production.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 : JWT MODULE ASYNCHRONE -->
+        <div class="slide" id="slide6">
+            <div class="bg-indigo-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-indigo-800">🔐 JwtModule asynchrone</h2>
+            </div>
+            <div class="p-6">
+                <div class="code-block">
+<code>
+// auth.module.ts
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+@Module({
+  imports: [
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get('JWT_SECRET'),
+        signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '1h') },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+})
+export class AuthModule {}
+</code>
+                </div>
+                <p class="mt-3 text-sm">Les variables <code>JWT_SECRET</code> et <code>JWT_EXPIRES_IN</code> sont lues depuis <code>.env</code>.</p>
+                <p class="text-sm font-semibold mt-2">Avantage : le secret n'est pas codé en dur, modifiable sans rebuild.</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 : IMPORT DYNAMIQUE AVEC FORROOT / REGISTER -->
+        <div class="slide" id="slide7">
+            <div class="bg-teal-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-teal-800">🧩 Modules configurables : forRoot, register</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <p>NestJS permet de créer des <strong>modules dynamiques</strong> qui peuvent être configurés différemment selon le contexte.</p>
+                <div class="code-block">
+<code>
+// mon-module.config.ts
+export interface MonModuleOptions {
+  apiKey: string;
+  timeout: number;
+}
+
+// mon-module.module.ts
+@Module({})
+export class MonModule {
+  static register(options: MonModuleOptions): DynamicModule {
+    return {
+      module: MonModule,
+      providers: [
+        {
+          provide: 'CONFIG_OPTIONS',
+          useValue: options,
+        },
+        MonService,
+      ],
+      exports: [MonService],
+    };
+  }
+}
+</code>
+                </div>
+                <div class="bg-gray-100 p-3 rounded text-sm">
+                    Utilisation : <code>MonModule.register({ apiKey: 'abc', timeout: 5000 })</code>
+                </div>
+                <div class="bg-blue-50 p-3 rounded text-sm">✨ Courant dans les librairies tierces (ex: <code>GraphQLModule.forRoot()</code>).</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 : CONFIGURATION CONDITIONNELLE -->
+        <div class="slide" id="slide8">
+            <div class="bg-pink-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-pink-800">🎛️ Configuration conditionnelle</h2>
+            </div>
+            <div class="p-6">
+                <p>On peut charger des fichiers différents selon l'environnement :</p>
+                <div class="code-block">
+<code>
+// .env.development, .env.production
+ConfigModule.forRoot({
+  envFilePath: `.env.${process.env.NODE_ENV}`,
+  ignoreEnvFile: process.env.NODE_ENV === 'production',
+});
+</code>
+                </div>
+                <p class="mt-4">Ou encore activer un module seulement si une variable est définie :</p>
+                <div class="code-block">
+<code>
+imports: [
+  process.env.USE_CACHE === 'true' ? CacheModule.register() : [],
+],
+</code>
+                </div>
+                <div class="bg-green-50 p-3 rounded mt-3 text-sm">🔧 <strong>Utile</strong> pour désactiver la documentation Swagger en production, etc.</div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : EXERCICE PRATIQUE & RÉSUMÉ -->
+        <div class="slide" id="slide9">
+            <div class="bg-orange-50 border-b px-6 py-5">
+                <h2 class="text-2xl font-bold text-orange-800">✏️ Exercice & bonnes pratiques</h2>
+            </div>
+            <div class="p-6">
+                <p class="font-semibold">Exercice guidé :</p>
+                <ol class="list-decimal pl-6 mt-2 space-y-1">
+                    <li>Créez un fichier <code>.env</code> avec <code>DB_HOST, DB_PORT, JWT_SECRET</code>.</li>
+                    <li>Configurez <code>ConfigModule.forRoot()</code> global.</li>
+                    <li>Modifiez <code>TypeOrmModule</code> pour utiliser <code>forRootAsync</code> et injecter <code>ConfigService</code>.</li>
+                    <li>Testez avec <code>NODE_ENV=production</code> pour désactiver <code>synchronize</code>.</li>
+                </ol>
+                <div class="bg-gray-800 text-white rounded-lg p-3 mt-4 text-sm">
+                    💡 <strong>Rappel :</strong> Ne jamais logguer les secrets (mot de passe, clé API). Utilisez <code>ConfigService.get()</code> partout.
+                </div>
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    ➡️ Navigation slides : boutons ou glissement tactile.
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-between items-center px-6 py-4 border-t bg-gray-50">
+            <button id="prevBtn" class="nav-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full disabled:opacity-50 transition" disabled>◀ Précédent</button>
+            <div class="text-sm text-gray-500">Slide <span id="currentSlide">1</span> / <span id="totalSlides">9</span></div>
+            <button id="nextBtn" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full transition">Suivant ▶</button>
+        </div>
+    </div>
+    <div class="text-center text-gray-400 text-xs mt-4">© NestJS – Configuration avancée | Cours pour développeurs backend</div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let slides = $('.slide');
+        let total = slides.length;
+        let current = 0;
+        $('#totalSlides').text(total);
+        function showSlide(index) {
+            slides.removeClass('active');
+            $(slides[index]).addClass('active');
+            $('#currentSlide').text(index + 1);
+            $('#prevBtn').prop('disabled', index === 0);
+            $('#nextBtn').prop('disabled', index === total - 1);
+        }
+        $('#nextBtn').on('click', function() {
+            if (current < total - 1) { current++; showSlide(current); }
+        });
+        $('#prevBtn').on('click', function() {
+            if (current > 0) { current--; showSlide(current); }
+        });
+        // Swipe mobile
+        let touchStartX = 0, touchEndX = 0;
+        $('.slide').on('touchstart', function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $('.slide').on('touchend', function(e) {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            if (touchStartX - touchEndX > 50 && current < total - 1) { current++; showSlide(current); }
+            else if (touchEndX - touchStartX > 50 && current > 0) { current--; showSlide(current); }
+        });
+        if(window.MathJax) MathJax.typesetPromise();
+    });
+</script>
+</body>
+</html>

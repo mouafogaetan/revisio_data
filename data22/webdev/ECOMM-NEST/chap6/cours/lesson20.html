@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 20 : Transformation du panier en commande | API E-commerce</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .snap-scroll { scroll-snap-type: x mandatory; overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .snap-scroll .slide { scroll-snap-align: start; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .code-block { background: #0f172a; color: #e2e8f0; border-radius: 1rem; padding: 1rem; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; }
+        @media (max-width: 640px) { .code-block { font-size: 0.7rem; padding: 0.75rem; } }
+        .card-lesson { background: white; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02); }
+        .badge-order { background: #ec489a; color: white; }
+        .step { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .step-number { width: 2rem; height: 2rem; background: #f3e8ff; color: #9333ea; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+    <!-- En-tête -->
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
+        <div>
+            <span class="text-sm font-semibold text-pink-700 bg-pink-100 px-3 py-1 rounded-full">📘 API E-commerce / NestJS</span>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">Développement d'une API e-commerce</h1>
+        </div>
+        <div class="badge-order px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">Leçon 20 : Panier → Commande</div>
+    </div>
+
+    <!-- Slides horizontaux -->
+    <div class="relative mt-3">
+        <div id="slidesWrapper" class="snap-scroll flex overflow-x-auto no-scrollbar rounded-2xl gap-4" style="scroll-snap-type: x mandatory;">
+            
+            <!-- SLIDE 1 : Titre -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="0">
+                <div class="card-lesson p-6 md:p-10 h-full flex flex-col justify-center items-center text-center min-h-[70vh]">
+                    <div class="inline-block p-4 bg-pink-100 rounded-full mb-5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-pink-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-black text-gray-800 mb-4">Du panier à la commande</h2>
+                    <p class="text-xl text-gray-600">Transformation, stock, email de confirmation</p>
+                    <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm text-gray-500">
+                        <span>📦 Chapitre 6</span><span>•</span><span>⚡ Leçon 20</span><span>•</span><span>✉️ Confirmation</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="1">
+                <div class="card-lesson p-6 md:p-10 h-full min-h-[70vh]">
+                    <div class="flex items-center gap-3 border-b pb-3 border-gray-200 mb-5">
+                        <span class="text-3xl">🎯</span>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800">Objectifs de la leçon</h2>
+                    </div>
+                    <ul class="space-y-4 text-gray-700 text-lg md:text-xl list-disc pl-6">
+                        <li>✅ Transformer le panier en commande (Order + OrderItem)</li>
+                        <li>✅ Décrémenter les stocks réels après validation</li>
+                        <li>✅ Envoyer un email de confirmation au client (Nodemailer)</li>
+                        <li>✅ Gérer les transactions pour garantir l'intégrité</li>
+                    </ul>
+                    <div class="mt-10 bg-pink-50 p-5 rounded-xl text-pink-800 text-sm italic border-l-4 border-pink-400">
+                        💡 La validation de commande est une opération critique : transaction ACID, vérification de stock, email asynchrone.
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Entités Order et OrderItem (rappel) -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="2">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-3"><span class="text-3xl">📋</span> 1. Entités Order et OrderItem</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// order.entity.ts
+@Entity()
+export class Order {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ManyToOne(() => User)
+    user: User;
+
+    @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+    status: OrderStatus;
+
+    @Column('decimal', { precision: 10, scale: 2 })
+    total: number;
+
+    @Column()
+    shippingAddress: string;
+
+    @Column({ nullable: true })
+    trackingNumber: string;
+
+    @OneToMany(() => OrderItem, item => item.order, { cascade: true })
+    items: OrderItem[];
+
+    @CreateDateColumn()
+    createdAt: Date;
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : OrderItem (snapshot) -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="3">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📸 2. OrderItem : snapshot produit</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// order-item.entity.ts
+@Entity()
+export class OrderItem {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @ManyToOne(() => Order, order => order.items)
+    order: Order;
+
+    @Column()
+    productName: string;      // Snapshot (nom au moment de l'achat)
+
+    @Column('decimal')
+    priceAtPurchase: number;  // Prix au moment de l'achat
+
+    @Column()
+    quantity: number;
+
+    @Column({ type: 'json', nullable: true })
+    variation: Record<string, string>;
+
+    @Column({ nullable: true })
+    productImage: string;
+}</code></pre>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg text-sm">⚠️ On ne lie pas directement Product pour éviter les modifications futures (prix, nom). On stocke une copie (snapshot).</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : Service de transformation (checkout) -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="4">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🔄 3. Transformation panier → commande</h2>
+                    <div class="code-block text-sm mb-4">
+                        <pre><code>async checkout(userId: string, checkoutDto: CheckoutDto): Promise&lt;Order&gt; {
+    const cart = await this.cartService.getCartByUserId(userId);
+    if (!cart.items.length) throw new BadRequestException('Panier vide');
+    
+    // Vérifier les stocks
+    for (const item of cart.items) {
+        if (item.product.stock < item.quantity) {
+            throw new BadRequestException(`Stock insuffisant pour ${item.product.name}`);
+        }
+    }
+    
+    // Créer la commande
+    const order = this.orderRepository.create({
+        user: { id: userId },
+        shippingAddress: checkoutDto.shippingAddress,
+        total: await this.cartService.getCartTotal(cart.id),
+        items: cart.items.map(item => this.orderItemRepository.create({
+            productName: item.product.name,
+            priceAtPurchase: item.product.price,
+            quantity: item.quantity,
+            variation: item.variation,
+            productImage: item.product.images?.[0]
+        }))
+    });
+    
+    return this.orderRepository.save(order);
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : Décrémentation des stocks (transaction) -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="5">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">📉 4. Décrémentation des stocks (transaction)</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>async checkout(userId: string, checkoutDto: CheckoutDto): Promise&lt;Order&gt; {
+    // Utiliser une transaction TypeORM
+    return this.dataSource.transaction(async (manager) => {
+        const cart = await this.cartService.getCartWithItems(cartId, manager);
+        
+        // Décrémenter les stocks
+        for (const item of cart.items) {
+            const product = await manager.findOne(Product, { where: { id: item.product.id }, lock: { mode: 'pessimistic_write' } });
+            if (product.stock < item.quantity) throw new Error(`Stock insuffisant`);
+            product.stock -= item.quantity;
+            await manager.save(product);
+        }
+        
+        // Créer la commande
+        const order = manager.create(Order, { ... });
+        await manager.save(order);
+        
+        // Vider le panier
+        await manager.delete(CartItem, { cart: { id: cart.id } });
+        
+        return order;
+    });
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : Envoi d'email avec Nodemailer -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="6">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">✉️ 5. Email de confirmation</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// OrderService
+async sendOrderConfirmation(order: Order) {
+    const user = await this.userService.findOne(order.user.id);
+    const html = `
+        &lt;h1&gt;Merci pour votre commande #${order.id}&lt;/h1&gt;
+        &lt;p&gt;Bonjour ${user.firstName},&lt;/p&gt;
+        &lt;p&gt;Votre commande d'un montant de ${order.total} FCFA a été confirmée.&lt;/p&gt;
+        &lt;h2&gt;Détails :&lt;/h2&gt;
+        &lt;ul&gt;${order.items.map(i => `&lt;li&gt;${i.productName} x${i.quantity} - ${i.priceAtPurchase} FCFA&lt;/li&gt;`).join('')}&lt;/ul&gt;
+        &lt;p&gt;Nous vous tiendrons informé de l'expédition.&lt;/p&gt;
+    `;
+    await this.emailService.send({
+        to: user.email,
+        subject: `Confirmation de commande #${order.id}`,
+        html
+    });
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : Configuration Nodemailer -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="7">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">⚙️ 6. Configuration Nodemailer</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// email.service.ts
+import * as nodemailer from 'nodemailer';
+
+@Injectable()
+export class EmailService {
+    private transporter;
+    
+    constructor(private configService: ConfigService) {
+        this.transporter = nodemailer.createTransport({
+            host: this.configService.get('SMTP_HOST'),
+            port: this.configService.get('SMTP_PORT'),
+            secure: false,
+            auth: {
+                user: this.configService.get('SMTP_USER'),
+                pass: this.configService.get('SMTP_PASS'),
+            },
+        });
+    }
+    
+    async send(options: { to: string; subject: string; html: string }) {
+        await this.transporter.sendMail({
+            from: `"E-commerce" &lt;${this.configService.get('SMTP_FROM')}&gt;`,
+            ...options
+        });
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Endpoint checkout -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="8">
+                <div class="card-lesson p-6 md:p-8 h-full min-h-[70vh]">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">🌐 7. Endpoint de validation</h2>
+                    <div class="code-block mb-4">
+                        <pre><code>// OrderController
+@Post('checkout')
+@UseGuards(JwtAuthGuard)
+async checkout(@Req() req, @Body() checkoutDto: CheckoutDto) {
+    const order = await this.orderService.checkout(req.user.id, checkoutDto);
+    
+    // Envoi asynchrone (ne pas bloquer la réponse)
+    this.orderService.sendOrderConfirmation(order).catch(err => 
+        this.logger.error(`Erreur envoi email: ${err.message}`)
+    );
+    
+    return {
+        message: 'Commande validée',
+        orderId: order.id,
+        total: order.total
+    };
+}</code></pre>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg text-sm">📌 L'envoi d'email est asynchrone pour ne pas ralentir la réponse utilisateur (utiliser Bull/Queue en production).</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : Résumé -->
+            <div class="slide flex-shrink-0 w-full snap-start p-1 md:p-2" data-slide-index="9">
+                <div class="card-lesson p-6 md:p-10 h-full flex flex-col justify-center min-h-[70vh]">
+                    <h2 class="text-3xl font-extrabold text-center text-gray-800 mb-6">📌 En résumé</h2>
+                    <div class="space-y-4 max-w-xl mx-auto">
+                        <div class="flex gap-3"><span class="text-pink-600 text-xl">✓</span> <span>Transaction ACID : vérification stock + création commande + décrémentation</span></div>
+                        <div class="flex gap-3"><span class="text-pink-600 text-xl">✓</span> <span>OrderItem = snapshot (nom, prix) pour éviter les modifications futures</span></div>
+                        <div class="flex gap-3"><span class="text-pink-600 text-xl">✓</span> <span>Email de confirmation avec Nodemailer (asynchrone)</span></div>
+                        <div class="flex gap-3"><span class="text-pink-600 text-xl">✓</span> <span>Vider le panier après validation réussie</span></div>
+                    </div>
+                    <div class="text-center mt-10 text-gray-500 text-sm border-t pt-5">
+                        🚀 Prochaine leçon : Suivi des commandes et annulation
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dots indicateurs -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dotsContainer"></div>
+
+        <!-- Boutons navigation -->
+        <div class="flex justify-between items-center mt-5 gap-4">
+            <button id="prevSlide" class="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm disabled:opacity-40 transition">◀ Précédent</button>
+            <button id="nextSlide" class="bg-gray-200 hover:bg-gray-300 px-5 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm">Suivant ▶</button>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-5">👆 Glissez horizontalement ou utilisez les boutons</p>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        const $wrapper = $('#slidesWrapper');
+        const slides = $('.slide');
+        const totalSlides = slides.length;
+        let currentIndex = 0;
+
+        // Création des dots
+        const $dotsContainer = $('#dotsContainer');
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = $('<button>').addClass('w-2.5 h-2.5 rounded-full mx-1 bg-gray-300 transition-all duration-200 focus:outline-none').attr('data-index', i);
+            if (i === 0) dot.addClass('bg-pink-600 w-3.5 h-3.5');
+            dot.on('click', function() { goToSlide(parseInt($(this).attr('data-index'))); });
+            $dotsContainer.append(dot);
+        }
+
+        function updateDots() {
+            $('#dotsContainer button').each(function(idx) {
+                const $dot = $(this);
+                if (idx === currentIndex) {
+                    $dot.removeClass('bg-gray-300').addClass('bg-pink-600');
+                    $dot.css({ width: '0.9rem', height: '0.9rem' });
+                } else {
+                    $dot.removeClass('bg-pink-600').addClass('bg-gray-300');
+                    $dot.css({ width: '0.65rem', height: '0.65rem' });
+                }
+            });
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentIndex = index;
+            const slideEl = slides[currentIndex];
+            if (slideEl) {
+                $wrapper.animate({ scrollLeft: slideEl.offsetLeft - $wrapper.offset().left + $wrapper.scrollLeft() }, 280);
+            }
+            updateDots();
+            $('#prevSlide').prop('disabled', currentIndex === 0);
+            $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+        }
+
+        $('#prevSlide').on('click', () => goToSlide(currentIndex - 1));
+        $('#nextSlide').on('click', () => goToSlide(currentIndex + 1));
+
+        $wrapper.on('scroll', function() {
+            let newIndex = 0;
+            let minDiff = Infinity;
+            const scrollLeftVal = $wrapper.scrollLeft();
+            slides.each(function(idx) {
+                const slideLeft = $(this).offset().left - $wrapper.offset().left;
+                const diff = Math.abs(scrollLeftVal - slideLeft);
+                if (diff < minDiff) { minDiff = diff; newIndex = idx; }
+            });
+            if (newIndex !== currentIndex) {
+                currentIndex = newIndex;
+                updateDots();
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === totalSlides - 1);
+            }
+        });
+
+        goToSlide(0);
+        $(window).on('resize', function() {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(() => {
+                const slideEl = slides[currentIndex];
+                if (slideEl) $wrapper.scrollLeft(slideEl.offsetLeft - $wrapper.offset().left + $wrapper.scrollLeft());
+            }, 100);
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 33 : Découverte d'AWS - EC2 & S3 | DevOps</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, mais présent pour d'éventuelles formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Couleurs douces mais lisibles, personnalisation pour slides */
+        body {
+            background: #f8fafc;
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background-color: #e2e8f0;
+            transform: scale(1.02);
+        }
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        h1, h2, h3 {
+            letter-spacing: -0.02em;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+        /* Responsive : petits écrans */
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.2rem;
+                padding: 1rem !important;
+            }
+            .nav-btn span {
+                font-size: 0.8rem;
+            }
+        }
+        .objectif-item {
+            transition: all 0.2s;
+        }
+        .icon-aws {
+            background: #ff9900;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slidesWrapper" class="relative">
+            <!-- Slide actif -->
+            <div id="activeSlide" class="slide-container w-full"></div>
+
+            <!-- Navigation + progression -->
+            <div class="flex justify-between items-center mt-6 md:mt-8 gap-3">
+                <button id="prevBtn" class="nav-btn bg-white border border-gray-300 rounded-full px-5 py-2.5 shadow-sm text-gray-700 font-medium flex items-center gap-1 hover:bg-gray-50 disabled:opacity-40">
+                    ← Précédent
+                </button>
+                <div class="flex-1 mx-3">
+                    <div class="bg-gray-200 rounded-full h-2.5 w-full overflow-hidden">
+                        <div id="progressFill" class="progress-bar bg-indigo-600 h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center text-sm text-gray-500 mt-1">
+                        Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+                    </div>
+                </div>
+                <button id="nextBtn" class="nav-btn bg-indigo-600 text-white rounded-full px-5 py-2.5 shadow-md font-medium flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-40">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======================= DONNÉES DES SLIDES POUR LA LEÇON 33 ====================
+        // Titre: "Créer un compte AWS et comprendre la facturation / Utiliser EC2, S3"
+        // Contenu adapté aux élèves du Cameroun, langage simple, exemples pratiques.
+        
+        const slides = [
+            { // Slide 0 : TITRE
+                type: "title",
+                title: "☁️ Découverte du Cloud AWS",
+                subtitle: "Amazon Web Services : EC2 & S3",
+                description: "Leçon 33 : Créer un compte AWS, découvrir la facturation, utiliser des serveurs virtuels (EC2) et le stockage objet (S3)."
+            },
+            { // Slide 1 : OBJECTIFS PÉDAGOGIQUES
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Comprendre ce qu'est AWS et pourquoi les entreprises l'utilisent.",
+                    "Créer un compte AWS gratuit et maîtriser les bases de la facturation.",
+                    "Lancer sa première instance EC2 (un serveur dans le cloud).",
+                    "Stocker et récupérer des fichiers avec le service S3 (bucket).",
+                    "Découvrir les bonnes pratiques pour éviter les coûts inattendus."
+                ]
+            },
+            { // Slide 2 : introduction AWS
+                type: "content",
+                title: "📦 Qu'est-ce qu' AWS ?",
+                content: `
+                    <p class="text-gray-700 leading-relaxed"><strong class="text-indigo-700">Amazon Web Services (AWS)</strong> est la plateforme cloud la plus utilisée au monde. Elle permet de louer des ressources informatiques (serveurs, stockage, bases de données) sans acheter de matériel physique.</p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 my-4 rounded-lg">
+                        <p class="text-blue-800 text-sm md:text-base">🎓 <strong>Exemple simple :</strong> Au lieu d’acheter un ordinateur coûteux pour héberger ton application, tu loues un serveur AWS pour quelques heures ou mois, et tu ne paies que ce que tu consommes.</p>
+                    </div>
+                    <p class="mt-2 text-gray-600">AWS propose des services pour les développeurs, administrateurs et DevOps : <strong>calcul (EC2)</strong>, <strong>stockage (S3)</strong>, bases de données, intelligence artificielle...</p>
+                `
+            },
+            { // Slide 3 : Créer un compte AWS (étapes simplifiées)
+                type: "content",
+                title: "🔐 Créer un compte AWS gratuit",
+                content: `
+                    <div class="space-y-3">
+                        <p>Le <strong>niveau gratuit (Free Tier)</strong> permet de tester des services sans payer pendant 12 mois. Suis ces étapes :</p>
+                        <ul class="list-disc list-inside bg-gray-50 p-3 rounded-xl space-y-1">
+                            <li>1. Va sur <span class="font-mono text-sm bg-gray-200 px-1 rounded">aws.amazon.com</span> et clique sur "Créer un compte".</li>
+                            <li>2. Renseigne ton email, choisis un mot de passe fort.</li>
+                            <li>3. Saisis tes coordonnées (nom, adresse). Pour la facturation, une carte bancaire est demandée (pour vérification, mais sans débit si tu restes dans l'offre gratuite).</li>
+                            <li>4. Valide ton numéro de téléphone (réception d’un code).</li>
+                            <li>5. Choisis le support "De base" (gratuit) et connecte-toi à la console AWS.</li>
+                        </ul>
+                        <div class="bg-amber-50 p-3 rounded-lg text-amber-800 text-sm mt-2">
+                            ⚠️ <strong>Attention facturation :</strong> AWS demande une carte, mais tant que tu respectes les limites du Free Tier (ex: 750h/mois EC2 t2.micro), tu ne paies rien. Active les alertes budgétaires !
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 4 : Comprendre la facturation AWS
+                type: "content",
+                title: "💰 Facturation : pay as you go",
+                content: `
+                    <p class="mb-2">Avec AWS, tu paies <strong>à la consommation</strong> : à l'heure pour les serveurs, au Go pour le stockage, etc.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 my-3">
+                        <div class="border rounded-xl p-3 bg-white shadow-sm">
+                            <div class="font-bold text-indigo-600">Instance EC2 (serveur)</div>
+                            <p class="text-sm">Tarif ~ 0,0116 $/h (t2.micro). 750h gratuites/mois = 31 jours gratuits.</p>
+                        </div>
+                        <div class="border rounded-xl p-3 bg-white shadow-sm">
+                            <div class="font-bold text-indigo-600">Stockage S3</div>
+                            <p class="text-sm">5 Go gratuits la première année, ensuite ~0,023 $/Go/mois.</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">💡 <strong>Conseil :</strong> Configure AWS Budgets (budgets) pour recevoir un email si les coûts dépassent 1$. Cela évite les mauvaises surprises.</p>
+                    <div class="mt-3 bg-indigo-50 p-3 rounded-lg">
+                        <p class="text-indigo-800"><span class="font-bold">📊 Analogie :</span> C’est comme l’électricité – tu paies seulement ce que tu utilises. Si tu éteins ton serveur, tu arrêtes de payer.</p>
+                    </div>
+                `
+            },
+            { // Slide 5 : EC2 - Elastic Compute Cloud
+                type: "content",
+                title: "🖥️ Amazon EC2 : Votre serveur dans le cloud",
+                content: `
+                    <p><strong>EC2 (Elastic Compute Cloud)</strong> = louer des machines virtuelles (VM) pour exécuter tes applications, sites web ou bases de données.</p>
+                    <div class="my-4 p-3 bg-gray-100 rounded-xl">
+                        <p class="font-semibold">🔧 Étapes pour lancer une instance EC2 (depuis la console) :</p>
+                        <ol class="list-decimal list-inside space-y-1 text-sm mt-1">
+                            <li>Aller dans Services → EC2 → Instances → Lancer une instance.</li>
+                            <li>Choisir une AMI (Amazon Machine Image) : Ubuntu 22.04 (gratuit).</li>
+                            <li>Type d'instance : t2.micro (éligible au free tier).</li>
+                            <li>Créer une paire de clés (Key Pair) pour te connecter en SSH.</li>
+                            <li>Configurer le pare-feu (Security Group) : autoriser SSH (port 22) et HTTP (port 80).</li>
+                            <li>Lancer l'instance, et attendre 2 minutes → récupérer l'IP publique.</li>
+                        </ol>
+                    </div>
+                    <pre class="code-block text-xs md:text-sm mt-2">
+# Exemple de connexion SSH à ton serveur EC2
+chmod 400 ma-cle.pem
+ssh -i "ma-cle.pem" ubuntu@IP_PUBLIQUE
+                    </pre>
+                    <p class="text-gray-500 text-xs mt-1">⭐ Une fois connecté, tu peux installer Apache, Node.js, Docker, etc.</p>
+                `
+            },
+            { // Slide 6 : Sécurité groups & adresses IP
+                type: "content",
+                title: "🛡️ Security Groups & IPs publiques",
+                content: `
+                    <p>Les <strong>Security Groups</strong> sont des pare-feux virtuels qui contrôlent le trafic vers tes instances EC2.</p>
+                    <ul class="list-disc pl-5 my-2 space-y-1">
+                        <li>Règles entrantes (inbound) : qui peut se connecter à ton serveur ? (SSH, HTTP, HTTPS).</li>
+                        <li>Règles sortantes (outbound) : généralement tout autorisé.</li>
+                    </ul>
+                    <div class="flex flex-wrap gap-2 my-3">
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">SSH (port 22) → administration</span>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">HTTP (port 80) → sites web</span>
+                        <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs">HTTPS (443) → sécurisé</span>
+                    </div>
+                    <p class="text-sm">📌 Une instance EC2 a une <strong>IP publique</strong> changeante (sauf si on alloue une IP Elastic). Pour les tests, ça suffit.</p>
+                `
+            },
+            { // Slide 7 : S3 - Simple Storage Service
+                type: "content",
+                title: "🗄️ Amazon S3 : Stockage illimité pour fichiers",
+                content: `
+                    <p><strong>S3 (Simple Storage Service)</strong> permet de stocker et récupérer n'importe quel fichier (images, vidéos, sauvegardes, sites statiques).</p>
+                    <div class="bg-slate-50 p-3 rounded-lg border my-2">
+                        <p class="font-medium">🧠 Concepts clés :</p>
+                        <ul class="list-disc list-inside text-sm">
+                            <li><strong>Bucket</strong> : conteneur de fichiers (nom unique globalement).</li>
+                            <li><strong>Objet</strong> : fichier + métadonnées.</li>
+                            <li><strong>Clé (Key)</strong> : chemin du fichier dans le bucket.</li>
+                        </ul>
+                    </div>
+                    <pre class="code-block text-xs mt-2">
+# Exemple via AWS CLI (après installation)
+aws s3 cp monfichier.txt s3://mon-bucket-cameroun/
+aws s3 ls s3://mon-bucket-cameroun/
+                    </pre>
+                    <div class="mt-3 text-sm bg-white border rounded-lg p-2">
+                        ✨ <strong>Hébergement site statique :</strong> S3 peut servir des pages HTML/CSS/JS sans serveur !
+                    </div>
+                `
+            },
+            { // Slide 8 : Créer un bucket S3 et déposer un fichier
+                type: "content",
+                title: "🪣 Premier bucket S3 (pratique)",
+                content: `
+                    <ol class="list-decimal list-inside space-y-2 bg-gray-50 p-3 rounded-xl">
+                        <li>Dans la console AWS, rechercher "S3".</li>
+                        <li>Cliquer sur "Créer un bucket". Donner un nom unique (ex: <span class="font-mono">mon-projet-ecole-2025</span>).</li>
+                        <li>Région : choisir celle proche de tes utilisateurs (ex: eu-west-3 Paris).</li>
+                        <li>Décocher "Bloquer tout accès public" si tu souhaites héberger un site public (pour les images).</li>
+                        <li>Valider la création. Ensuite, glisser-déposer un fichier .txt ou .html.</li>
+                        <li>Cliquer sur le fichier → "URL de l'objet" pour le visualiser (si public).</li>
+                    </ol>
+                    <div class="mt-3 p-2 bg-teal-50 rounded-lg">
+                        <p class="text-teal-800 text-sm">💡 <strong>Astuce Cameroun :</strong> S3 est parfait pour héberger gratuitement ton portfolio ou des ressources pour tes projets DevOps !</p>
+                    </div>
+                `
+            },
+            { // Slide 9 : Bonnes pratiques et coûts
+                type: "content",
+                title: "💸 Éviter les coûts surprises sur AWS",
+                content: `
+                    <div class="space-y-2">
+                        <p>Quelques règles d’or pour un cloud responsable :</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>✅ Arrête ou <strong>termine</strong> tes instances EC2 quand tu ne les utilises pas.</li>
+                            <li>✅ Supprime les buckets S3 vides inutiles.</li>
+                            <li>✅ Mets en place <strong>CloudWatch + Budgets</strong> pour recevoir des alertes.</li>
+                            <li>✅ Utilise toujours le <strong>Free Tier</strong> pour apprendre.</li>
+                            <li>✅ Nettoie les ressources après les TP (terminate instances, delete snapshots).</li>
+                        </ul>
+                        <div class="bg-red-50 border-red-200 border rounded-lg p-3 mt-2">
+                            <p class="text-red-700 text-sm">⚠️ <strong>Important :</strong> AWS facture même les ressources "arrêtées" si elles ont des volumes EBS attachés. Une instance <strong>arrêtée</strong> ne coûte plus le temps CPU, mais le stockage persistant oui. Termine-la si tu n'en as plus besoin !</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // Slide 10 : Mini projet / atelier
+                type: "content",
+                title: "🧪 Atelier pratique guidé",
+                content: `
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                        <p class="font-bold text-indigo-800">🎯 Objectif : Déployer une page web statique depuis EC2 et S3.</p>
+                        <ol class="list-decimal list-inside mt-2 text-sm space-y-1">
+                            <li>Lance une instance EC2 (Ubuntu).</li>
+                            <li>Connecte-toi en SSH, installe Nginx (<code>sudo apt update && sudo apt install nginx -y</code>).</li>
+                            <li>Accède à l'IP publique → voir page par défaut.</li>
+                            <li>Crée un bucket S3, active "Hébergement site statique".</li>
+                            <li>Télécharge un fichier <code>index.html</code> simple (ex: "Bienvenue au Cameroun DevOps")</li>
+                            <li>Rends-le public et accède à l'URL du site S3.</li>
+                        </ol>
+                        <p class="text-center mt-3 text-indigo-700 font-medium">🔥 Tu viens de faire du cloud computing !</p>
+                    </div>
+                `
+            },
+            { // Slide 11 : résumé + fin
+                type: "summary",
+                title: "📌 Récapitulatif de la leçon 33",
+                points: [
+                    "AWS fournit du calcul (EC2) et du stockage (S3) avec paiement à l'usage.",
+                    "Le Free Tier permet d'apprendre gratuitement (750h EC2, 5Go S3).",
+                    "Les Security Groups protègent les instances EC2 comme un pare-feu.",
+                    "Un bucket S3 stocke des fichiers accessibles partout dans le monde.",
+                    "Toujours surveiller sa facture avec AWS Budgets."
+                ],
+                final: "🎉 Prochaine étape : automatiser le déploiement avec Terraform et Ansible !"
+            }
+        ];
+
+        // Variables de navigation
+        let currentIndex = 0;
+        const total = slides.length;
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            const isFirst = idx === 0;
+            const isLast = idx === total - 1;
+            switch(slide.type) {
+                case "title":
+                    return `
+                        <div class="slide-card p-6 md:p-10 text-center">
+                            <div class="mb-4 flex justify-center">
+                                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full p-3 w-16 h-16 flex items-center justify-center text-3xl">☁️</div>
+                            </div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-purple-700">${escapeHtml(slide.title)}</h1>
+                            <p class="text-xl md:text-2xl font-semibold text-gray-700 mt-3">${escapeHtml(slide.subtitle)}</p>
+                            <p class="text-gray-500 mt-4">${escapeHtml(slide.description)}</p>
+                            <div class="mt-8 text-sm text-gray-400">👨‍🏫 Cours DevOps - Enseignant Cameroun</div>
+                        </div>
+                    `;
+                case "objectives":
+                    return `
+                        <div class="slide-card p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-b pb-2">${escapeHtml(slide.title)}</h2>
+                            <ul class="mt-5 space-y-3">
+                                ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span class="text-gray-700">${escapeHtml(obj)}</span></li>`).join('')}
+                            </ul>
+                            <div class="mt-8 bg-gray-100 p-3 rounded-lg text-center text-sm text-gray-500">
+                                💡 À la fin de cette leçon, tu sauras utiliser les services de base d'AWS.
+                            </div>
+                        </div>
+                    `;
+                case "content":
+                    return `
+                        <div class="slide-card p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-b pb-2 mb-4">${escapeHtml(slide.title)}</h2>
+                            <div class="prose max-w-none text-gray-700">
+                                ${slide.content}
+                            </div>
+                        </div>
+                    `;
+                case "summary":
+                    return `
+                        <div class="slide-card p-6 md:p-8">
+                            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800">${escapeHtml(slide.title)}</h2>
+                            <ul class="mt-4 space-y-2 list-disc list-inside">
+                                ${slide.points.map(p => `<li class="text-gray-700">${escapeHtml(p)}</li>`).join('')}
+                            </ul>
+                            <div class="mt-6 p-4 bg-indigo-50 rounded-xl text-center">
+                                <p class="font-medium text-indigo-900">✨ ${escapeHtml(slide.final)}</p>
+                            </div>
+                            <div class="mt-6 text-center text-gray-500 text-sm">✅ Fin de la leçon. N'oublie pas de pratiquer avec un compte AWS Free Tier !</div>
+                        </div>
+                    `;
+                default:
+                    return `<div class="slide-card p-6">Contenu non disponible</div>`;
+            }
+        }
+
+        // Helper pour échapper HTML (sécurité)
+        function escapeHtml(str) {
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Mise à jour de l'affichage
+        function updateSlide() {
+            const slide = slides[currentIndex];
+            const htmlContent = renderSlide(slide, currentIndex);
+            $('#activeSlide').html(htmlContent);
+            $('#currentSlideIdx').text(currentIndex+1);
+            $('#totalSlides').text(total);
+            const progressPercent = ((currentIndex) / (total-1)) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            
+            // Gestion désactivation boutons
+            $('#prevBtn').prop('disabled', currentIndex === 0);
+            $('#nextBtn').prop('disabled', currentIndex === total-1);
+            
+            // Scroll en haut pour chaque slide (meilleure UX mobile)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if(currentIndex < total-1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        
+        function prevSlide() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+        
+        // Gestionnaires d'événements + support tactile / clavier
+        $(document).ready(function(){
+            updateSlide();
+            $('#nextBtn').on('click', nextSlide);
+            $('#prevBtn').on('click', prevSlide);
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') nextSlide();
+                if(e.key === 'ArrowLeft') prevSlide();
+            });
+            // Swipe simple pour mobile (optionnel basique)
+            let touchStartX = 0;
+            $('#slidesWrapper').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('#slidesWrapper').on('touchend', function(e) {
+                if(!touchStartX) return;
+                let endX = e.originalEvent.changedTouches[0].clientX;
+                let diff = endX - touchStartX;
+                if(Math.abs(diff) > 60) {
+                    if(diff > 0) prevSlide();
+                    else nextSlide();
+                }
+                touchStartX = 0;
+            });
+        });
+    </script>
+</body>
+</html>

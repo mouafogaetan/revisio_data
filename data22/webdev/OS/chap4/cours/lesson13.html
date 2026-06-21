@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 13 : Gestion des entrées/sorties | Initiation OS</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease-in-out;
+            animation: fadeSlide 0.4s ease-out;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeSlide {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .code-block {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .badge-os {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+        }
+        .prose ul, .prose ol {
+            margin-top: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+        }
+        .prose li {
+            margin: 0.25rem 0;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+            }
+            .slide-title {
+                font-size: 1.6rem;
+            }
+        }
+        /* Diagramme maison simple pour l'explication */
+        .io-schema {
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-5 md:py-8">
+    <!-- Conteneur principal slides -->
+    <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active p-6 md:p-10" id="slide1">
+            <div class="flex flex-col items-center text-center space-y-5">
+                <div class="badge-os text-white text-sm font-bold px-4 py-1.5 rounded-full inline-block shadow-md">🖥️ Leçon 13 · Chapitre 4</div>
+                <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Gestion des entrées/sorties</h1>
+                <p class="text-gray-600 text-lg max-w-xl">Comment le système d'exploitation dialogue avec les périphériques<br>(clavier, disque dur, souris, imprimante...).</p>
+                <div class="pt-6 flex gap-3 flex-wrap justify-center">
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">⌨️ Périphériques</span>
+                    <span class="bg-sky-100 text-sky-800 px-3 py-1 rounded-full text-sm">⚡ Interruptions</span>
+                    <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">💾 DMA</span>
+                </div>
+                <div class="mt-8 w-16 h-1 bg-slate-400 rounded-full"></div>
+                <p class="text-gray-400 text-sm pt-2">Appuyez sur ➡️ pour commencer</p>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+        <div class="slide p-6 md:p-10" id="slide2">
+            <div class="border-l-4 border-slate-600 pl-5 mb-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2>
+                <p class="text-gray-500 mt-1">À la fin de ce cours, vous serez capable de :</p>
+            </div>
+            <ul class="space-y-3 text-gray-700 text-lg">
+                <li class="flex items-start gap-3"><span class="text-slate-500 text-xl">✓</span> <span><strong>Comprendre</strong> comment le CPU communique avec les périphériques.</span></li>
+                <li class="flex items-start gap-3"><span class="text-slate-500 text-xl">✓</span> <span><strong>Distinguer</strong> le polling, les interruptions et le DMA.</span></li>
+                <li class="flex items-start gap-3"><span class="text-slate-500 text-xl">✓</span> <span><strong>Expliquer</strong> le rôle des pilotes (drivers) et de la couche d'abstraction.</span></li>
+                <li class="flex items-start gap-3"><span class="text-slate-500 text-xl">✓</span> <span><strong>Connaître</strong> les composants matériels : contrôleurs, bus, registres.</span></li>
+                <li class="flex items-start gap-3"><span class="text-slate-500 text-xl">✓</span> <span><strong>Analyser</strong> un scénario d'entrée/sortie (lecture clavier → application).</span></li>
+            </ul>
+            <div class="mt-8 bg-slate-50 rounded-2xl p-4 text-slate-700 text-sm">
+                💡 <span class="font-semibold">Pourquoi c'est important ?</span> Les E/S sont un goulot d'étranglement. Bien les gérer, c'est garantir la réactivité du système.
+            </div>
+        </div>
+
+        <!-- SLIDE 3 : ARCHITECTURE MATÉRIELLE (BUS, CONTRÔLEURS) -->
+        <div class="slide p-6 md:p-10" id="slide3">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">🔌 Architecture matérielle des E/S</h2>
+            <p class="text-gray-600 mt-2">Un ordinateur n'est pas seulement un CPU et de la RAM. Les périphériques sont connectés via des <strong>bus</strong> et gérés par des <strong>contrôleurs</strong>.</p>
+            <div class="io-schema mt-5 border border-gray-200">
+                <div class="text-center text-sm font-mono bg-gray-100 p-2 rounded">Schéma simplifié :</div>
+                <pre class="text-xs text-gray-700 font-mono bg-transparent p-2 text-center">
+   CPU  <--- Bus système --->  RAM
+    |
+    | (Bus d'E/S)
+    v
+┌──────────────┐
+│ Contrôleur   │   ← Pilote
+│ disque dur   │
+└──────────────┘
+┌──────────────┐
+│ Contrôleur   │
+│ USB          │ → Clavier, souris
+└──────────────┘
+                </pre>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">🔹 Contrôleur (controlleur)</span> : petit processeur spécialisé qui gère un périphérique.</div>
+                <div class="bg-slate-50 p-3 rounded-lg"><span class="font-bold">🔹 Bus</span> : ensemble de lignes de communication (données, adresses, commandes).</div>
+            </div>
+            <p class="text-xs text-gray-500 mt-3">✨ L'OS ne dialogue pas directement avec le matériel, mais avec le contrôleur via ses registres.</p>
+        </div>
+
+        <!-- SLIDE 4 : POLLING (ATTENTIVE ACTIVE) -->
+        <div class="slide p-6 md:p-10" id="slide4">
+            <h2 class="text-2xl font-bold text-gray-800">🔄 Méthode 1 : Polling (scrutation active)</h2>
+            <p class="text-gray-600 mt-1">Le CPU interroge en boucle le périphérique pour savoir s'il a des données prêtes.</p>
+            <div class="bg-amber-50 p-4 rounded-xl mt-4">
+                <pre class="text-sm font-mono text-amber-900">tant que (pas de donnée) {
+   vérifier registre d'état du périphérique;
+}
+lire la donnée;</pre>
+                <p class="text-sm mt-2">📌 Exemple : lecture d'un clavier en polling.</p>
+            </div>
+            <div class="mt-4 grid md:grid-cols-2 gap-4 text-sm">
+                <div class="bg-green-50 p-3 rounded-lg">✔️ <span class="font-semibold">Avantages</span> : simple à implémenter, aucun matériel spécial.</div>
+                <div class="bg-red-50 p-3 rounded-lg">❌ <span class="font-semibold">Inconvénients</span> : gaspille du temps CPU (attente active), inefficace pour périphériques lents.</div>
+            </div>
+            <p class="text-gray-600 text-sm mt-3">Aujourd'hui, le polling est utilisé pour des périphériques très rapides (ex: lecture d'un registre matériel) ou lorsque la latence doit être ultra-faible.</p>
+        </div>
+
+        <!-- SLIDE 5 : INTERRUPTIONS (SOLUTION MODERNE) -->
+        <div class="slide p-6 md:p-10" id="slide5">
+            <h2 class="text-2xl font-bold text-gray-800">⚡ Méthode 2 : Interruptions (IRQ)</h2>
+            <p class="text-gray-600">Le périphérique signale au CPU qu'il a besoin d'attention → interruption matérielle. Le CPU suspend son travail, exécute un <strong>gestionnaire d'interruption</strong> (ISR), puis reprend.</p>
+            <div class="bg-sky-50 p-4 rounded-xl mt-3">
+                <p class="font-semibold">📡 Déroulement typique :</p>
+                <ol class="list-decimal list-inside text-sm space-y-1 mt-1">
+                    <li>L'utilisateur tape une touche.</li>
+                    <li>Le contrôleur du clavier envoie une interruption au CPU.</li>
+                    <li>Le CPU sauvegarde son contexte (registres).</li>
+                    <li>Il exécute le gestionnaire d'interruption du clavier (lecture de la touche).</li>
+                    <li>Il restaure le contexte et continue le programme interrompu.</li>
+                </ol>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4 mt-4 text-sm">
+                <div class="bg-green-50 p-3 rounded-lg">✔️ <span class="font-semibold">Efficace</span> : pas de gaspillage CPU, réactif.</div>
+                <div class="bg-amber-50 p-3 rounded-lg">⚠️ <span class="font-semibold">Contrainte</span> : nécessite une table de vecteurs d'interruption (IDT).</div>
+            </div>
+            <p class="text-xs text-gray-500 mt-3">Les interruptions logicielles (trap, syscall) existent aussi, déclenchées par des instructions comme <code>int 0x80</code> ou <code>syscall</code>.</p>
+        </div>
+
+        <!-- SLIDE 6 : DIRECT MEMORY ACCESS (DMA) -->
+        <div class="slide p-6 md:p-10" id="slide6">
+            <h2 class="text-2xl font-bold text-gray-800">💾 DMA : Libérer le CPU des transferts lourds</h2>
+            <p class="text-gray-600">Pour les périphériques rapides (disque dur, carte réseau), copier chaque octet via le CPU est coûteux. Le <strong>DMA</strong> permet au contrôleur d'écrire/lire directement la RAM sans passer par le CPU.</p>
+            <div class="bg-indigo-50 p-4 rounded-xl mt-3">
+                <p class="font-semibold">🔁 Fonctionnement DMA :</p>
+                <ol class="list-decimal list-inside text-sm space-y-1">
+                    <li>Le CPU programme le contrôleur DMA (adresse source, destination, taille).</li>
+                    <li>Le contrôleur DMA transfère les données pendant que le CPU travaille sur autre chose.</li>
+                    <li>À la fin du transfert, le contrôleur envoie une interruption au CPU.</li>
+                </ol>
+            </div>
+            <p class="text-gray-700 text-sm mt-3">✅ Bénéfice : énorme gain de performance pour les lectures/écritures disque ou les trames réseau. Exemple : copie d'un fichier ou streaming vidéo.</p>
+            <div class="bg-gray-100 p-2 rounded text-center text-xs mt-3">Sans DMA : CPU → registres → RAM → ... Avec DMA : périphérique → RAM (sans CPU).</div>
+        </div>
+
+        <!-- SLIDE 7 : LES PILOTES (DRIVERS) ET LA COUCHE D'ABSTRACTION -->
+        <div class="slide p-6 md:p-10" id="slide7">
+            <h2 class="text-2xl font-bold text-gray-800">🔧 Les pilotes (drivers)</h2>
+            <p class="text-gray-600">Chaque périphérique a ses spécificités. Le <strong>pilote</strong> est un module logiciel qui traduit les appels génériques de l'OS en commandes spécifiques au matériel.</p>
+            <div class="mt-4 bg-gray-800 text-gray-100 p-4 rounded-xl">
+                <pre class="text-sm">Application → API standard (ex: ReadFile) 
+              → OS (gestionnaire E/S)
+              → Pilote du disque dur
+              → Contrôleur disque
+              → Disque physique</pre>
+            </div>
+            <ul class="list-disc list-inside text-sm text-gray-700 mt-4 space-y-1">
+                <li>Windows : modèles WDM, KMDF.</li>
+                <li>Linux : modules chargeables (.ko) dans /lib/modules.</li>
+                <li>Couche d'abstraction matérielle (HAL) : isole l'OS des différences matérielles.</li>
+            </ul>
+            <p class="text-xs text-gray-500 mt-4">⚡ Sans pilote, le système ne peut pas utiliser le périphérique.</p>
+        </div>
+
+        <!-- SLIDE 8 : COMPARAISON DES MODES D'ACCÈS -->
+        <div class="slide p-6 md:p-10" id="slide8">
+            <h2 class="text-2xl font-bold text-gray-800">📊 Tableau comparatif : Polling, Interruption, DMA</h2>
+            <div class="overflow-x-auto mt-4">
+                <table class="min-w-full bg-white border border-gray-200 text-sm">
+                    <thead class="bg-slate-100">
+                        <tr><th class="p-2 border">Mécanisme</th><th class="p-2 border">Implication CPU</th><th class="p-2 border">Latence</th><th class="p-2 border">Cas typique</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="p-2 font-medium">Polling</td><td>CPU actif (attente)</td><td>Faible (déterministe)</td><td>Périphériques ultra-rapides, microcontrôleurs</td></tr>
+                        <tr class="border-b"><td class="p-2 font-medium">Interruption</td><td>CPU sollicité uniquement lors d'un événement</td><td>Moyenne</td><td>Clavier, souris, disque (non DMA)</td></tr>
+                        <tr><td class="p-2 font-medium">DMA + interruption</td><td>Très faible (transfert sans CPU)</td><td>Optimale pour gros volumes</td><td>Disques SSD, cartes réseau, audio</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-4 text-sm">
+                💡 <span class="font-semibold">A retenir :</span> Les OS modernes combinent interruptions + DMA pour les E/S de masse, et utilisent le polling seulement pour des cas particuliers (ex: latence extrême).
+            </div>
+        </div>
+
+        <!-- SLIDE 9 : LES BUFFERS ET LE SPOOLING -->
+        <div class="slide p-6 md:p-10" id="slide9">
+            <h2 class="text-2xl font-bold text-gray-800">🗄️ Buffering & Spooling</h2>
+            <p class="text-gray-600">Les tampons (buffers) lissent les différences de débit entre le producteur et le consommateur de données.</p>
+            <div class="mt-3 grid md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    <span class="font-bold">🧴 Buffer (tampon)</span>
+                    <p class="text-sm mt-1">Zone mémoire temporaire. Exemple : lecture disque par blocs avant d'être traitée.</p>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-lg">
+                    <span class="font-bold">🖨️ Spooling</span>
+                    <p class="text-sm mt-1">Simultanéité périphérique lent : les données sont mises en file d'attente (ex: impression). Acronyme : Simultaneous Peripheral Operation On-Line.</p>
+                </div>
+            </div>
+            <div class="code-block p-3 text-xs mt-4">
+                <pre>Exemple spooling imprimante :
+Application 1 → fichier temporaire → spooler (gestionnaire)
+Application 2 → fichier temporaire → spooler
+Imprimante ← spooler (un fichier après l'autre)</pre>
+            </div>
+            <p class="text-sm text-gray-600 mt-3">Le spooling est géré par un démon (ex: cups pour Linux).</p>
+        </div>
+
+        <!-- SLIDE 10 : EXEMPLE CONCRET - LECTURE CLAVIER -->
+        <div class="slide p-6 md:p-10" id="slide10">
+            <h2 class="text-2xl font-bold text-gray-800">⌨️ Étude de cas : Appui sur une touche</h2>
+            <div class="bg-gray-50 rounded-xl p-4 mt-3">
+                <ol class="list-decimal list-inside text-sm space-y-2">
+                    <li>L'utilisateur presse la touche 'A'.</li>
+                    <li>Le contrôleur du clavier encode le scan code.</li>
+                    <li>Il envoie une interruption (IRQ 1 typiquement).</li>
+                    <li>Le CPU exécute l'ISR du clavier (dans le noyau).</li>
+                    <li>Le scan code est converti en caractère (ex: 'a' ou 'A' selon Maj).</li>
+                    <li>Le caractère est placé dans un buffer du driver.</li>
+                    <li>L'application en premier plan récupère la saisie via l'API (ex: ReadConsole).</li>
+                </ol>
+            </div>
+            <div class="mt-4 bg-amber-50 p-3 rounded-lg text-sm">
+                🧠 <span class="font-semibold">Pour aller plus loin :</span> Sous Linux, vous pouvez voir les interruptions avec <code>cat /proc/interrupts</code>.
+            </div>
+            <p class="text-xs text-gray-500 mt-3">🎯 Cet exemple illustre la chaîne : matériel → interruption → driver → OS → application.</p>
+        </div>
+
+        <!-- SLIDE 11 : RÉSUMÉ ET RESSOURCES -->
+        <div class="slide p-6 md:p-10" id="slide11">
+            <div class="text-center space-y-4">
+                <div class="inline-flex bg-slate-100 p-3 rounded-full">
+                    <span class="text-4xl">📘🖥️</span>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800">Résumé de la leçon</h2>
+                <p class="text-gray-600 max-w-md mx-auto">Les entrées/sorties sont gérées par une combinaison de polling, interruptions et DMA. Les pilotes offrent l'abstraction.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-left bg-gray-50 p-5 rounded-2xl mt-4">
+                    <div>✔️ <strong>Polling</strong> : attente active, simple mais inefficace.</div>
+                    <div>✔️ <strong>Interruption</strong> : notification asynchrone, réactive.</div>
+                    <div>✔️ <strong>DMA</strong> : transfert direct mémoire ↔ périphérique.</div>
+                    <div>✔️ <strong>Driver</strong> : logiciel spécifique au matériel.</div>
+                </div>
+                <p class="text-sm text-slate-600 mt-4">📚 Pour approfondir : chapitre "Input/Output" du livre Operating System Concepts (Silberschatz), section "Interrupts" et "DMA".</p>
+                <div class="border-t border-gray-200 pt-5 mt-4 text-gray-400 text-xs">
+                    © Cours Initiation Systèmes d'exploitation | Développement Web — Cameroun
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50 no-print">
+            <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-xl shadow-sm transition flex gap-1 items-center">◀ Précédent</button>
+            <div class="text-sm text-gray-500" id="slideIndicator">Slide 1 / 11</div>
+            <button id="nextSlide" class="nav-btn bg-slate-700 hover:bg-slate-800 text-white font-medium py-2 px-5 rounded-xl shadow-md transition flex gap-1 items-center">Suivant ▶</button>
+        </div>
+    </div>
+    <p class="text-center text-gray-400 text-xs mt-6">Leçon 13 — Gestion des entrées/sorties (E/S) | Navigation par diapositives</p>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let slides = $('.slide');
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+        
+        function updateSlides() {
+            slides.removeClass('active');
+            $(slides[currentIndex]).addClass('active');
+            $('#slideIndicator').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            // Scroll en haut pour meilleure expérience sur mobile
+            $('html, body').animate({ scrollTop: 0 }, 100);
+        }
+        
+        $('#nextSlide').on('click', function() {
+            if(currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlides();
+            }
+        });
+        
+        $('#prevSlide').on('click', function() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlides();
+            }
+        });
+        
+        // Gestion clavier (flèches gauche/droite)
+        $(document).keydown(function(e) {
+            if(e.key === 'ArrowRight') {
+                $('#nextSlide').click();
+            } else if(e.key === 'ArrowLeft') {
+                $('#prevSlide').click();
+            }
+        });
+        
+        // Option swipe basique pour mobile : détecter touchstart/x
+        let touchStartX = 0;
+        $('.slide').on('touchstart', function(e) {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $('.slide').on('touchend', function(e) {
+            let endX = e.originalEvent.changedTouches[0].clientX;
+            if (endX < touchStartX - 50) $('#nextSlide').click();
+            if (endX > touchStartX + 50) $('#prevSlide').click();
+        });
+    });
+</script>
+</body>
+</html>

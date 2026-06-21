@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours de Génie Logiciel | Cycle de vie du logiciel</title>
+    <!-- Tailwind CSS + Font Awesome (pour icones) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules minimales éventuelles) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* personnalisation douce pour les slides et transitions */
+        body {
+            background: #f4f7fc;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            transition: all 0.2s ease;
+        }
+        .slide-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            background-color: #ffffffdd;
+            backdrop-filter: blur(4px);
+            border-radius: 9999px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            cursor: pointer;
+        }
+        .nav-btn:hover {
+            background-color: #1e3a8a;
+            color: white;
+            transform: scale(1.02);
+        }
+        .progress-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            margin: 0 5px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .progress-dot.active {
+            background-color: #1e3a8a;
+            width: 24px;
+            border-radius: 20px;
+        }
+        h1, h2, h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .content-list li {
+            margin-bottom: 0.75rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        .content-list li:before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: #2563eb;
+            font-weight: bold;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            .nav-btn {
+                width: 36px;
+                height: 36px;
+            }
+        }
+        /* Diagramme dessiné fait maison */
+        .model-diagram {
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+        }
+        .phase-badge {
+            background: white;
+            border-radius: 2rem;
+            padding: 0.35rem 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            font-weight: 500;
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased p-4 md:p-6">
+
+<div class="slide-container relative">
+    <!-- Slide principal card -->
+    <div id="slidesWrapper" class="relative">
+        <!-- contenu injecté par jQuery -->
+    </div>
+
+    <!-- Navigation controls -->
+    <div class="flex justify-between items-center mt-6 gap-3">
+        <div class="nav-btn" id="prevSlide">
+            ←
+        </div>
+        <div class="flex flex-wrap justify-center gap-1.5 items-center" id="progressDots"></div>
+        <div class="nav-btn" id="nextSlide">
+            →
+        </div>
+    </div>
+    <!-- indication slide courante -->
+    <div class="text-center text-sm text-gray-500 mt-3" id="slideCounter"></div>
+</div>
+
+<script>
+    // Données des slides pour la LESSON 2 : "Comprendre les cycles de vie"
+    // D'après objectifs de la lesson2: phases, modèles (cascade, itératif, incrémental, agile) et quand utiliser.
+    const slidesData = [
+        {
+            type: "title",
+            title: "Cycle de vie du logiciel",
+            subtitle: "Comprendre les phases et modèles d'ingénierie logicielle",
+            icon: "🔄",
+            bgClass: "bg-gradient-to-br from-blue-50 to-indigo-50"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs d'apprentissage",
+            objectives: [
+                "Comprendre les phases d'un cycle de vie (besoins → conception → implémentation → test → déploiement → maintenance)",
+                "Découvrir les modèles de cycle de vie : cascade, itératif, incrémental, agile",
+                "Identifier quand utiliser chaque modèle selon le contexte projet"
+            ]
+        },
+        {
+            type: "phases",
+            title: "📌 Les phases classiques du logiciel",
+            description: "Un projet suit généralement ces grandes étapes, de l'idée à la maintenance.",
+            phases: [
+                { name: "1. Analyse des besoins", desc: "Recueil et spécification des exigences fonctionnelles & non fonctionnelles." },
+                { name: "2. Conception", desc: "Architecture, maquettes, modélisation (UML, bases de données)." },
+                { name: "3. Implémentation", desc: "Codage, développement des fonctionnalités." },
+                { name: "4. Tests", desc: "Validation, tests unitaires, intégration, recette." },
+                { name: "5. Déploiement", desc: "Mise en production, installation chez le client." },
+                { name: "6. Maintenance", desc: "Corrections, évolutions, support." }
+            ]
+        },
+        {
+            type: "diagramme_cascade",
+            title: "Modèle en Cascade (Waterfall)",
+            description: "Séquentiel et rigide : chaque étape doit être terminée avant la suivante.",
+            schema: "cascade",
+            avantages: "📌 Simple à comprendre, jalons clairs, documentation formelle.",
+            inconvenients: "⚠️ Difficile de revenir en arrière, livraison tardive, peu adapté aux changements.",
+            usage: "✅ Projets bien définis, exigences stables (ex: système bancaire, logiciel critique)."
+        },
+        {
+            type: "iteratif_incremental",
+            title: "Modèles Itératif & Incrémental",
+            description: "Développement par cycles courts (itérations) livrant des blocs fonctionnels.",
+            schema: "iteratif",
+            points: [
+                "Itératif : Raffinement successif, on améliore à chaque boucle.",
+                "Incrémental : Ajout de fonctionnalités par incréments (chaque version ajoute de la valeur).",
+                "Avantages : Retours utilisateurs précoces, réduction des risques.",
+                "Idéal quand les besoins évoluent modérément et qu'on veut livrer rapidement un noyau."
+            ]
+        },
+        {
+            type: "agile",
+            title: "Modèles Agiles (Scrum, Kanban, XP)",
+            description: "Flexibilité, collaboration continue, adaptation au changement.",
+            values: ["Itérations courtes (1-4 semaines)", "Équipe auto-organisée", "Livraison incrémentale", "Interaction client fréquente"],
+            usage: "🚀 Quand les exigences changent vite, innovation, équipes réactives, produits digitaux modernes."
+        },
+        {
+            type: "comparaison",
+            title: "🔎 Quand utiliser quel modèle ?",
+            comparison: [
+                { modele: "Cascade", situation: "Exigences figées, documentation contractuelle, projet critique avec peu de changements." },
+                { modele: "Itératif / Incrémental", situation: "Besoins partiellement connus, livraisons fréquentes de sous-ensembles." },
+                { modele: "Agile (Scrum/Kanban)", situation: "Environnement dynamique, client impliqué, besoin d'adaptation rapide." },
+                { modele: "Mixte (Hybride)", situation: "Grands projets avec phases amont en cascade et développement agile." }
+            ]
+        },
+        {
+            type: "visual_cycle",
+            title: "Schéma simplifié des modèles",
+            diagramDesc: "Représentation maison du flux des méthodologies",
+            schemaImg: "draw"
+        },
+        {
+            type: "recap",
+            title: "📝 Récapitulons",
+            summary: [
+                "Le cycle de vie est une séquence ordonnée des phases de création d'un logiciel.",
+                "Chaque modèle répond à des besoins spécifiques : cascade pour la stabilité, agile pour la vélocité, incrémental pour des livraisons progressives.",
+                "Un bon chef de projet ou ingénieur doit choisir le modèle adapté au contexte (équipe, risques, client)."
+            ]
+        }
+    ];
+
+    let currentIndex = 0;
+    let totalSlides = slidesData.length;
+
+    // Fonction pour dessiner un diagramme textuel / SVG léger avec CSS (fait maison)
+    function renderSchemaCascade() {
+        return `<div class="model-diagram text-center p-3">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="phase-badge bg-blue-100 text-blue-800">📋 Analyse des besoins</div>
+                        <div class="text-gray-400">↓</div>
+                        <div class="phase-badge bg-blue-100 text-blue-800">🎨 Conception</div>
+                        <div class="text-gray-400">↓</div>
+                        <div class="phase-badge bg-blue-100 text-blue-800">💻 Implémentation</div>
+                        <div class="text-gray-400">↓</div>
+                        <div class="phase-badge bg-blue-100 text-blue-800">🧪 Tests</div>
+                        <div class="text-gray-400">↓</div>
+                        <div class="phase-badge bg-blue-100 text-blue-800">🚀 Déploiement</div>
+                        <div class="text-gray-400">↓</div>
+                        <div class="phase-badge bg-blue-100 text-blue-800">🔧 Maintenance</div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3">Modèle séquentiel - retour en arrière difficile</p>
+                </div>`;
+    }
+
+    function renderSchemaIteratif() {
+        return `<div class="model-diagram">
+                    <div class="flex flex-wrap justify-center gap-4 items-center">
+                        <div class="bg-indigo-50 rounded-xl p-3 text-center w-36"><span class="block font-bold">Itération 1</span><span class="text-xs">Analyse→Conception→Code→Test</span><span class="block text-green-600">✓ Incrément 1</span></div>
+                        <div class="text-2xl text-indigo-300">→</div>
+                        <div class="bg-indigo-50 rounded-xl p-3 text-center w-36"><span class="block font-bold">Itération 2</span><span class="text-xs">Analyse→Conception→Code→Test</span><span class="block text-green-600">✓ Incrément 2</span></div>
+                        <div class="text-2xl text-indigo-300">→</div>
+                        <div class="bg-indigo-50 rounded-xl p-3 text-center w-36"><span class="block font-bold">Itération N</span><span class="text-xs">... Livraison finale</span></div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3 text-center">Chaque cycle produit une version améliorée du logiciel</p>
+                </div>`;
+    }
+
+    function renderAgileSchema() {
+        return `<div class="model-diagram bg-gradient-to-r from-green-50 to-emerald-50">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-sm font-medium">
+                        <div class="bg-white p-2 rounded shadow-sm">🎯 Sprint Planning</div>
+                        <div class="bg-white p-2 rounded shadow-sm">📆 Daily Stand-up</div>
+                        <div class="bg-white p-2 rounded shadow-sm">✅ Sprint Review</div>
+                        <div class="bg-white p-2 rounded shadow-sm">🔄 Rétrospective</div>
+                    </div>
+                    <div class="flex justify-center mt-3"><span class="text-green-700 text-sm">Livraison continue & adaptation permanente</span></div>
+                </div>`;
+    }
+
+    // Fonction principale pour afficher la slide courante
+    function renderSlide(index) {
+        const slide = slidesData[index];
+        let html = '';
+        const baseCardClass = "slide-card p-6 md:p-10 transition-all duration-200";
+
+        if (slide.type === "title") {
+            html = `<div class="${baseCardClass} ${slide.bgClass || 'bg-white'} text-center">
+                        <div class="text-6xl mb-4">${slide.icon || '📘'}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800">${slide.title}</h1>
+                        <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 text-blue-600 text-sm">👨‍🏫 Cours Génie Logiciel - Classe Développement Web</div>
+                    </div>`;
+        } 
+        else if (slide.type === "objectifs") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-8 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                        <ul class="content-list space-y-3 text-gray-700 text-lg">
+                            ${slide.objectives.map(obj => `<li>${obj}</li>`).join('')}
+                        </ul>
+                        <div class="mt-6 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm italic">💡 À la fin de cette leçon, vous serez capable d’expliquer et de choisir un cycle de vie adapté</div>
+                    </div>`;
+        }
+        else if (slide.type === "phases") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">${slide.title}</h2>
+                        <p class="text-gray-500 mb-6">${slide.description}</p>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            ${slide.phases.map(phase => `
+                                <div class="bg-gray-50 p-4 rounded-xl shadow-sm border border-gray-100">
+                                    <div class="font-bold text-blue-700">${phase.name}</div>
+                                    <div class="text-gray-600 text-sm mt-1">${phase.desc}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-6 text-center text-sm text-gray-400">Chaque phase produit des livrables (spécifications, code, plans de test...)</div>
+                    </div>`;
+        }
+        else if (slide.type === "diagramme_cascade") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl font-bold text-blue-800">${slide.title}</h2>
+                        <p class="text-gray-600 mt-1">${slide.description}</p>
+                        <div class="my-6">${renderSchemaCascade()}</div>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div class="bg-green-50 p-3 rounded-lg"><span class="font-semibold">✅ Avantages :</span> ${slide.avantages}</div>
+                            <div class="bg-red-50 p-3 rounded-lg"><span class="font-semibold">❌ Inconvénients :</span> ${slide.inconvenients}</div>
+                        </div>
+                        <div class="mt-4 p-3 bg-yellow-50 rounded-lg"><span class="font-semibold">📌 Utilisation :</span> ${slide.usage}</div>
+                    </div>`;
+        }
+        else if (slide.type === "iteratif_incremental") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl font-bold text-indigo-800">${slide.title}</h2>
+                        <p class="text-gray-600 mb-4">${slide.description}</p>
+                        ${renderSchemaIteratif()}
+                        <ul class="mt-5 list-disc pl-5 space-y-1 text-gray-700">
+                            ${slide.points.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    </div>`;
+        }
+        else if (slide.type === "agile") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl font-bold text-emerald-700">${slide.title}</h2>
+                        <p class="text-gray-600">${slide.description}</p>
+                        <div class="flex flex-wrap gap-3 my-4">
+                            ${slide.values.map(v => `<span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-medium">${v}</span>`).join('')}
+                        </div>
+                        ${renderAgileSchema()}
+                        <div class="mt-5 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                            <span class="font-semibold">🎯 Idéal pour :</span> ${slide.usage}
+                        </div>
+                    </div>`;
+        }
+        else if (slide.type === "comparaison") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2>
+                        <div class="comparison-grid mt-4">
+                            ${slide.comparison.map(item => `
+                                <div class="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                                    <div class="font-bold text-indigo-700 text-lg">${item.modele}</div>
+                                    <div class="text-sm text-gray-600">${item.situation}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="mt-5 text-sm text-center text-gray-500">Aucun modèle universel : le choix dépend des contraintes, de l'équipe et des exigences.</p>
+                    </div>`;
+        }
+        else if (slide.type === "visual_cycle") {
+            html = `<div class="${baseCardClass} bg-white text-center">
+                        <h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2>
+                        <div class="my-6 flex justify-center flex-wrap gap-5">
+                            <div class="w-full max-w-md">
+                                <div class="bg-slate-100 rounded-xl p-4">
+                                    <div class="font-mono text-left text-sm">
+                                        <p class="font-bold text-blue-600">📌 Approche séquentielle (Cascade) :</p>
+                                        <div class="flex flex-col items-start space-y-1 mt-1"> ⬇️ Analyse → ⬇️ Conception → ⬇️ Code → ⬇️ Test → ⬇️ Déploiement</div>
+                                        <hr class="my-2">
+                                        <p class="font-bold text-emerald-600">🔄 Approche agile (itérations) :</p>
+                                        <div class="flex flex-wrap gap-1 justify-center">[Sprint1] ➡ [Sprint2] ➡ [Sprint3] ➡ livraison continue</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 text-sm">Le cycle en V (variante du cascade) et le modèle spirale intègrent également validation/retours.</p>
+                    </div>`;
+        }
+        else if (slide.type === "recap") {
+            html = `<div class="${baseCardClass} bg-white">
+                        <h2 class="text-2xl font-bold text-gray-800">${slide.title}</h2>
+                        <ul class="mt-5 space-y-3 list-disc pl-5 text-gray-700">
+                            ${slide.summary.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                        <div class="mt-8 flex justify-center">
+                            <div class="bg-indigo-100 text-indigo-800 p-3 rounded-full text-sm">✅ Prochaine étape : atelier pratique sur le choix de modèle</div>
+                        </div>
+                    </div>`;
+        }
+        else {
+            html = `<div class="${baseCardClass} bg-white"><p>Contenu en préparation</p></div>`;
+        }
+
+        $('#slidesWrapper').html(html);
+        updateProgressDots();
+        $('#slideCounter').text(`Slide ${index+1} / ${totalSlides}`);
+        // MathJax si besoin (optionnel)
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        // scroll top doux
+        $('html, body').animate({ scrollTop: 0 }, 100);
+    }
+
+    function updateProgressDots() {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            dotsHtml += `<div class="progress-dot ${i === currentIndex ? 'active' : ''}" data-index="${i}"></div>`;
+        }
+        $('#progressDots').html(dotsHtml);
+        $('.progress-dot').on('click', function() {
+            let idx = $(this).data('index');
+            if (idx !== undefined) {
+                currentIndex = idx;
+                renderSlide(currentIndex);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentIndex + 1 < totalSlides) {
+            currentIndex++;
+            renderSlide(currentIndex);
+        } else {
+            // Option feedback
+            $('#nextSlide').css('opacity','0.6');
+            setTimeout(() => $('#nextSlide').css('opacity','1'), 300);
+        }
+    }
+
+    function prevSlide() {
+        if (currentIndex - 1 >= 0) {
+            currentIndex--;
+            renderSlide(currentIndex);
+        } else {
+            $('#prevSlide').css('opacity','0.6');
+            setTimeout(() => $('#prevSlide').css('opacity','1'), 300);
+        }
+    }
+
+    // Événements
+    $('#nextSlide').on('click', nextSlide);
+    $('#prevSlide').on('click', prevSlide);
+    $(document).keydown(function(e) {
+        if (e.key === 'ArrowRight') nextSlide();
+        if (e.key === 'ArrowLeft') prevSlide();
+    });
+
+    // initialisation premier slide
+    renderSlide(0);
+</script>
+<!-- Pied de page simple mais élégant -->
+<div class="text-center text-xs text-gray-400 mt-8 pb-6">
+    © Enseignant Génie Logiciel - Cameroun | Programme Développement Web | Cours basé sur les objectifs : phases & modèles (Cascade, Agile, Incrémental)
+</div>
+</body>
+</html>

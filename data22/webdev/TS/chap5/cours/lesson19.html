@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 19 : Classes Abstraites en TypeScript | Cours Web</title>
+  <!-- Tailwind CSS + Font Awesome + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* personnalisations douces pour lisibilité */
+    body {
+      background: #f8fafc;
+    }
+    .slide-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .slide-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.1);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* focus / accessibilité */
+    button:focus-visible, a:focus-visible {
+      outline: 2px solid #1e40af;
+      outline-offset: 2px;
+    }
+    @media (max-width: 640px) {
+      .slide-container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-10 slide-container">
+    <!-- EN-TÊTE FIXE avec indicateur slide -->
+    <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-3 mb-6 flex justify-between items-center border border-gray-100">
+      <div class="flex items-center gap-3">
+        <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">TypeScript</span>
+        <span class="text-gray-600 text-sm font-medium">Leçon 19 · Classes abstraites</span>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span id="slideCounter" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">1 / 7</span>
+        <div class="hidden sm:block w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+          <div id="progressFill" class="progress-bar h-full bg-blue-500 rounded-full" style="width: 14%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDES DYNAMIQUES -->
+    <div id="slidesContainer" class="relative"></div>
+
+    <!-- NAVIGATION SLIDES -->
+    <div class="flex justify-between items-center mt-8 gap-4">
+      <button id="prevSlide" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2.5 px-5 rounded-xl shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Précédent
+      </button>
+      <span class="text-sm text-gray-400 hidden md:inline">Navigation par slides</span>
+      <button id="nextSlide" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        Suivant
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+
+    <!-- petit footer discret -->
+    <div class="text-center text-gray-400 text-xs mt-10 border-t border-gray-200 pt-5">
+      Cours d’initiation TypeScript – Enseignant au Cameroun 🇨🇲 | Classes abstraites, héritage et bonnes pratiques
+    </div>
+  </div>
+
+  <script>
+    // Définition des slides pour la leçon 19 (classes abstraites)
+    // Basé sur les objectifs: classes abstraites, méthodes abstraites, différence interface/classe abstraite
+    const slidesData = [
+      {
+        type: "title",
+        title: "🧩 TypeScript avancé",
+        subtitle: "Classes abstraites : squelettes pour objets puissants",
+        badge: "Leçon 19",
+        desc: "Apprenez à concevoir des modèles réutilisables et imposer des structures à vos classes filles."
+      },
+      {
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        items: [
+          "Définir une classe abstraite (abstract class) en TypeScript",
+          "Déclarer des méthodes abstraites sans implémentation",
+          "Comprendre la différence fondamentale entre interface et classe abstraite"
+        ]
+      },
+      {
+        type: "content",
+        title: "📘 1. Qu'est-ce qu'une classe abstraite ?",
+        text: "Une <strong>classe abstraite</strong> est une classe qui ne peut pas être instanciée directement. Elle sert de modèle pour d'autres classes qui en héritent. Une classe abstraite peut contenir :",
+        list: [
+          "Des méthodes concrètes (avec du code)",
+          "Des propriétés normales ou abstraites",
+          "Des méthodes abstraites (sans corps, uniquement signature)"
+        ],
+        note: "🔁 Le mot-clé `abstract` devant le nom de la classe et devant les méthodes abstraites."
+      },
+      {
+        type: "code-example",
+        title: "💻 Exemple : classe abstraite Animal",
+        code: `abstract class Animal {
+  constructor(public nom: string) {}
+  
+  // méthode concrète (déjà implémentée)
+  bouger(): void {
+    console.log(\`\${this.nom} se déplace...\`);
+  }
+  
+  // méthode abstraite : pas de corps ici !
+  abstract faireDuBruit(): void;
+}
+
+class Chien extends Animal {
+  faireDuBruit(): void {
+    console.log(\`\${this.nom} dit : Ouaf !\`);
+  }
+}
+
+const monChien = new Chien("Rex");
+monChien.bouger();     // Rex se déplace...
+monChien.faireDuBruit(); // Rex dit : Ouaf !
+// const animal = new Animal("Bête"); // ERREUR : impossible d'instancier une classe abstraite`,
+        explanation: "✅ La classe `Animal` force les classes filles à implémenter la méthode `faireDuBruit()`. La méthode `bouger()` est déjà prête et héritée."
+      },
+      {
+        type: "content",
+        title: "🔍 2. Méthodes abstraites vs méthodes concrètes",
+        text: "Une <strong>méthode abstraite</strong> ne possède pas de corps (pas d'accolades avec du code). Elle impose que toute classe <strong>non abstraite</strong> qui hérite doive la définir. Une classe qui contient au moins une méthode abstraite <strong>doit être déclarée abstraite</strong>.",
+        list: [
+          "Méthode concrète : `afficherDetails() { return ... }`",
+          "Méthode abstraite : `abstract afficherDetails(): void;` (point-virgule)"
+        ],
+        warning: "⚠️ Si une classe fille n'implémente pas TOUTES les méthodes abstraites, elle doit aussi être marquée `abstract`."
+      },
+      {
+        type: "schema",
+        title: "📊 Classe abstraite vs Interface : différence clé",
+        comparison: true,
+        left: {
+          title: "🧱 Classe abstraite",
+          points: [
+            "Peut contenir du code concret (implémentations)",
+            "Peut avoir des constructeurs, des propriétés avec état",
+            "Une classe ne peut hériter que d’une seule classe abstraite (héritage simple)",
+            "Parfait pour partager du comportement + imposer un contrat"
+          ]
+        },
+        right: {
+          title: "📐 Interface",
+          points: [
+            "Uniquement des signatures (pas d’implémentation)",
+            "Ne peut pas avoir de constructeur",
+            "Une classe peut implémenter plusieurs interfaces",
+            "Idéal pour décrire la forme d’un objet ou un contrat pur"
+          ]
+        }
+      },
+      {
+        type: "recap",
+        title: "✅ Récapitulatif & Bonnes pratiques",
+        items: [
+          "Utilisez `abstract class` quand vous voulez fournir du code commun + forcer l'implémentation de certaines méthodes.",
+          "Les méthodes abstraites obligent les développeurs à respecter un contrat dans les sous-classes.",
+          "Préférez une interface si vous avez seulement besoin de décrire la forme (aucune implémentation).",
+          "Les classes abstraites sont excellentes pour des 'squelettes' de frameworks ou composants réutilisables."
+        ],
+        finalTip: "💡 Petite astuce : En TypeScript, une classe abstraite peut aussi implémenter des interfaces, vous combinez ainsi le meilleur des deux mondes !"
+      }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    // Fonction pour mettre à jour l'affichage
+    function renderSlide(index) {
+      const data = slidesData[index];
+      const container = $("#slidesContainer");
+      container.empty();
+
+      let html = `<div class="slide-card bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 transition-all duration-200">`;
+      
+      // en-tête de slide discret
+      html += `<div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-3 border-b border-blue-100">
+                  <span class="text-xs font-mono text-blue-700 bg-blue-100 px-2 py-0.5 rounded">slide ${index+1}/${totalSlides}</span>
+               </div>`;
+      
+      // contenu selon type
+      if (data.type === "title") {
+        html += `
+          <div class="p-6 md:p-10 text-center">
+            <div class="inline-block mb-3 px-4 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">${data.badge}</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">${data.title}</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">${data.subtitle}</p>
+            <div class="mt-8 text-gray-500 italic">${data.desc || ""}</div>
+            <div class="mt-6 flex justify-center"><div class="w-12 h-1 bg-blue-400 rounded-full"></div></div>
+          </div>
+        `;
+      } 
+      else if (data.type === "objectifs") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-4 border-blue-500 pl-4 mb-6">${data.title}</h2>
+                  <ul class="space-y-4">`;
+        data.items.forEach(item => {
+          html += `<li class="flex items-start gap-3"><span class="inline-flex items-center justify-center bg-green-100 text-green-700 rounded-full w-6 h-6 text-sm mt-0.5">✓</span><span class="text-gray-700 text-lg">${item}</span></li>`;
+        });
+        html += `</ul></div>`;
+      }
+      else if (data.type === "content") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.title}</h2>
+                  <div class="text-gray-700 leading-relaxed text-base md:text-lg space-y-4">`;
+        if(data.text) html += `<p>${data.text}</p>`;
+        if(data.list) {
+          html += `<ul class="list-disc pl-6 space-y-2 mt-2">`;
+          data.list.forEach(item => html += `<li>${item}</li>`);
+          html += `</ul>`;
+        }
+        if(data.note) html += `<div class="bg-yellow-50 p-4 rounded-xl border-l-4 border-yellow-400 text-yellow-800 mt-4">${data.note}</div>`;
+        if(data.warning) html += `<div class="bg-red-50 p-4 rounded-xl border-l-4 border-red-400 text-red-700 mt-4">${data.warning}</div>`;
+        html += `</div></div>`;
+      }
+      else if (data.type === "code-example") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-3">${data.title}</h2>
+                  <div class="bg-gray-900 rounded-xl overflow-hidden shadow-md">
+                    <div class="flex items-center gap-2 bg-gray-800 px-4 py-2 text-gray-300 text-xs font-mono"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="w-3 h-3 rounded-full bg-yellow-500"></span><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="ml-2">TypeScript</span></div>
+                    <pre class="text-sm md:text-base text-gray-200 p-5 overflow-x-auto font-mono"><code>${escapeHtml(data.code)}</code></pre>
+                  </div>
+                  <div class="mt-5 bg-blue-50 p-4 rounded-lg text-blue-800"><span class="font-bold">📌 Explication :</span> ${data.explanation}</div>
+                </div>`;
+      }
+      else if (data.type === "schema" && data.comparison) {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-6">${data.title}</h2>
+                  <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-indigo-50 rounded-xl p-5 border border-indigo-200">
+                      <h3 class="text-xl font-bold text-indigo-800 flex items-center gap-2"><span>🧩</span> ${data.left.title}</h3>
+                      <ul class="mt-3 space-y-2 text-indigo-900">
+                        ${data.left.points.map(p => `<li class="flex gap-2"><span class="text-indigo-600">•</span> ${p}</li>`).join('')}
+                      </ul>
+                    </div>
+                    <div class="bg-emerald-50 rounded-xl p-5 border border-emerald-200">
+                      <h3 class="text-xl font-bold text-emerald-800 flex items-center gap-2"><span>📐</span> ${data.right.title}</h3>
+                      <ul class="mt-3 space-y-2 text-emerald-900">
+                        ${data.right.points.map(p => `<li class="flex gap-2"><span class="text-emerald-600">•</span> ${p}</li>`).join('')}
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="mt-5 text-center text-gray-600 text-sm bg-gray-50 p-3 rounded-lg">💡 À retenir : <strong>classe abstraite = code + contrat</strong> | <strong>interface = contrat pur</strong></div>
+                </div>`;
+      }
+      else if (data.type === "recap") {
+        html += `<div class="p-6 md:p-8">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-5 flex items-center gap-2">📌 ${data.title}</h2>
+                  <ul class="space-y-3 mb-6">
+                    ${data.items.map(item => `<li class="flex gap-3 items-start"><span class="text-blue-500 text-xl">▪️</span><span class="text-gray-700">${item}</span></li>`).join('')}
+                  </ul>
+                  <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-5 rounded-2xl border border-purple-200 text-purple-800 font-medium">${data.finalTip}</div>
+                </div>`;
+      }
+      
+      html += `</div>`;
+      container.html(html);
+      
+      // Mise à jour compteurs
+      $("#slideCounter").text(`${index+1} / ${totalSlides}`);
+      let progressPercent = ((index+1) / totalSlides) * 100;
+      $("#progressFill").css("width", `${progressPercent}%`);
+      
+      // gestion boutons prev/next
+      $("#prevSlide").prop("disabled", index === 0);
+      $("#nextSlide").prop("disabled", index === totalSlides-1);
+      
+      // MathJax si besoin (pour formules mathématique, mais ici pas nécessaire, on appelle quand même)
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+    }
+    
+    // petite fonction pour échapper les caractères HTML dans le code
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if(m === '&') return '&amp;';
+        if(m === '<') return '&lt;';
+        if(m === '>') return '&gt;';
+        return m;
+      }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+      });
+    }
+    
+    // navigation
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        renderSlide(currentSlide);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+    
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        renderSlide(currentSlide);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+    
+    // Gestionnaires jQuery
+    $(document).ready(function() {
+      renderSlide(0);
+      $("#nextSlide").on("click", nextSlide);
+      $("#prevSlide").on("click", prevSlide);
+      // support clavier
+      $(document).on("keydown", function(e) {
+        if (e.key === "ArrowRight") {
+          nextSlide();
+          e.preventDefault();
+        } else if (e.key === "ArrowLeft") {
+          prevSlide();
+          e.preventDefault();
+        }
+      });
+      
+      // swipe pour mobile (simple)
+      let touchStartX = 0;
+      $("body").on("touchstart", function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $("body").on("touchend", function(e) {
+        if (!touchStartX) return;
+        let endX = e.originalEvent.changedTouches[0].clientX;
+        let diff = endX - touchStartX;
+        if (Math.abs(diff) > 60) {
+          if (diff > 0) prevSlide();
+          else nextSlide();
+          touchStartX = 0;
+        }
+      });
+    });
+  </script>
+  <!-- Aucune image externe ajoutée inutilement - schéma fait avec Tailwind pur, code lisible -->
+  <!-- Respect des normes accessibilité et contraste doux -->
+</body>
+</html>

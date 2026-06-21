@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 35 : Manipuler le système de fichiers en C# | Cours Développement Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules (optionnel, utilisé si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Style personnalisé pour slides et confort visuel -->
+    <style>
+        /* Transition smooth pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide.hidden-slide {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide:not(.hidden-slide) {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Personnalisation des couleurs : fond doux, contraste agréable */
+        body {
+            background: #f8fafc;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-nav:hover {
+            background-color: #2563eb;
+            transform: scale(1.02);
+        }
+        .btn-nav:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .progress-bar {
+            background-color: #e2e8f0;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background-color: #3b82f6;
+            height: 0.5rem;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        h2 {
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 5px solid #3b82f6;
+            padding-left: 1rem;
+        }
+        .badge {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 9999px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        @media (max-width: 640px) {
+            .card {
+                border-radius: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased p-4 md:p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- En-tête de la leçon -->
+        <div class="mb-4 flex flex-wrap justify-between items-center gap-2">
+            <div>
+                <span class="badge">C# - Système de fichiers</span>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mt-2">Leçon 35 : Parcourir et manipuler dossiers</h1>
+            </div>
+            <div class="text-sm text-slate-500 bg-white px-3 py-1 rounded-full shadow-sm">
+                Chap 11 · Compétence: Système de fichiers
+            </div>
+        </div>
+
+        <!-- Conteneur principal des slides -->
+        <div class="card p-5 md:p-8 relative">
+            <!-- Indicateur de progression -->
+            <div class="mb-4 flex justify-between items-center text-sm text-slate-600">
+                <span id="slideCounter">Slide 1 / <span id="totalSlides">0</span></span>
+                <div class="progress-bar w-32 md:w-48"><div id="progressFill" class="progress-fill"></div></div>
+            </div>
+
+            <!-- Zone dynamique des slides -->
+            <div id="slidesContainer" class="min-h-[450px]">
+                <!-- Les slides seront injectées par jQuery -->
+            </div>
+
+            <!-- Navigation boutons -->
+            <div class="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
+                <button id="prevBtn" class="btn-nav px-5 py-2 rounded-full font-medium flex items-center gap-1 disabled:opacity-50" disabled>
+                    ⬅ Précédent
+                </button>
+                <button id="nextBtn" class="btn-nav px-5 py-2 rounded-full font-medium flex items-center gap-1">
+                    Suivant ➡
+                </button>
+            </div>
+        </div>
+
+        <!-- Petit pied de page informatif -->
+        <p class="text-center text-xs text-slate-400 mt-6">Cours adapté aux élèves du Cameroun - .NET & C# - Manipulation avancée des répertoires</p>
+    </div>
+
+    <script>
+        // Définition des slides: titre, objectifs + contenu de la leçon 35 (Directory, DirectoryInfo, GetFiles, GetDirectories, création, déplacement, suppression)
+        // Slide 1: Titre introductif
+        // Slide 2: Objectifs d'apprentissage
+        // Slides 3 à ... contenu détaillé de la leçon 35
+
+        const slidesData = [
+            {
+                type: "title",
+                title: "📁 Manipuler le système de fichiers en C#",
+                subtitle: "Classe Directory / DirectoryInfo · Parcourir, créer, déplacer, supprimer des répertoires",
+                icon: "🗂️"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Utiliser Directory et DirectoryInfo pour interagir avec les dossiers",
+                    "✅ Parcourir les fichiers et sous-dossiers avec GetFiles() et GetDirectories()",
+                    "✅ Créer, déplacer et supprimer des répertoires de façon fiable",
+                    "✅ Comprendre la différence entre méthodes statiques (Directory) et méthodes d'instance (DirectoryInfo)",
+                    "✅ Appliquer les bonnes pratiques de gestion des chemins"
+                ]
+            },
+            {
+                type: "content",
+                title: "🔍 Introduction : Le système de fichiers en C#",
+                content: `<p class="mb-3">En C#, le namespace <code class="bg-slate-100 px-1 rounded">System.IO</code> fournit des classes puissantes pour manipuler fichiers et dossiers. Pour les répertoires, deux approches principales :</p>
+                <ul class="list-disc pl-6 space-y-2 mb-3">
+                    <li><strong class="text-blue-700">Directory</strong> : classe statique (méthodes directes sans instanciation). Pratique pour une opération rapide.</li>
+                    <li><strong class="text-blue-700">DirectoryInfo</strong> : classe d'instance qui représente un répertoire spécifique. Permet d’accéder à plusieurs propriétés et méthodes sur le même objet.</li>
+                </ul>
+                <div class="bg-cyan-50 p-3 rounded-lg border-l-4 border-cyan-500 text-sm">
+                💡 Astuce : Privilégiez <strong>DirectoryInfo</strong> quand vous devez effectuer plusieurs opérations sur un même dossier, car il évite de multiples contrôles d'accès.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📂 Classe Directory (statique) - Opérations courantes",
+                content: `<p class="mb-2">La classe <code>Directory</code> permet d'agir directement sans créer d'objet. Exemples essentiels :</p>
+                <div class="code-block mb-3">
+// Vérifier l'existence d'un dossier
+bool existe = Directory.Exists(@"C:\MonDossier");
+
+// Créer un répertoire
+Directory.CreateDirectory(@"C:\Test\Nouveau");
+
+// Supprimer un dossier (et son contenu avec paramètre true)
+Directory.Delete(@"C:\Test\Ancien", true);
+
+// Déplacer un répertoire
+Directory.Move(@"C:\Source", @"C:\Destination");
+
+// Obtenir la date de dernière modification
+DateTime lastModif = Directory.GetLastWriteTime(@"C:\Logs");
+                </div>
+                <p class="text-sm text-slate-600">⚠️ Attention : <code>Delete</code> avec <code>true</code> supprime tout récursivement. Manipulez avec précaution !</p>`
+            },
+            {
+                type: "content",
+                title: "📖 Parcourir les fichiers avec GetFiles() et GetDirectories()",
+                content: `<p>Ces méthodes retournent des tableaux de chaînes. Idéal pour lister le contenu.</p>
+                <div class="code-block my-3">
+string dossier = @"C:\Projets";
+
+// Liste tous les fichiers .txt du dossier
+string[] fichiersTxt = Directory.GetFiles(dossier, "*.txt");
+
+// Liste tous les sous-dossiers (recherche simple)
+string[] dossiers = Directory.GetDirectories(dossier);
+
+// Recherche récursive (tous les fichiers .cs dans l'arborescence)
+string[] tousFichiersCs = Directory.GetFiles(dossier, "*.cs", SearchOption.AllDirectories);
+
+foreach (string fichier in tousFichiersCs)
+{
+    Console.WriteLine(Path.GetFileName(fichier));
+}
+                </div>
+                <p class="text-sm bg-gray-50 p-2 rounded">🔎 <strong>SearchOption.AllDirectories</strong> explore les sous-dossiers récursivement. Attention aux performances avec de très grosses structures.</p>`
+            },
+            {
+                type: "content",
+                title: "🏷️ DirectoryInfo : L'approche objet",
+                content: `<p>La classe <code>DirectoryInfo</code> offre plus de flexibilité : propriétés utiles (<code>Parent, Root, Exists, CreationTime</code>) et méthodes similaires.</p>
+                <div class="code-block my-3">
+DirectoryInfo dossierInfo = new DirectoryInfo(@"C:\MesDocs");
+
+if (dossierInfo.Exists)
+{
+    Console.WriteLine($"Nom: {dossierInfo.Name}");
+    Console.WriteLine($"Chemin complet: {dossierInfo.FullName}");
+    Console.WriteLine($"Créé le: {dossierInfo.CreationTime}");
+
+    // Obtenir les sous-dossiers (retourne DirectoryInfo[])
+    DirectoryInfo[] subDirs = dossierInfo.GetDirectories();
+    
+    // Obtenir les fichiers (retourne FileInfo[])
+    FileInfo[] fichiers = dossierInfo.GetFiles();
+    
+    foreach (var f in fichiers)
+    {
+        Console.WriteLine($"{f.Name} - {f.Length} octets");
+    }
+}
+                </div>`
+            },
+            {
+                type: "content",
+                title: "⚙️ Créer, déplacer et supprimer des répertoires (DirectoryInfo)",
+                content: `<p>Les méthodes d'instance sont similaires à celles de la classe statique, mais liées à l'objet répertoire.</p>
+                <div class="code-block my-3">
+DirectoryInfo di = new DirectoryInfo(@"C:\Backup\Images");
+
+// Créer le dossier (s'il n'existe pas)
+di.Create();
+
+// Créer un sous-dossier directement
+DirectoryInfo subDir = di.CreateSubdirectory("Archives2025");
+
+// Déplacer le répertoire (vers un nouveau chemin)
+di.MoveTo(@"D:\Archives\Images");
+
+// Supprimer (récursive si contenu non vide)
+di.Delete(true);  // true => suppression récursive
+                </div>
+                <div class="bg-amber-50 p-3 rounded-lg mt-2 text-amber-800 text-sm">
+                ⚠️ Important : Les opérations de suppression/déplacement nécessitent des autorisations en écriture sur le système de fichiers. Gérez les exceptions (UnauthorizedAccessException, DirectoryNotFoundException).
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🧠 Exercice pratique & Bonnes pratiques",
+                content: `<p class="font-semibold mb-2">✏️ Petit exercice inspiré de la vie d'un développeur :</p>
+                <p>Créez un programme C# console qui :</p>
+                <ol class="list-decimal pl-6 space-y-1 mb-4">
+                    <li>Vérifie si le dossier <code>"C:\CoursCSharp"</code> existe ; sinon, le crée.</li>
+                    <li>Dans ce dossier, crée trois sous-dossiers : "Notes", "Projets", "Ressources".</li>
+                    <li>Liste tous les dossiers enfants en affichant leur nom et date de création.</li>
+                    <li>Déplace le dossier "Ressources" à la racine du projet et supprime le dossier "Notes".</li>
+                </ol>
+                <div class="bg-green-50 p-3 rounded-lg border-l-4 border-green-600">
+                🌟 <strong>Bonnes pratiques :</strong> Utilisez <code>Path.Combine()</code> pour construire des chemins cross-platform. Vérifiez toujours l'existence avant d'accéder à un dossier. Gérez les <code>IOException</code> et <code>UnauthorizedAccessException</code>.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📝 Récapitulatif visuel",
+                content: `<p class="mb-3">Voici un schéma conceptuel des interactions avec les répertoires :</p>
+                <!-- Dessin simple en HTML/CSS pour éviter image externe : diagramme texte stylisé -->
+                <div class="bg-white border border-slate-200 rounded-xl p-4 text-center font-mono text-sm overflow-x-auto">
+                    <pre class="text-left text-slate-700">
+    ┌────────────────────────────────────────┐
+    │            Application C#              │
+    └───────────────┬────────────────────────┘
+                    │
+        ┌───────────▼──────────┐
+        │   System.IO          │
+        └───────────┬──────────┘
+                    │
+        ┌───────────▼──────────────────────────┐
+        │  Directory (statique)                │
+        │  • Exists, CreateDirectory, Delete   │
+        │  • GetFiles, GetDirectories          │
+        └───────────┬──────────────────────────┘
+                    │
+        ┌───────────▼──────────────────────────┐
+        │  DirectoryInfo (instance)            │
+        │  • Name, Parent, Root                │
+        │  • GetFiles(), GetDirectories()      │
+        │  • CreateSubdirectory(), MoveTo()    │
+        └──────────────────────────────────────┘
+                    │
+        ┌───────────▼──────────┐
+        │   Disque / Dossiers  │
+        └──────────────────────┘
+                    </pre>
+                </div>
+                <p class="mt-3 text-slate-600 text-sm">Vous pouvez donc interagir avec les répertoires de façon robuste pour organiser les données de vos applications.</p>`
+            },
+            {
+                type: "conclusion",
+                title: "🏁 Pour conclure",
+                content: `<p class="mb-3">Félicitations ! Vous savez désormais :</p>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li>Utiliser <code>Directory</code> et <code>DirectoryInfo</code> selon le contexte.</li>
+                    <li>Parcourir un répertoire de manière récursive.</li>
+                    <li>Créer, déplacer, supprimer des dossiers en C#.</li>
+                    <li>Appliquer les bonnes pratiques de gestion des exceptions.</li>
+                </ul>
+                <div class="mt-5 p-3 bg-indigo-50 rounded-xl text-indigo-800">
+                💻 <strong>À vous de jouer :</strong> Testez les exemples sur votre machine avec Visual Studio ou VS Code, et créez un petit gestionnaire de fichiers ! 
+                </div>`
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+        let $container = $("#slidesContainer");
+        let $prevBtn = $("#prevBtn");
+        let $nextBtn = $("#nextBtn");
+        let $slideCounter = $("#slideCounter");
+        let $totalSlidesSpan = $("#totalSlides");
+        let $progressFill = $("#progressFill");
+
+        // Fonction pour générer le HTML d'un slide selon son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `
+                    <div class="slide text-center py-8 md:py-12">
+                        <div class="text-7xl mb-4">${slide.icon || "📁"}</div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-slate-800">${slide.title}</h2>
+                        <p class="text-lg text-slate-600 mt-4 max-w-xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="w-16 h-1 bg-blue-500 rounded-full"></div>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectifs") {
+                let bullets = slide.objectives.map(obj => `<li class="mb-2 flex items-start gap-2"><span class="text-blue-600 text-xl">▹</span> <span>${obj}</span></li>`).join('');
+                return `
+                    <div class="slide">
+                        <h2 class="text-2xl font-bold mb-5 flex items-center gap-2">🎯 ${slide.title}</h2>
+                        <div class="bg-blue-50 rounded-xl p-5">
+                            <ul class="space-y-3 text-slate-700">
+                                ${bullets}
+                            </ul>
+                        </div>
+                        <div class="mt-6 text-center text-sm text-slate-500">📌 Ces compétences seront mises en pratique dans les exemples.</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "conclusion") {
+                return `
+                    <div class="slide">
+                        <h2 class="text-2xl font-bold mb-4">${slide.title}</h2>
+                        <div class="prose max-w-none text-slate-700">
+                            ${slide.content}
+                        </div>
+                        <div class="mt-6 flex justify-center">
+                            <span class="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm">✔ Leçon 35 terminée ✔</span>
+                        </div>
+                    </div>
+                `;
+            }
+            else { // type content standard
+                return `
+                    <div class="slide">
+                        <h2 class="text-2xl font-bold mb-4">${slide.title}</h2>
+                        <div class="prose max-w-none text-slate-700 space-y-3">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Mise à jour de l'affichage
+        function updateSlide() {
+            if (!slidesData.length) return;
+            const currentSlide = slidesData[currentIndex];
+            const html = renderSlide(currentSlide, currentIndex);
+            $container.fadeOut(100, function() {
+                $container.html(html);
+                $container.fadeIn(200);
+                // Recharger MathJax si nécessaire (pour d'éventuelles formules, bien que non présentes)
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            });
+            
+            // Mettre à jour compteur
+            $slideCounter.html(`Slide ${currentIndex+1} / ${totalSlides}`);
+            $totalSlidesSpan.text(totalSlides);
+            let progressPercent = ((currentIndex+1) / totalSlides) * 100;
+            $progressFill.css("width", `${progressPercent}%`);
+            
+            // Gérer état des boutons
+            $prevBtn.prop("disabled", currentIndex === 0);
+            $nextBtn.prop("disabled", currentIndex === totalSlides - 1);
+            
+            // Scroll en haut du container pour mobile
+            $('html, body').animate({ scrollTop: $("#slidesContainer").offset().top - 20 }, 100);
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlide();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlide();
+            }
+        }
+        
+        // Événements clics + raccourcis clavier (flèches)
+        $nextBtn.on("click", nextSlide);
+        $prevBtn.on("click", prevSlide);
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                prevSlide();
+            }
+        });
+        
+        // Initialisation
+        function init() {
+            totalSlides = slidesData.length;
+            updateSlide();
+        }
+        
+        init();
+        
+        // Ajustement supplémentaire : rendre les blocs de code responsive et permettre sélection
+        // Personnalisation pour les petits écrans: tout est géré par tailwind, mais ajoutons un listener pour éviter tout débordement
+        $(window).on('resize', function() {
+            // aucun traitement particulier mais maintient le confort
+        });
+    </script>
+</body>
+</html>

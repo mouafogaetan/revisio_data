@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NestJS - Leçon 18 : Intercepteurs | Cours Développement Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules mathématiques (si nécessaire) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation style doux pour les yeux -->
+    <style>
+        /* Transition fluide entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* Scrollbar personnalisée discrète */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        body {
+            background: #f8fafc;
+        }
+        /* Amélioration lisibilité code */
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-radius: 1rem;
+        }
+        .card-hover:hover {
+            transform: translateY(-3px);
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-gray-100 font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div id="slides-container" class="relative">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active" id="slide1">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-8 md:py-12 text-center">
+                        <span class="inline-block bg-white/20 backdrop-blur-sm text-white text-sm font-semibold px-3 py-1 rounded-full mb-4">NestJS - Framework Node.js</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-white tracking-tight">✨ Les Intercepteurs ✨</h1>
+                        <p class="text-indigo-100 text-lg md:text-xl mt-4 max-w-2xl mx-auto">Contrôler et transformer les flux d'entrée/sortie comme un pro</p>
+                        <div class="mt-8 flex justify-center gap-4 text-indigo-100 text-sm">
+                            <div class="flex items-center gap-1"><span class="w-2 h-2 bg-indigo-300 rounded-full"></span> Avant / Après requête</div>
+                            <div class="flex items-center gap-1"><span class="w-2 h-2 bg-indigo-300 rounded-full"></span> Transformation</div>
+                            <div class="flex items-center gap-1"><span class="w-2 h-2 bg-indigo-300 rounded-full"></span> Logging & Metrics</div>
+                        </div>
+                    </div>
+                    <div class="p-6 text-center border-t border-gray-100 bg-gray-50/50">
+                        <p class="text-gray-500">Classe WebDev | NestJS - Chapitre 6 : Cross-cutting concerns</p>
+                        <button class="next-slide mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-full transition shadow-md">Commencer la leçon →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 2 : OBJECTIFS D'APPRENTISSAGE -->
+            <div class="slide slide-hidden" id="slide2">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-emerald-600 px-6 py-5">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">🎯 Objectifs de la leçon</h2>
+                    </div>
+                    <div class="p-6 md:p-8 space-y-5">
+                        <div class="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl">
+                            <span class="text-emerald-700 text-xl font-bold">1.</span>
+                            <p class="text-gray-700"><span class="font-semibold">Comprendre le rôle des interceptors</span> — avant/après l'exécution d'une requête, aspect orienté (AOP).</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl">
+                            <span class="text-emerald-700 text-xl font-bold">2.</span>
+                            <p class="text-gray-700"><span class="font-semibold">Créer un interceptor</span> pour la transformation des réponses (format standardisé).</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-emerald-50 rounded-xl">
+                            <span class="text-emerald-700 text-xl font-bold">3.</span>
+                            <p class="text-gray-700"><span class="font-semibold">Mesurer le temps d'exécution</span> d'une route avec un interceptor personnalisé.</p>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mt-2">
+                            <p class="text-amber-800 text-sm">💡 À la fin de ce cours, vous saurez appliquer des intercepteurs globaux ou locaux pour améliorer la maintenabilité et les performances de votre API NestJS.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full transition">← Précédent</button>
+                        <button class="next-slide bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-6 rounded-full transition">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 3 : QU'EST-CE QU'UN INTERCEPTEUR ? -->
+            <div class="slide slide-hidden" id="slide3">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-blue-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">🔍 Qu'est-ce qu'un Interceptor ?</h2>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <p class="text-gray-700 leading-relaxed">Un <span class="font-mono bg-gray-100 px-2 py-0.5 rounded text-indigo-700">Interceptor</span> dans NestJS est une classe décorée avec <span class="font-mono bg-gray-100 px-1">@Injectable()</span> qui implémente l'interface <span class="font-mono bg-gray-100 px-1">NestInterceptor</span>. Il permet d'exécuter du code <strong>avant</strong> et <strong>après</strong> l'exécution d'une méthode de contrôleur.</p>
+                        <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r-lg">
+                            <p class="font-semibold text-indigo-800">📌 Analogie simple :</p>
+                            <p class="text-gray-700">Imaginez un videur (interceptor) à l'entrée d'une boîte de nuit : il vérifie les invités (requête) avant qu'ils entrent, et après leur sortie, il peut faire un rapport (log).</p>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 mt-2">
+                            <div class="bg-gray-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center gap-1">🔧 Avant l'exécution</h3>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                                    <li>Logguer la requête entrante</li>
+                                    <li>Modifier les données du flux</li>
+                                    <li>Vérifier certaines conditions</li>
+                                </ul>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-xl">
+                                <h3 class="font-bold text-gray-800 flex items-center gap-1">✨ Après l'exécution</h3>
+                                <ul class="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                                    <li>Transformer la réponse</li>
+                                    <li>Ajouter des métadonnées</li>
+                                    <li>Mesurer le temps de réponse</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 4 : STRUCTURE D'UN INTERCEPTEUR -->
+            <div class="slide slide-hidden" id="slide4">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-purple-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">📐 Structure & création d’un interceptor</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-700 mb-4">Pour créer un interceptor, on utilise la CLI ou manuellement :</p>
+                        <div class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto text-sm font-mono">
+                            <pre>import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+@Injectable()
+export class TransformInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable&lt;any&gt; {
+    // Avant l'exécution de la route
+    console.log('🟢 Avant la méthode du contrôleur');
+    
+    return next.handle().pipe(
+      map(data => {
+        // Après l'exécution : transformation
+        console.log('🔵 Après la méthode');
+        return { status: 'success', data };
+      })
+    );
+  }
+}</pre>
+                        </div>
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                            <div class="bg-gray-100 p-2 rounded"><span class="font-mono">ExecutionContext</span> : donne accès à la requête, la réponse, etc.</div>
+                            <div class="bg-gray-100 p-2 rounded"><span class="font-mono">CallHandler</span> : permet d’appeler la méthode du contrôleur.</div>
+                            <div class="bg-gray-100 p-2 rounded"><span class="font-mono">pipe(map())</span> : opérateur RxJS pour modifier la réponse.</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : EXEMPLE TRANSFORMATION DES RÉPONSES (standardisation) -->
+            <div class="slide slide-hidden" id="slide5">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-amber-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">🔄 Interceptor de transformation des réponses</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <p class="text-gray-700">Idéal pour uniformiser le format de toutes les réponses JSON de l’API. Exemple : envelopper le résultat avec <span class="font-mono">{ success: true, result: ... }</span>.</p>
+                        <div class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto">
+                            <pre>// response.interceptor.ts
+import { map } from 'rxjs/operators';
+
+export class ResponseInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler) {
+    return next.handle().pipe(
+      map((originalResponse) => ({
+        timestamp: new Date().toISOString(),
+        path: context.switchToHttp().getRequest().url,
+        data: originalResponse,
+        statusCode: context.switchToHttp().getResponse().statusCode
+      }))
+    );
+  }
+}</pre>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                            <p class="font-medium text-green-800">✅ Résultat avant → <span class="font-mono text-sm">"Bonjour le monde"</span> devient :</p>
+                            <code class="text-xs bg-white p-1 rounded">{ "timestamp": "2025-...", "path": "/hello", "data": "Bonjour le monde", "statusCode": 200 }</code>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Pour utiliser globalement : <span class="bg-gray-200 px-1 rounded">app.useGlobalInterceptors(new ResponseInterceptor())</span></p>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-amber-600 hover:bg-amber-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 6 : MESURER LE TEMPS D'EXÉCUTION + Logging -->
+            <div class="slide slide-hidden" id="slide6">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-rose-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">⏱️ Mesurer le temps d’exécution (Performance Logger)</h2>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <p class="text-gray-700">Un interceptor très utile pour analyser les performances de chaque endpoint :</p>
+                        <div class="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto font-mono text-sm">
+                            <pre>import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+
+@Injectable()
+export class LoggingInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable&lt;any&gt; {
+    const req = context.switchToHttp().getRequest();
+    const method = req.method;
+    const url = req.url;
+    const start = Date.now();
+    
+    console.log(`📥 Requête entrante : ${method} ${url}`);
+    
+    return next.handle().pipe(
+      tap(() => {
+        const duration = Date.now() - start;
+        console.log(`📤 Réponse envoyée pour ${method} ${url} - ⏱️ ${duration}ms`);
+      })
+    );
+  }
+}</pre>
+                        </div>
+                        <div class="bg-indigo-50 p-3 rounded-lg">
+                            <p class="flex gap-2"><span class="font-bold">💡 Explication :</span> <code class="bg-white rounded px-1">tap()</code> permet d’exécuter une fonction sans modifier le flux. Idéal pour le logging ou le profiling.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-rose-600 hover:bg-rose-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 7 : APPLICATION AU NIVEAU CONTROLEUR / GLOBAL -->
+            <div class="slide slide-hidden" id="slide7">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-teal-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">🔗 Utiliser les intercepteurs (liens & portée)</h2>
+                    </div>
+                    <div class="p-6 space-y-5">
+                        <div class="space-y-3">
+                            <div class="border-b pb-2">
+                                <h3 class="font-bold text-gray-800">1. Intercepteur lié à un contrôleur</h3>
+                                <code class="block bg-gray-100 p-2 rounded text-sm mt-1">@UseInterceptors(LoggingInterceptor)<br/>@Controller('users')<br/>export class UsersController {}</code>
+                            </div>
+                            <div class="border-b pb-2">
+                                <h3 class="font-bold text-gray-800">2. Intercepteur global (dans main.ts)</h3>
+                                <code class="block bg-gray-100 p-2 rounded text-sm mt-1">app.useGlobalInterceptors(new TransformInterceptor());</code>
+                                <p class="text-xs text-gray-500 mt-1">⭐ Convient pour une transformation standard sur toutes les routes.</p>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-800">3. Intercepteur spécifique à une méthode</h3>
+                                <code class="block bg-gray-100 p-2 rounded text-sm mt-1">@Get()<br/>@UseInterceptors(MyInterceptor)<br/>findAll() { ... }</code>
+                            </div>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded-lg">
+                            <p class="text-yellow-800 text-sm">⚠️ Les intercepteurs s'exécutent dans l'ordre : les intercepteurs globaux d'abord, puis niveau contrôleur, puis niveau méthode.</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-teal-600 hover:bg-teal-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 8 : INTERCEPTEUR AVEC CACHING ou gestion avancée (bonus) -->
+            <div class="slide slide-hidden" id="slide8">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-cyan-600 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">⚡ Cas pratique : Intercepteur de cache simple</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-700 mb-3">Un interceptor peut également mettre en cache les réponses pour éviter les calculs redondants. Idée illustrée :</p>
+                        <div class="bg-gray-900 text-gray-100 p-4 rounded-xl text-sm font-mono overflow-x-auto">
+                            <pre>const cache = new Map();
+
+@Injectable()
+export class CacheInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable&lt;any&gt; {
+    const request = context.switchToHttp().getRequest();
+    const key = request.url;
+    if (cache.has(key)) {
+      return of(cache.get(key)); // retourne la valeur en cache
+    }
+    return next.handle().pipe(
+      tap(response => cache.set(key, response))
+    );
+  }
+}</pre>
+                        </div>
+                        <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+                            <p class="text-sm">🎓 On utilise <span class="font-mono">of()</span> de RxJS pour retourner une réponse immédiate. Cela booste les temps de réponse pour les routes statiques !</p>
+                        </div>
+                        <!-- Petit dessin simple en CSS pour illustrer le mécanisme (au lieu d'image externe) -->
+                        <div class="mt-5 flex justify-center">
+                            <div class="bg-gradient-to-r from-cyan-100 to-sky-100 p-3 rounded-xl inline-flex items-center gap-2 text-xs md:text-sm shadow">
+                                <span class="font-mono">📦 Client</span>
+                                <span>➡️</span>
+                                <span class="bg-white px-2 py-1 rounded shadow">Interceptor</span>
+                                <span>🔍 cache ?</span>
+                                <span class="bg-green-200 px-2 py-1 rounded">OUI → réponse cache</span>
+                                <span class="bg-yellow-200 px-2 py-1 rounded">NON → Contrôleur</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="next-slide bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-6 rounded-full">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SLIDE 9 : BONNES PRATIQUES & RÉSUMÉ -->
+            <div class="slide slide-hidden" id="slide9">
+                <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                    <div class="bg-indigo-800 px-6 py-4">
+                        <h2 class="text-xl md:text-2xl font-bold text-white">📌 Récapitulatif & Bonnes pratiques</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                            <li>Les intercepteurs permettent d'ajouter des pré-traitements et post-traitements <strong>sans polluer la logique métier</strong>.</li>
+                            <li>Idéal pour : <strong>logging, transformation, monitoring, caching, gestion des timeouts</strong>.</li>
+                            <li>Utilisez les opérateurs RxJS (<span class="font-mono">map, tap, catchError</span>) pour manipuler le flux.</li>
+                            <li>Ne pas oublier d’injecter dans un module ou de l’utiliser avec <span class="font-mono">@UseInterceptors()</span>.</li>
+                            <li>Pour un interceptor global préférer <span class="font-mono">app.useGlobalInterceptors()</span> ou injection via APP_INTERCEPTOR.</li>
+                        </ul>
+                        <div class="bg-indigo-100 p-4 rounded-xl text-center">
+                            <p class="font-semibold text-indigo-900">🧠 Exercice personnel :</p>
+                            <p class="text-sm text-indigo-800">Créez un interceptor qui ajoute un en-tête HTTP "X-Processing-Time" contenant la durée d'exécution.</p>
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">#NestJS</span>
+                            <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">#Interceptor</span>
+                            <span class="bg-gray-200 px-3 py-1 rounded-full text-xs">#RxJS</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between p-5 bg-gray-50 border-t">
+                        <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-5 rounded-full">← Précédent</button>
+                        <button class="restart-slides bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-6 rounded-full transition">🏁 Revoir depuis le début</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Indicateur de progression (mobile friendly) -->
+        <div class="flex justify-center mt-6 gap-2 flex-wrap">
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-indigo-500 transition-all duration-300 cursor-pointer" data-slide="1"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="2"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="3"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="4"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="5"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="6"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="7"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="8"></span>
+            <span class="slide-dot w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300 cursor-pointer" data-slide="9"></span>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 1;
+            const totalSlides = 9;
+            
+            function showSlide(slideNum) {
+                // Masquer tous les slides
+                $('.slide').addClass('slide-hidden').removeClass('slide-active');
+                $(`#slide${slideNum}`).removeClass('slide-hidden').addClass('slide-active');
+                // Mettre à jour les dots
+                $('.slide-dot').each(function(idx, el) {
+                    const dotSlide = parseInt($(el).data('slide'));
+                    if(dotSlide === slideNum) {
+                        $(el).removeClass('bg-gray-300').addClass('bg-indigo-500');
+                    } else {
+                        $(el).removeClass('bg-indigo-500').addClass('bg-gray-300');
+                    }
+                });
+                currentSlide = slideNum;
+                // scroll en haut pour une meilleure UX mobile
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // Boutons next
+            $('.next-slide').on('click', function() {
+                if(currentSlide < totalSlides) {
+                    showSlide(currentSlide + 1);
+                } else {
+                    // boucler au début si on veut (optionnel)
+                    showSlide(1);
+                }
+            });
+            
+            $('.prev-slide').on('click', function() {
+                if(currentSlide > 1) {
+                    showSlide(currentSlide - 1);
+                } else {
+                    showSlide(totalSlides);
+                }
+            });
+            
+            $('.restart-slides').on('click', function() {
+                showSlide(1);
+            });
+            
+            // navigation par points
+            $('.slide-dot').on('click', function() {
+                const slideTarget = parseInt($(this).data('slide'));
+                if(!isNaN(slideTarget)) showSlide(slideTarget);
+            });
+            
+            // initialisation : dot actif
+            $('.slide-dot[data-slide="1"]').removeClass('bg-gray-300').addClass('bg-indigo-500');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cours Cloud | Leçon 9 : VM vs Conteneurs & Docker</title>
+  <!-- Tailwind CSS + Font Awesome (pour icones) + jQuery & MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Personnalisation légère pour adoucir les couleurs et améliorer le contraste -->
+  <style>
+    /* Override Tailwind pour un confort visuel et slide fluide */
+    body {
+      background: #f4f7fc;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    /* Animation fade pour les slides */
+    .slide {
+      transition: opacity 0.3s ease-in-out;
+    }
+    .slide-hidden {
+      display: none;
+    }
+    /* Style scrollbar discrète */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 10px;
+    }
+    /* Amélioration des cartes */
+    .card-hover {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+    }
+    /* Pour la navigation tactile */
+    button, .nav-btn {
+      touch-action: manipulation;
+    }
+    /* Ajustement textes */
+    h2, h3 {
+      letter-spacing: -0.01em;
+    }
+    .container-code {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+    }
+  </style>
+  <!-- jQuery et MathJax (chargement différé) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
+</head>
+<body class="antialiased">
+
+  <div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+    <!-- Slide container principal -->
+    <div id="slidesContainer" class="relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl overflow-hidden border border-gray-200">
+      
+      <!-- En-tête indicateur de progression -->
+      <div class="bg-gradient-to-r from-indigo-700 to-blue-700 px-5 py-3 flex justify-between items-center text-white text-sm font-medium">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+          <span>Initiation au Cloud Computing | Leçon 9 : VM vs Conteneurs & Docker</span>
+        </div>
+        <div id="slideCounter" class="bg-indigo-900/50 px-3 py-1 rounded-full text-xs">Slide 1 / 7</div>
+      </div>
+
+      <!-- Zone dynamique des slides -->
+      <div id="slideContent" class="p-5 md:p-8 min-h-[520px] transition-all">
+        <!-- Les slides seront injectées ici par jQuery -->
+      </div>
+
+      <!-- Navigation + boutons -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-gray-50 px-5 py-4 border-t border-gray-200">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-sm border border-gray-300 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          ← Précédent
+        </button>
+        <div class="flex gap-2">
+          <!-- indicateurs ronds -->
+          <div id="dotsIndicator" class="flex gap-2"></div>
+        </div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          Suivant →
+        </button>
+      </div>
+    </div>
+
+    <!-- petite note pédagogique -->
+    <p class="text-center text-gray-500 text-xs mt-6">📘 Utilise les flèches ou clique sur les boutons. Les formules mathématiques (si présentes) s’affichent avec MathJax.</p>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      // ------------------------------------------------------------------
+      // Définition des slides pour la leçon 9 (chap3 - isolation)
+      // Titre, objectifs et contenu interactif et accessible
+      // Slide 1 : Titre + introduction
+      // Slide 2 : Objectifs d’apprentissage
+      // Slide 3 : Différence VM vs Conteneur (fondamentaux)
+      // Slide 4 : Concepts Docker (image, conteneur, registre, Dockerfile)
+      // Slide 5 : Docker Compose (multi-conteneurs)
+      // Slide 6 : Récapitulatif visuel & avantages
+      // Slide 7 : Petit quiz / résumé pratique
+      // ------------------------------------------------------------------
+      
+      const slidesData = [
+        { // Slide 0 : titre
+          title: "🐳 Machines Virtuelles vs Conteneurs",
+          content: `
+            <div class="flex flex-col items-center justify-center text-center py-6 md:py-10">
+              <div class="bg-indigo-100 rounded-full p-5 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-8 0h8" />
+                </svg>
+              </div>
+              <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-800 to-cyan-700 bg-clip-text text-transparent">Machines Virtuelles & Conteneurs</h1>
+              <p class="text-gray-600 mt-4 max-w-xl text-lg">Comprendre l'isolation au niveau OS, les hyperviseurs et la révolution Docker</p>
+              <div class="mt-8 flex flex-wrap gap-3 justify-center text-sm text-gray-500">
+                <span class="bg-gray-100 px-3 py-1 rounded-full">🔹 Cloud Computing</span>
+                <span class="bg-gray-100 px-3 py-1 rounded-full">🔹 Virtualisation</span>
+                <span class="bg-gray-100 px-3 py-1 rounded-full">🔹 Docker & K8s</span>
+              </div>
+              <div class="mt-10 text-indigo-500 animate-pulse text-sm">⬇️ Glissez ou cliquez sur Suivant</div>
+            </div>
+          `
+        },
+        { // Slide 1 : objectifs pédagogiques
+          title: "🎯 Objectifs de la leçon",
+          content: `
+            <div class="space-y-6">
+              <p class="text-gray-700 text-lg">À la fin de cette séance, tu seras capable de :</p>
+              <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <li class="flex items-start gap-3 bg-white rounded-xl p-3 shadow-sm border-l-4 border-indigo-500"><span class="text-indigo-600 text-xl">✔️</span> <span>Comprendre la différence fondamentale entre VM et conteneur (isolation matérielle vs OS)</span></li>
+                <li class="flex items-start gap-3 bg-white rounded-xl p-3 shadow-sm border-l-4 border-indigo-500"><span class="text-indigo-600 text-xl">✔️</span> <span>Maîtriser les concepts Docker : <strong>image, conteneur, registre, Dockerfile</strong></span></li>
+                <li class="flex items-start gap-3 bg-white rounded-xl p-3 shadow-sm border-l-4 border-indigo-500"><span class="text-indigo-600 text-xl">✔️</span> <span>Utiliser Docker Compose pour les applications multi-conteneurs</span></li>
+                <li class="flex items-start gap-3 bg-white rounded-xl p-3 shadow-sm border-l-4 border-indigo-500"><span class="text-indigo-600 text-xl">✔️</span> <span>Choisir entre VM et conteneur selon le besoin (performance, isolation, portabilité)</span></li>
+              </ul>
+              <div class="bg-indigo-50 p-4 rounded-2xl text-indigo-800 text-sm italic">💡 Le cloud moderne utilise massivement les conteneurs pour leur légèreté et leur rapidité de déploiement.</div>
+            </div>
+          `
+        },
+        { // Slide 2 : Différence VM vs conteneur (explication)
+          title: "⚖️ VM vs Conteneur : Comparaison essentielle",
+          content: `
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="bg-white rounded-xl shadow-md p-4 border-t-4 border-blue-500">
+                <div class="flex items-center gap-2 text-blue-700 font-bold text-xl"><span>🖥️</span> Machines Virtuelles (VM)</div>
+                <ul class="mt-3 space-y-2 text-gray-700">
+                  <li>🔸 <strong>Hyperviseur</strong> (Type1/2) → virtualisation complète du matériel</li>
+                  <li>🔸 Chaque VM inclut son propre <strong>OS invité</strong> (Linux, Windows...)</li>
+                  <li>🔸 Isolation forte, plus lourde (Go à dizaines de Go)</li>
+                  <li>🔸 Démarrage plus lent (minutes)</li>
+                  <li>🔸 Exemples : VMware, VirtualBox, KVM</li>
+                </ul>
+              </div>
+              <div class="bg-white rounded-xl shadow-md p-4 border-t-4 border-emerald-500">
+                <div class="flex items-center gap-2 text-emerald-700 font-bold text-xl"><span>🐳</span> Conteneurs (Docker)</div>
+                <ul class="mt-3 space-y-2 text-gray-700">
+                  <li>🔹 <strong>Partagent le noyau hôte</strong> → virtualisation au niveau OS</li>
+                  <li>🔹 Légers (Mo), seulement l'application + dépendances</li>
+                  <li>🔹 Isolation au niveau des processus (namespaces/cgroups)</li>
+                  <li>🔹 Démarrage quasi-instantané (secondes)</li>
+                  <li>🔹 Portabilité parfaite entre les environnements</li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-6 bg-gray-100 p-4 rounded-xl text-center text-gray-800">
+              📊 <strong>Analogie :</strong> VM = maison individuelle avec terrain, murs épais (isolée mais lourde) ; Conteneur = appartement dans un immeuble, léger, partage les infrastructures (noyau).
+            </div>
+            <!-- Petit dessin ascii / structure minimaliste mais compréhensible -->
+            <div class="mt-4 p-3 bg-gray-900 text-green-300 rounded-xl font-mono text-xs md:text-sm overflow-x-auto">
+              <pre class="whitespace-pre-wrap">[VM1: Ubuntu+App]   [VM2: Windows+App]    [Conteneur1]  [Conteneur2]  
+   |      Hyperviseur     |                  |    Docker Engine   |
+   |   Matériel physique  |                  |   Noyau Hôte Linux |</pre>
+            </div>
+          `
+        },
+        { // Slide 3 : Concepts Docker (image, conteneur, registre, Dockerfile)
+          title: "🐙 Docker : Écosystème et concepts clés",
+          content: `
+            <div class="space-y-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl shadow-sm"><span class="font-bold text-indigo-700 block text-lg">📦 Image Docker</span><p class="text-gray-600">Modèle immuable en lecture seule contenant le code, librairies, config. Comparable à un "template" pour créer des conteneurs.</p></div>
+                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl shadow-sm"><span class="font-bold text-indigo-700 block text-lg">🏃 Conteneur</span><p class="text-gray-600">Instance exécutable d'une image. Isolée mais légère. On peut démarrer/arrêter/supprimer un conteneur.</p></div>
+                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl shadow-sm"><span class="font-bold text-indigo-700 block text-lg">📚 Registre (Registry)</span><p class="text-gray-600">Dépôt d'images comme Docker Hub, Amazon ECR, etc. On peut y télécharger (pull) ou envoyer (push).</p></div>
+                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl shadow-sm"><span class="font-bold text-indigo-700 block text-lg">📄 Dockerfile</span><p class="text-gray-600">Fichier texte avec instructions (FROM, RUN, COPY, CMD) pour construire automatiquement une image.</p></div>
+              </div>
+              <div class="bg-indigo-50 p-4 rounded-xl">
+                <p class="font-semibold">✨ Exemple simple de Dockerfile :</p>
+                <div class="container-code text-white text-sm mt-2"><code>FROM node:18-alpine<br>WORKDIR /app<br>COPY package*.json ./<br>RUN npm install<br>COPY . .<br>CMD ["node", "server.js"]</code></div>
+                <p class="text-gray-500 text-sm mt-2">👉 Cette définition crée une image Node.js prête à exécuter une application web.</p>
+              </div>
+            </div>
+          `
+        },
+        { // Slide 4 : Docker Compose - multi-conteneurs
+          title: "🧩 Docker Compose : orchestrer des applications multi-conteneurs",
+          content: `
+            <div class="space-y-5">
+              <p class="text-gray-700"><span class="font-bold text-indigo-700">Docker Compose</span> permet de définir et lancer plusieurs conteneurs (base de données, backend, frontend) avec un seul fichier <code class="bg-gray-200 px-1 rounded">docker-compose.yml</code>.</p>
+              <div class="bg-gray-800 text-gray-100 p-4 rounded-xl font-mono text-sm overflow-auto">
+                <pre>
+version: '3'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+  database:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: exemple
+                </pre>
+              </div>
+              <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                <li>Commande <code class="bg-gray-100 px-1 rounded">docker-compose up -d</code> → démarre tous les services ensemble.</li>
+                <li>Réseau isolé partagé entre conteneurs, scaling facile.</li>
+                <li>Idéal pour les environnements de développement et tests.</li>
+              </ul>
+              <div class="bg-emerald-50 p-3 rounded-xl flex gap-2 items-start">
+                <span>💡</span><span class="text-sm">Dans le cloud, on utilise aussi des orchestrateurs comme Kubernetes pour gérer des centaines de conteneurs, mais Docker Compose reste parfait pour débuter !</span>
+              </div>
+            </div>
+          `
+        },
+        { // Slide 5 : tableaux récapitulatifs et avantages des conteneurs
+          title: "✅ Pourquoi adopter les conteneurs ? Atouts & cas d'usage",
+          content: `
+            <div class="grid md:grid-cols-2 gap-5">
+              <div>
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-1">⚡ Avantages</h3>
+                <ul class="mt-2 space-y-2">
+                  <li class="flex gap-2">🚀 Démarrage ultra-rapide (ms/s)</li>
+                  <li class="flex gap-2">📦 Portabilité : même comportement sur PC, serveur, cloud</li>
+                  <li class="flex gap-2">💾 Économie de ressources (mémoire, disque)</li>
+                  <li class="flex gap-2">🔄 Mise à l'échelle instantanée (replicas)</li>
+                  <li class="flex gap-2">🔧 Versionnement et CI/CD simplifiés</li>
+                </ul>
+              </div>
+              <div>
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-1">⚠️ Quand utiliser une VM plutôt ?</h3>
+                <ul class="mt-2 space-y-2">
+                  <li>🔐 Besoin d'isolation forte avec différents OS (Windows + Linux)</li>
+                  <li>🛡️ Exigences de sécurité très strictes / hyperviseur certifié</li>
+                  <li>📀 Applications legacy nécessitant un noyau spécifique</li>
+                </ul>
+                <div class="mt-4 bg-yellow-50 p-3 rounded-lg text-sm">💬 Dans un projet web moderne, on combine souvent VM (base de données managée) et conteneurs (application microservices).</div>
+              </div>
+            </div>
+            <div class="mt-6 flex justify-center">
+              <div class="w-full max-w-md bg-white border border-gray-200 rounded-2xl p-3 shadow-md text-center">
+                <span class="text-indigo-600 text-2xl">🐳 + 🐧 = 🔥</span>
+                <p class="text-xs text-gray-500">Docker + Linux : standard du cloud natif</p>
+              </div>
+            </div>
+          `
+        },
+        { // Slide 6 : Quiz / récap + validation
+          title: "🧠 Vérifie ta compréhension !",
+          content: `
+            <div class="space-y-5">
+              <p class="font-medium">Petites questions pour ancrer les notions :</p>
+              <div class="bg-white border rounded-xl p-4 space-y-3">
+                <div><span class="font-bold">1️⃣</span> Quelle est la différence d'isolation entre une VM et un conteneur ?</div>
+                <div><span class="font-bold">2️⃣</span> Que fait la commande <code class="bg-gray-100">docker build -t monapp .</code> ?</div>
+                <div><span class="font-bold">3️⃣</span> À quoi sert Docker Compose ?</div>
+                <details class="mt-2 text-green-700 cursor-pointer"><summary class="bg-gray-100 p-2 rounded-lg">🔍 Voir les réponses</summary>
+                  <p class="mt-2 text-sm">1. VM virtualise le matériel complet avec hyperviseur et OS invité ; conteneur virtualise au niveau OS en partageant le noyau hôte.<br>
+                  2. Construit une image Docker à partir d’un Dockerfile et la nomme "monapp".<br>
+                  3. Permet de lancer et coordonner plusieurs conteneurs avec un seul fichier YAML (applications multi-services).</p>
+                </details>
+              </div>
+              <div class="bg-indigo-100 p-3 rounded-xl text-indigo-900 text-center">
+                🎓 Félicitations ! Tu maîtrises maintenant les fondamentaux des VM vs conteneurs et l'écosystème Docker.
+              </div>
+              <div class="text-xs text-gray-400 text-center">Prochaine leçon : Introduction à Kubernetes (Pods, Deployments)</div>
+            </div>
+          `
+        }
+      ];
+      
+      let currentSlide = 0;
+      const totalSlides = slidesData.length;
+      
+      // fonction pour afficher le slide courant
+      function renderSlide(index) {
+        const slide = slidesData[index];
+        if (!slide) return;
+        let html = `
+          <div class="slide animate-fade-in">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-5 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+            <div class="prose prose-slate max-w-none">
+              ${slide.content}
+            </div>
+          </div>
+        `;
+        $("#slideContent").fadeOut(150, function() {
+          $(this).html(html);
+          // réactiver MathJax sur nouveau contenu si nécessaire
+          if (window.MathJax) {
+            MathJax.typesetPromise();
+          }
+          $(this).fadeIn(180);
+        });
+        // Mise à jour compteur
+        $("#slideCounter").text(`Slide ${index+1} / ${totalSlides}`);
+        // Générer les points indicateurs
+        let dotsHtml = "";
+        for (let i = 0; i < totalSlides; i++) {
+          dotsHtml += `<button class="dot w-2.5 h-2.5 rounded-full transition-all ${i === index ? 'bg-indigo-600 w-6' : 'bg-gray-300 hover:bg-gray-400'}" data-slide="${i}"></button>`;
+        }
+        $("#dotsIndicator").html(dotsHtml);
+        // État des boutons précédent/suivant
+        $("#prevSlide").prop("disabled", index === 0);
+        $("#nextSlide").prop("disabled", index === totalSlides - 1);
+      }
+      
+      // navigation
+      function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          renderSlide(currentSlide);
+        }
+      }
+      function prevSlide() {
+        if (currentSlide > 0) {
+          currentSlide--;
+          renderSlide(currentSlide);
+        }
+      }
+      
+      // événements
+      $("#nextSlide").on("click", nextSlide);
+      $("#prevSlide").on("click", prevSlide);
+      // click sur les dots (délégation)
+      $(document).on("click", ".dot", function() {
+        let slideIndex = parseInt($(this).data("slide"));
+        if (!isNaN(slideIndex) && slideIndex !== currentSlide && slideIndex >=0 && slideIndex < totalSlides) {
+          currentSlide = slideIndex;
+          renderSlide(currentSlide);
+        }
+      });
+      
+      // ajout toucher glisser (simple pour mobile optionnel)
+      let touchStartX = 0;
+      $("#slidesContainer").on("touchstart", function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $("#slidesContainer").on("touchend", function(e) {
+        if (!touchStartX) return;
+        let diff = e.originalEvent.changedTouches[0].clientX - touchStartX;
+        if (diff > 70) {
+          prevSlide();
+        } else if (diff < -70) {
+          nextSlide();
+        }
+        touchStartX = 0;
+      });
+      
+      // Initialisation premier slide
+      renderSlide(0);
+    });
+  </script>
+</body>
+</html>

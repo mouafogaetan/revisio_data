@@ -1,0 +1,164 @@
+[
+  {
+    "intitule": "Identifier les fonctionnalités d'une wishlist",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, la wishlist (liste de souhaits) permet aux clients de sauvegarder des produits pour un achat ultérieur.</p><p>Citez trois fonctionnalités avancées que l'on peut ajouter à une wishlist pour améliorer l'expérience utilisateur.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Énumérer trois fonctionnalités avancées d'une wishlist.",
+        "niveau": "easy",
+        "reponse": "1. Notification lorsque le prix d'un produit favori baisse (promotion)\n2. Notification lorsque un produit en rupture de stock est réapprovisionné\n3. Partage de la wishlist par lien public (ex: liste de cadeaux)\n4. Ajout de commentaires ou notes personnelles sur chaque produit\n5. Organisation par catégories ou tags personnalisés\n6. Déplacement d'un produit vers le panier en un clic",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter la notification de promo",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client a ajouté un produit à sa wishlist. Ce produit coûte normalement <span class=\"math inline\">$P$</span> FCFA. L'administrateur lance une promotion : réduction de <span class=\"math inline\">$r\\%$</span> sur ce produit.</p><p>Vous devez détecter automatiquement les wishlists contenant ce produit et envoyer une notification aux clients concernés.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire l'approche technique pour implémenter cette notification de baisse de prix.",
+        "niveau": "medium",
+        "reponse": "Approche technique :\n\n1. **Détection du changement** : Dans le service de mise à jour du produit (quand le prix change ou qu'une promotion est ajoutée), comparer l'ancien prix et le nouveau prix.\n\n2. **Recherche des wishlists** : Interroger la table `WishlistItem` pour trouver tous les utilisateurs ayant ce produit dans leur wishlist.\n\n3. **Envoi des notifications** : Pour chaque utilisateur concerné :\n   - Créer une entrée dans la table `Notification`\n   - Envoyer un email (asynchrone via Bull queue)\n   - Optionnel : notification push mobile\n\n```typescript\nasync onProductPriceReduced(productId: string, oldPrice: number, newPrice: number) {\n  const wishlistItems = await this.wishlistItemRepo.find({\n    where: { productId },\n    relations: ['user']\n  });\n  \n  for (const item of wishlistItems) {\n    await this.notificationService.create({\n      userId: item.userId,\n      type: 'price_drop',\n      title: `💰 Prix réduit !`,\n      message: `${item.product.name} est passé de ${oldPrice} à ${newPrice} FCFA`,\n      productId\n    });\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calculer le seuil de notification promo",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour éviter de spamer les clients, on souhaite n'envoyer une notification de baisse de prix que si la réduction dépasse un certain seuil.</p><p>La formule de variation relative est : <span class=\"math inline\">$\\frac{P_{ancien} - P_{nouveau}}{P_{ancien}} \\times 100\\%$</span>.</p><p>Un produit coûtait 25000 FCFA, il est maintenant à 18750 FCFA. Le seuil de notification est fixé à <span class=\"math inline\">$15\\%$</span>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculer le pourcentage de réduction et déterminer si une notification doit être envoyée.",
+        "niveau": "medium",
+        "reponse": "Réduction = 25000 - 18750 = 6250 FCFA\n\nPourcentage = (6250 / 25000) × 100% = 25%\n\n25% > 15%, donc une notification DOIT être envoyée au client.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Notifier le retour en stock",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un produit est en rupture de stock depuis plusieurs jours. Des clients l'ont ajouté à leur wishlist. Lorsque le stock passe de 0 à une valeur positive, tous ces clients doivent être notifiés.</p><p>Le système doit éviter d'envoyer des notifications multiples pour un même événement de réapprovisionnement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Proposer une implémentation avec un flag `lastStockNotificationSentAt` ou un mécanisme pour éviter les doublons.",
+        "niveau": "hard",
+        "reponse": "Solution avec flag dans la wishlist :\n\n```typescript\n// Ajouter un champ dans WishlistItem\n@Column({ nullable: true })\nlastStockNotificationSentAt: Date;\n\n// Dans le service produit\nasync onProductRestocked(productId: string, oldStock: number, newStock: number) {\n  // Ne notifier que si on passe de 0 à >0 ET pas de notification récente\n  if (oldStock === 0 && newStock > 0) {\n    const wishlistItems = await this.wishlistItemRepo.find({\n      where: { productId },\n      relations: ['user']\n    });\n\n    for (const item of wishlistItems) {\n      // Éviter la double notification pour le même réapprovisionnement\n      const lastNotif = item.lastStockNotificationSentAt;\n      const now = new Date();\n      \n      if (!lastNotif || this.daysDiff(lastNotif, now) > 7) {\n        await this.notificationService.create({\n          userId: item.userId,\n          type: 'back_in_stock',\n          title: `📦 De retour en stock !`,\n          message: `${item.product.name} est à nouveau disponible.`,\n          productId\n        });\n        \n        item.lastStockNotificationSentAt = now;\n        await this.wishlistItemRepo.save(item);\n      }\n    }\n  }\n}\n```\n\nAlternative : utiliser une table `StockNotificationHistory` pour tracer les notifications déjà envoyées.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Partager une wishlist par lien public",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client souhaite partager sa wishlist avec ses amis ou sa famille (exemple : liste de cadeaux pour un anniversaire).</p><p>Le lien doit être public, accessible sans authentification, mais ne doit pas permettre de modifier la wishlist.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir l'architecture : génération d'un token unique, endpoint public, sécurité.",
+        "niveau": "hard",
+        "reponse": "Architecture proposée :\n\n**1. Génération du lien**\n```typescript\n// Dans WishlistService\nasync generateShareLink(wishlistId: string, userId: string): Promise<string> {\n  // Vérifier que la wishlist appartient à l'utilisateur\n  const wishlist = await this.wishlistRepo.findOne({ where: { id: wishlistId, userId } });\n  if (!wishlist) throw new UnauthorizedException();\n  \n  // Générer un token unique\n  const token = crypto.randomBytes(32).toString('hex');\n  \n  // Stocker le token (expiration optionnelle)\n  await this.shareTokenRepo.save({\n    token,\n    wishlistId,\n    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours\n  });\n  \n  return `https://example.com/wishlist/shared/${token}`;\n}\n```\n\n**2. Endpoint public**\n```typescript\n@Get('shared/:token')\n@Public() // Désactiver l'auth JWT\nasync getSharedWishlist(@Param('token') token: string) {\n  const shareToken = await this.shareTokenRepo.findOne({\n    where: { token },\n    relations: ['wishlist', 'wishlist.items', 'wishlist.items.product']\n  });\n  \n  if (!shareToken || shareToken.expiresAt < new Date()) {\n    throw new NotFoundException('Lien invalide ou expiré');\n  }\n  \n  // Retourner la wishlist (lecture seule)\n  return {\n    ownerName: shareToken.wishlist.user.name,\n    items: shareToken.wishlist.items.map(item => ({\n      productName: item.product.name,\n      price: item.product.price,\n      imageUrl: item.product.images[0]\n    }))\n  };\n}\n```\n\n**3. Sécurité** :\n- Les tokens doivent être aléatoires et non devinables (UUID v4 ou hex aléatoire)\n- Expiration automatique (par défaut 30 jours)\n- L'utilisateur peut révoquer/régénérer son lien\n- Loguer les accès pour détection d'abus",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Ajouter une note personnelle sur un produit favori",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un client souhaite ajouter une note personnelle à un produit dans sa wishlist (exemple : \"Offert à Noël\" ou \"Penser à acheter la version bleue\").</p><p>Proposez une modification de la structure de la base de données pour supporter cette fonctionnalité.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Modifier le schéma de l'entité WishlistItem pour ajouter une note.",
+        "niveau": "easy",
+        "reponse": "```typescript\n@Entity()\nexport class WishlistItem {\n  @PrimaryGeneratedColumn('uuid')\n  id: string;\n\n  @ManyToOne(() => Wishlist, wishlist => wishlist.items)\n  wishlist: Wishlist;\n\n  @ManyToOne(() => Product)\n  product: Product;\n\n  @Column({ type: 'text', nullable: true })\n  note: string;  // Note personnelle de l'utilisateur\n\n  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })\n  addedAt: Date;\n\n  @Column({ type: 'timestamp', nullable: true })\n  updatedAt: Date;\n}\n```\n\nLe frontend peut alors afficher/modifier cette note via une requête PATCH sur `/wishlist/items/:id/note`.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Détecter les variations de prix sur plusieurs produits",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un client a 15 produits dans sa wishlist. L'API doit vérifier quotidiennement si l'un de ces produits a changé de prix, et envoyer un résumé unique par email (au lieu de 15 emails individuels).</p><p>La table `PriceHistory` enregistre les anciens prix avec timestamp.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir un cron job qui génère des rapports quotidiens groupés par utilisateur.",
+        "niveau": "very hard",
+        "reponse": "```typescript\n// Cron job exécuté chaque jour à 8h00\n@Cron('0 8 * * *')\nasync sendDailyPriceDropSummary() {\n  // Récupérer tous les utilisateurs ayant des wishlists\n  const users = await this.userRepo.find({\n    relations: ['wishlist', 'wishlist.items', 'wishlist.items.product']\n  });\n\n  for (const user of users) {\n    const priceDrops = [];\n    \n    for (const item of user.wishlist.items) {\n      // Récupérer le dernier prix enregistré avant aujourd'hui\n      const lastPrice = await this.priceHistoryRepo.findOne({\n        where: { productId: item.product.id },\n        order: { recordedAt: 'DESC' }\n      });\n      \n      const currentPrice = item.product.price;\n      \n      if (lastPrice && lastPrice.price > currentPrice) {\n        const dropPercent = ((lastPrice.price - currentPrice) / lastPrice.price) * 100;\n        priceDrops.push({\n          productName: item.product.name,\n          oldPrice: lastPrice.price,\n          newPrice: currentPrice,\n          dropPercent: dropPercent.toFixed(1)\n        });\n      }\n    }\n    \n    if (priceDrops.length > 0) {\n      // Envoyer un seul email récapitulatif\n      await this.emailService.sendPriceDropDigest(user.email, priceDrops);\n      \n      // Marquer les notifications comme envoyées pour éviter les doublons\n      await this.markPriceDropNotified(user.id, priceDrops.map(p => p.productName));\n    }\n  }\n}\n```\n\n**Optimisation** : Utiliser une requête SQL groupée plutôt qu'une boucle pour éviter N+1.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Trier et filtrer la wishlist",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un client souhaite trier sa wishlist par prix croissant, par date d'ajout, ou par popularité (nombre de ventes du produit).</p><p>Proposez des endpoints API permettant ces tris avec pagination.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode du service permettant de récupérer la wishlist triée selon différents critères.",
+        "niveau": "medium",
+        "reponse": "```typescript\nasync getWishlist(userId: string, sortBy: string, page: number = 1, limit: number = 20) {\n  const queryBuilder = this.wishlistItemRepo\n    .createQueryBuilder('item')\n    .innerJoinAndSelect('item.product', 'product')\n    .where('item.wishlist.userId = :userId', { userId });\n\n  switch (sortBy) {\n    case 'price_asc':\n      queryBuilder.orderBy('product.price', 'ASC');\n      break;\n    case 'price_desc':\n      queryBuilder.orderBy('product.price', 'DESC');\n      break;\n    case 'date_asc':\n      queryBuilder.orderBy('item.addedAt', 'ASC');\n      break;\n    case 'date_desc':\n      queryBuilder.orderBy('item.addedAt', 'DESC');\n      break;\n    case 'popularity':\n      queryBuilder.orderBy('product.soldCount', 'DESC');\n      break;\n    default:\n      queryBuilder.orderBy('item.addedAt', 'DESC');\n  }\n\n  const [items, total] = await queryBuilder\n    .skip((page - 1) * limit)\n    .take(limit)\n    .getManyAndCount();\n\n  return {\n    items,\n    total,\n    page,\n    totalPages: Math.ceil(total / limit)\n  };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Déplacer toute la wishlist vers le panier",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un client souhaite ajouter <strong>tous les produits</strong> de sa wishlist à son panier en un clic, avec la quantité 1 par défaut.</p><p>Attention : certains produits peuvent être en rupture de stock ou avoir des variations (taille/couleur).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémenter la méthode `addAllWishlistToCart(userId: string)` avec gestion des erreurs partielles.",
+        "niveau": "hard",
+        "reponse": "```typescript\nasync addAllWishlistToCart(userId: string) {\n  const wishlist = await this.wishlistRepo.findOne({\n    where: { userId },\n    relations: ['items', 'items.product', 'items.product.variations']\n  });\n\n  const errors = [];\n  const addedItems = [];\n\n  for (const item of wishlist.items) {\n    try {\n      // Si produit sans variation, ajouter directement\n      if (item.product.variations.length === 0) {\n        if (item.product.stock > 0) {\n          await this.cartService.addItem(userId, item.product.id, 1);\n          addedItems.push(item.product.name);\n        } else {\n          errors.push(`${item.product.name} : rupture de stock`);\n        }\n      } else {\n        // Pour les produits à variation, prendre la première variation disponible\n        const availableVariant = item.product.variations.find(v => v.stock > 0);\n        if (availableVariant) {\n          await this.cartService.addItemWithVariant(userId, availableVariant.id, 1);\n          addedItems.push(`${item.product.name} (${availableVariant.sku})`);\n        } else {\n          errors.push(`${item.product.name} : aucune variation disponible`);\n        }\n      }\n    } catch (error) {\n      errors.push(`${item.product.name} : ${error.message}`);\n    }\n  }\n\n  // Vider la wishlist après ajout (optionnel, selon besoin client)\n  if (addedItems.length > 0) {\n    await this.wishlistRepo.clear(userId);\n  }\n\n  return {\n    success: addedItems,\n    errors: errors,\n    message: `${addedItems.length} produit(s) ajouté(s) au panier, ${errors.length} erreur(s)`\n  };\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

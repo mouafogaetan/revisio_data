@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 38 : Implémenter les endpoints CRUD avec EF Core | API .NET</title>
+  <!-- Tailwind CSS + jQuery + MathJax -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    body {
+      background: #f0f4f8;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    .slide {
+      transition: all 0.3s ease;
+      scroll-margin-top: 1rem;
+    }
+    .nav-btn {
+      transition: background 0.2s, transform 0.1s;
+    }
+    .nav-btn:active {
+      transform: scale(0.97);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+    }
+    @media (max-width: 640px) {
+      .container-pad {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+      .code-block {
+        font-size: 0.7rem;
+      }
+    }
+  </style>
+</head>
+<body class="text-gray-800">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-8 container-pad">
+  
+  <!-- Barre de progression fixe -->
+  <div class="fixed top-0 left-0 w-full h-1 bg-gray-200 z-50 hidden md:block">
+    <div id="progressFill" class="progress-bar h-full bg-purple-600 w-0"></div>
+  </div>
+
+  <!-- SLIDE 1 : TITRE -->
+  <section id="slide1" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
+    <div class="bg-gradient-to-r from-purple-700 to-indigo-600 text-white p-6 md:p-8 text-center">
+      <span class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 text-sm font-semibold mb-3">Chapitre 11 • Leçon 38</span>
+      <h1 class="text-3xl md:text-4xl font-extrabold">Implémenter les endpoints CRUD<br>avec Entity Framework Core</h1>
+      <p class="text-purple-100 mt-4 max-w-xl mx-auto">Créez des opérations Create, Read, Update, Delete sur votre base de données avec une API ASP.NET Core moderne.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3 text-sm">
+        <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Niveau : Intermédiaire / Avancé</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full">⏱️ Durée : 50 min</span>
+        <span class="bg-white/20 px-3 py-1 rounded-full">📦 EF Core + SQL</span>
+      </div>
+    </div>
+    <div class="p-6 text-center text-gray-500 border-t">
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium shadow transition">Commencer la leçon →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 : OBJECTIFS PÉDAGOGIQUES -->
+  <section id="slide2" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
+      <h2 class="text-2xl font-bold text-indigo-800 flex items-center gap-2"><span class="text-3xl">📌</span> Objectifs d'apprentissage</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-gray-700">À la fin de cette leçon, vous serez capable de :</p>
+      <ul class="space-y-3">
+        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Créer un modèle de données</strong> (entités) et un DbContext pour EF Core.</span></li>
+        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Utiliser les migrations</strong> pour synchroniser le schéma de base de données.</span></li>
+        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Implémenter les opérations</strong> GET (list, single), POST, PUT, DELETE dans un contrôleur.</span></li>
+        <li class="flex items-start gap-3"><span class="text-green-600 font-bold text-xl">✓</span> <span><strong>Tester les endpoints</strong> avec Swagger et comprendre les codes HTTP.</span></li>
+      </ul>
+      <div class="bg-blue-50 p-4 rounded-xl mt-2">
+        <p class="text-sm text-blue-800"><span class="font-semibold">💡 Pourquoi CRUD ?</span> Ce sont les opérations de base de toute API métier. Bien les maîtriser permet de construire n'importe quel backend.</p>
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 : MODÈLE ET DB CONTEXT (PRÉPARATION) -->
+  <section id="slide3" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">🏗️ Création du modèle et du DbContext</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Commençons par une entité <code class="bg-gray-200 px-1 rounded">Product</code> et son <code>DbContext</code>.</p>
+      <div class="code-block">
+        <pre>// Models/Product.cs
+public class Product
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+}
+
+// Data/AppDbContext.cs
+using Microsoft.EntityFrameworkCore;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions&lt;AppDbContext&gt; options) : base(options) { }
+    public DbSet&lt;Product&gt; Products { get; set; }
+}</pre>
+      </div>
+      <p>Ensuite, enregistrez le contexte dans <code>Program.cs</code> (par exemple avec SQL Server) :</p>
+      <div class="code-block">
+        <pre>builder.Services.AddDbContext&lt;AppDbContext&gt;(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));</pre>
+      </div>
+      <div class="bg-yellow-50 p-3 rounded-lg text-sm">
+        <span class="font-semibold">📦 Packages nécessaires :</span> Microsoft.EntityFrameworkCore.SqlServer, Microsoft.EntityFrameworkCore.Tools (ou InMemory pour tests).
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 : MIGRATIONS ET INITIALISATION BASE -->
+  <section id="slide4" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">🔄 Migrations Entity Framework Core</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Les migrations permettent de créer et mettre à jour la base de données à partir des modèles C#.</p>
+      <div class="bg-gray-800 text-white p-3 rounded-lg font-mono text-sm">
+        # Installer les outils (une fois)<br>
+        dotnet tool install --global dotnet-ef<br><br>
+        # Créer une migration<br>
+        dotnet ef migrations add InitialCreate<br><br>
+        # Appliquer la migration à la base<br>
+        dotnet ef database update
+      </div>
+      <div class="bg-green-50 p-3 rounded-lg">
+        <p class="font-semibold">✅ Bonne pratique :</p>
+        <p class="text-sm">Versionnez vos dossiers <code>Migrations</code> dans Git. En production, utilisez <code>dotnet ef database update</code> ou des migrations au démarrage.</p>
+      </div>
+      <p>💡 <strong>Alternative Code First :</strong> après modification du modèle, créez une nouvelle migration (<code>AddMigration UpdateSchema</code>) puis appliquez-la.</p>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 : ENDPOINT GET (LISTE ET SINGLE) -->
+  <section id="slide5" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">📋 GET : Récupérer les ressources</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Deux endpoints classiques : récupérer tous les produits, et un produit par identifiant.</p>
+      <div class="code-block">
+        <pre>[ApiController]
+[Route("api/[controller]")]
+public class ProductsController : ControllerBase
+{
+    private readonly AppDbContext _context;
+    public ProductsController(AppDbContext context) => _context = context;
+
+    // GET: api/products
+    [HttpGet]
+    public async Task&lt;IActionResult&gt; GetAll()
+    {
+        var products = await _context.Products.ToListAsync();
+        return Ok(products);
+    }
+
+    // GET: api/products/5
+    [HttpGet("{id}")]
+    public async Task&lt;IActionResult&gt; GetById(int id)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null) return NotFound();
+        return Ok(product);
+    }
+}</pre>
+      </div>
+      <p>📌 <code>FindAsync(id)</code> recherche par clé primaire. <code>ToListAsync()</code> exécute la requête de manière asynchrone.</p>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 : POST (CRÉER) ET VALIDATION -->
+  <section id="slide6" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">➕ POST : Créer une nouvelle ressource</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Ajoutons un endpoint pour créer un produit. On utilise un DTO (Data Transfer Object) pour éviter de lier directement l’entité.</p>
+      <div class="code-block">
+        <pre>// DTOs/CreateProductDto.cs
+public class CreateProductDto
+{
+    [Required]
+    public string Name { get; set; }
+    [Range(0.01, 10000)]
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+}
+
+// Dans le contrôleur
+[HttpPost]
+public async Task&lt;IActionResult&gt; Create([FromBody] CreateProductDto dto)
+{
+    if (!ModelState.IsValid) return BadRequest(ModelState);
+    
+    var product = new Product
+    {
+        Name = dto.Name,
+        Price = dto.Price,
+        Stock = dto.Stock
+    };
+    
+    _context.Products.Add(product);
+    await _context.SaveChangesAsync();
+    
+    return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
+}</pre>
+      </div>
+      <div class="bg-indigo-50 p-3 rounded-lg">
+        <p class="font-semibold">🎯 Détail important :</p>
+        <p class="text-sm"><code>CreatedAtAction</code> retourne le code 201 (Created) avec l’URL de localisation et l’objet créé.</p>
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 : PUT (MODIFICATION COMPLÈTE) -->
+  <section id="slide7" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">🖊️ PUT : Mettre à jour une ressource existante</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Le remplacement complet (PUT) nécessite l’envoi de toutes les propriétés. On utilise un DTO dédié.</p>
+      <div class="code-block">
+        <pre>// DTOs/UpdateProductDto.cs
+public class UpdateProductDto
+{
+    [Required]
+    public string Name { get; set; }
+    public decimal Price { get; set; }
+    public int Stock { get; set; }
+}
+
+[HttpPut("{id}")]
+public async Task&lt;IActionResult&gt; Update(int id, [FromBody] UpdateProductDto dto)
+{
+    var product = await _context.Products.FindAsync(id);
+    if (product == null) return NotFound();
+    
+    product.Name = dto.Name;
+    product.Price = dto.Price;
+    product.Stock = dto.Stock;
+    
+    _context.Products.Update(product);
+    await _context.SaveChangesAsync();
+    
+    return NoContent(); // 204
+}</pre>
+      </div>
+      <div class="bg-amber-50 p-3 rounded-lg">
+        <p class="font-semibold">⚠️ PUT vs PATCH :</p>
+        <p class="text-sm">PUT remplace TOUTE la ressource ; PATCH modifie partiellement. Dans cet exemple nous utilisons PUT complet.</p>
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 : DELETE (SUPPRESSION) -->
+  <section id="slide8" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">🗑️ DELETE : Supprimer une ressource</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Opération simple : rechercher l’entité, la retirer du contexte, puis sauvegarder.</p>
+      <div class="code-block">
+        <pre>[HttpDelete("{id}")]
+public async Task&lt;IActionResult&gt; Delete(int id)
+{
+    var product = await _context.Products.FindAsync(id);
+    if (product == null) return NotFound();
+    
+    _context.Products.Remove(product);
+    await _context.SaveChangesAsync();
+    
+    return NoContent();
+}</pre>
+      </div>
+      <div class="bg-red-50 p-3 rounded-lg">
+        <p class="font-semibold">🔒 Bonne pratique :</p>
+        <p class="text-sm">Pour les ressources sensibles, envisagez un "soft delete" (ajouter une colonne <code>IsDeleted</code>) au lieu d’une suppression physique définitive.</p>
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 : TESTS AVEC SWAGGER ET BONNES PRATIQUES -->
+  <section id="slide9" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">🧪 Tester son API CRUD (Swagger) & Conseils</h2>
+    </div>
+    <div class="p-6 space-y-4">
+      <p>Une fois l’API lancée, ouvrez Swagger UI. Vous pouvez :</p>
+      <ul class="list-disc pl-6 space-y-1">
+        <li>Effectuer un POST avec un corps JSON, vérifier la création.</li>
+        <li>Appeler GET /{id} pour récupérer la ressource.</li>
+        <li>Lancer PUT pour modifier les données, puis DELETE pour supprimer.</li>
+        <li>Tester les codes d’erreur (404 si ID inexistant).</li>
+      </ul>
+      <div class="bg-green-50 p-4 rounded-lg">
+        <p class="font-bold text-green-800">✨ Liste des bonnes pratiques CRUD :</p>
+        <ul class="list-disc pl-5 text-sm">
+          <li>Utiliser des DTO pour éviter l’exposition directe des entités.</li>
+          <li>Retourner les codes HTTP appropriés (200, 201, 204, 400, 404).</li>
+          <li>Implémenter la validation (Data Annotations + <code>[ApiController]</code>).</li>
+          <li>Utiliser les méthodes asynchrones (<code>async/await</code>) pour ne pas bloquer les threads.</li>
+          <li>Ajouter des logs (ILogger) pour tracer les modifications critiques.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button class="next-slide bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Suivant →</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 : AUTO-ÉVALUATION -->
+  <section id="slide10" class="slide bg-white rounded-2xl shadow-xl overflow-hidden mb-6 hidden">
+    <div class="bg-gray-100 px-6 py-4 border-b">
+      <h2 class="text-2xl font-bold text-gray-800">📝 Auto-évaluation</h2>
+    </div>
+    <div class="p-6 space-y-5">
+      <p>Vérifiez votre compréhension des endpoints CRUD avec EF Core.</p>
+      <div class="bg-gray-50 p-3 rounded-lg">
+        <p class="font-semibold">1️⃣ Quelle méthode HTTP retourne généralement le code 201 (Created) ?</p>
+        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="Réponse..."></textarea>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg">
+        <p class="font-semibold">2️⃣ Quelle est la différence entre <code>Add</code> et <code>AddAsync</code> dans EF Core ?</p>
+        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="Réponse..."></textarea>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg">
+        <p class="font-semibold">3️⃣ À quoi sert la méthode <code>FindAsync(id)</code> par rapport à <code>FirstOrDefaultAsync(p => p.Id == id)</code> ?</p>
+        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="Réponse..."></textarea>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg">
+        <p class="font-semibold">4️⃣ Quel code HTTP renvoie-t-on pour une suppression réussie (DELETE) dans une API REST classique ?</p>
+        <textarea class="w-full border rounded p-2 mt-1 text-sm" rows="2" placeholder="Réponse..."></textarea>
+      </div>
+      <button id="correctionBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">🔍 Voir les corrigés</button>
+      <div id="correctionBlock" class="hidden mt-3 p-4 bg-gray-100 rounded-lg text-sm">
+        <strong>📌 Corrigés :</strong><br>
+        1️⃣ POST (ou parfois PUT). Dans les APIs modernes, CreatedAtAction renvoie 201.<br>
+        2️⃣ <code>Add</code> est synchrone (ne pas utiliser en async classique), <code>AddAsync</code> est asynchrone pour les cas où la génération de clé nécessite un appel DB.<br>
+        3️⃣ <code>FindAsync</code> vérifie d’abord le cache local du contexte (plus performant si déjà chargé).<br>
+        4️⃣ 204 No Content (réponse sans corps) ou 200 OK avec un message. La pratique standard est 204.
+      </div>
+    </div>
+    <div class="flex justify-between p-5 border-t bg-gray-50">
+      <button class="prev-slide bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-full">← Précédent</button>
+      <button id="completeCourse" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full">Terminer la leçon 🎉</button>
+    </div>
+  </section>
+
+  <!-- Message de félicitations -->
+  <div id="congratsMsg" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-700 text-white px-5 py-3 rounded-full shadow-lg text-center z-50 hidden">
+    ✅ Félicitations ! Vous maîtrisez maintenant l'implémentation CRUD complète avec EF Core. Construisez votre propre API dès maintenant.
+  </div>
+
+</div>
+
+<script>
+  $(function() {
+    let currentSlide = 1;
+    const totalSlides = 10;
+    
+    function updateProgress() {
+      let percent = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+      $('#progressFill').css('width', percent + '%');
+    }
+    
+    function showSlide(index) {
+      $('.slide').addClass('hidden');
+      $(`#slide${index}`).removeClass('hidden');
+      currentSlide = index;
+      updateProgress();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // Navigation
+    $('.next-slide').on('click', function() {
+      if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+    });
+    $('.prev-slide').on('click', function() {
+      if (currentSlide > 1) showSlide(currentSlide - 1);
+    });
+    
+    // Terminer la leçon
+    $('#completeCourse').on('click', function() {
+      $('#congratsMsg').removeClass('hidden').fadeIn();
+      setTimeout(function() {
+        $('#congratsMsg').fadeOut(500);
+      }, 4000);
+    });
+    
+    // Correction exercices
+    $('#correctionBtn').on('click', function() {
+      $('#correctionBlock').toggleClass('hidden');
+    });
+    
+    // Commencer à la slide 1
+    showSlide(1);
+  });
+</script>
+
+</body>
+</html>

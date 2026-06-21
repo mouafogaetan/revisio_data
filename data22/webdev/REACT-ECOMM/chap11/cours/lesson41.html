@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours React E-commerce | Optimisation des performances - Mémoisation & Virtualisation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            display: none;
+            min-height: 70vh;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #1e40af;
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-size: 0.85rem;
+            color: #dc2626;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+        }
+        body {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        }
+        .badge {
+            background-color: #e0e7ff;
+            color: #4338ca;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .card-hover {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="container mx-auto px-4 py-6 max-w-5xl">
+        
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            
+            <!-- En-tête fixe -->
+            <div class="bg-gradient-to-r from-orange-800 to-amber-800 px-6 py-4 text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-semibold tracking-wide">React E-commerce - Chapitre 11</p>
+                        <h1 class="text-xl md:text-2xl font-bold">⚡ Optimisation des performances</h1>
+                        <p class="text-sm text-orange-100">Mémoisation & Virtualisation des listes</p>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1 text-sm">
+                        Lesson 41
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slides -->
+            <div class="p-6 md:p-8">
+                <!-- Slide 1 : Titre -->
+                <div class="slide active" id="slide1">
+                    <div class="flex flex-col items-center justify-center text-center py-12 md:py-16">
+                        <div class="bg-orange-100 rounded-full p-4 mb-6">
+                            <svg class="w-16 h-16 text-orange-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-slate-800 mb-4">⚡ Rendre React plus rapide</h2>
+                        <p class="text-xl text-slate-600 mb-6">Éviter les re-renders inutiles et gérer les grandes listes</p>
+                        <div class="flex flex-wrap gap-2 justify-center">
+                            <span class="badge">React.memo</span>
+                            <span class="badge">useMemo</span>
+                            <span class="badge">useCallback</span>
+                            <span class="badge">react-window</span>
+                        </div>
+                        <div class="mt-10 text-slate-400 text-sm">
+                            <p>✨ Utilisez les flèches ← → ou cliquez sur les boutons</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 : Objectifs -->
+                <div class="slide" id="slide2">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-6 border-l-4 border-orange-600 pl-4">🎯 Objectifs de la leçon</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-orange-600 text-xl">1️⃣</span>
+                            <p class="text-slate-700"><strong>Comprendre</strong> pourquoi React re-rend et comment l'optimiser.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-orange-600 text-xl">2️⃣</span>
+                            <p class="text-slate-700"><strong>Utiliser <code>React.memo</code></strong> pour éviter les re-renders des composants enfants.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-orange-600 text-xl">3️⃣</span>
+                            <p class="text-slate-700"><strong>Maîtriser <code>useMemo</code> et <code>useCallback</code></strong> pour mémoriser valeurs et fonctions.</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                            <span class="text-orange-600 text-xl">4️⃣</span>
+                            <p class="text-slate-700"><strong>Implémenter la virtualisation</strong> des longues listes avec <code>react-window</code>.</p>
+                        </div>
+                    </div>
+                    <div class="mt-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                        <p class="text-sm text-amber-800"><strong>💡 Pourquoi c'est crucial ?</strong><br>
+                        Un catalogue e-commerce peut afficher des centaines de produits. Sans optimisation, chaque recherche ou filtre déclenche des re-renders massifs, rendant l'application lente et peu réactive.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 3 : Problème des re-renders inutiles -->
+                <div class="slide" id="slide3">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">⚠️ Le problème : des re-renders en cascade</h2>
+                    <p class="text-slate-600 mb-3">Dans React, quand un parent se met à jour, tous ses enfants re-rendent (même si leurs props n'ont pas changé).</p>
+                    <pre class="text-sm mb-4">function Parent() {
+  const [count, setCount] = useState(0);
+  return (
+    &lt;div&gt;
+      &lt;button onClick={() => setCount(c => c+1)}&gt;Clic: {count}&lt;/button&gt;
+      &lt;ExpensiveChild /&gt;  {/* ← Re-rend à chaque clic ! */}
+    &lt;/div&gt;
+  );
+}</pre>
+                    <div class="bg-red-50 border-l-4 border-red-500 p-3 mt-2 text-sm">
+                        <p class="font-semibold">Conséquence :</p>
+                        <ul class="list-disc list-inside">
+                            <li>Perte de performance sur les composants lourds</li>
+                            <li>Calculs inutiles (filtres, tris, transformations)</li>
+                            <li>Expérience utilisateur dégradée</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Slide 4 : React.memo -->
+                <div class="slide" id="slide4">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🛡️ Solution 1 : React.memo</h2>
+                    <p class="text-slate-600 mb-3"><code>React.memo</code> est un HOC (Higher Order Component) qui empêche un re-render si les props n'ont pas changé (comparaison superficielle).</p>
+                    <pre class="text-sm mb-4">// Avant
+const ProductCard = ({ name, price }) => { ... }
+
+// Après - mémorisé
+const ProductCard = React.memo(({ name, price }) => {
+  return &lt;div&gt;{name} - {price} FCFA&lt;/div&gt;
+});</pre>
+                    <div class="bg-green-50 p-3 rounded-lg mt-2">
+                        <p class="text-sm">📌 <strong>À utiliser :</strong> Composants qui reçoivent les mêmes props souvent (liste de produits, lignes de tableau, cartes).</p>
+                        <p class="text-sm mt-1">⚠️ <strong>Attention :</strong> Si vous passez des fonctions ou objets créés à chaque render, la comparaison échouera.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 5 : useMemo - mémoriser des valeurs -->
+                <div class="slide" id="slide5">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🧠 useMemo : mémoriser des valeurs calculées</h2>
+                    <p class="text-slate-600 mb-3"><code>useMemo</code> recalcule une valeur uniquement quand ses dépendances changent.</p>
+                    <pre class="text-sm mb-4">// Sans useMemo : recalcul à chaque render
+const filteredProducts = products.filter(p => 
+  p.price <= maxPrice && p.category === category
+);
+
+// Avec useMemo : recalcul seulement si products, maxPrice ou category changent
+const filteredProducts = useMemo(() => {
+  return products.filter(p => 
+    p.price <= maxPrice && p.category === category
+  );
+}, [products, maxPrice, category]);</pre>
+                    <div class="bg-yellow-50 p-3 rounded-lg mt-2 text-sm">
+                        <p>✨ <strong>Cas d'usage typique :</strong> Filtrage, tri, calculs coûteux (ex: total du panier avec taxes).</p>
+                    </div>
+                </div>
+
+                <!-- Slide 6 : useCallback - stabilité des fonctions -->
+                <div class="slide" id="slide6">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">🔄 useCallback : stabiliser les fonctions</h2>
+                    <p class="text-slate-600 mb-3"><code>useCallback</code> retourne la même référence de fonction tant que les dépendances n'ont pas changé. Indispensable avec <code>React.memo</code>.</p>
+                    <pre class="text-sm mb-4">// Sans useCallback : nouvelle fonction à chaque render
+const handleClick = () => { doSomething(product.id); };
+
+// Avec useCallback : même fonction stable
+const handleClick = useCallback(() => {
+  doSomething(product.id);
+}, [product.id]);</pre>
+                    <div class="bg-purple-50 p-3 rounded-lg mt-2">
+                        <p class="text-sm">📌 <strong>Pourquoi c'est important ?</strong><br>
+                        Sans cela, React.memo ne fonctionnera pas car la prop onChange sera différente à chaque render, forçant le re-render du composant enfant.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 7 : Visualisation des performances -->
+                <div class="slide" id="slide7">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">📊 Visualiser les re-renders</h2>
+                    <p class="text-slate-600 mb-3">Activez le React DevTools Profiler pour identifier les re-renders inutiles :</p>
+                    <div class="bg-slate-100 p-4 rounded-lg mb-4 text-center">
+                        <p class="font-mono text-sm">⚡ React DevTools → Profiler → Enregistrer → Interagir → Analyser</p>
+                    </div>
+                    <ul class="list-disc list-inside text-sm text-slate-600 space-y-1">
+                        <li>Les composants colorés en jaune/vert ont re-rendu</li>
+                        <li>Les composants gris ont été optimisés (React.memo)</li>
+                        <li>Vérifiez les props qui changent inutilement</li>
+                    </ul>
+                    <div class="mt-3 text-sm text-orange-600">
+                        <p>💡 Extension : "Why Did You Render" pour debug avancé.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 8 : Virtualisation des listes (react-window) -->
+                <div class="slide" id="slide8">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">📜 Virtualisation avec react-window</h2>
+                    <p class="text-slate-600 mb-3">Pour les listes de centaines/milliers d'éléments, afficher tous les DOM nodes tue les performances. La virtualisation ne rend que les éléments visibles.</p>
+                    <pre class="text-sm mb-4">// Installation
+npm install react-window
+
+// Utilisation
+import { FixedSizeList as List } from 'react-window';
+
+const Row = ({ index, style, data }) => (
+  &lt;div style={style}&gt;
+    {data[index].name} - {data[index].price} FCFA
+  &lt;/div&gt;
+);
+
+function ProductList({ products }) {
+  return (
+    &lt;List
+      height={600}
+      itemCount={products.length}
+      itemSize={80}
+      width="100%"
+      itemData={products}
+    &gt;
+      {Row}
+    &lt;/List&gt;
+  );
+}</pre>
+                </div>
+
+                <!-- Slide 9 : Bonnes pratiques récapitulatives -->
+                <div class="slide" id="slide9">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">📝 Récapitulatif des bonnes pratiques</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="border border-slate-200 p-3 rounded-lg">
+                            <h3 class="font-bold text-orange-700">✅ À faire</h3>
+                            <ul class="list-disc list-inside text-sm text-slate-600 mt-2">
+                                <li>Utiliser React.memo sur les composants "feuille"</li>
+                                <li>Mémoriser les calculs coûteux (useMemo)</li>
+                                <li>Stabiliser les fonctions (useCallback)</li>
+                                <li>Virtualiser les longues listes</li>
+                                <li>Déplacer l'état au plus bas possible</li>
+                            </ul>
+                        </div>
+                        <div class="border border-slate-200 p-3 rounded-lg">
+                            <h3 class="font-bold text-red-700">❌ À éviter</h3>
+                            <ul class="list-disc list-inside text-sm text-slate-600 mt-2">
+                                <li>Optimiser prématurément (d'abord mesurer)</li>
+                                <li>Mémoriser des composants simples</li>
+                                <li>Créer des objets/fonctions dans le render</li>
+                                <li>Utiliser index comme key dans les listes</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                        <p class="text-sm text-orange-800 font-semibold">🎯 Règle d'or : Optimisez uniquement ce qui est lent. Un code simple et lisible est préférable à un code sur-optimisé.</p>
+                    </div>
+                </div>
+
+                <!-- Slide 10 : Quiz -->
+                <div class="slide" id="slide10">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">❓ Auto-évaluation</h2>
+                    <div class="space-y-5" id="quizForm">
+                        <div>
+                            <p class="font-semibold">1. Quel outil empêche un composant de re-rendre si ses props n'ont pas changé ?</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q1" value="usememo"> useMemo</label>
+                                <label><input type="radio" name="q1" value="memo"> React.memo</label>
+                                <label><input type="radio" name="q1" value="callback"> useCallback</label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold">2. Quelle est la meilleure approche pour afficher une liste de 10 000 produits ?</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q2" value="map"> products.map()</label>
+                                <label><input type="radio" name="q2" value="virtual"> react-window (virtualisation)</label>
+                                <label><input type="radio" name="q2" value="memo"> React.memo seul</label>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-semibold">3. Que fait useCallback ?</p>
+                            <div class="mt-2 space-x-4">
+                                <label><input type="radio" name="q3" value="calc"> Mémorise une valeur calculée</label>
+                                <label><input type="radio" name="q3" value="func"> Mémorise une fonction stable</label>
+                                <label><input type="radio" name="q3" value="component"> Évite le re-render</label>
+                            </div>
+                        </div>
+                        <button id="checkQuiz" class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-lg transition">Vérifier mes réponses</button>
+                        <div id="quizFeedback" class="text-sm text-slate-600 mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-between items-center no-print">
+                <button id="prevBtn" class="nav-btn bg-slate-300 hover:bg-slate-400 text-slate-800 font-medium py-2 px-5 rounded-lg disabled:opacity-50" disabled>◀ Précédent</button>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-slate-500">Slide</span>
+                    <span id="currentSlide" class="font-bold text-orange-700">1</span>
+                    <span class="text-sm text-slate-500">/</span>
+                    <span id="totalSlides" class="font-bold">10</span>
+                </div>
+                <button id="nextBtn" class="nav-btn bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-5 rounded-lg">Suivant ▶</button>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="h-1 bg-slate-200 w-full">
+                <div id="progressBar" class="progress-bar h-full bg-orange-600 w-0"></div>
+            </div>
+        </div>
+
+        <footer class="text-center text-slate-400 text-sm mt-6 no-print">
+            <p>© Enseignant React E-commerce Cameroun | Optimisation des performances React</p>
+        </footer>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let current = 1;
+            const total = 10;
+            updateButtonsAndProgress();
+
+            function showSlide(index) {
+                $('.slide').removeClass('active');
+                $(`#slide${index}`).addClass('active');
+                $('#currentSlide').text(index);
+                updateButtonsAndProgress();
+            }
+
+            function updateButtonsAndProgress() {
+                $('#prevBtn').prop('disabled', current === 1);
+                $('#nextBtn').prop('disabled', current === total);
+                const progressPercent = ((current - 1) / (total - 1)) * 100;
+                $('#progressBar').css('width', `${progressPercent}%`);
+            }
+
+            $('#prevBtn').click(function() {
+                if (current > 1) {
+                    current--;
+                    showSlide(current);
+                }
+            });
+
+            $('#nextBtn').click(function() {
+                if (current < total) {
+                    current++;
+                    showSlide(current);
+                }
+            });
+
+            // Quiz
+            $('#checkQuiz').click(function() {
+                let score = 0;
+                let feedback = "";
+                const q1 = $('input[name="q1"]:checked').val();
+                const q2 = $('input[name="q2"]:checked').val();
+                const q3 = $('input[name="q3"]:checked').val();
+
+                if (q1 === 'memo') { score++; feedback += "✅ React.memo évite les re-renders inutiles.\n"; }
+                else if (q1) feedback += "❌ React.memo est la bonne réponse.\n";
+                else feedback += "⚠️ Question 1 non répondue.\n";
+
+                if (q2 === 'virtual') { score++; feedback += "✅ La virtualisation (react-window) est essentielle pour les grandes listes.\n"; }
+                else if (q2) feedback += "❌ La virtualisation est la solution adaptée à 10 000 éléments.\n";
+                else feedback += "⚠️ Question 2 non répondue.\n";
+
+                if (q3 === 'func') { score++; feedback += "✅ useCallback retourne une fonction stable.\n"; }
+                else if (q3) feedback += "❌ useCallback sert à mémoriser des fonctions.\n";
+                else feedback += "⚠️ Question 3 non répondue.\n";
+
+                $('#quizFeedback').html(`<div class="p-3 rounded-lg ${score === 3 ? 'bg-green-100 border border-green-400' : 'bg-yellow-100 border border-yellow-400'}">Score : ${score}/3<br><pre class="whitespace-pre-wrap text-xs mt-1">${feedback}</pre></div>`);
+            });
+
+            // Keyboard navigation
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowLeft" && current > 1) {
+                    current--;
+                    showSlide(current);
+                } else if (e.key === "ArrowRight" && current < total) {
+                    current++;
+                    showSlide(current);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

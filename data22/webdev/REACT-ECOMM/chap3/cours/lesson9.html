@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 9 - Routes protégées et rôles | React E-commerce</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            transition: opacity 0.35s ease-in-out, transform 0.3s ease;
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .slide-inactive {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        body {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+                    <div class="mb-6 inline-flex items-center justify-center bg-indigo-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 tracking-tight">🔒 Leçon 9</h1>
+                    <p class="text-indigo-600 text-lg md:text-xl font-semibold mt-2">Routes protégées & Gestion des rôles</p>
+                    <div class="h-1 w-20 bg-indigo-400 rounded-full my-6 mx-auto"></div>
+                    <p class="text-gray-600 max-w-lg mx-auto text-base md:text-lg">Sécuriser l'accès aux pages (checkout, compte, admin) et restreindre selon le rôle utilisateur (client / admin / vendeur).</p>
+                    <div class="mt-10 text-sm text-gray-400 italic">👨‍🏫 Classe: Développement Web | React · Interface e-commerce</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="1">
+                <div class="flex flex-col h-full">
+                    <div class="border-b border-indigo-100 pb-4 mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full inline-flex items-center justify-center text-lg">🎯</span>
+                            Objectifs de la leçon
+                        </h2>
+                    </div>
+                    <ul class="space-y-5 text-gray-700 text-base md:text-lg">
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Créer un composant <strong>ProtectedRoute</strong> pour les pages privées</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Rediriger vers login si utilisateur non authentifié</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Implémenter la vérification des <strong>rôles</strong> (admin vs user) avec RoleBasedRoute</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Sécuriser le tableau de bord admin et les routes sensibles</span></li>
+                    </ul>
+                    <div class="mt-8 bg-indigo-50 rounded-xl p-4 border-l-8 border-indigo-400">
+                        <p class="text-indigo-800 font-medium">💡 À la fin, vous saurez protéger votre application comme un pro, avec une expérience utilisateur fluide !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : PROTECTED ROUTE - PRINCIPE -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3 flex gap-2">🛡️ <span>Composant ProtectedRoute</span></h2>
+                <p>Il vérifie si l'utilisateur est connecté via le store d'authentification. Si oui, il affiche la page enfant, sinon il redirige vers <code>/login</code>.</p>
+                <div class="code-block mt-4">
+                    <pre>// components/ProtectedRoute.tsx
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
+
+const ProtectedRoute = () => {
+  const { isAuthenticated } = useAuthStore();
+  return isAuthenticated ? &lt;Outlet /&gt; : &lt;Navigate to="/login" replace /&gt;;
+};
+
+export default ProtectedRoute;</pre>
+                </div>
+                <p class="mt-3 text-gray-600">On utilise <code>Outlet</code> pour les routes enfants et <code>replace</code> pour éviter de revenir en arrière.</p>
+                <div class="bg-yellow-50 p-3 rounded-lg mt-3 border-l-4 border-yellow-400">
+                    ⚠️ Important : le store auth persiste (localStorage) pour ne pas perdre la session après un refresh.
+                </div>
+            </div>
+
+            <!-- SLIDE 4 : INTÉGRATION DANS LE ROUTER -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🗺️ Déclaration des routes protégées</h2>
+                <p>Avec <strong>createBrowserRouter</strong>, on imbrique les routes privées dans un layout sécurisé.</p>
+                <div class="code-block mt-3">
+                    <pre>import { createBrowserRouter } from "react-router-dom";
+import MainLayout from "@/layouts/MainLayout";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import HomePage from "@/pages/HomePage";
+import CartPage from "@/pages/CartPage";
+import CheckoutPage from "@/pages/CheckoutPage";
+import AccountPage from "@/pages/AccountPage";
+import LoginPage from "@/pages/LoginPage";
+
+export const router = createBrowserRouter([
+  { path: "/login", element: &lt;LoginPage /&gt; },
+  {
+    element: &lt;MainLayout /&gt;,
+    children: [
+      { index: true, element: &lt;HomePage /&gt; },
+      { path: "cart", element: &lt;CartPage /&gt; },
+      {
+        element: &lt;ProtectedRoute /&gt;,   // 🔒 Barrière d'authentification
+        children: [
+          { path: "checkout", element: &lt;CheckoutPage /&gt; },
+          { path: "account", element: &lt;AccountPage /&gt; }
+        ]
+      }
+    ]
+  }
+]);</pre>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">✅ Le visiteur non connecté qui tente d'accéder à /checkout sera redirigé vers /login, puis de retour après connexion.</p>
+            </div>
+
+            <!-- SLIDE 5 : GESTION DES RÔLES (ROLEBASEDROUTE) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">👑 Route basée sur les rôles</h2>
+                <p>Pour l'administration, seuls les utilisateurs avec le rôle <strong>"admin"</strong> peuvent accéder.</p>
+                <div class="code-block mt-3">
+                    <pre>// components/RoleBasedRoute.tsx
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
+
+interface Props {
+  allowedRoles: string[];
+}
+
+const RoleBasedRoute = ({ allowedRoles }: Props) => {
+  const { user, isAuthenticated } = useAuthStore();
+  if (!isAuthenticated) return &lt;Navigate to="/login" replace /&gt;;
+  if (!allowedRoles.includes(user?.role || "")) {
+    return &lt;Navigate to="/unauthorized" replace /&gt;;
+  }
+  return &lt;Outlet /&gt;;
+};
+
+export default RoleBasedRoute;</pre>
+                </div>
+                <p class="mt-2">Utilisation : <code>&lt;RoleBasedRoute allowedRoles={['admin']} /&gt;</code></p>
+                <div class="bg-green-50 p-2 rounded mt-2 text-sm">📌 On peut aussi créer une page /unauthorized pour les accès refusés.</div>
+            </div>
+
+            <!-- SLIDE 6 : EXEMPLE DASHBOARD ADMIN -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">📊 Mise en place de l'admin layout</h2>
+                <div class="code-block">
+                    <pre>// router.tsx ajout section admin
+{
+  element: &lt;RoleBasedRoute allowedRoles={['admin']} /&gt;,
+  children: [
+    {
+      path: "admin",
+      element: &lt;AdminLayout /&gt;,
+      children: [
+        { index: true, element: &lt;AdminDashboard /&gt; },
+        { path: "products", element: &lt;AdminProducts /&gt; },
+        { path: "orders", element: &lt;AdminOrders /&gt; },
+        { path: "users", element: &lt;AdminUsers /&gt; }
+      ]
+    }
+  ]
+}</pre>
+                </div>
+                <ul class="list-disc pl-6 mt-2 text-gray-600">
+                    <li>Un utilisateur classique ne verra jamais ces routes.</li>
+                    <li>Le store auth contient <code>user.role</code> récupéré depuis le JWT.</li>
+                    <li>Le middleware <strong>RoleBasedRoute</strong> bloque l'accès côté client.</li>
+                </ul>
+                <div class="bg-indigo-50 p-3 rounded-lg mt-3 flex items-center gap-2">
+                    <span>🔐</span> <span>Ne jamais oublier de sécuriser aussi les endpoints API ! Le front n'est qu'une couche de présentation.</span>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : STORE AUTH AVEC RÔLE (rappel) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚛️ Store Zustand avec authentification et rôle</h2>
+                <div class="code-block">
+                    <pre>// stores/authStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface AuthState {
+  user: { id: string; email: string; role: 'user' | 'admin' | 'seller' } | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (email: string, token: string, role: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create&lt;AuthState&gt;()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      login: (email, token, role) => 
+        set({ user: { id: '1', email, role: role as any }, token, isAuthenticated: true }),
+      logout: () => set({ user: null, token: null, isAuthenticated: false })
+    }),
+    { name: 'auth-storage' }
+  )
+);</pre>
+                </div>
+                <p class="mt-2 text-gray-600">Après login, on stocke l'utilisateur + token. Le composant ProtectedRoute lira <code>isAuthenticated</code>.</p>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES & ASTUCES -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✨ Astuces supplémentaires</h2>
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="font-semibold">🔁 Redirection après login</p>
+                        <p class="text-sm">Utiliser <code>useLocation</code> pour stocker la page demandée et rediriger l'utilisateur après connexion.</p>
+                        <div class="code-block text-xs mt-2">const location = useLocation(); const from = location.state?.from || '/';</div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="font-semibold">⚠️ Page "Non autorisé"</p>
+                        <p class="text-sm">Créez une route <code>/unauthorized</code> avec un message clair.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="font-semibold">📦 Lazy loading des routes admin</p>
+                        <p class="text-sm">Utilisez <code>React.lazy</code> pour alléger le bundle principal : les pages admin chargent seulement si l'utilisateur a le rôle.</p>
+                    </div>
+                </div>
+                <div class="mt-4 text-center text-indigo-700 text-sm">✅ La sécurité front-end n'est qu'une première barrière : protégez toujours votre API !</div>
+            </div>
+
+            <!-- SLIDE 9 : RÉCAPITULATIF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="8">
+                <div class="flex flex-col h-full justify-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Récapitulatif – À retenir</h2>
+                    <ul class="space-y-3">
+                        <li class="flex gap-2">🔐 <span><strong>ProtectedRoute</strong> : vérifie l'authentification avant d'afficher les pages privées</span></li>
+                        <li class="flex gap-2">👑 <strong>RoleBasedRoute</strong> : restreint l'accès selon le rôle (admin, vendeur, user)</li>
+                        <li class="flex gap-2">🔄 <span>Redirection intelligente : retour vers la page demandée après login</span></li>
+                        <li class="flex gap-2">📦 <span>Stockage sécurisé du token (localStorage / httpOnly cookie à étudier)</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-100 p-4 rounded-xl">
+                        <p class="font-medium">🏁 Défi : Implémentez un tableau de bord "seller" où seuls les vendeurs peuvent gérer leurs produits. Utilisez RoleBasedRoute avec allowedRoles={['seller', 'admin']}.</p>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="recapButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm shadow transition">✅ Valider la leçon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation entre slides -->
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                    ← Précédent
+                </button>
+                <div class="text-sm text-gray-500">
+                    Slide <span id="slideCounter">1</span> / <span id="totalSlides">9</span>
+                </div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+        <div class="text-center text-gray-400 text-xs mt-6">
+            📘 Leçon 9 : Routes protégées et rôles | Développement d'interface e-commerce React
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            function updateSlides() {
+                slides.each(function(index) {
+                    if (index === currentSlide) {
+                        $(this).removeClass('slide-inactive').addClass('slide-active');
+                    } else {
+                        $(this).removeClass('slide-active').addClass('slide-inactive');
+                    }
+                });
+                $('#slideCounter').text(currentSlide + 1);
+                $('#prevSlide').prop('disabled', currentSlide === 0);
+                $('#nextSlide').prop('disabled', currentSlide === total - 1);
+            }
+
+            $('#prevSlide').on('click', function() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+            $('#nextSlide').on('click', function() {
+                if (currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+
+            // Navigation clavier
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowLeft' && currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                } else if (e.key === 'ArrowRight' && currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                }
+            });
+
+            // Swipe pour mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            $('.slide').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('.slide').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40 && currentSlide < total - 1) {
+                    currentSlide++;
+                    updateSlides();
+                } else if (touchEndX > touchStartX + 40 && currentSlide > 0) {
+                    currentSlide--;
+                    updateSlides();
+                }
+            });
+
+            $('#recapButton').on('click', function() {
+                alert("✅ Félicitations ! Vous maîtrisez la protection des routes et la gestion des rôles. Implémentez ces concepts dans votre projet e-commerce !");
+            });
+        });
+    </script>
+</body>
+</html>

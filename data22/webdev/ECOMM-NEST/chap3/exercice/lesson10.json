@@ -1,0 +1,76 @@
+[
+  {
+    "intitule": "Mise en place des Guards JWT et Roles",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce développée avec NestJS, vous devez sécuriser les endpoints selon les rôles des utilisateurs. L'application gère trois rôles : <code>customer</code> (client), <code>seller</code> (vendeur) et <code>admin</code> (administrateur).</p><p>On vous fournit le code suivant :</p><pre><code>// roles.decorator.ts\nexport const ROLES_KEY = 'roles';\nexport const Roles = (...roles: string[]) =&gt; SetMetadata(ROLES_KEY, roles);\n\n// jwt-auth.guard.ts\n@Injectable()\nexport class JwtAuthGuard extends AuthGuard('jwt') {}\n\n// roles.guard.ts (à compléter)\n@Injectable()\nexport class RolesGuard implements CanActivate {\n  constructor(private reflector: Reflector) {}\n\n  canActivate(context: ExecutionContext): boolean {\n    // À compléter\n  }\n}</code></pre><p>Le contrôleur produit doit permettre :<br>- <code>GET /products</code> : accessible à tous (authentifiés ou non)<br>- <code>POST /products</code> : réservé aux vendeurs et admins<br>- <code>DELETE /products/:id</code> : réservé aux admins uniquement</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez le rôle d'un Guard dans NestJS et la différence entre JwtAuthGuard et RolesGuard.",
+        "niveau": "easy",
+        "reponse": "Un Guard dans NestJS détermine si une requête peut atteindre un handler (contrôleur). Il retourne true (autorisation) ou false (refus). JwtAuthGuard vérifie que l'utilisateur est authentifié via un token JWT valide. RolesGuard vérifie que l'utilisateur authentifié possède les rôles requis pour accéder à la route (autorisation).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Complétez la méthode `canActivate` du RolesGuard. Celle-ci doit extraire les rôles requis via le décorateur `@Roles()`, récupérer l'utilisateur depuis la requête (ajouté par JwtAuthGuard) et comparer les rôles.",
+        "niveau": "medium",
+        "reponse": "```typescript\ncanActivate(context: ExecutionContext): boolean {\n  const requiredRoles = this.reflector.getAllAndOverride&lt;string[]&gt;(ROLES_KEY, [\n    context.getHandler(),\n    context.getClass(),\n  ]);\n  \n  if (!requiredRoles) {\n    return true; // Pas de rôle requis, accès autorisé\n  }\n  \n  const { user } = context.switchToHttp().getRequest();\n  \n  if (!user || !user.roles) {\n    return false;\n  }\n  \n  return requiredRoles.some((role) => user.roles.includes(role));\n}\n```",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Appliquez les guards et décorateurs appropriés sur les endpoints du contrôleur Products. Écrivez le code des décorateurs au-dessus des méthodes.",
+        "niveau": "medium",
+        "reponse": "```typescript\n@Controller('products')\nexport class ProductsController {\n  @Get()\n  @Public() // ou utiliser un guard optionnel\n  findAll() { ... }\n\n  @Post()\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @Roles('seller', 'admin')\n  create(@Body() createProductDto: CreateProductDto) { ... }\n\n  @Delete(':id')\n  @UseGuards(JwtAuthGuard, RolesGuard)\n  @Roles('admin')\n  remove(@Param('id') id: string) { ... }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Sécurisation d'une API e-commerce camerounaise",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous êtes développeur backend pour une startup camerounaise qui lance une plateforme e-commerce nommée <strong>AfriMarket</strong>. La plateforme permet aux vendeurs locaux de vendre leurs produits (artisanat, nourriture, vêtements) et aux clients de passer des commandes.</p><p>L'équipe a déjà implémenté l'authentification JWT. Vous devez maintenant mettre en place la protection des routes avec les guards. Voici les règles métier :</p><ul><li><strong>Clients (customer)</strong> : peuvent consulter les produits, ajouter au panier, passer commande, voir leurs commandes</li><li><strong>Vendeurs (seller)</strong> : peuvent gérer (CRUD) leurs propres produits uniquement</li><li><strong>Administrateurs (admin)</strong> : ont tous les droits (gérer tous les produits, utilisateurs, commandes)</li><li>Les produits non publiés (statut 'draft') ne sont visibles que par leur vendeur et les admins</li><li>Les endpoints sensibles (création/modification/suppression) doivent être protégés</li></ul>",
+      "images": [
+        "diagramme des rôles et permissions dans une plateforme e-commerce AfriMarket",
+        "schéma authentification JWT et guards NestJS avec rôles customer seller admin"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez le décorateur personnalisé `@Roles()` et le `RolesGuard` complet qui permet de restreindre l'accès aux routes selon les rôles. Expliquez chaque partie de votre implémentation.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// roles.decorator.ts\nimport { SetMetadata } from '@nestjs/common';\nexport const ROLES_KEY = 'roles';\nexport const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);\n\n// roles.guard.ts\nimport { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';\nimport { Reflector } from '@nestjs/core';\nimport { ROLES_KEY } from './roles.decorator';\n\n@Injectable()\nexport class RolesGuard implements CanActivate {\n  constructor(private reflector: Reflector) {}\n\n  canActivate(context: ExecutionContext): boolean {\n    // 1. Récupérer les rôles requis sur le handler ou la classe\n    const requiredRoles = this.reflector.getAllAndOverride&lt;string[]&gt;(\n      ROLES_KEY,\n      [context.getHandler(), context.getClass()],\n    );\n    \n    // 2. Si aucun rôle requis, accès autorisé\n    if (!requiredRoles) return true;\n    \n    // 3. Récupérer l'utilisateur depuis la requête (ajouté par JwtAuthGuard)\n    const request = context.switchToHttp().getRequest();\n    const user = request.user;\n    \n    // 4. Vérifier que l'utilisateur existe et a des rôles\n    if (!user || !user.roles) return false;\n    \n    // 5. Vérifier si l'utilisateur possède au moins un des rôles requis\n    return requiredRoles.some(role => user.roles.includes(role));\n  }\n}\n\n// Utilisation combinée avec JwtAuthGuard\n@UseGuards(JwtAuthGuard, RolesGuard)\n@Roles('admin')\n@Delete(':id')\nremove(@Param('id') id: string) { ... }\n```\nExplication : Le Reflector extrait les métadonnées du décorateur @Roles. L'utilisateur est attaché à req.user par le JwtAuthGuard. On compare ses rôles avec ceux requis.",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment faire pour qu'une route soit accessible sans authentification (publique) tout en gardant les guards actifs par défaut ?",
+            "niveau": "medium",
+            "reponse": "On peut créer un décorateur `@Public()` qui ajoute une métadonnée `isPublic`. Ensuite, dans un guard global ou le JwtAuthGuard, on vérifie cette métadonnée et on saute l'authentification si `isPublic` est true. NestJS propose aussi `@SetMetadata('isPublic', true)` et un guard personnalisé pour ignorer l'authentification."
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Implémentez la logique de visibilité des produits selon le statut 'draft' et le rôle de l'utilisateur. Un client ne doit pas voir les produits en 'draft', mais le vendeur propriétaire et l'admin peuvent les voir.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// products.service.ts\nasync findAll(user?: User, filters?: ProductFilters) {\n  const query = this.productRepository.createQueryBuilder('product');\n  \n  // Si l'utilisateur n'est pas connecté ou est un client\n  if (!user || user.roles.includes('customer')) {\n    query.andWhere('product.status = :status', { status: 'published' });\n  } \n  // Si c'est un vendeur\n  else if (user.roles.includes('seller')) {\n    query.andWhere(\n      '(product.status = :published OR (product.status = :draft AND product.sellerId = :userId))',\n      { published: 'published', draft: 'draft', userId: user.id }\n    );\n  }\n  // Admin voit tout\n  \n  return query.getMany();\n}\n\n// products.controller.ts\n@Get()\n@UseGuards(JwtAuthGuard) // Optionnel, on peut le rendre public\nasync findAll(@Req() req) {\n  return this.productsService.findAll(req.user);\n}\n```\nExplication : On adapte la requête SQL selon le rôle. Les vendeurs voient leurs brouillons, les clients ne voient que les publiés.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Évaluez les risques de sécurité si on utilisait uniquement le JwtAuthGuard sans RolesGuard. Proposez une solution complète avec les deux guards appliqués globalement.",
+        "niveau": "very hard",
+        "reponse": "Risques :\n- Un utilisateur authentifié (client) pourrait accéder à des routes réservées aux admins ou vendeurs si aucune vérification de rôle n'est faite.\n- Un vendeur pourrait modifier/supprimer les produits d'autres vendeurs.\n- Un client pourrait accéder aux endpoints de gestion des commandes ou utilisateurs.\n\nSolution avec guards globaux :\n```typescript\n// app.module.ts\n@Module({\n  providers: [\n    {\n      provide: APP_GUARD,\n      useClass: JwtAuthGuard, // Global JWT guard\n    },\n    {\n      provide: APP_GUARD,\n      useClass: RolesGuard, // Global Roles guard\n    },\n  ],\n})\nexport class AppModule {}\n\n// Pour les routes publiques\n@Public()\n@Get('public-data')\nfindPublic() { ... }\n\n// Pour les routes avec rôles spécifiques\n@Roles('seller', 'admin')\n@Post('products')\ncreateProduct() { ... }\n```\nAinsi, toutes les routes sont protégées par défaut. On utilise `@Public()` pour les exceptions (login, register, catalogue public).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours : Sauvegardes de bases de données | Leçon 32</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (optionnel, au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* custom transitions pour slides + swipe doux */
+        .slide-container {
+            transition: transform 0.3s ease-in-out;
+        }
+        body {
+            background: #f8fafc;
+        }
+        /* améliorer le confort de lecture sur mobile */
+        @media (max-width: 640px) {
+            .card-slide {
+                padding: 1.25rem !important;
+            }
+            h2 {
+                font-size: 1.4rem !important;
+            }
+        }
+        /* cache scrollbar mais garde fonctionnalité swipe */
+        .overflow-x-auto {
+            scrollbar-width: thin;
+        }
+        .btn-nav:active {
+            transform: scale(0.96);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        <!-- en-tête fixe avec progression -->
+        <div class="mb-4 flex justify-between items-center text-sm text-gray-600">
+            <div class="font-medium">📘 Base de données · Leçon 32</div>
+            <div class="bg-white/70 px-3 py-1 rounded-full shadow-sm"><span id="slideCounter">1</span> / <span id="totalSlides"></span></div>
+        </div>
+
+        <!-- CONTENEUR PRINCIPAL DES SLIDES (carrousel horizontal) -->
+        <div class="relative overflow-hidden rounded-2xl shadow-xl bg-white/80 backdrop-blur-sm border border-gray-200">
+            <div id="slidesWrapper" class="slide-container flex overflow-x-auto snap-mandatory snap-x scroll-smooth" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+                <!-- Les slides seront injectées dynamiquement avec jQuery -->
+            </div>
+
+            <!-- Navigation flèches + indicateurs dots -->
+            <div class="absolute inset-y-0 left-0 flex items-center pl-2 md:pl-3">
+                <button id="prevSlide" class="btn-nav bg-white/80 hover:bg-white rounded-full p-2 shadow-md backdrop-blur-sm transition disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+            </div>
+            <div class="absolute inset-y-0 right-0 flex items-center pr-2 md:pr-3">
+                <button id="nextSlide" class="btn-nav bg-white/80 hover:bg-white rounded-full p-2 shadow-md backdrop-blur-sm transition disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+            <!-- indicateurs dots en bas -->
+            <div class="absolute bottom-3 left-0 right-0 flex justify-center gap-2" id="dotsContainer"></div>
+        </div>
+
+        <!-- petit rappel navigation tactile -->
+        <div class="text-center text-xs text-gray-400 mt-4 flex justify-center gap-4">
+            <span>👆 Glisser pour naviguer</span>
+            <span>◀  ▶  boutons latéraux</span>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Définition du contenu des slides (Leçon 32 : Sauvegardes) ----------
+        // Slide 0 : Titre principal
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Pourquoi sauvegarder ? Concepts généraux
+        // Slide 3 : Sauvegardes logiques (mysqldump, pg_dump)
+        // Slide 4 : Sauvegardes physiques (copie fichiers)
+        // Slide 5 : Automatisation avec cron + exemples
+        // Slide 6 : Bonnes pratiques + Récap
+        // (7 slides au total)
+
+        const slidesData = [
+            { // slide 0 titre
+                type: "title",
+                title: "💾 Gestion des sauvegardes de bases de données",
+                subtitle: "Leçon 32 · Sauvegardes logiques, physiques et automatisation",
+                icon: "🛡️"
+            },
+            { // slide 1 objectifs
+                type: "objectives",
+                objectives: [
+                    "Comprendre l'importance des sauvegardes en production et développement",
+                    "Différencier les sauvegardes logiques (mysqldump, pg_dump) et physiques (copie fichiers)",
+                    "Savoir réaliser une sauvegarde manuelle avec les outils courants",
+                    "Automatiser les sauvegardes à l'aide de cron (Linux/macOS)",
+                    "Mettre en place une stratégie de restauration et de tests"
+                ]
+            },
+            { // slide 2 Pourquoi sauvegarder ?
+                type: "content",
+                title: "📌 Pourquoi sauvegarder une base de données ?",
+                content: `<div class="space-y-4">
+                    <p class="text-gray-700">Une base de données contient des informations critiques. Une panne matérielle, une erreur humaine (DELETE sans WHERE), une attaque ou une corruption peut tout détruire. <strong>La sauvegarde</strong> est votre assurance vie.</p>
+                    <div class="bg-blue-50 p-4 rounded-xl border-l-8 border-blue-500">
+                        <p class="font-semibold">🎯 Objectifs de la sauvegarde :</p>
+                        <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+                            <li>Restaurer des données après un incident</li>
+                            <li>Assurer la continuité d'activité (RPO / RTO)</li>
+                            <li>Permettre des migrations ou des tests sur environnements de recette</li>
+                        </ul>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                        <div class="bg-gray-100 p-3 rounded-lg"><span class="font-mono font-bold">⏱️ Sauvegarde régulière</span> – quotidienne, hebdomadaire</div>
+                        <div class="bg-gray-100 p-3 rounded-lg"><span class="font-mono font-bold">🔁 Vérification</span> – tester la restauration</div>
+                    </div>
+                </div>`
+            },
+            { // slide 3 sauvegardes logiques
+                type: "content",
+                title: "🧠 Sauvegardes logiques (mysqldump, pg_dump)",
+                content: `<div class="space-y-4">
+                    <p>La sauvegarde <strong>logique</strong> consiste à exporter la structure et les données sous forme de requêtes SQL (ou format texte). Outils standards :</p>
+                    <div class="bg-gray-800 text-gray-100 p-3 rounded-lg font-mono text-sm overflow-x-auto">
+                        <pre class="whitespace-pre-wrap"># MySQL / MariaDB
+mysqldump -u utilisateur -p nom_base > sauvegarde.sql
+
+# PostgreSQL
+pg_dump -U utilisateur nom_base > sauvegarde.sql
+
+# Restauration:
+mysql -u user -p nom_base < sauvegarde.sql
+psql -U user nom_base < sauvegarde.sql</pre>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">✅ Portable entre versions</span>
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">✅ Lisible / modifiable</span>
+                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs">⚠️ Plus lente pour grosses bases</span>
+                    </div>
+                    <p class="text-sm text-gray-600">🎯 Idéal pour bases de taille modérée, migrations, ou sauvegardes régulières d’applications web.</p>
+                </div>`
+            },
+            { // slide 4 sauvegardes physiques
+                type: "content",
+                title: "💽 Sauvegardes physiques (copie des fichiers)",
+                content: `<div class="space-y-4">
+                    <p>Une sauvegarde <strong>physique</strong> copie directement les fichiers du SGBD (stockage brut). Exemple : arrêter le serveur MySQL, copier le répertoire <code class="bg-gray-200 px-1 rounded">/var/lib/mysql</code>.</p>
+                    <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-300">
+                        <p class="font-semibold">📁 Avantages :</p>
+                        <ul class="list-disc ml-5 mt-1">
+                            <li>Restauration ultra-rapide (copie + redémarrage)</li>
+                            <li>Parfait pour les très gros volumes de données</li>
+                            <li>Conserve les index, les fichiers binaires, et les transactions</li>
+                        </ul>
+                        <p class="font-semibold mt-2">⚠️ Inconvénients :</p>
+                        <ul class="list-disc ml-5"><li>Dépend du système d'exploitation, version du SGBD</li><li>Souvent besoin d'arrêter la base (ou snapshot LVM)</li></ul>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <p class="font-mono text-sm"># Exemple manuel (MySQL arrêté) :<br>
+                        sudo systemctl stop mysql<br>
+                        cp -rp /var/lib/mysql /backup/mysql_physique_$(date +%Y%m%d)<br>
+                        sudo systemctl start mysql</p>
+                    </div>
+                    <p class="text-sm italic">💡 Autre approche : <strong>snapshots LVM</strong> ou réplication de fichiers pour les bases actives.</p>
+                </div>`
+            },
+            { // slide 5 Automatisation avec cron
+                type: "content",
+                title: "⏰ Automatiser les sauvegardes avec cron (Linux/macOS)",
+                content: `<div class="space-y-4">
+                    <p>Cron est un planificateur de tâches sur Unix/Linux. On peut automatiser les sauvegardes logiques chaque nuit.</p>
+                    <div class="bg-gray-800 text-gray-100 p-3 rounded-lg font-mono text-sm">
+                        <pre># Éditer le crontab : crontab -e
+# Sauvegarde MySQL tous les jours à 2h du matin
+0 2 * * * /usr/bin/mysqldump -u root -p'MotDePasse' maBase > /backups/sql_$(date +\%Y\%m\%d).sql
+
+# Supprimer les sauvegardes de plus de 7 jours
+0 3 * * * find /backups -name "*.sql" -mtime +7 -delete</pre>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-lg">
+                        <p class="font-medium">🔧 Bonnes pratiques d'automatisation :</p>
+                        <ul class="list-disc ml-5 mt-1">
+                            <li>Stocker les mots de passe dans un fichier de configuration protégé (.my.cnf)</li>
+                            <li>Compresser les sauvegardes : <code class="bg-gray-200">mysqldump ... | gzip > backup.sql.gz</code></li>
+                            <li>Envoyer les logs par email ou outil de monitoring</li>
+                            <li>Programmer des sauvegardes différentielles pour les grosses BD</li>
+                        </ul>
+                    </div>
+                    <div class="mt-2 text-center bg-white shadow-sm p-2 rounded-full text-gray-500 text-xs">📌 Outils additionnels : backup-manager, borg, ou scripts personnalisés</div>
+                </div>`
+            },
+            { // slide 6 récap + exercice / bonnes pratiques
+                type: "content",
+                title: "🏁 Récapitulatif & Bonnes pratiques de sauvegarde",
+                content: `<div class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-emerald-50 p-3 rounded-xl"><span class="font-bold">📋 Logique</span><br>mysqldump, pg_dump, fichiers SQL. Idéal pour flexibilité.</div>
+                        <div class="bg-purple-50 p-3 rounded-xl"><span class="font-bold">🗄️ Physique</span><br>Copie des fichiers bruts, rapide, mais plus dépendante.</div>
+                        <div class="bg-sky-50 p-3 rounded-xl"><span class="font-bold">🤖 Automatisation</span><br>Cron + scripts : régularité indispensable.</div>
+                        <div class="bg-rose-50 p-3 rounded-xl"><span class="font-bold">🧪 Test de restauration</span><br>Une sauvegarde non testée = pas de sauvegarde !</div>
+                    </div>
+                    <div class="border-t pt-3 mt-2">
+                        <p class="font-semibold">✅ Plan simple pour un développeur web (ex: MySQL sur serveur) :</p>
+                        <ol class="list-decimal ml-6 space-y-1 text-gray-700">
+                            <li>Script shell avec mysqldump + compression + timestamp</li>
+                            <li>Tâche cron quotidienne à 1h du matin</li>
+                            <li>Conserver 7 jours de rotation</li>
+                            <li>Sauvegarde vers un autre disque ou espace cloud (rclone, rsync)</li>
+                        </ol>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg italic text-sm">📢 En entreprise, pensez aussi aux sauvegardes hors-site (cloud, serveur distant). La règle <strong>3-2-1</strong> : 3 copies, 2 supports différents, 1 hors site.</div>
+                </div>`
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+        let $wrapper = $("#slidesWrapper");
+        let $dotsContainer = $("#dotsContainer");
+
+        // Générer les slides HTML
+        function buildSlides() {
+            $wrapper.empty();
+            slidesData.forEach((slide, idx) => {
+                let slideHtml = "";
+                // classe commune pour chaque slide: card style, snap start, etc.
+                if (slide.type === "title") {
+                    slideHtml = `
+                        <div class="slide-item flex-shrink-0 w-full snap-start p-6 md:p-8 card-slide bg-gradient-to-br from-indigo-50 via-white to-sky-50 min-h-[480px] flex flex-col justify-center items-center text-center">
+                            <div class="text-6xl mb-4">${slide.icon || "📀"}</div>
+                            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-3">${slide.title}</h1>
+                            <p class="text-lg text-gray-600 max-w-md mx-auto">${slide.subtitle}</p>
+                            <div class="mt-8 text-sm bg-white/50 p-2 rounded-full px-4">🗄️ Module Bases de Données · Cameroun</div>
+                        </div>
+                    `;
+                } 
+                else if (slide.type === "objectives") {
+                    let objList = "";
+                    slide.objectives.forEach((obj, i) => {
+                        objList += `<li class="mb-3 flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">🎯</span> <span class="text-gray-700">${obj}</span></li>`;
+                    });
+                    slideHtml = `
+                        <div class="slide-item flex-shrink-0 w-full snap-start p-6 md:p-8 card-slide bg-white min-h-[480px] overflow-y-auto">
+                            <div class="border-b border-indigo-200 pb-2 mb-5 flex items-center gap-2"><span class="text-2xl">📖</span> <h2 class="text-2xl md:text-3xl font-bold text-indigo-800">Objectifs de la leçon</h2></div>
+                            <ul class="space-y-2 mt-2">
+                                ${objList}
+                            </ul>
+                            <div class="mt-8 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">✨ À la fin, vous saurez protéger vos bases comme un professionnel</div>
+                        </div>
+                    `;
+                } 
+                else if (slide.type === "content") {
+                    slideHtml = `
+                        <div class="slide-item flex-shrink-0 w-full snap-start p-6 md:p-8 card-slide bg-white min-h-[480px] overflow-y-auto">
+                            <div class="flex items-center gap-2 border-l-4 border-indigo-500 pl-3 mb-5">
+                                <h2 class="text-xl md:text-2xl font-bold text-gray-800">${slide.title}</h2>
+                            </div>
+                            <div class="prose prose-slate max-w-none">
+                                ${slide.content}
+                            </div>
+                        </div>
+                    `;
+                }
+                // wrapper chaque slide dans un div avec data-index
+                $wrapper.append(`<div data-slide-index="${idx}" class="slide-block w-full flex-shrink-0 snap-start">${slideHtml}</div>`);
+            });
+            // mise à jour du compteur
+            $("#totalSlides").text(totalSlides);
+            updateDots();
+            updateCounterAndButtons();
+        }
+
+        function updateDots() {
+            $dotsContainer.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                let dotClass = "w-2 h-2 rounded-full transition-all " + (i === currentIndex ? "bg-indigo-600 w-4" : "bg-gray-400");
+                $dotsContainer.append(`<button class="${dotClass} mx-1 focus:outline-none" data-dot-index="${i}"></button>`);
+            }
+            // event dot click
+            $("[data-dot-index]").on("click", function() {
+                let idx = parseInt($(this).attr("data-dot-index"));
+                goToSlide(idx);
+            });
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentIndex = index;
+            // scroll horizontal du conteneur
+            const slideWidth = $wrapper.find(".slide-block").first().outerWidth(true);
+            const scrollLeft = slideWidth * currentIndex;
+            $wrapper.animate({ scrollLeft: scrollLeft }, 200, function() {
+                updateDots();  // rafraîchir dots style
+                updateCounterAndButtons();
+            });
+        }
+
+        function updateCounterAndButtons() {
+            $("#slideCounter").text(currentIndex + 1);
+            // désactiver flèches
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+            // update dots visuels
+            $("[data-dot-index]").each(function(i, btn) {
+                if(i === currentIndex) {
+                    $(btn).removeClass("bg-gray-400 w-2").addClass("bg-indigo-600 w-4");
+                } else {
+                    $(btn).removeClass("bg-indigo-600 w-4").addClass("bg-gray-400 w-2");
+                }
+            });
+        }
+
+        // événements navigation
+        $("#prevSlide").on("click", () => goToSlide(currentIndex - 1));
+        $("#nextSlide").on("click", () => goToSlide(currentIndex + 1));
+
+        // swipe detection mobile (utilisation des événements tactiles)
+        let touchStartX = 0, touchEndX = 0;
+        $wrapper.on("touchstart", (e) => {
+            touchStartX = e.originalEvent.touches[0].clientX;
+        });
+        $wrapper.on("touchend", (e) => {
+            touchEndX = e.originalEvent.changedTouches[0].clientX;
+            const diff = touchEndX - touchStartX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) goToSlide(currentIndex - 1);
+                else goToSlide(currentIndex + 1);
+            }
+        });
+
+        // détecter scroll manuel (si user swipe natif, synchroniser)
+        $wrapper.on("scroll", function() {
+            let scrollPos = $wrapper.scrollLeft();
+            let slideBlocks = $wrapper.find(".slide-block");
+            if (slideBlocks.length) {
+                let w = slideBlocks.first().outerWidth(true);
+                let newIndex = Math.round(scrollPos / w);
+                if (newIndex !== currentIndex && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    updateCounterAndButtons();
+                    updateDots();
+                }
+            }
+        });
+
+        // redimensionnement : recalcul position au resize (pour éviter décalage)
+        let resizeTimer;
+        $(window).on("resize", function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const slideWidth = $wrapper.find(".slide-block").first().outerWidth(true);
+                $wrapper.scrollLeft(slideWidth * currentIndex);
+                updateCounterAndButtons();
+            }, 100);
+        });
+
+        // Initialisation
+        buildSlides();
+        // forcer la largeur et aligner sur le premier slide après build
+        setTimeout(() => {
+            goToSlide(0);
+        }, 50);
+    </script>
+    <!-- Note supplémentaire pour l'enseignant: diagramme dessiné en CSS ou texte mais pas d'image intrusive nécessaire, contenu purement pédagogique et accessible. -->
+    <footer class="text-center text-xs text-gray-400 pb-6 mt-4">
+        © Enseignant au Cameroun · Formation Développement Web | Sauvegarde & restauration des bases de données
+    </footer>
+</body>
+</html>

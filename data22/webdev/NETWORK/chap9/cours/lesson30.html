@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Réseaux - Outils de diagnostic : ping, traceroute</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { transition: opacity 0.4s ease-in-out; }
+        .progress-bar { transition: width 0.3s ease; }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover { transform: scale(1.05); }
+        pre {
+            background: #1e1e2f;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        code { font-family: 'Courier New', monospace; }
+        .comparison-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #cbd5e1;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .comparison-table th { background-color: #dbeafe; font-weight: 600; }
+        @media (max-width: 640px) {
+            .comparison-table th, .comparison-table td { padding: 0.5rem; font-size: 0.75rem; }
+            pre { font-size: 0.7rem; }
+        }
+        .terminal {
+            background-color: #0a0e27;
+            color: #00ff9d;
+            font-family: 'Courier New', monospace;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-emerald-50 font-sans antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Slide 1 : Titre -->
+        <div class="slide p-6 md:p-10" data-slide="0">
+            <div class="flex flex-col min-h-[500px] justify-center items-center text-center">
+                <div class="mb-6"><span class="text-sm font-semibold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full">Réseaux Informatiques - Chapitre 9</span></div>
+                <h1 class="text-3xl md:text-5xl font-extrabold text-slate-800 mb-4">🛠️ Outils de diagnostic réseau</h1>
+                <p class="text-xl md:text-2xl text-slate-600 mb-4">ping, traceroute et interprétation</p>
+                <p class="text-slate-500 max-w-md">Les outils essentiels pour tester la connectivité et tracer le chemin des paquets</p>
+                <div class="w-24 h-1 bg-emerald-500 rounded-full mx-auto my-8"></div>
+                <p class="text-slate-500">Cliquez sur les boutons ci-dessous pour naviguer</p>
+            </div>
+        </div>
+
+        <!-- Slide 2 : Objectifs -->
+        <div class="slide hidden p-6 md:p-10" data-slide="1">
+            <div class="flex flex-col min-h-[500px] justify-center">
+                <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-6 flex items-center gap-2">🎯 Objectifs pédagogiques</h2>
+                <ul class="space-y-4 text-slate-700">
+                    <li class="flex items-start gap-3"><span class="text-emerald-600 font-bold text-xl">✓</span> Utiliser ping pour tester la connectivité (ICMP echo)</li>
+                    <li class="flex items-start gap-3"><span class="text-emerald-600 font-bold text-xl">✓</span> Utiliser traceroute (tracert) pour tracer le chemin</li>
+                    <li class="flex items-start gap-3"><span class="text-emerald-600 font-bold text-xl">✓</span> Interpréter les résultats (RTT, pertes de paquets, * * *)</li>
+                </ul>
+                <div class="mt-8 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                    <p class="text-emerald-800 text-sm">💡 ping et traceroute sont les couteaux suisses du technicien réseau. Ils permettent de diagnostiquer rapidement une panne.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3 : ICMP et ping -->
+        <div class="slide hidden p-6 md:p-10" data-slide="2">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📡 Le protocole ICMP</h2>
+            <p>ICMP (Internet Control Message Protocol) est un protocole de la couche réseau (niveau 3) utilisé pour les messages d'erreur et de diagnostic.</p>
+            <div class="bg-slate-100 p-3 rounded-lg my-3">
+                <p class="font-semibold">Types de messages ICMP courants :</p>
+                <ul class="list-disc list-inside text-sm">
+                    <li><strong>Type 8 / Code 0</strong> : Echo Request (requête ping)</li>
+                    <li><strong>Type 0 / Code 0</strong> : Echo Reply (réponse ping)</li>
+                    <li><strong>Type 3 / Code 3</strong> : Destination unreachable (port inaccessible)</li>
+                    <li><strong>Type 11 / Code 0</strong> : Time Exceeded (TTL expiré)</li>
+                </ul>
+            </div>
+            <div class="terminal">
+                <span class="text-yellow-300">$ ping 8.8.8.8</span><br>
+                PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.<br>
+                64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=12.5 ms<br>
+                64 bytes from 8.8.8.8: icmp_seq=2 ttl=117 time=11.8 ms<br>
+                --- 8.8.8.8 ping statistics ---<br>
+                2 packets transmitted, 2 received, 0% packet loss<br>
+                rtt min/avg/max/mdev = 11.8/12.15/12.5/0.35 ms
+            </div>
+        </div>
+
+        <!-- Slide 4 : ping – mode d'emploi -->
+        <div class="slide hidden p-6 md:p-10" data-slide="3">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🏓 ping : tester la connectivité</h2>
+            <p><strong>Syntaxe :</strong> <code class="bg-slate-100 px-1 rounded">ping [options] destination</code></p>
+            <div class="grid md:grid-cols-2 gap-4 my-4">
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    <p class="font-bold">📌 Options utiles (Windows/Linux)</p>
+                    <ul class="list-disc list-inside text-sm">
+                        <li><code>-c 4</code> (Linux) : 4 requêtes</li>
+                        <li><code>-n 4</code> (Windows) : 4 requêtes</li>
+                        <li><code>-t</code> (Windows) : ping en continu (Ctrl+C arrête)</li>
+                        <li><code>-s 1400</code> : taille du paquet</li>
+                        <li><code>-i 2</code> : intervalle 2 secondes</li>
+                    </ul>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="font-bold">📊 Ce qu'il faut regarder</p>
+                    <ul class="list-disc list-inside text-sm">
+                        <li><strong>0% loss</strong> : tout va bien</li>
+                        <li><strong>Pertes partielles</strong> : saturation ou liens instables</li>
+                        <li><strong>100% loss</strong> : coupure ou pare-feu bloque ICMP</li>
+                        <li><strong>RTT élevé</strong> > 200 ms : latence (satellite, congestion)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-lg text-sm">
+                ⚠️ Certains administrateurs bloquent ICMP sur leur pare-feu. Dans ce cas, ping échoue même si le serveur est accessible (HTTP, SSH fonctionnent).
+            </div>
+        </div>
+
+        <!-- Slide 5 : Interprétation des résultats ping -->
+        <div class="slide hidden p-6 md:p-10" data-slide="4">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📈 Analyser un ping</h2>
+            <table class="comparison-table">
+                <thead><tr><th>Message / résultat</th><th>Interprétation</th></tr></thead>
+                <tbody>
+                    <tr><td>Reply from ... time=10ms</td><td>✅ Connexion OK, latence normale (réseau local/câblé)</td></tr>
+                    <tr><td>time=150-300ms</td><td>⚠️ Latence élevée (connexion satellite, encombrement, distance)</td></tr>
+                    <tr><td>Request timed out</td><td>❌ Pas de réponse (panne, pare-feu, hôte éteint)</td></tr>
+                    <tr><td>Destination unreachable</td><td>❌ Routeur ne sait pas joindre la destination (problème routage)</td></tr>
+                    <tr><td>TTL expired in transit</td><td>❌ Boucle de routage ou TTL initial trop petit</td></tr>
+                    <tr><td>Packet loss 20%</td><td>⚠️ Pertes intermittentes (WiFi bruité, saturation, câble défectueux)</td></tr>
+                </tbody>
+            </table>
+            <p class="mt-2 text-sm"><strong>TTL (Time To Live)</strong> : nombre maximal de sauts. Sa valeur initiale dépend de l'OS (Linux 64, Windows 128). À chaque routeur, TTL décrémenté de 1.</p>
+        </div>
+
+        <!-- Slide 6 : traceroute / tracert -->
+        <div class="slide hidden p-6 md:p-10" data-slide="5">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🗺️ traceroute : cartographier le chemin</h2>
+            <p><strong>traceroute</strong> (Linux/macOS) ou <strong>tracert</strong> (Windows) affiche chaque routeur traversé entre la source et la destination.</p>
+            <div class="terminal my-3">
+                <span class="text-yellow-300">$ traceroute google.cm</span><br>
+                1  192.168.1.1 (192.168.1.1)  2.5 ms  1.8 ms  2.1 ms<br>
+                2  10.0.0.1 (10.0.0.1)  15.2 ms  14.9 ms  15.5 ms<br>
+                3  41.204.xxx.xxx  32.4 ms  31.8 ms  32.1 ms<br>
+                4  72.14.xxx.xxx (Google)  45.2 ms  44.8 ms  45.0 ms<br>
+                5  google.cm (216.58.xxx.xxx)  46.1 ms  45.5 ms  45.9 ms
+            </div>
+            <p class="text-sm">Principe : envoie des paquets avec TTL=1, puis TTL=2, etc. Chaque routeur répond "Time Exceeded" quand TTL expire.</p>
+        </div>
+
+        <!-- Slide 7 : Interprétation traceroute -->
+        <div class="slide hidden p-6 md:p-10" data-slide="6">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🔍 Interpréter un traceroute</h2>
+            <div class="space-y-3">
+                <div class="border-l-4 border-green-500 pl-3"><span class="font-bold">✅ Sauts normaux</span> : temps de réponse cohérents (augmentation progressive).</div>
+                <div class="border-l-4 border-yellow-500 pl-3"><span class="font-bold">⚠️ * * * (timeout)</span> : routeur ne répond pas aux probes ICMP (bloqué par pare-feu). Cela ne signifie pas forcément une panne.</div>
+                <div class="border-l-4 border-red-500 pl-3"><span class="font-bold">❌ Boucle de routage</span> : mêmes adresses IP apparaissent plusieurs fois en boucle. Le paquet ne parvient jamais à destination.</div>
+                <div class="border-l-4 border-orange-500 pl-3"><span class="font-bold">📈 Latence qui augmente brutalement</span> : goulot d'étranglement (liaison satellite ou transcontinentale).</div>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-lg mt-3">
+                <p class="font-semibold">Astuce :</p>
+                <p>Pour identifier le propriétaire d'une IP intermédiaire, utilisez <code>whois</code> ou des sites comme <code>bgp.he.net</code>.</p>
+            </div>
+        </div>
+
+        <!-- Slide 8 : Exemple concret de diagnostic -->
+        <div class="slide hidden p-6 md:p-10" data-slide="7">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🏥 Étude de cas : panne Internet</h2>
+            <p>Un utilisateur à Douala n'arrive plus à accéder à <code>www.camwater.cm</code>. Voici le traceroute :</p>
+            <div class="terminal text-xs my-2">
+                1 192.168.1.1    2ms<br>
+                2 10.20.1.1     15ms<br>
+                3 * * *<br>
+                4 * * *<br>
+                5 196.xxx.xxx.1  150ms<br>
+                6 ...<br>
+                ... temps de réponse normaux jusqu'à destination
+            </div>
+            <div class="bg-red-100 p-3 rounded-lg">
+                <p class="font-semibold">Diagnostic :</p>
+                <p>Les sauts 3 et 4 ne répondent pas aux probes ICMP (pare-feu). Mais le saut 5 répond. La panne n'est pas au niveau de ces routeurs ; le problème est ailleurs (peut-être DNS ou serveur web).</p>
+            </div>
+            <p class="mt-2 text-sm">💡 Un traceroute avec des "*" au milieu n'indique pas forcément une panne. Il faut regarder si les sauts suivants répondent.</p>
+        </div>
+
+        <!-- Slide 9 : Autres outils complémentaires -->
+        <div class="slide hidden p-6 md:p-10" data-slide="8">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🛠️ Autres outils de diagnostic réseau</h2>
+            <table class="comparison-table">
+                <thead><tr><th>Commande</th><th>Utilisation</th><th>Exemple</th></tr></thead>
+                <tbody>
+                    <tr><td><code>ipconfig / ifconfig</code></td><td>Affiche les interfaces réseau (IP, masque, MAC)</td><td>ipconfig /all (Windows)</td></tr>
+                    <tr><td><code>netstat</code></td><td>Affiche les connexions actives et ports ouverts</td><td>netstat -an | findstr :80</td></tr>
+                    <tr><td><code>nslookup / dig</code></td><td>Interroge les serveurs DNS</td><td>nslookup google.cm</td></tr>
+                    <tr><td><code>arp -a</code></td><td>Affiche la table ARP (correspondance IP ↔ MAC)</td><td>arp -a</td></tr>
+                    <tr><td><code>route print</code></td><td>Affiche la table de routage</td><td>route print (Windows)</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slide 10 : Exercice pratique -->
+        <div class="slide hidden p-6 md:p-10" data-slide="9">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🧪 Exercice pratique</h2>
+            <ol class="list-decimal list-inside space-y-2">
+                <li>Ouvrez un terminal (cmd sur Windows, bash sur Linux/macOS).</li>
+                <li>Pingez votre passerelle par défaut (ex: 192.168.1.1). Notez le RTT et le taux de perte.</li>
+                <li>Pingez <code>8.8.8.8</code> (Google DNS). Comparez les RTT.</li>
+                <li>Lancez <code>tracert google.cm</code> (ou <code>traceroute</code>). Combien de sauts ?</li>
+                <li>Testez avec <code>ping -c 10 google.cm</code> (Linux) ou <code>ping -n 10 google.cm</code> (Windows).</li>
+            </ol>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-4 text-sm">
+                📌 Question réflexe : Si <code>ping 8.8.8.8</code> réussit mais <code>ping google.com</code> échoue, quel est le problème probable ?
+            </div>
+        </div>
+
+        <!-- Slide 11 : Résumé -->
+        <div class="slide hidden p-6 md:p-10" data-slide="10">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📝 À retenir</h2>
+            <ul class="list-disc list-inside space-y-2">
+                <li><strong>ping</strong> : test de base de connectivité (ICMP Echo). Répond "Réponse de ..." ou "Délai d'attente dépassé".</li>
+                <li><strong>traceroute/tracert</strong> : liste les routeurs intermédiaires grâce au champ TTL.</li>
+                <li>Des pertes de paquets ou des "*" ne sont pas toujours synonymes de panne (pare-feu ICMP).</li>
+                <li>Une latence élevée peut venir de la distance géographique, d'une congestion ou d'une liaison satellite.</li>
+                <li>Les outils en ligne (mtr, WinMTR, PingPlotter) combinent ping + traceroute en continu.</li>
+            </ul>
+            <div class="mt-6 bg-emerald-50 p-4 rounded-xl">
+                <p class="font-semibold">🎓 Citation réseau :</p>
+                <p>"Avant de crier à la panne, ping ta passerelle." – Proverbe d'administrateur réseau.</p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="absolute bottom-4 right-4 flex gap-2">
+            <button id="prevBtn" class="nav-btn bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-emerald-100 disabled:opacity-40 transition" disabled>◀</button>
+            <button id="nextBtn" class="nav-btn bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-emerald-100">▶</button>
+        </div>
+
+        <div class="absolute bottom-4 left-4 text-xs text-slate-500 bg-white/70 px-2 py-1 rounded-full">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">11</span>
+        </div>
+        <div class="w-full h-1 bg-slate-200 absolute bottom-0 left-0">
+            <div id="progressBar" class="progress-bar h-full bg-emerald-500 w-0"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let currentIndex = 0;
+        const slides = $('.slide');
+        const total = slides.length;
+        $('#totalSlides').text(total);
+
+        function updateSlides() {
+            slides.each(function(index) {
+                if (index === currentIndex) $(this).removeClass('hidden').addClass('block');
+                else $(this).removeClass('block').addClass('hidden');
+            });
+            $('#currentSlideIdx').text(currentIndex + 1);
+            const progressPercent = ((currentIndex + 1) / total) * 100;
+            $('#progressBar').css('width', progressPercent + '%');
+            $('#prevBtn').prop('disabled', currentIndex === 0);
+            $('#nextBtn').prop('disabled', currentIndex === total - 1);
+        }
+
+        $('#nextBtn').on('click', function() { if (currentIndex < total - 1) { currentIndex++; updateSlides(); } });
+        $('#prevBtn').on('click', function() { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight' && currentIndex < total - 1) { currentIndex++; updateSlides(); }
+            else if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updateSlides(); }
+        });
+        updateSlides();
+    });
+</script>
+</body>
+</html>

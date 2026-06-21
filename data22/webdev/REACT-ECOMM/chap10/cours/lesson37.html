@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 37 - Gestion des commandes (Admin) | React E-commerce</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { transition: opacity 0.35s ease-in-out, transform 0.3s ease; }
+        .slide-active { display: block; opacity: 1; transform: translateX(0); }
+        .slide-inactive { display: none; opacity: 0; transform: translateX(20px); }
+        .btn-nav:active { transform: scale(0.96); }
+        .code-block { background: #0f172a; color: #e2e8f0; border-radius: 1rem; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.8rem; overflow-x: auto; }
+        body { background: #f1f5f9; }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+                    <div class="mb-6 inline-flex items-center justify-center bg-indigo-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 tracking-tight">📦 Leçon 37</h1>
+                    <p class="text-indigo-600 text-lg md:text-xl font-semibold mt-2">Gestion des commandes (Admin)</p>
+                    <div class="h-1 w-20 bg-indigo-400 rounded-full my-6 mx-auto"></div>
+                    <p class="text-gray-600 max-w-lg mx-auto text-base md:text-lg">Lister, filtrer, modifier le statut et générer des factures PDF pour les commandes côté administration.</p>
+                    <div class="mt-10 text-sm text-gray-400 italic">👨‍🏫 Classe: Développement Web | React · Interface e-commerce</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="1">
+                <div class="flex flex-col h-full">
+                    <div class="border-b border-indigo-100 pb-4 mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full inline-flex items-center justify-center text-lg">🎯</span>
+                            Objectifs de la leçon
+                        </h2>
+                    </div>
+                    <ul class="space-y-5 text-gray-700 text-base md:text-lg">
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Lister toutes les commandes avec <strong>filtres (statut, date)</strong></span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Changer le statut d’une commande (<strong>useMutation</strong>)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Générer des <strong>factures PDF</strong> côté frontend ou via API</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Protéger l’accès avec un rôle admin (RoleBasedRoute)</span></li>
+                    </ul>
+                    <div class="mt-8 bg-indigo-50 rounded-xl p-4 border-l-8 border-indigo-400">
+                        <p class="text-indigo-800 font-medium">💡 Un tableau de bord des commandes performant est essentiel pour la gestion de la boutique !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : LISTE DES COMMANDES AVEC REACT QUERY -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3 flex gap-2">📋 <span>Liste des commandes (admin)</span></h2>
+                <p>Composant <code>AdminOrders</code> qui récupère toutes les commandes avec filtres.</p>
+                <div class="code-block">
+                    <pre>// pages/admin/AdminOrders.tsx
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
+
+export const AdminOrders = () => {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const { data: orders, isLoading } = useQuery({
+    queryKey: ['admin-orders', statusFilter],
+    queryFn: () => api.get(`/admin/orders?status=${statusFilter}`).then(res => res.data)
+  });
+
+  if (isLoading) return &lt;div&gt;Chargement...&lt;/div&gt;;
+
+  return (
+    &lt;div className="overflow-x-auto"&gt;
+      &lt;select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="mb-4 p-2 border rounded"&gt;
+        &lt;option value="all"&gt;Tous&lt;/option&gt;
+        &lt;option value="pending"&gt;En attente&lt;/option&gt;
+        &lt;option value="paid"&gt;Payée&lt;/option&gt;
+        &lt;option value="shipped"&gt;Expédiée&lt;/option&gt;
+        &lt;option value="delivered"&gt;Livrée&lt;/option&gt;
+        &lt;option value="cancelled"&gt;Annulée&lt;/option&gt;
+      &lt;/select&gt;
+      &lt;table className="min-w-full bg-white border"&gt;
+        &lt;thead&gt;&lt;tr&gt;&lt;th&gt;ID&lt;/th&gt;&lt;th&gt;Client&lt;/th&gt;&lt;th&gt;Total&lt;/th&gt;&lt;th&gt;Statut&lt;/th&gt;&lt;th&gt;Actions&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+        &lt;tbody&gt;
+          {orders?.map(order => (
+            &lt;tr key={order.id}&gt;
+              &lt;td&gt;{order.id}&lt;/td&gt;
+              &lt;td&gt;{order.user.email}&lt;/td&gt;
+              &lt;td&gt;{order.total} FCFA&lt;/td&gt;
+              &lt;td&gt;&lt;StatusBadge status={order.status} /&gt;&lt;/td&gt;
+              &lt;td&gt;&lt;button className="text-indigo-600"&gt;Voir&lt;/button&gt;&lt;/td&gt;
+            &lt;/tr&gt;
+          ))}
+        &lt;/tbody&gt;
+      &lt;/table&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <p class="text-gray-600 mt-2">Le filtre est envoyé au backend via query param.</p>
+            </div>
+
+            <!-- SLIDE 4 : CHANGEMENT DE STATUT (MUTATION) -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔄 Mutation : changement de statut</h2>
+                <p>On utilise <code>useMutation</code> pour mettre à jour le statut, puis on invalide le cache.</p>
+                <div class="code-block">
+                    <pre>// hooks/useUpdateOrderStatus.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import { toast } from 'sonner';
+
+export const useUpdateOrderStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+      api.patch(`/admin/orders/${orderId}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      toast.success('Statut mis à jour');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour')
+  });
+};
+
+// Dans le tableau
+const { mutate: updateStatus } = useUpdateOrderStatus();
+&lt;select 
+  value={order.status}
+  onChange={(e) => updateStatus({ orderId: order.id, status: e.target.value })}
+  className="border rounded p-1"
+&gt;
+  &lt;option value="pending"&gt;En attente&lt;/option&gt;
+  &lt;option value="paid"&gt;Payée&lt;/option&gt;
+  &lt;option value="shipped"&gt;Expédiée&lt;/option&gt;
+  &lt;option value="delivered"&gt;Livrée&lt;/option&gt;
+  &lt;option value="cancelled"&gt;Annulée&lt;/option&gt;
+&lt;/select&gt;</pre>
+                </div>
+                <div class="bg-yellow-50 p-2 rounded mt-2 text-sm">⚠️ Certaines transitions peuvent être restreintes (ex: delivered → cancelled). Le backend doit valider.</div>
+            </div>
+
+            <!-- SLIDE 5 : GÉNÉRATION DE FACTURES PDF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📄 Génération de factures PDF</h2>
+                <p>Deux approches :</p>
+                <ul class="list-disc pl-6 mb-3">
+                    <li><strong>Côté frontend</strong> : librairie <code>jspdf</code> + <code>html2canvas</code> ou <code>@react-pdf/renderer</code></li>
+                    <li><strong>Côté backend</strong> : générer le PDF et renvoyer un lien de téléchargement (recommandé)</li>
+                </ul>
+                <div class="code-block">
+                    <pre>// Option 1: Télécharger depuis le backend
+const downloadInvoice = async (orderId) => {
+  const response = await api.get(`/admin/orders/${orderId}/invoice`, {
+    responseType: 'blob'
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `facture_${orderId}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+// Option 2: Avec react-pdf (frontend)
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { InvoicePDF } from './InvoicePDF';
+
+&lt;PDFDownloadLink document={&lt;InvoicePDF order={order} /&gt;} fileName={`facture_${order.id}.pdf`}&gt;
+  {({ loading }) => (loading ? 'Génération...' : 'Télécharger PDF')}
+&lt;/PDFDownloadLink&gt;</pre>
+                </div>
+                <div class="bg-green-50 p-2 rounded mt-2 text-sm">✅ Le backend garantit des données cohérentes (calculs, TVA) et évite la manipulation côté client.</div>
+            </div>
+
+            <!-- SLIDE 6 : PAGE DÉTAILS D'UNE COMMANDE POUR ADMIN -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔍 Vue détaillée d’une commande</h2>
+                <p>Composant <code>AdminOrderDetail</code> pour voir les produits, adresse, historique.</p>
+                <div class="code-block">
+                    <pre>// pages/admin/AdminOrderDetail.tsx
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+
+export const AdminOrderDetail = () => {
+  const { id } = useParams();
+  const { data: order } = useQuery({
+    queryKey: ['admin-order', id],
+    queryFn: () => api.get(`/admin/orders/${id}`).then(res => res.data)
+  });
+
+  return (
+    &lt;div className="space-y-6"&gt;
+      &lt;div className="grid md:grid-cols-2 gap-4"&gt;
+        &lt;div&gt;
+          &lt;h3&gt;Informations client&lt;/h3&gt;
+          &lt;p&gt;{order?.user.email}&lt;/p&gt;
+          &lt;p&gt;{order?.shippingAddress.addressLine}, {order?.shippingAddress.city}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div&gt;
+          &lt;h3&gt;Détails commande&lt;/h3&gt;
+          &lt;table&gt;...&lt;/table&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;button onClick={() => downloadInvoice(order.id)} className="bg-indigo-600 text-white px-4 py-2 rounded"&gt;
+        Télécharger facture PDF
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <p class="text-gray-600 mt-2">On peut aussi afficher une timeline des statuts avec date.</p>
+            </div>
+
+            <!-- SLIDE 7 : PROTECTION DES ROUTES ADMIN -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🛡️ Sécurisation des pages admin</h2>
+                <p>On utilise <code>RoleBasedRoute</code> pour restreindre l’accès aux admins.</p>
+                <div class="code-block">
+                    <pre>// router.tsx
+import { RoleBasedRoute } from '@/components/RoleBasedRoute';
+import { AdminLayout } from '@/layouts/AdminLayout';
+
+const router = createBrowserRouter([
+  {
+    element: &lt;RoleBasedRoute allowedRoles={['admin']} /&gt;,
+    children: [
+      {
+        path: 'admin',
+        element: &lt;AdminLayout /&gt;,
+        children: [
+          { index: true, element: &lt;AdminDashboard /&gt; },
+          { path: 'orders', element: &lt;AdminOrders /&gt; },
+          { path: 'orders/:id', element: &lt;AdminOrderDetail /&gt; }
+        ]
+      }
+    ]
+  }
+]);</pre>
+                </div>
+                <p class="text-gray-600 mt-1">Le store auth contient le rôle de l’utilisateur (ex: <code>user.role === 'admin'</code>).</p>
+                <div class="bg-red-50 p-2 rounded mt-2 text-sm">🔐 La sécurité frontale n’est qu’une première barrière : l’API doit également vérifier le rôle admin.</div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES & OPTIMISATIONS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✨ Optimisations pour l’admin</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">📅 Filtrage par date</span>
+                        <p class="text-sm">Ajouter des filtres <code>startDate</code> et <code>endDate</code> pour les commandes.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🔍 Pagination serveur</span>
+                        <p class="text-sm">Pour des milliers de commandes, utiliser la pagination côté API.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">📊 Tableau de bord</span>
+                        <p class="text-sm">Afficher des graphiques (Recharts) pour visualiser CA et volume.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🔄 Webhook statut</span>
+                        <p class="text-sm">Notifier le client par email lors du changement de statut (backend).</p>
+                    </div>
+                </div>
+                <div class="mt-4 bg-indigo-50 p-3 rounded-lg text-center">
+                    🧪 À retenir : l’interface admin doit être rapide, intuitive et sécurisée.
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : RÉCAPITULATIF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="8">
+                <div class="flex flex-col h-full justify-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Résumé – Ce qu'il faut retenir</h2>
+                    <ul class="space-y-3">
+                        <li class="flex gap-2">✅ <span><strong>Liste des commandes</strong> : useQuery avec filtres (statut, date)</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Changement de statut</strong> : useMutation + invalidation du cache</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Factures PDF</strong> : privilégier la génération côté backend</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Sécurité</strong> : RoleBasedRoute + vérification API</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-100 p-4 rounded-xl">
+                        <p class="font-medium">🎯 Exercice pratique : Ajoutez un filtre par période (date de commande) et un export CSV des commandes filtrées.</p>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="recapButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm shadow transition">✅ Valider la leçon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>← Précédent</button>
+                <div class="text-sm text-gray-500">Slide <span id="slideCounter">1</span> / <span id="totalSlides">9</span></div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition">Suivant →</button>
+            </div>
+        </div>
+        <div class="text-center text-gray-400 text-xs mt-6">📘 Leçon 37 : Gestion des commandes (Admin) | React E-commerce</div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            function updateSlides() {
+                slides.each(function(index) {
+                    if (index === currentSlide) $(this).removeClass('slide-inactive').addClass('slide-active');
+                    else $(this).removeClass('slide-active').addClass('slide-inactive');
+                });
+                $('#slideCounter').text(currentSlide + 1);
+                $('#prevSlide').prop('disabled', currentSlide === 0);
+                $('#nextSlide').prop('disabled', currentSlide === total - 1);
+            }
+
+            $('#prevSlide').on('click', function() { if (currentSlide > 0) { currentSlide--; updateSlides(); } });
+            $('#nextSlide').on('click', function() { if (currentSlide < total - 1) { currentSlide++; updateSlides(); } });
+
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowLeft' && currentSlide > 0) { currentSlide--; updateSlides(); }
+                else if (e.key === 'ArrowRight' && currentSlide < total - 1) { currentSlide++; updateSlides(); }
+            });
+
+            let touchStartX = 0, touchEndX = 0;
+            $('.slide').on('touchstart', function(e) { touchStartX = e.originalEvent.touches[0].clientX; });
+            $('.slide').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40 && currentSlide < total - 1) { currentSlide++; updateSlides(); }
+                else if (touchEndX > touchStartX + 40 && currentSlide > 0) { currentSlide--; updateSlides(); }
+            });
+
+            $('#recapButton').on('click', function() {
+                alert("✅ Félicitations ! Vous savez gérer les commandes côté administrateur. Implémentez ces fonctionnalités dans votre projet e-commerce !");
+            });
+        });
+    </script>
+</body>
+</html>

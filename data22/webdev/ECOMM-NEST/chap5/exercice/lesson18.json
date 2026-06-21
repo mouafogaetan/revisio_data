@@ -1,0 +1,194 @@
+[
+  {
+    "intitule": "Vérifier la disponibilité des stocks avant ajout au panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans un service de panier NestJS, on souhaite vérifier qu’un produit a suffisamment de stock avant de l’ajouter. La méthode <code>addItem</code> reçoit <code>productId</code> et <code>quantity</code>. Le produit a un champ <code>stock</code> en base de données.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer pourquoi il est important de vérifier le stock côté serveur et non uniquement côté client.",
+        "niveau": "easy",
+        "reponse": "La vérification côté serveur est indispensable car un client malveillant peut modifier le code frontend pour contourner les contrôles. Seul le serveur garantit l’intégrité des données et évite les commandes impossibles à honorer.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Rédiger le pseudo-code TypeScript pour vérifier le stock avant d’ajouter un produit au panier.",
+        "niveau": "medium",
+        "reponse": "<code>const product = await this.productRepo.findOne({ where: { id: productId } }); if (!product) throw new NotFoundException(); if (product.stock < quantity) throw new BadRequestException('Stock insuffisant'); // puis ajouter au panier</code>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décrire ce qu’il faut faire si le stock est exactement égal à la quantité demandée.",
+        "niveau": "easy",
+        "reponse": "Si le stock est égal à la quantité demandée, l’ajout est autorisé car le stock restant deviendra 0 après validation de la commande (mais pas immédiatement). Il faut simplement vérifier que <code>stock >= quantity</code>.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Bloquer temporairement le stock pendant la validation de commande",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, lorsqu’un client valide son panier, on doit bloquer temporairement les produits pour éviter qu’un autre client n’achète le dernier exemplaire pendant le paiement. Proposer une solution technique.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le principe du <strong>stock réservé</strong> (ou <em>inventory lock</em>) et son utilité.",
+        "niveau": "medium",
+        "reponse": "Le stock réservé consiste à diminuer temporairement le stock disponible (ou à créer une réservation) lorsque l’utilisateur commence le processus de paiement. Si le paiement échoue, on libère la réservation ; s’il réussit, on confirme la réservation. Cela évite les ventes en double pour les derniers articles.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer un schéma de base de données (champs ou table) pour gérer ces réservations.",
+        "niveau": "hard",
+        "reponse": "On peut ajouter une colonne <code>reservedStock</code> à l’entité Product, ou créer une table <code>StockReservation</code> avec <code>productId, quantity, expiresAt, cartId/orderId</code>. Une approche plus simple : pendant la validation, on vérifie <code>stock - quantity >= 0</code>, puis on diminue <code>stock</code> immédiatement. Si le paiement échoue, on restaure. Attention aux échecs intermédiaires : on utilise des transactions.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décrire comment implémenter une expiration automatique des réservations (ex: 15 minutes).",
+        "niveau": "hard",
+        "reponse": "On stocke une date d’expiration (<code>reservedUntil</code>) avec chaque réservation. Un cron job (ou une tâche périodique) supprime les réservations expirées et restitue le stock. On peut aussi vérifier à chaque requête si la réservation est toujours valide.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Expiration automatique du panier après X minutes",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour optimiser la gestion des stocks et libérer les articles non achetés, on souhaite que les paniers inactifs depuis 30 minutes soient automatiquement vidés ou expirés.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier deux approches pour implémenter l’expiration des paniers dans une application NestJS.",
+        "niveau": "medium",
+        "reponse": "1) Cron job (ex: toutes les heures) qui supprime les paniers dont <code>updatedAt < NOW() - INTERVAL '30 minutes'</code>. 2) À chaque requête de l’utilisateur, vérifier si le panier a expiré et le vider le cas échéant (moins performant mais plus réactif).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrire une requête TypeORM pour supprimer les paniers expirés (non connectés) vieux de plus de 30 minutes.",
+        "niveau": "medium",
+        "reponse": "<code>await this.cartRepo.delete({ user: IsNull(), updatedAt: LessThan(new Date(Date.now() - 30 * 60 * 1000)) });</code> (ajouter aussi une condition sur les paniers anonymes via visitorId non null).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi on ne doit pas supprimer immédiatement le panier d’un utilisateur connecté même s’il est inactif.",
+        "niveau": "easy",
+        "reponse": "Un utilisateur connecté peut revenir des jours plus tard et s’attendre à retrouver son panier. Supprimer son panier après 30 minutes serait une mauvaise expérience utilisateur. On réserve l’expiration aux paniers anonymes ou aux réservations temporaires.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter un système de lock stock avec Bull (queue)",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Sur une plateforme e-commerce camerounaise à fort trafic, vous devez bloquer le stock pendant la validation de commande et le libérer automatiquement après 10 minutes si le paiement n’est pas finalisé. Utilisez une file d’attente Bull (Redis) pour gérer l’expiration.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire les étapes pour réserver le stock et planifier une tâche de libération.",
+        "niveau": "very hard",
+        "reponse": "1) Vérifier la disponibilité. 2) Décrémenter le stock (ou réserver). 3) Ajouter un job dans Bull avec un délai de 10 minutes. 4) Si le paiement réussit, supprimer le job de la file. 5) Si le job s’exécute (timeout), restituer le stock automatiquement.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Justifier pourquoi cette approche est plus robuste qu’un simple cron job.",
+        "niveau": "hard",
+        "reponse": "Bull gère le délai précis par réservation, avec persistance Redis. Si l’application crash, les jobs sont rejoués au redémarrage. Le cron job nettoie en masse mais peut libérer trop tard ou trop tôt selon la granularité. Bull permet une gestion fine (chacun son délai).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Citer un risque de ce mécanisme et une parade.",
+        "niveau": "hard",
+        "reponse": "Risque : un utilisateur peut bloquer un article sans jamais payer (attaque par réservation). Parade : limiter le nombre de réservations actives par utilisateur ou par produit, et ajouter un captcha avant la réservation.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Diagnostiquer un problème de survente (stock négatif)",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un administrateur remarque qu’un produit a une valeur de stock négative dans la base de données (-3) alors que le stock initial était de 5. Des commandes ont été validées simultanément. Expliquer comment cela a pu arriver.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifier la cause technique probable de ce problème.",
+        "niveau": "medium",
+        "reponse": "Absence de mécanisme de verrouillage ou de transaction atomique. Deux requêtes de validation de commande ont lu le stock en même temps (5), ont toutes deux déduit leur quantité, puis ont écrit la nouvelle valeur sans tenir compte de l’autre. Exemple : deux commandes de 4 articles chacune → chaque thread voit stock=5, calcule 5-4=1, puis écrit 1. Le résultat final est 1 (au lieu de -3) ou -3 selon l’ordre des écritures.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Proposer une solution pour éviter ce problème en utilisant les verrous de base de données (pessimistic locking).",
+        "niveau": "hard",
+        "reponse": "Utiliser <code>SELECT ... FOR UPDATE</code> dans une transaction. Exemple avec TypeORM : <code>this.productRepo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } })</code>. Cela verrouille la ligne jusqu’à la fin de la transaction, empêchant toute autre lecture/écriture concurrente.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer la différence entre verrou pessimiste et optimiste.",
+        "niveau": "hard",
+        "reponse": "Le verrou pessimiste bloque la ressource (ligne) dès la lecture, idéal pour les conflits fréquents. Le verrou optimiste utilise un champ <code>version</code> : on lit, on modifie, et lors de la sauvegarde on vérifie que la version n’a pas changé ; si c’est le cas, on échoue. L’optimiste est plus performant quand les conflits sont rares.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calculer le délai d’expiration d’un panier",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un panier anonyme a été créé à 14h30. La politique d’expiration est fixée à 45 minutes. À quelle heure le panier sera-t-il considéré comme expiré ?</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculer l’heure d’expiration.",
+        "niveau": "easy",
+        "reponse": "14h30 + 45 minutes = 15h15.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Si un utilisateur modifie son panier à 15h05, l’expiration doit-elle être repoussée ? Justifier.",
+        "niveau": "medium",
+        "reponse": "Oui, on repousse l’expiration (reset du timer) car l’utilisateur est actif. On met à jour <code>updatedAt</code> à 15h05, donc la nouvelle expiration devient 15h50. C’est une bonne pratique UX pour ne pas pénaliser les clients qui naviguent.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Comment implémenter ce reset dans une requête d’ajout au panier ?",
+        "niveau": "easy",
+        "reponse": "Lors de l’ajout/modification d’un item, on met à jour <code>cart.updatedAt = new Date()</code> avant de sauvegarder. Ainsi le cron job se basera sur cette nouvelle date.",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

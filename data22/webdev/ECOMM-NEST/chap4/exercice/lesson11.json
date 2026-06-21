@@ -1,0 +1,132 @@
+[
+  {
+    "intitule": "Modélisation des entités Product et Category avec TypeORM",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans le cadre du développement d'une API e-commerce avec NestJS et TypeORM, vous devez créer les entités <strong>Product</strong> et <strong>Category</strong> avec leurs relations.</p><p><strong>Consigne :</strong> Répondez aux questions suivantes en vous basant sur les bonnes pratiques de NestJS/TypeORM.</p>",
+      "images": [
+        "diagramme entité-association entre Product et Category avec relation ManyToOne, et entre Product et Tag avec relation ManyToMany"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire la structure de l'entité Product avec les attributs suivants : id (UUID), name, description, price (decimal), stock, images (tableau de strings), sku (unique).",
+        "niveau": "medium",
+        "reponse": "L'entité Product doit contenir : @PrimaryGeneratedColumn('uuid') id: string; @Column() name: string; @Column('text') description: string; @Column('decimal', { precision: 10, scale: 2 }) price: number; @Column({ default: 0 }) stock: number; @Column('simple-array') images: string[]; @Column({ unique: true }) sku: string;",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment implémenter la relation ManyToOne entre Product et Category (un produit appartient à une catégorie, une catégorie peut avoir plusieurs produits).",
+        "niveau": "medium",
+        "reponse": "Dans l'entité Product : @ManyToOne(() => Category, category => category.products) @JoinColumn({ name: 'category_id' }) category: Category;. Dans l'entité Category : @OneToMany(() => Product, product => product.category) products: Product[];.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier l'utilisation du type 'simple-array' pour le champ images et discuter de ses limites.",
+        "niveau": "hard",
+        "reponse": "'simple-array' stocke un tableau sous forme de chaîne CSV dans une colonne texte. C'est simple pour un petit nombre d'images. Limites : pas d'indexation efficace, difficile à interroger (ex: rechercher les produits avec une image spécifique). Pour plus de flexibilité, on préférera une entité Image séparée avec relation OneToMany.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création des catégories avec hiérarchie parent-enfant",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Une catégorie peut avoir une sous-catégorie (relation réflexive). Par exemple : 'Électronique' → 'Smartphones' → 'iPhone'.</p><p><strong>Consigne :</strong> Écrivez l'entité Category avec une relation ManyToOne vers elle-même pour gérer la hiérarchie.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire l'entité Category avec les champs : id, name, slug (unique), parent (référence vers Category).",
+        "niveau": "medium",
+        "reponse": "@Entity() export class Category { @PrimaryGeneratedColumn('uuid') id: string; @Column() name: string; @Column({ unique: true }) slug: string; @ManyToOne(() => Category, category => category.children, { nullable: true }) @JoinColumn({ name: 'parent_id' }) parent: Category; @OneToMany(() => Category, category => category.parent) children: Category[]; }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment générer automatiquement le slug à partir du nom (ex: 'Électronique' → 'electronique').",
+        "niveau": "medium",
+        "reponse": "Utiliser un event listener TypeORM : @BeforeInsert() generateSlug() { this.slug = this.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }. On peut aussi utiliser le package 'slugify'.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Discuter des avantages d'avoir un champ slug plutôt que d'utiliser l'ID dans les URLs publiques.",
+        "niveau": "easy",
+        "reponse": "Le slug est SEO-friendly (mots-clés dans l'URL) et plus lisible pour les utilisateurs. Exemple : /products/samsung-galaxy-s23 vs /products/12345. Le slug doit être unique et indexé en base.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Relation ManyToMany entre Product et Tag",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un produit peut avoir plusieurs tags (ex: 'promotion', 'nouveau', 'eco-friendly') et un tag peut être associé à plusieurs produits.</p><p><strong>Consigne :</strong> Implémentez la relation ManyToMany avec une table de liaison personnalisée permettant d'ajouter un champ 'sortOrder' pour ordonner les tags d'un produit.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer l'entité ProductTag (table de liaison) avec les colonnes productId, tagId et sortOrder.",
+        "niveau": "hard",
+        "reponse": "@Entity() export class ProductTag { @PrimaryGeneratedColumn('uuid') id: string; @Column() sortOrder: number; @ManyToOne(() => Product, product => product.productTags) product: Product; @ManyToOne(() => Tag, tag => tag.productTags) tag: Tag; }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Modifier l'entité Product pour utiliser cette table de liaison via @OneToMany et @ManyToMany.",
+        "niveau": "very hard",
+        "reponse": "Dans Product : @OneToMany(() => ProductTag, productTag => productTag.product) productTags: ProductTag[]; @ManyToMany(() => Tag) @JoinTable({ name: 'product_tags', joinColumn: { name: 'product_id' }, inverseJoinColumn: { name: 'tag_id' } }) tags: Tag[]; (si on ne veut pas de champ additionnel, sinon utiliser l'entité intermédiaire).",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédiger la requête TypeORM pour récupérer un produit avec ses tags triés par sortOrder.",
+        "niveau": "very hard",
+        "reponse": "this.productRepository.findOne({ where: { id: productId }, relations: { productTags: { tag: true } }, order: { productTags: { sortOrder: 'ASC' } } });",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Validation des données et contraintes métier",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un produit ne doit pas avoir un prix négatif ou nul, et le stock ne peut pas être négatif. Le SKU doit être unique et suivre le format 'PRD-XXXX' où X est un chiffre.</p><p><strong>Consigne :</strong> Ajoutez les validations nécessaires dans l'entité Product et les DTOs.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire les décorateurs class-validator dans CreateProductDto pour valider price (>0) et stock (>=0).",
+        "niveau": "medium",
+        "reponse": "@Min(0.01, { message: 'Le prix doit être supérieur à 0' }) price: number; @Min(0, { message: 'Le stock ne peut pas être négatif' }) stock: number;",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Ajouter une validation personnalisée pour le SKU avec le pattern 'PRD-\\d{4}'.",
+        "niveau": "hard",
+        "reponse": "@Matches(/^PRD-\\d{4}$/, { message: 'Le SKU doit être au format PRD-0000' }) sku: string;",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Expliquer pourquoi il est important de valider au niveau DTO mais aussi au niveau base de données.",
+        "niveau": "easy",
+        "reponse": "La validation DTO protège contre les entrées malformées et améliore l'expérience utilisateur (messages d'erreur clairs). La validation base de données (contraintes UNIQUE, CHECK) garantit l'intégrité des données même en cas de contournement de l'API (accès direct à la BDD, bug dans le code).",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

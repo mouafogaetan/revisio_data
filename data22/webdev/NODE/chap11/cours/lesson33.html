@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Gestion de processus avec PM2 | Backend Node.js</title>
+    <!-- Tailwind CSS + Font Awesome (quelques icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styles personnalisés pour un meilleur confort de lecture */
+        body {
+            background: #f0f4f8;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            transition: all 0.2s ease;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin: 1.2rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .note-info {
+            background: #dbeafe;
+            border-left: 5px solid #2563eb;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        .badge-pm2 {
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            display: inline-block;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+        .btn-slide {
+            transition: background 0.2s;
+        }
+    </style>
+    <!-- jQuery & MathJax (pour d'éventuelles formules) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Zone d'affichage dynamique des slides -->
+        <div id="slides-container" class="relative"></div>
+
+        <!-- Navigation entre slides -->
+        <div class="flex justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed border border-slate-300 text-sm md:text-base">◀ Précédent</button>
+            <div class="text-sm bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm text-slate-600">
+                Slide <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+            </div>
+            <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <footer class="text-center text-slate-400 text-xs py-5 border-t border-slate-200 mt-6">
+        🇨🇲 Cours Backend Node.js – Enseignant Cameroun | Leçon 33 : PM2 – Gestionnaire de processus
+    </footer>
+
+    <script>
+        // Contenu des slides pour la leçon 33 (PM2 : installation, gestion, surveillance, logs)
+        // Slide 0 : Titre
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Pourquoi PM2 ? (problèmes de production)
+        // Slide 3 : Installation et premier démarrage
+        // Slide 4 : Commandes essentielles (start, stop, restart, delete, list)
+        // Slide 5 : Surveillance et monitoring (pm2 monit, logs)
+        // Slide 6 : Configuration des logs avec PM2
+        // Slide 7 : Démarrage automatique (startup) et résumé
+        
+        const slidesData = [
+            {
+                type: "title",
+                icon: "⚙️",
+                title: "Gestion de processus avec PM2",
+                subtitle: "Gardez vos applications Node.js vivantes en production",
+                badge: "Leçon 33 · Niveau Intermédiaire"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                list: [
+                    "✅ Installer PM2 globalement sur le serveur",
+                    "✅ Démarrer, stopper, redémarrer et supprimer des applications Node.js avec PM2",
+                    "✅ Surveiller l'état des processus (ressources CPU, mémoire) grâce à pm2 monit",
+                    "✅ Configurer la gestion des logs pour chaque application",
+                    "✅ Mettre en place un redémarrage automatique après reboot du serveur (startup)"
+                ]
+            },
+            {
+                type: "content",
+                title: "🧠 Pourquoi PM2 ? Les défis de la production",
+                content: `
+                    <p>Quand tu développes localement, tu utilises <code class="bg-slate-100 px-1 rounded">node server.js</code>. Mais en production, plusieurs problèmes surviennent :</p>
+                    <ul class="list-disc pl-6 mt-3 space-y-1">
+                        <li><span class="font-semibold">Plantage</span> : si ton app rencontre une erreur, elle s'arrête complètement. Les clients ne peuvent plus accéder au service.</li>
+                        <li><span class="font-semibold">Redémarrage manuel</span> : tu dois te connecter au serveur et relancer la commande à chaque fois.</li>
+                        <li><span class="font-semibold">Utilisation des ressources</span> : tu ne vois pas la consommation CPU/mémoire.</li>
+                        <li><span class="font-semibold">Logs non persistants</span> : les messages dans la console disparaissent à la fermeture du terminal.</li>
+                    </ul>
+                    <div class="note-info mt-3">
+                        💡 <strong>PM2</strong> (Process Manager 2) est un gestionnaire de processus qui résout tous ces soucis. Il maintient ton application en vie, la redémarre automatiquement en cas d'erreur, et fournit des outils de monitoring.
+                    </div>
+                    <p class="mt-2">PM2 est utilisé par des milliers d'entreprises pour des applications Node.js en production. C'est un outil indispensable !</p>
+                `
+            },
+            {
+                type: "content",
+                title: "📦 Installation de PM2 et premier démarrage",
+                content: `
+                    <p>PM2 s'installe globalement avec npm :</p>
+                    <div class="code-block">
+                        npm install -g pm2
+                    </div>
+                    <p>Vérifie que l'installation a réussi :</p>
+                    <div class="code-block">
+                        pm2 --version
+                    </div>
+                    <p>Pour démarrer une application Node.js (par exemple <strong>app.js</strong>) :</p>
+                    <div class="code-block">
+                        pm2 start app.js --name "mon-api"
+                    </div>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li><code>--name</code> : donne un nom facile à retenir à ton processus.</li>
+                        <li>Par défaut, PM2 redémarre automatiquement l'application si elle plante.</li>
+                    </ul>
+                    <div class="bg-green-50 p-3 rounded-lg mt-2 border-l-4 border-green-500">
+                        🌟 <strong>Exemple concret</strong> : <code>pm2 start server.js --name "backend-express"</code>
+                    </div>
+                    <p>Tu verras un tableau avec l'ID, le nom, le statut (online/stopped), la CPU et la mémoire.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "⌨️ Commandes essentielles de PM2",
+                content: `
+                    <p>Voici les commandes que tu utiliseras quotidiennement :</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-slate-50 rounded-xl border border-slate-200 text-sm md:text-base">
+                            <thead class="bg-slate-200">
+                                <tr><th class="p-2 text-left">Commande</th><th class="p-2 text-left">Description</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b"><td class="p-2"><code>pm2 list</code></td><td class="p-2">Affiche tous les processus gérés par PM2</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>pm2 stop &lt;nom|id&gt;</code></td><td class="p-2">Stoppe le processus (mais PM2 le garde en mémoire)</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>pm2 restart &lt;nom|id&gt;</code></td><td class="p-2">Redémarre le processus</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>pm2 delete &lt;nom|id&gt;</code></td><td class="p-2">Supprime le processus de la liste PM2</td></tr>
+                                <tr class="border-b"><td class="p-2"><code>pm2 start app.js --watch</code></td><td class="p-2">Redémarre auto quand un fichier change (développement)</td></tr>
+                                <tr><td class="p-2"><code>pm2 save</code></td><td class="p-2">Sauvegarde la liste des processus en cours</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="note-info mt-3">
+                        🔁 <span class="font-semibold">Astuce :</span> Si tu changes le code de ton application, utilise <code>pm2 restart all</code> ou <code>pm2 restart mon-api</code>. Aucun temps d'arrêt prolongé !
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "📊 Surveillance en temps réel : pm2 monit et logs",
+                content: `
+                    <p>PM2 offre des outils visuels pour surveiller la santé de tes applications.</p>
+                    <p><span class="font-bold">🔍 pm2 monit</span> : interface en ligne de commande interactive.</p>
+                    <div class="code-block">
+                        pm2 monit
+                    </div>
+                    <p>Tu verras en direct : CPU, mémoire, et les logs de chaque processus. Quitte avec <code>Ctrl + C</code>.</p>
+                    <p><span class="font-bold">📋 Afficher les logs en temps réel :</span></p>
+                    <div class="code-block">
+                        pm2 logs           # logs de tous les processus<br>
+                        pm2 logs mon-api   # logs d'un processus spécifique
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-lg mt-2">
+                        💡 <strong>Bon à savoir :</strong> Les logs sont aussi stockés dans <code>~/.pm2/logs/</code>. Utile pour les analyser plus tard.
+                    </div>
+                    <p>Pour effacer les logs : <code>pm2 flush</code></p>
+                `
+            },
+            {
+                type: "content",
+                title: "📁 Gestion avancée des logs avec PM2",
+                content: `
+                    <p>Par défaut, PM2 sépare les logs : <code>out.log</code> (sortie standard, console.log) et <code>error.log</code> (console.error). Tu peux personnaliser :</p>
+                    <div class="code-block">
+                        pm2 start app.js --name "mon-api" --output ./logs/out.log --error ./logs/err.log
+                    </div>
+                    <p><span class="font-bold">Rotation automatique des logs</span> (pour éviter des fichiers trop volumineux) :</p>
+                    <div class="code-block">
+                        pm2 install pm2-logrotate
+                    </div>
+                    <p>Ensuite, configure la taille max, le nombre de fichiers à conserver :</p>
+                    <div class="code-block">
+                        pm2 set pm2-logrotate:max_size 10M<br>
+                        pm2 set pm2-logrotate:retain 7
+                    </div>
+                    <div class="note-info">
+                        🧠 <strong>Pourquoi c'est important ?</strong> Sans rotation, les logs peuvent remplir tout le disque dur et faire planter le serveur.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🚀 Redémarrage automatique au boot et résumé",
+                content: `
+                    <p>Pour que ton application redémarre automatiquement après un redémarrage du serveur (panne de courant, mise à jour) :</p>
+                    <div class="code-block">
+                        pm2 startup  # Génère un script de démarrage<br>
+                        pm2 save     # Sauvegarde la liste des processus
+                    </div>
+                    <p><span class="font-semibold">Explication</span> : <code>pm2 startup</code> détecte ton système (systemd, etc.) et configure un service qui relance PM2 au boot. <code>pm2 save</code> enregistre quels processus doivent être restaurés.</p>
+                    <hr class="my-4">
+                    <p class="font-bold text-indigo-700">✅ Ce qu'il faut retenir :</p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li>PM2 garde ton application Node.js <strong>toujours active</strong>.</li>
+                        <li>Commandes clés : start, stop, restart, delete, list, logs, monit.</li>
+                        <li>Les logs sont persistants et rotables.</li>
+                        <li>La sauvegarde (<code>pm2 save</code>) + startup assure un fonctionnement même après reboot.</li>
+                    </ul>
+                    <div class="bg-indigo-50 p-3 rounded-xl mt-4 text-center text-indigo-800">
+                        🎯 <strong>Projet pratique</strong> : Déploie une petite API Express sur un VPS et utilise PM2 pour la gérer. Félicitations, tu passes au niveau professionnel !
+                    </div>
+                `
+            }
+        ];
+
+        let currentIdx = 0;
+        const total = slidesData.length;
+        
+        function renderSlide(index) {
+            const s = slidesData[index];
+            if (!s) return "<div class='text-center p-10'>Erreur slide</div>";
+            
+            if (s.type === "title") {
+                return `
+                    <div class="slide-card bg-gradient-to-br from-indigo-50 to-cyan-50 rounded-3xl shadow-xl p-6 md:p-10 text-center border border-indigo-100">
+                        <div class="text-7xl mb-4">${s.icon}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-indigo-800 leading-tight">${s.title}</h1>
+                        <p class="text-lg md:text-xl text-slate-600 mt-4 max-w-xl mx-auto">${s.subtitle}</p>
+                        <div class="mt-6 inline-block bg-indigo-200 px-4 py-1 rounded-full text-indigo-800 text-sm font-medium">${s.badge}</div>
+                        <div class="mt-8 w-16 h-1 bg-indigo-300 mx-auto rounded-full"></div>
+                    </div>
+                `;
+            } 
+            else if (s.type === "objectifs") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8 border-l-8 border-indigo-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 mb-5">${s.title}</h2>
+                        <ul class="space-y-3">
+                            ${s.list.map(item => `<li class="flex items-start gap-3 text-slate-700 text-base md:text-lg"><span class="text-indigo-500 text-xl shrink-0">📌</span> <span>${item}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-6 bg-indigo-50 p-3 rounded-xl text-indigo-700 text-sm italic">
+                            🧠 À la fin de cette leçon, tu sauras administrer une application Node.js comme un DevOps débutant !
+                        </div>
+                    </div>
+                `;
+            }
+            else if (s.type === "content") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-b border-indigo-200 pb-3 mb-5">${s.title}</h2>
+                        <div class="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                            ${s.content}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="bg-white rounded-2xl p-6">Contenu non disponible</div>`;
+        }
+        
+        function updateDisplay() {
+            const html = renderSlide(currentIdx);
+            $("#slides-container").html(html);
+            $("#currentSlide").text(currentIdx + 1);
+            $("#totalSlides").text(total);
+            
+            $("#prevBtn").prop("disabled", currentIdx === 0);
+            $("#nextBtn").prop("disabled", currentIdx === total - 1);
+            
+            $("html, body").animate({ scrollTop: 0 }, 80);
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        function nextSlide() {
+            if (currentIdx < total - 1) {
+                currentIdx++;
+                updateDisplay();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                updateDisplay();
+            }
+        }
+        
+        $(document).ready(function() {
+            updateDisplay();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") { nextSlide(); e.preventDefault(); }
+                else if (e.key === "ArrowLeft") { prevSlide(); e.preventDefault(); }
+            });
+            
+            // Swipe mobile simple
+            let touchStartX = 0, touchEndX = 0;
+            const container = document.getElementById("slides-container");
+            if (container) {
+                container.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                container.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    if (touchEndX < touchStartX - 45) nextSlide();
+                    if (touchEndX > touchStartX + 45) prevSlide();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

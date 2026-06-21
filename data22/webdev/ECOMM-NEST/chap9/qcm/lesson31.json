@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Quelle est la relation la plus appropriée entre un utilisateur (User) et un produit (Product) pour une fonctionnalité de liste de souhaits (wishlist) ?",
+    "options": [
+      "`@OneToOne(() => Product)`",
+      "`@ManyToMany(() => Product)` avec une table de liaison",
+      "`@OneToMany(() => Product)`",
+      "`@ManyToOne(() => Product)`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La relation ManyToMany est la plus appropriée car un utilisateur peut avoir plusieurs produits dans sa wishlist et un produit peut être dans la wishlist de plusieurs utilisateurs. TypeORM gère cette relation avec une table de liaison (junction table) créée automatiquement via `@JoinTable()`."
+  },
+  {
+    "questionText": "Quel décorateur TypeORM doit-on utiliser avec `@ManyToMany` pour créer la table de liaison (junction table) d'une wishlist ?",
+    "options": [
+      "`@JoinColumn()`",
+      "`@JoinTable()`",
+      "`@RelationTable()`",
+      "`@PivotTable()`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "`@JoinTable()` est le décorateur qui permet de spécifier la table de liaison pour une relation ManyToMany. Côté propriétaire de la relation, on place `@JoinTable()` pour que TypeORM génère la table intermédiaire (ex: `user_wishlist_products`)."
+  },
+  {
+    "questionText": "Dans le contexte d'une wishlist, quelle est la différence entre `@ManyToMany` et `@OneToMany` avec une entité intermédiaire explicite ?",
+    "options": [
+      "Aucune différence, les deux sont équivalents",
+      "`@ManyToMany` est plus simple mais moins flexible si on veut ajouter des métadonnées (ex: date d'ajout, note personnelle)",
+      "`@OneToMany` est plus performant en lecture",
+      "`@ManyToMany` ne permet pas de supprimer un élément de la wishlist"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "`@ManyToMany` simple ne permet pas d'ajouter des colonnes supplémentaires dans la table de liaison (ex: `addedAt`, `notes`, `priority`). Pour cela, il faut créer une entité intermédiaire explicite (ex: `WishlistItem`) avec `@ManyToOne` vers User et `@ManyToOne` vers Product, et utiliser `@OneToMany` de chaque côté. C'est plus flexible mais plus complexe."
+  },
+  {
+    "questionText": "Comment implémenter la notification \"produit favori en promotion\" dans une architecture NestJS ?",
+    "options": [
+      "Faire une requête SQL toutes les heures et envoyer des emails",
+      "Utiliser un cron job qui vérifie les changements de prix des produits dans la wishlist et envoie des notifications via Bull/Queue",
+      "Notifier l'utilisateur à chaque fois qu'il consulte sa wishlist",
+      "Impossible car les prix changent trop souvent"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "La meilleure approche est d'utiliser un cron job (via `@nestjs/schedule`) qui, périodiquement (ex: toutes les heures), parcourt les produits en promotion et compare avec les wishlists des utilisateurs. Lorsqu'un produit favori est en promo, on ajoute un job Bull pour envoyer une notification (email ou push). Cela évite de surcharger l'API et garantit une diffusion asynchrone."
+  },
+  {
+    "questionText": "Comment gérer la notification \"produit de nouveau en stock\" pour les wishlists ?",
+    "options": [
+      "Scanner toutes les wishlists à chaque mise à jour de stock (lourde performance)",
+      "Utiliser un trigger PostgreSQL ou un événement NestJS déclenché lors de la mise à jour du stock",
+      "Envoyer un email quotidien à tous les utilisateurs",
+      "Ne pas implémenter cette fonctionnalité pour des raisons de performance"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "hard",
+    "explanation": "L'approche recommandée est d'utiliser un événement (event emitter) ou un webhook déclenché lors de la mise à jour du stock d'un produit. Si le stock passe de 0 à >0, on recherche tous les utilisateurs qui ont ce produit dans leur wishlist (`productId IN (SELECT productId FROM wishlist_items WHERE productId = X)`). On envoie ensuite une notification asynchrone (Bull + email/push). C'est plus efficace que de scanner toutes les wishlists en permanence."
+  },
+  {
+    "questionText": "Quelle annotation Swagger permet de documenter le DTO d'ajout à la wishlist (contenant `productId`) ?",
+    "options": [
+      "`@ApiModel()`",
+      "`@ApiProperty()`",
+      "`@ApiDto()`",
+      "`@ApiField()`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "`@ApiProperty()` est le décorateur utilisé dans les DTO pour documenter les propriétés dans Swagger/OpenAPI. Exemple : `@ApiProperty({ description: 'ID du produit à ajouter aux favoris', example: 123 })`."
+  },
+  {
+    "questionText": "Comment implémenter un lien public de partage de wishlist (ex: `/wishlist/share/abc123-uuid`) ?",
+    "options": [
+      "Utiliser l'ID de l'utilisateur dans l'URL (risque de sécurité)",
+      "Générer un token unique (UUID) stocké en base pour chaque wishlist, accessible sans authentification",
+      "Désactiver le partage public pour des raisons de confidentialité",
+      "Utiliser un mot de passe partagé"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La bonne pratique est de générer un token aléatoire unique (UUID v4) associé à la wishlist de l'utilisateur, stocké en base. On expose un endpoint public `/wishlist/share/:token` qui ne nécessite pas d'authentification mais uniquement le token. Le token n'est pas devinable (contrairement à l'ID utilisateur) et on peut le régénérer à la demande."
+  },
+  {
+    "questionText": "Quelle est la principale différence entre une wishlist et un panier (cart) ?",
+    "options": [
+      "Il n'y a aucune différence, ce sont deux noms pour la même chose",
+      "La wishlist ne gère pas les quantités et ne déclenche pas de vérification de stock",
+      "Le panier est public, la wishlist est privée",
+      "La wishlist est limitée à 10 produits"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La wishlist (liste de souhaits) stocke simplement des références de produits sans quantité, sans vérification de stock, et sans notion de checkout. Le panier (cart) gère des quantités, vérifie la disponibilité, calcule des totaux, et mène à la commande. La wishlist est davantage un marque-page qu'un pré-commande."
+  },
+  {
+    "questionText": "Comment implémenter la suppression automatique des produits indisponibles (supprimés du catalogue) de la wishlist des utilisateurs ?",
+    "options": [
+      "Un cron job qui nettoie les références orphelines",
+      "Une cascade `ON DELETE CASCADE` dans la base de données (suppression automatique)",
+      "Les deux approches sont valables selon le contexte",
+      "Aucune, les références orphelines n'ont pas d'impact"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "hard",
+    "explanation": "Deux approches : 1) Base de données : `@ManyToMany` avec `onDelete: 'CASCADE'` : la suppression d'un produit supprime automatiquement les entrées de la wishlist. 2) Application : cron job périodique qui supprime les `wishlist_items` dont `productId` n'existe plus dans la table `products`. La cascade est plus simple et garantit l'intégrité référentielle, mais un cron peut être utile pour des logs ou des notifications aux utilisateurs."
+  },
+  {
+    "questionText": "Quel est l'avantage d'utiliser Redis pour stocker les wishlists temporaires (utilisateurs non connectés) ?",
+    "options": [
+      "Redis est plus lent que PostgreSQL",
+      "Redis permet une expiration automatique (TTL) et de meilleures performances pour les accès fréquents",
+      "Redis ne supporte pas les relations ManyToMany",
+      "Il n'y a aucun avantage, la wishlist doit toujours être en base"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Pour les visiteurs anonymes, stocker la wishlist dans Redis avec un TTL (Time To Live) permet une expiration automatique (ex: 30 jours). Redis est beaucoup plus rapide que PostgreSQL pour les lectures/écritures fréquentes et réduit la charge sur la base de données relationnelle. À la connexion, on fusionne la wishlist Redis avec la wishlist PostgreSQL de l'utilisateur."
+  }
+]

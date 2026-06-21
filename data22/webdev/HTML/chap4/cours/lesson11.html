@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 11 : Validation HTML & Bonnes Pratiques | Cours Web</title>
+  <!-- Tailwind CSS + Google Fonts pour une meilleure lisibilité -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Configuration Tailwind : couleurs douces mais visibles, thème accessible -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'cours-primary': '#1E4A6B',
+            'cours-secondary': '#2C7A7B',
+            'cours-light': '#F0F9FF',
+            'cours-warm': '#FFF9F0',
+          },
+          fontFamily: {
+            'sans': ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'],
+          },
+          screens: {
+            'xs': '480px',
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (optionnel, pour formules si besoin, mais cette leçon n'en contient pas directement) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* transitions douces pour les slides */
+    .slide-container {
+      transition: opacity 0.25s ease-in-out;
+    }
+    .slide {
+      background: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    .btn-nav {
+      transition: all 0.2s ease;
+    }
+    .btn-nav:hover:not(:disabled) {
+      transform: scale(1.02);
+      background-color: #E6F0FA;
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* rendre les slides agréables sur petit écran */
+    @media (max-width: 640px) {
+      .slide {
+        border-radius: 1rem;
+      }
+    }
+    /* style pour les listes objectifs et contenu */
+    .checklist li {
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .checklist li::before {
+      content: "✓";
+      color: #2C7A7B;
+      font-weight: bold;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    .objective-icon {
+      background-color: #E0F2FE;
+      border-radius: 2rem;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.8rem;
+    }
+    code {
+      background-color: #f1f5f9;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: #0f3b5c;
+    }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+    }
+    .highlight {
+      background: #fff9c4;
+      padding: 0 0.2rem;
+      border-radius: 0.3rem;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-sky-50 to-blue-50 font-sans antialiased">
+
+  <div class="min-h-screen flex flex-col items-center justify-center px-3 py-6 md:py-10">
+    <!-- Conteneur principal slides -->
+    <div class="w-full max-w-4xl mx-auto">
+      <!-- indicateur de slide & progression -->
+      <div class="flex justify-between items-center mb-4 text-sm text-gray-600 px-2">
+        <div class="font-medium bg-white/60 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">
+          📘 Leçon 11 / 13
+        </div>
+        <div class="bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full font-medium">
+          Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+        </div>
+      </div>
+      <!-- barre de progression -->
+      <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6 overflow-hidden">
+        <div id="progressFill" class="progress-bar bg-teal-600 h-2.5 rounded-full" style="width: 0%;"></div>
+      </div>
+
+      <!-- Zone slide dynamique -->
+      <div id="slidesWrapper" class="slide-container relative">
+        <!-- les slides seront injectées ici via jQuery -->
+      </div>
+
+      <!-- Navigation + boutons -->
+      <div class="flex justify-between items-center mt-8 gap-3">
+        <button id="prevBtn" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2.5 px-5 rounded-xl shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          Précédent
+        </button>
+        <div class="flex gap-2">
+          <button id="resetBtn" class="btn-nav bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-xl text-sm shadow">
+            🔄 Replay
+          </button>
+        </div>
+        <button id="nextBtn" class="btn-nav bg-cours-primary hover:bg-blue-800 text-white font-medium py-2.5 px-5 rounded-xl shadow-md transition flex items-center gap-2">
+          Suivant
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+      <p class="text-center text-xs text-gray-500 mt-6">✨ Utilise les boutons pour naviguer entre les slides | Cours adapté aux petits écrans</p>
+    </div>
+  </div>
+
+  <script>
+    // Définition du contenu des slides (titre, objectifs, contenu de la leçon 11)
+    // Slide 0: Titre principal
+    // Slide 1: Objectifs d'apprentissage
+    // Slides 2 à 5 : Contenu de la leçon (validation, metadonnées, responsive, bonnes pratiques)
+
+    const slidesData = [
+      { // slide 0 - introduction
+        type: "title",
+        title: "✅ Validation HTML & Bonnes Pratiques du Web",
+        subtitle: "Leçon 11 : Produire un HTML valide, accessible et compatible",
+        icon: "🌐",
+        bgClass: "bg-gradient-to-r from-indigo-50 to-teal-50"
+      },
+      { // slide 1 - objectifs pédagogiques
+        type: "objectifs",
+        title: "🎯 Objectifs d'apprentissage",
+        objectives: [
+          "Utiliser le validateur HTML du W3C pour vérifier son code",
+          "Connaître les métadonnées essentielles (viewport, description)",
+          "Comprendre les bases du responsive design avec la balise meta viewport",
+          "Savoir corriger les erreurs courantes et optimiser son HTML"
+        ]
+      },
+      { // slide 2 - Le validateur W3C
+        type: "content",
+        title: "🔍 1. Valider son code avec le W3C",
+        contentHtml: `
+          <p class="mb-3 text-gray-700">Le <strong class="text-cours-primary">validateur HTML du W3C</strong> est un outil gratuit qui analyse votre code et détecte les erreurs, avertissements ou balises obsolètes.</p>
+          <div class="bg-blue-50 p-4 rounded-xl my-4 border-l-8 border-blue-500">
+            <p class="font-semibold flex items-center gap-2"><span>🌍</span> Pourquoi valider ?</p>
+            <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+              <li>Assure la compatibilité entre navigateurs (Chrome, Firefox, Safari, etc.)</li>
+              <li>Améliore le référencement (SEO) et l’accessibilité</li>
+              <li>Facilite la maintenance du code</li>
+            </ul>
+          </div>
+          <div class="my-3">
+            <p class="font-medium">✨ Étapes pour valider :</p>
+            <ol class="list-decimal pl-6 mt-1 space-y-1 text-gray-700">
+              <li>Aller sur <code class="bg-gray-200">validator.w3.org</code></li>
+              <li>Choisir "Validate by Direct Input" ou uploader un fichier</li>
+              <li>Corriger les erreurs signalées (ex: balise fermée manquante, attribut inconnu)</li>
+            </ol>
+          </div>
+          <div class="mt-3 p-3 bg-gray-100 rounded-lg text-sm italic">💡 Exemple d'erreur fréquente : oublier <code>&lt;/li&gt;</code> dans une liste → le validateur indique la ligne exacte.</div>
+        `
+      },
+      { // slide 3 - Métadonnées essentielles
+        type: "content",
+        title: "📋 2. Métadonnées essentielles (balise &lt;meta&gt;)",
+        contentHtml: `
+          <p class="mb-2">Les métadonnées aident les navigateurs et moteurs de recherche à comprendre votre page.</p>
+          <pre class="text-xs md:text-sm"><code>&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta name="description" content="Cours HTML gratuit sur la validation"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+  &lt;title&gt;Ma page validée&lt;/title&gt;
+&lt;/head&gt;</code></pre>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <div class="bg-white shadow-sm rounded-lg p-3 border border-teal-100">
+              <span class="font-bold text-teal-800">📌 meta description</span>
+              <p class="text-sm">Texte qui apparaît dans les résultats de recherche. 150-160 caractères max.</p>
+            </div>
+            <div class="bg-white shadow-sm rounded-lg p-3 border border-teal-100">
+              <span class="font-bold text-teal-800">📱 viewport</span>
+              <p class="text-sm">Contrôle la mise à l'échelle sur mobile. Indispensable pour le responsive.</p>
+            </div>
+          </div>
+        `
+      },
+      { // slide 4 - Responsive design & viewport
+        type: "content",
+        title: "📱 3. Bases du responsive design avec la balise viewport",
+        contentHtml: `
+          <p class="mb-3">La balise <code class="bg-gray-200 px-1">meta name="viewport"</code> permet d'adapter la largeur de la page à l'écran de l'utilisateur.</p>
+          <div class="bg-amber-50 p-4 rounded-xl my-3">
+            <code class="block text-sm break-all">&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</code>
+            <ul class="mt-3 space-y-2 text-gray-700">
+              <li>✔️ <span class="font-medium">width=device-width</span> → largeur égale à l'écran du mobile</li>
+              <li>✔️ <span class="font-medium">initial-scale=1.0</span> → niveau de zoom initial (1 = pas de zoom par défaut)</li>
+              <li>✔️ Évite que les pages paraissent "zoomées" ou trop petites sur smartphone</li>
+            </ul>
+          </div>
+          <p class="text-sm bg-white p-2 rounded border">💡 Sans cette balise, les navigateurs mobiles affichent souvent la page avec un zoom équivalent à un écran large (~980px), ce qui rend le texte illisible sans pincer-zoom. Avec le viewport, votre contenu s’ajuste automatiquement.</p>
+          <div class="mt-3 text-center text-xs text-gray-500">(Illustration : dessin d'un smartphone avec largeur adaptée)</div>
+          <!-- petit dessin d'un mobile en CSS pur, accessible -->
+          <div class="flex justify-center mt-2">
+            <div class="bg-gray-800 w-20 h-32 rounded-xl relative flex items-center justify-center border-2 border-gray-600">
+              <div class="bg-teal-100 w-14 h-24 rounded-md flex items-center justify-center text-[10px] font-bold text-teal-800">📱 100%</div>
+              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-gray-500 rounded-full"></div>
+            </div>
+            <span class="mx-2 text-xl">→</span>
+            <div class="bg-gray-800 w-20 h-32 rounded-xl relative flex items-center justify-center border-2 border-green-400">
+              <div class="bg-white w-16 h-24 rounded-md flex items-center justify-center text-[9px] font-bold text-teal-800">viewport activé</div>
+            </div>
+          </div>
+        `
+      },
+      { // slide 5 - Bonnes pratiques & accessibilité, validation finale
+        type: "content",
+        title: "✨ 4. Autres bonnes pratiques et outils",
+        contentHtml: `
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="bg-white rounded-xl p-4 shadow-sm border">
+              <h4 class="font-bold text-cours-primary">🧪 Tester l'accessibilité</h4>
+              <p class="text-sm mt-1">Utilisez <strong>axe DevTools</strong> ou <strong>Lighthouse</strong> (Chrome). Vérifiez que chaque image a un alt pertinent.</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border">
+              <h4 class="font-bold text-cours-primary">🔧 Indentation et commentaires</h4>
+              <p class="text-sm">Un code bien indenté est plus facile à valider. Utilisez des commentaires <code>&lt;!-- ... --&gt;</code> pour organiser.</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border">
+              <h4 class="font-bold text-cours-primary">📄 Doctype HTML5</h4>
+              <p class="text-sm">Toujours commencer par <code>&lt;!DOCTYPE html&gt;</code> pour déclencher le mode standard.</p>
+            </div>
+            <div class="bg-white rounded-xl p-4 shadow-sm border">
+              <h4 class="font-bold text-cours-primary">🎯 Attributs ARIA de base</h4>
+              <p class="text-sm">Parfois nécessaires pour l’accessibilité. Ex: <code>aria-label</code> sur des icônes.</p>
+            </div>
+          </div>
+          <div class="mt-5 p-3 bg-teal-50 rounded-lg text-teal-900">
+            ⭐ <strong>Résumé de la leçon :</strong> Un HTML valide = meilleure expérience utilisateur, meilleur référencement et moins de bugs. Utilisez régulièrement le validateur W3C, pensez toujours au viewport, et intégrez les métadonnées.
+          </div>
+          <div class="mt-4 text-center">
+            <span class="inline-flex items-center gap-1 bg-cours-primary/10 px-4 py-1 rounded-full text-sm">✅ Exercice: validez votre page sur validator.w3.org</span>
+          </div>
+        `
+      }
+    ];
+
+    let currentSlide = 0;
+    let totalSlides = slidesData.length;
+
+    // Mise à jour affichage
+    function updateDisplay() {
+      $("#totalSlides").text(totalSlides);
+      $("#currentSlideIdx").text(currentSlide + 1);
+      const percent = ((currentSlide) / (totalSlides - 1)) * 100;
+      $("#progressFill").css("width", percent + "%");
+
+      // Gestion état boutons
+      if (currentSlide === 0) {
+        $("#prevBtn").prop("disabled", true);
+      } else {
+        $("#prevBtn").prop("disabled", false);
+      }
+      if (currentSlide === totalSlides - 1) {
+        $("#nextBtn").prop("disabled", true);
+      } else {
+        $("#nextBtn").prop("disabled", false);
+      }
+
+      // construire le HTML du slide courant
+      renderSlide(currentSlide);
+    }
+
+    function renderSlide(index) {
+      const data = slidesData[index];
+      let html = "";
+      const baseCardClass = "slide p-5 md:p-8 transition-all duration-200";
+
+      if (data.type === "title") {
+        html = `
+          <div class="${baseCardClass} text-center ${data.bgClass || 'bg-white'}">
+            <div class="text-6xl md:text-7xl mb-4">${data.icon}</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold text-cours-primary tracking-tight">${data.title}</h1>
+            <p class="text-gray-600 text-lg md:text-xl mt-4 max-w-2xl mx-auto">${data.subtitle}</p>
+            <div class="mt-8 flex justify-center">
+              <div class="bg-teal-100 rounded-full px-6 py-2 text-teal-800 text-sm font-medium">📖 Cours HTML · Niveau débutant</div>
+            </div>
+            <div class="mt-10 text-gray-500 text-sm">➡️ Appuyez sur Suivant pour commencer</div>
+          </div>
+        `;
+      } 
+      else if (data.type === "objectifs") {
+        let objectivesList = "";
+        data.objectives.forEach(obj => {
+          objectivesList += `<li class="flex items-start gap-2"><span class="text-teal-600 text-xl">🎯</span> <span class="text-gray-800">${obj}</span></li>`;
+        });
+        html = `
+          <div class="${baseCardClass} bg-gradient-to-br from-white to-sky-50">
+            <div class="border-b border-teal-100 pb-3 mb-5">
+              <h2 class="text-2xl md:text-3xl font-bold text-cours-primary flex items-center gap-2">${data.title}</h2>
+            </div>
+            <div class="space-y-4">
+              <ul class="space-y-3 text-base md:text-lg">
+                ${objectivesList}
+              </ul>
+              <div class="bg-teal-50 p-4 rounded-xl mt-4 text-teal-800 text-sm">
+                💪 À la fin de cette leçon, vous serez capable de rendre vos pages web robustes et accessibles partout.
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      else if (data.type === "content") {
+        html = `
+          <div class="${baseCardClass} bg-white">
+            <div class="border-l-8 border-teal-500 pl-4 mb-5">
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${data.title}</h2>
+            </div>
+            <div class="prose prose-sm md:prose-base max-w-none text-gray-700">
+              ${data.contentHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      $("#slidesWrapper").fadeOut(150, function() {
+        $(this).html(html);
+        $(this).fadeIn(200);
+        // réactiver mathjax si jamais des formules étaient présentes (aucune ici, mais bon)
+        if (window.MathJax) {
+          MathJax.typesetPromise && MathJax.typesetPromise();
+        }
+      });
+    }
+
+    // Navigation
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateDisplay();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateDisplay();
+      }
+    }
+
+    function resetToFirst() {
+      currentSlide = 0;
+      updateDisplay();
+    }
+
+    // Événements clavier (gauche/droite)
+    $(document).on("keydown", function(e) {
+      if (e.key === "ArrowLeft") {
+        prevSlide();
+      } else if (e.key === "ArrowRight") {
+        nextSlide();
+      }
+    });
+
+    // Initialisation
+    $(document).ready(function() {
+      updateDisplay();
+      $("#nextBtn").on("click", nextSlide);
+      $("#prevBtn").on("click", prevSlide);
+      $("#resetBtn").on("click", resetToFirst);
+      // swipe simple pour mobiles (optionnel, mais gère touchstart/touchmove)
+      let touchstartX = 0;
+      let touchendX = 0;
+      const slidesContainer = document.getElementById("slidesWrapper");
+      slidesContainer.addEventListener("touchstart", function(e) {
+        touchstartX = e.changedTouches[0].screenX;
+      }, false);
+      slidesContainer.addEventListener("touchend", function(e) {
+        touchendX = e.changedTouches[0].screenX;
+        if (touchendX < touchstartX - 40) nextSlide();
+        if (touchendX > touchstartX + 40) prevSlide();
+      }, false);
+    });
+  </script>
+</body>
+</html>

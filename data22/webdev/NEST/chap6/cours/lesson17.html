@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 17 : Middleware, CORS et Logging | NestJS</title>
+    <!-- Tailwind CSS + Font Awesome (icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, mais peu utilisé ici, on le charge léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* transitions douces pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-visible {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* personnalisation du défilement pour le contenu long */
+        .slide-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        /* couleurs douces mais lisibles */
+        body {
+            background: #f8fafc;
+        }
+        .card-bg {
+            background: #ffffff;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+            .slide-content {
+                max-height: 65vh;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased p-4 md:p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Conteneur principal carte slide -->
+        <div class="card-bg rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+            
+            <!-- En-tête avec progression et titre de la matière -->
+            <div class="bg-gradient-to-r from-indigo-700 to-purple-700 px-5 py-4 text-white">
+                <div class="flex justify-between items-center flex-wrap gap-2">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide opacity-80">NestJS - Framework Node.js</p>
+                        <h1 class="text-xl md:text-2xl font-bold">Middleware, CORS & Logging</h1>
+                        <p class="text-sm opacity-90 mt-1">Leçon 17 · Gestion des cross-cutting concerns</p>
+                    </div>
+                    <div class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-mono">
+                        <span id="slideCounter">1</span> / <span id="totalSlides"></span>
+                    </div>
+                </div>
+                <!-- Barre de progression -->
+                <div class="w-full bg-white/30 rounded-full h-1.5 mt-3">
+                    <div id="progressBar" class="bg-yellow-300 h-1.5 rounded-full w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+
+            <!-- Zone des slides dynamiques -->
+            <div id="slidesContainer" class="p-5 md:p-7 bg-gray-50">
+                <!-- Le contenu sera injecté via jQuery -->
+                <div class="text-center py-10 text-gray-500">Chargement du cours...</div>
+            </div>
+
+            <!-- Navigation : boutons précédent/suivant + indicateurs -->
+            <div class="px-5 py-4 border-t border-gray-200 bg-white flex justify-between items-center flex-wrap gap-3">
+                <button id="prevSlide" class="nav-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-5 rounded-full transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    Précédent
+                </button>
+                <div class="flex gap-1" id="dotsIndicator"></div>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    Suivant
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+        </div>
+        <!-- petite note pédagogique -->
+        <p class="text-xs text-center text-gray-400 mt-5">✨ Cours interactif - Navigation par slides | Compatible mobile</p>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 17 : (Middleware, CORS, logging)
+        // slide1: Titre de la leçon
+        // slide2: Objectifs pédagogiques
+        // slide3: Qu'est-ce qu'un Middleware ? Rôle & exemples concrets
+        // slide4: Créer un middleware personnalisé (logging + CORS)
+        // slide5: Configurer les middlewares dans le module (Application)
+        // slide6: Distinguer Middleware, Interceptor et Guard (tableau clair)
+        // slide7: Focus CORS: configuration simple avec NestJS
+        // slide8: Bonnes pratiques & exercice rapide
+        
+        const slidesData = [
+            { // slide 1 - titre principal
+                type: "title",
+                title: "📌 Middleware, CORS & journalisation (logging)",
+                subtitle: "Maîtriser les intermédiaires HTTP pour une application robuste",
+                icon: "⚙️"
+            },
+            { // slide 2 - objectifs
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Créer un middleware personnalisé (logging, CORS, authentification basique)",
+                    "✅ Configurer les middlewares globalement ou par module dans NestJS",
+                    "✅ Comprendre et mettre en place CORS correctement dans une API",
+                    "✅ Faire la différence entre Middleware, Interceptor et Guard",
+                    "✅ Appliquer un middleware de journalisation des requêtes (timing, méthode, URL)"
+                ]
+            },
+            { // slide 3: Qu'est-ce qu'un middleware ?
+                type: "content",
+                title: "🔧 Qu'est-ce qu'un Middleware ?",
+                content: `
+                    <p class="mb-3">Un middleware est une fonction exécutée <strong>avant</strong> le gestionnaire de route. Il a accès aux objets <code class="bg-gray-200 px-1 rounded">request</code> (req) et <code class="bg-gray-200 px-1 rounded">response</code> (res), ainsi qu'à la fonction <code class="bg-gray-200 px-1 rounded">next()</code> qui passe le relais au middleware suivant ou au contrôleur.</p>
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-3 rounded-md mb-4">
+                        <p class="text-sm font-semibold">💡 Rôle typique :</p>
+                        <ul class="list-disc list-inside text-sm space-y-1 mt-1">
+                            <li>Journalisation (logging) des requêtes entrantes</li>
+                            <li>Vérification d'en-têtes (CORS, authentification)</li>
+                            <li>Transformation / Validation précoce</li>
+                            <li>Mesure du temps de réponse</li>
+                        </ul>
+                    </div>
+                    <p class="text-sm">Dans NestJS, les middlewares peuvent être implémentés via une <strong>classe</strong> décorée <code>@Injectable()</code> implémentant <code>NestMiddleware</code> ou via une <strong>fonction</strong> classique.</p>
+                `
+            },
+            { // slide 4: Créer un middleware personnalisé (logging et CORS simple)
+                type: "content",
+                title: "✍️ Créer un middleware personnalisé (exemple: LoggerMiddleware)",
+                content: `
+                    <p class="mb-3">Voici un middleware qui logue chaque requête (méthode, URL, timestamp) et mesure le temps d'exécution :</p>
+                    <div class="code-block">
+                        <span class="text-green-400">// logger.middleware.ts</span><br>
+                        import { Injectable, NestMiddleware } from '@nestjs/common';<br>
+                        import { Request, Response, NextFunction } from 'express';<br><br>
+                        @Injectable()<br>
+                        export class LoggerMiddleware implements NestMiddleware {<br>
+                        &nbsp;&nbsp;use(req: Request, res: Response, next: NextFunction) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;const start = Date.now();<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;console.log(\`[REQ] \${req.method} \${req.originalUrl}\`);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;res.on('finish', () => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const duration = Date.now() - start;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;console.log(\`[RES] \${req.method} \${req.originalUrl} → \${res.statusCode} - \${duration}ms\`);<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;});<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;next();<br>
+                        &nbsp;&nbsp;}<br>
+                        }<br>
+                    </div>
+                    <p class="mt-3 text-sm">Pour un middleware de <strong>CORS</strong> simple, NestJS propose une configuration intégrée, mais on peut aussi écrire un middleware manuel ajoutant l'en-tête <code>Access-Control-Allow-Origin</code>.</p>
+                `
+            },
+            { // slide 5: Configuration dans le module
+                type: "content",
+                title: "⚙️ Configurer les middlewares dans le module",
+                content: `
+                    <p>Pour appliquer le middleware à certaines routes ou globalement, on utilise la méthode <code class="bg-gray-200 px-1 rounded">configure()</code> dans le module principal (ex: <strong>AppModule</strong>) :</p>
+                    <div class="code-block my-3">
+                        // app.module.ts<br>
+                        import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';<br>
+                        import { LoggerMiddleware } from './logger.middleware';<br><br>
+                        @Module({ ... })<br>
+                        export class AppModule implements NestModule {<br>
+                        &nbsp;&nbsp;configure(consumer: MiddlewareConsumer) {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;consumer<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.apply(LoggerMiddleware)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.forRoutes('*');  // pour toutes les routes<br>
+                        &nbsp;&nbsp;}<br>
+                        }<br>
+                    </div>
+                    <p>On peut aussi limiter à certaines routes : <code>.forRoutes('users')</code> ou <code>.forRoutes({ path: 'cats', method: RequestMethod.GET })</code>. On peut appliquer plusieurs middlewares à la suite avec <code>.apply(mw1, mw2)</code>.</p>
+                    <div class="bg-yellow-50 p-2 rounded-md text-sm mt-2">📌 <span class="font-semibold">Middleware fonctionnel :</span> version plus légère : <code>export function logger(req, res, next) { console.log(...); next(); }</code></div>
+                `
+            },
+            { // slide 6: Comparaison middleware / interceptor / guard
+                type: "content",
+                title: "🧠 Distinguer Middleware, Interceptor et Guard",
+                content: `
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200 rounded-lg text-sm">
+                            <thead class="bg-gray-100">
+                                <tr><th class="px-3 py-2 border">Concept</th><th class="px-3 py-2 border">Rôle principal</th><th class="px-3 py-2 border">Accès à la réponse</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b"><td class="px-3 py-2 font-medium">Middleware</td><td class="px-3 py-2">Avant routage, logique brute (req/res)</td><td class="px-3 py-2">✅ oui (peut modifier la réponse)</td></tr>
+                                <tr class="border-b bg-gray-50"><td class="px-3 py-2 font-medium">Guard</td><td class="px-3 py-2">Détermine si la requête est autorisée (rôle/permissions)</td><td class="px-3 py-2">❌ (seulement booléen ou exception)</td></tr>
+                                <tr><td class="px-3 py-2 font-medium">Interceptor</td><td class="px-3 py-2">Transforme résultat, logique autour de l'exécution (avant/après contrôleur)</td><td class="px-3 py-2">✅ (binding avec flux RxJS)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-3 text-sm">📌 <strong>Ordre d'exécution</strong> : Middleware → Guards → Interceptors (avant) → Pipes → Contrôleur → Interceptor (après) → Exception filters.</p>
+                    <div class="bg-blue-50 p-2 rounded-md mt-2">🔍 Le Middleware est le plus bas niveau, parfait pour logging, CORS, parsing d'en-têtes bruts.</div>
+                `
+            },
+            { // slide 7: CORS dans NestJS - configuration officielle
+                type: "content",
+                title: "🌐 Gérer CORS correctement avec NestJS",
+                content: `
+                    <p>Le Cross-Origin Resource Sharing (CORS) est essentiel pour autoriser des requêtes depuis des domaines différents. NestJS propose une configuration très simple :</p>
+                    <div class="code-block my-3">
+                        // main.ts<br>
+                        import { NestFactory } from '@nestjs/core';<br>
+                        import { AppModule } from './app.module';<br><br>
+                        async function bootstrap() {<br>
+                        &nbsp;&nbsp;const app = await NestFactory.create(AppModule);<br>
+                        &nbsp;&nbsp;app.enableCors({<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;origin: 'https://mon-frontend.com',  // ou true pour tout autoriser (⚠️ dev)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;credentials: true,<br>
+                        &nbsp;&nbsp;});<br>
+                        &nbsp;&nbsp;await app.listen(3000);<br>
+                        }<br>
+                        bootstrap();<br>
+                    </div>
+                    <p>On peut aussi configurer CORS via un middleware personnalisé si besoin de logique dynamique. Pour un usage avancé, passer par <code>app.enableCors()</code> est recommandé.</p>
+                    <div class="bg-red-50 border-l-4 border-red-400 p-2 text-sm mt-2">⚠️ En production, limitez l'origine à votre domaine pour des raisons de sécurité.</div>
+                `
+            },
+            { // slide 8: Bonnes pratiques et mini-exercice
+                type: "content",
+                title: "📝 Bonnes pratiques & exercice pratique",
+                content: `
+                    <p class="font-semibold">✨ Astuces professionnelles :</p>
+                    <ul class="list-disc list-inside space-y-1 mb-4">
+                        <li>Utilisez des middlewares pour la compression, la limitation de débit (rate-limit).</li>
+                        <li>Ne bloquez pas le thread avec des opérations synchrone lourdes dans un middleware.</li>
+                        <li>Pour les logs structurés, combinez avec des bibliothèques comme Winston/Pino.</li>
+                        <li>Toujours appeler <code>next()</code> ou la requête restera bloquée.</li>
+                    </ul>
+                    <div class="bg-gray-100 p-4 rounded-xl mt-2">
+                        <p class="font-mono text-sm font-bold">🧪 Exercice rapide :</p>
+                        <p class="text-sm mt-1">Créez un middleware <strong>HeaderMiddleware</strong> qui ajoute un en-tête personnalisé <code>'X-Custom-Header': 'NestJS-Master'</code> à chaque réponse. Configurez-le globalement. Vérifiez avec un client HTTP.</p>
+                        <details class="mt-3 text-xs cursor-pointer"><summary class="bg-indigo-100 p-2 rounded inline-block">Voir une solution</summary>
+                        <div class="code-block mt-2 text-xs">export class HeaderMiddleware implements NestMiddleware { use(req, res, next) { res.setHeader('X-Custom-Header', 'NestJS-Master'); next(); } }</div>
+                        </details>
+                    </div>
+                `
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Génération dynamique des slides dans container
+        function renderSlides() {
+            const $container = $("#slidesContainer");
+            $container.empty();
+            slidesData.forEach((slide, idx) => {
+                let slideHtml = `<div class="slide slide-hidden" data-slide-index="${idx}" id="slide_${idx}">`;
+                // style de base pour tous
+                slideHtml += `<div class="slide-content">`;
+                if (slide.type === "title") {
+                    slideHtml += `
+                        <div class="text-center py-6 md:py-10">
+                            <div class="text-7xl mb-4">${slide.icon || "📖"}</div>
+                            <h2 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">${slide.title}</h2>
+                            <p class="text-gray-600 mt-4 text-lg">${slide.subtitle || "Approfondissez les middlewares NestJS"}</p>
+                            <div class="mt-8 flex justify-center">
+                                <span class="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm">Leçon 17 · Masterclass</span>
+                            </div>
+                        </div>
+                    `;
+                } 
+                else if (slide.type === "objectives") {
+                    slideHtml += `
+                        <h3 class="text-xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-4">${slide.title}</h3>
+                        <div class="grid gap-3 md:grid-cols-2">
+                    `;
+                    slide.objectives.forEach(obj => {
+                        slideHtml += `<div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200 flex items-start gap-2"><span class="text-green-600 text-xl">✓</span><span>${obj}</span></div>`;
+                    });
+                    slideHtml += `</div>`;
+                } 
+                else if (slide.type === "content") {
+                    slideHtml += `
+                        <h3 class="text-xl font-bold text-gray-800 border-l-4 border-indigo-500 pl-3 mb-4">${slide.title}</h3>
+                        <div class="prose prose-sm max-w-none text-gray-700">${slide.content}</div>
+                    `;
+                }
+                slideHtml += `</div></div>`;
+                $container.append(slideHtml);
+            });
+            // Mise à jour visibilité
+            updateSlideVisibility();
+            updateDotsAndCounter();
+        }
+
+        function updateSlideVisibility() {
+            $(".slide").each(function(idx) {
+                if (idx === currentIndex) {
+                    $(this).removeClass("slide-hidden").addClass("slide-visible");
+                } else {
+                    $(this).removeClass("slide-visible").addClass("slide-hidden");
+                }
+            });
+            const progressPercent = ((currentIndex + 1) / totalSlides) * 100;
+            $("#progressBar").css("width", `${progressPercent}%`);
+            $("#slideCounter").text(currentIndex + 1);
+        }
+
+        function updateDotsAndCounter() {
+            const $dots = $("#dotsIndicator");
+            $dots.empty();
+            for (let i = 0; i < totalSlides; i++) {
+                const dotClass = (i === currentIndex) ? "bg-indigo-600 w-3 h-3" : "bg-gray-300 w-2.5 h-2.5";
+                $dots.append(`<button class="dot-nav mx-1 rounded-full ${dotClass} transition-all duration-200 focus:outline-none" data-index="${i}"></button>`);
+            }
+            // Evenements sur les dots
+            $(".dot-nav").on("click", function() {
+                let idx = parseInt($(this).data("index"));
+                if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                    currentIndex = idx;
+                    updateSlideVisibility();
+                    updateDotsAndCounter();
+                }
+            });
+            $("#totalSlides").text(totalSlides);
+            // Gestion désactivation boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+        }
+
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlideVisibility();
+                updateDotsAndCounter();
+            }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlideVisibility();
+                updateDotsAndCounter();
+            }
+        }
+
+        // Rendu initial et événements
+        $(document).ready(function() {
+            renderSlides();
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+            // Navigation clavier (gauche/droite)
+            $(document).on("keydown", function(e) {
+                if (e.key === "ArrowRight") {
+                    nextSlide();
+                } else if (e.key === "ArrowLeft") {
+                    prevSlide();
+                }
+            });
+            // Ajustement MathJax au cas où (contenu)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Leçon 10 : SELECT - Initiation aux Bases de données | Cours WebDev</title>
+  <!-- Tailwind CSS + Font Awesome (pour quelques icones) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules mathématiques si besoin) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* styles doux pour la lisibilité et transitions slides */
+    body {
+      background: #f8fafc;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    }
+    .slide-container {
+      transition: transform 0.3s ease, opacity 0.2s;
+    }
+    .slide-card {
+      background: white;
+      border-radius: 2rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+    .nav-btn {
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .nav-btn:active {
+      transform: scale(0.96);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* Code block simulation */
+    .code-sql {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .example-table {
+      background: #f1f5f9;
+      border-radius: 1rem;
+      overflow-x: auto;
+    }
+    table.mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .mini-table th, .mini-table td {
+      border: 1px solid #cbd5e1;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    .mini-table th {
+      background: #e2e8f0;
+      font-weight: 600;
+    }
+    @media (max-width: 640px) {
+      .slide-card {
+        border-radius: 1.5rem;
+      }
+      .code-sql {
+        font-size: 0.75rem;
+        padding: 0.75rem;
+      }
+    }
+    .highlight {
+      background: #fef9c3;
+      color: #1e1b2c;
+      padding: 0.1rem 0.2rem;
+      border-radius: 0.3rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <main class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <!-- SLIDES WRAPPER -->
+    <div class="relative">
+      <!-- indicateur de progression + compteur -->
+      <div class="flex justify-between items-center mb-4 text-sm text-gray-500">
+        <span id="slideCounter" class="bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm">Slide 1 / <span id="totalSlides">0</span></span>
+        <div class="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
+          <div id="progressFill" class="progress-bar bg-indigo-600 h-full rounded-full" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Conteneur dynamique des slides (généré via JS) -->
+      <div id="slidesContainer" class="relative overflow-hidden"></div>
+
+      <!-- Navigation buttons (mobile friendly) -->
+      <div class="flex justify-between items-center gap-3 mt-6">
+        <button id="prevSlide" class="nav-btn bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-2.5 px-5 rounded-full shadow-sm transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+          Précédent
+        </button>
+        <div class="text-xs text-gray-400 hidden sm:block">glisser ou cliquer sur les boutons</div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-full shadow-md transition flex items-center gap-2">
+          Suivant
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Données de la leçon 10 (lesson10) : SELECT de base
+    // D'après les objectifs : 
+    // - Sélectionner toutes les colonnes (SELECT *) ou colonnes spécifiques
+    // - Utiliser DISTINCT pour éliminer les doublons
+    // - Limiter les résultats avec LIMIT et OFFSET
+    
+    const lessonData = {
+      title: "Leçon 10 : Sélectionner des données avec SELECT",
+      subtitle: "Maîtriser la requête fondamentale d'interrogation en SQL",
+      objectives: [
+        "✅ Sélectionner toutes les colonnes d'une table avec <code class='bg-gray-100 px-1 rounded'>SELECT *</code>",
+        "✅ Choisir des colonnes spécifiques pour affiner les résultats",
+        "✅ Éliminer les doublons grâce à <code class='bg-gray-100 px-1 rounded'>DISTINCT</code>",
+        "✅ Paginer / limiter les résultats avec <code class='bg-gray-100 px-1 rounded'>LIMIT</code> et <code class='bg-gray-100 px-1 rounded'>OFFSET</code>"
+      ],
+      slides: [
+        { type: "title", content: {} },
+        { type: "objectives", content: {} },
+        { type: "concept", title: "🔍 SELECT : La porte d'entrée des données", content: "En SQL, la commande <span class='highlight'>SELECT</span> permet d'interroger la base pour récupérer des informations. C'est la commande la plus utilisée. On peut récupérer toutes les colonnes, une partie, ou effectuer des calculs simples." },
+        { type: "example", title: "📋 Exemple de table : 'etudiants'", tableData: { cols: ["id", "nom", "prenom", "ville", "age"], rows: [[1, "Mbarga", "Claire", "Douala", 22], [2, "Ndjeng", "Hervé", "Yaoundé", 20], [3, "Atangana", "Mélissa", "Douala", 23], [4, "Fouda", "Brice", "Garoua", 21], [5, "Mbarga", "Claire", "Douala", 22]] } },
+        { type: "code", title: "⭐ 1. Sélectionner toutes les colonnes", code: "SELECT * FROM etudiants;", explanation: "L'astérisque <span class='highlight'>*</span> signifie « toutes les colonnes ». Résultat : on obtient l'intégralité des lignes et colonnes de la table." },
+        { type: "code", title: "🎯 2. Colonnes spécifiques", code: "SELECT nom, prenom, ville FROM etudiants;", explanation: "On liste uniquement les colonnes souhaitées. Idéal pour alléger les résultats et ne garder que l'essentiel." },
+        { type: "code", title: "♻️ 3. DISTINCT : supprimer les doublons", code: "SELECT DISTINCT ville FROM etudiants;\n-- ou avec combinaison\nSELECT DISTINCT nom, prenom FROM etudiants;", explanation: "DISTINCT élimine les lignes en double. Très utile pour connaître la liste des valeurs uniques (ex : villes différentes)." },
+        { type: "code", title: "📏 4. LIMIT & OFFSET : Pagination", code: "-- Les 3 premiers étudiants\nSELECT * FROM etudiants LIMIT 3;\n\n-- Sauter 2 lignes et prendre 2 enregistrements\nSELECT * FROM etudiants LIMIT 2 OFFSET 2;", explanation: "LIMIT restreint le nombre de lignes renvoyées. OFFSET permet de sauter un certain nombre de lignes (utile pour la pagination, ex: page 1, page 2…)." },
+        { type: "visual", title: "🧠 Résumé visuel", visualDesc: "Syntaxe générale SELECT :\n\nSELECT [DISTINCT] colonne1, colonne2, ...\nFROM table\n[LIMIT nombre] [OFFSET début];" },
+        { type: "bonus", title: "💡 Exemple concret (Exercice mental)", content: "Trouvez la requête pour afficher les noms, prénoms et âges des étudiants de Douala sans doublon de nom/prénom, limité à 3 résultats après avoir sauté le premier. Réponse : SELECT DISTINCT nom, prenom, age FROM etudiants WHERE ville='Douala' LIMIT 3 OFFSET 1;" }
+      ]
+    };
+
+    // Construction des slides en HTML (tailwind + contenu adapté)
+    function buildSlides() {
+      let slidesHtml = [];
+      let slideIndex = 0;
+      
+      // Slide 0 : Titre
+      slidesHtml.push(`
+        <div class="slide-card p-6 md:p-8" data-slide="0">
+          <div class="flex flex-col items-center text-center justify-center min-h-[65vh]">
+            <div class="bg-gradient-to-br from-indigo-50 to-blue-50 p-3 rounded-full mb-5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2 1.5 3 3 3h10c1.5 0 3-1 3-3V7c0-2-1.5-3-3-3H7c-1.5 0-3 1-3 3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8M8 11h6M8 15h4" /></svg>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-indigo-700 to-blue-700 bg-clip-text text-transparent">${lessonData.title}</h1>
+            <p class="text-gray-500 mt-3 max-w-md">Module : Initiation aux Bases de données</p>
+            <div class="mt-8 flex gap-2 flex-wrap justify-center">
+              <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">SQL Interrogation</span>
+              <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">Requêtes SELECT</span>
+            </div>
+            <div class="mt-12 text-sm text-gray-400">👨‍🏫 Classe : Développement Web | Cameroun 🇨🇲</div>
+          </div>
+        </div>
+      `);
+      
+      // Slide 1 : Objectifs pédagogiques
+      slidesHtml.push(`
+        <div class="slide-card p-6 md:p-8" data-slide="1">
+          <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+          <ul class="space-y-4 text-gray-700">
+            ${lessonData.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">📌</span> <span class="text-base md:text-lg">${obj}</span></li>`).join('')}
+          </ul>
+          <div class="mt-10 bg-amber-50 p-4 rounded-xl text-amber-800 text-sm">
+            💡 À la fin de ce cours, vous serez capable d’écrire des requêtes SELECT pour extraire des données pertinentes d’une base.
+          </div>
+        </div>
+      `);
+      
+      // Slide 2 : concept introductif
+      slidesHtml.push(`
+        <div class="slide-card p-6 md:p-8" data-slide="2">
+          <div class="flex items-center gap-2 mb-4"><span class="text-3xl">🔎</span><h2 class="text-2xl font-bold text-gray-800">${lessonData.slides.find(s=>s.type==="concept")?.title || "Concept clé"}</h2></div>
+          <div class="prose prose-lg text-gray-700 leading-relaxed">
+            <p>${lessonData.slides.find(s=>s.type==="concept")?.content || ""}</p>
+            <div class="mt-5 bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <span class="font-mono text-indigo-800">SELECT</span> ne modifie pas la base, il lit les données. C’est comme poser une question à la base de données.
+            </div>
+          </div>
+        </div>
+      `);
+      
+      // Slide 3 : Table d'exemple visuelle (exemple)
+      const tableSlide = lessonData.slides.find(s=>s.type==="example");
+      if(tableSlide && tableSlide.tableData) {
+        let rowsHtml = "";
+        tableSlide.tableData.rows.forEach(row => {
+          rowsHtml += `<tr>${row.map(cell => `<td class="border px-3 py-2">${cell}</td>`).join('')}</tr>`;
+        });
+        slidesHtml.push(`
+          <div class="slide-card p-6 md:p-8" data-slide="3">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">📊 ${tableSlide.title}</h2>
+            <div class="example-table">
+              <table class="mini-table">
+                <thead><tr>${tableSlide.tableData.cols.map(c => `<th>${c.toUpperCase()}</th>`).join('')}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>
+            <p class="text-sm text-gray-500 mt-3 italic">Table "etudiants" – remarquez la ligne 5 identique à la ligne 1 (nom, prenom identiques). Parfait pour illustrer DISTINCT.</p>
+          </div>
+        `);
+      } else { slidesHtml.push(`<div class="slide-card p-6">Table non disponible</div>`);}
+      
+      // Slide 4 : code SELECT *
+      const slideStar = lessonData.slides.find(s=>s.type==="code" && s.title.includes("toutes les colonnes"));
+      if(slideStar) slidesHtml.push(buildCodeSlide(slideStar, 4));
+      // Slide 5 : colonnes spécifiques
+      const slideCols = lessonData.slides.find(s=>s.type==="code" && s.title.includes("Colonnes spécifiques"));
+      if(slideCols) slidesHtml.push(buildCodeSlide(slideCols, 5));
+      // Slide 6 : DISTINCT
+      const slideDistinct = lessonData.slides.find(s=>s.type==="code" && s.title.includes("DISTINCT"));
+      if(slideDistinct) slidesHtml.push(buildCodeSlide(slideDistinct, 6));
+      // Slide 7 : LIMIT OFFSET
+      const slideLimit = lessonData.slides.find(s=>s.type==="code" && s.title.includes("LIMIT & OFFSET"));
+      if(slideLimit) slidesHtml.push(buildCodeSlide(slideLimit, 7));
+      
+      // Slide 8 : visual résumé
+      const visualSlide = lessonData.slides.find(s=>s.type==="visual");
+      if(visualSlide) {
+        slidesHtml.push(`
+          <div class="slide-card p-6 md:p-8" data-slide="8">
+            <h2 class="text-2xl font-bold mb-4">${visualSlide.title}</h2>
+            <div class="bg-gray-50 p-4 rounded-xl border-2 border-dashed border-indigo-200 font-mono text-sm md:text-base">
+              ${visualSlide.visualDesc.split('\n').map(line => `<div class="py-0.5">${line}</div>`).join('')}
+            </div>
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 text-center">
+              <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">SELECT *</span><br/>Toutes colonnes</div>
+              <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">SELECT DISTINCT</span><br/>Unicité</div>
+              <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">LIMIT n</span><br/>Premiers n résultats</div>
+              <div class="bg-indigo-50 p-3 rounded-xl"><span class="font-bold">OFFSET m</span><br/>Sauter m lignes</div>
+            </div>
+          </div>
+        `);
+      }
+      // Slide bonus (exemple concret)
+      const bonusSlide = lessonData.slides.find(s=>s.type==="bonus");
+      if(bonusSlide) {
+        slidesHtml.push(`
+          <div class="slide-card p-6 md:p-8" data-slide="9">
+            <h2 class="text-2xl font-bold mb-4">${bonusSlide.title}</h2>
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-5 rounded-xl">
+              <p class="text-gray-800">${bonusSlide.content}</p>
+              <div class="mt-4 code-sql text-sm">SELECT DISTINCT nom, prenom, age FROM etudiants WHERE ville='Douala' LIMIT 3 OFFSET 1;</div>
+              <p class="mt-3 text-green-700">✅ Cette requête ignore le premier étudiant de Douala, supprime les doublons nom/prénom/age, puis affiche max 3 lignes.</p>
+            </div>
+            <div class="mt-4 text-center text-gray-500 text-sm">📌 Exercice : Testez sur votre SGBD préféré (MySQL, PostgreSQL, SQLite)</div>
+          </div>
+        `);
+      }
+      
+      // fallback: s'assurer qu'on a au moins 10 slides approximatives
+      return slidesHtml;
+    }
+    
+    function buildCodeSlide(slideObj, idx) {
+      return `
+        <div class="slide-card p-6 md:p-8" data-slide="${idx}">
+          <h2 class="text-2xl font-bold text-gray-800 mb-3">${slideObj.title}</h2>
+          <div class="code-sql mb-4">${slideObj.code}</div>
+          <p class="text-gray-700 leading-relaxed">${slideObj.explanation}</p>
+          <div class="mt-4 text-xs text-gray-400 bg-gray-100 inline-block px-3 py-1 rounded-full">💻 SQL pratique</div>
+        </div>
+      `;
+    }
+    
+    // Gestion dynamique des slides, navigation + responsive, swiper manuel
+    let currentIndex = 0;
+    let slidesCount = 0;
+    let $slidesContainer = $("#slidesContainer");
+    let slidesArray = [];
+    
+    function renderSlides() {
+      const slidesHtml = buildSlides();
+      $slidesContainer.html(`<div class="slides-wrapper relative">${slidesHtml.map((html, i) => `<div class="slide-item transition-all duration-300" data-idx="${i}">${html}</div>`).join('')}</div>`);
+      slidesArray = $(".slide-item").toArray();
+      slidesCount = slidesArray.length;
+      $("#totalSlides").text(slidesCount);
+      updateSlideVisibility();
+      updateCounterAndProgress();
+    }
+    
+    function updateSlideVisibility() {
+      $(".slide-item").each(function(idx) {
+        if(idx === currentIndex) {
+          $(this).show().css({ opacity: 1, transform: 'translateX(0)' });
+        } else {
+          $(this).hide().css({ opacity: 0, transform: 'translateX(20px)' });
+        }
+      });
+    }
+    
+    function updateCounterAndProgress() {
+      $("#slideCounter").html(`Slide ${currentIndex+1} / ${slidesCount}`);
+      let percent = ((currentIndex) / (slidesCount-1)) * 100;
+      if(isNaN(percent)) percent = 0;
+      $("#progressFill").css("width", `${percent}%`);
+      // gestion désactivation boutons
+      $("#prevSlide").prop("disabled", currentIndex === 0);
+      $("#nextSlide").prop("disabled", currentIndex === slidesCount-1);
+    }
+    
+    function goPrev() {
+      if(currentIndex > 0) {
+        currentIndex--;
+        updateSlideVisibility();
+        updateCounterAndProgress();
+      }
+    }
+    
+    function goNext() {
+      if(currentIndex < slidesCount-1) {
+        currentIndex++;
+        updateSlideVisibility();
+        updateCounterAndProgress();
+      }
+    }
+    
+    // Initialisation et events
+    $(document).ready(function() {
+      renderSlides();
+      
+      $("#prevSlide").on("click", goPrev);
+      $("#nextSlide").on("click", goNext);
+      
+      // Ajouter navigation au clavier (gauche/droite)
+      $(document).keydown(function(e) {
+        if(e.key === "ArrowLeft") {
+          goPrev();
+          e.preventDefault();
+        } else if(e.key === "ArrowRight") {
+          goNext();
+          e.preventDefault();
+        }
+      });
+      
+      // support swipe minimal pour mobile (touch)
+      let touchStartX = 0;
+      let touchEndX = 0;
+      $slidesContainer.on("touchstart", function(e) {
+        touchStartX = e.originalEvent.touches[0].clientX;
+      });
+      $slidesContainer.on("touchend", function(e) {
+        touchEndX = e.originalEvent.changedTouches[0].clientX;
+        if (touchStartX - touchEndX > 50) {
+          goNext();
+        } else if (touchEndX - touchStartX > 50) {
+          goPrev();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

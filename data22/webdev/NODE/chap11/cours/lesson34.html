@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 34 : Déployer votre API Node.js en production</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: linear-gradient(120deg, #f0f9ff 0%, #e0f2fe 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        .nav-btn {
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            background-color: #0f3b5c;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            font-family: 'Fira Code', monospace;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .card-glossy {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(2px);
+            border-radius: 1.5rem;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.65rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-indigo-100">
+        
+        <!-- SLIDE 1 : TITRE -->
+        <div class="slide active p-6 md:p-10 text-center" data-slide="0">
+            <div class="inline-block bg-cyan-100 text-cyan-800 px-4 py-1 rounded-full text-sm font-semibold mb-3">Node.js – Passage en production</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-sky-700 to-blue-800 bg-clip-text text-transparent">Déployer une API Node.js</h1>
+            <p class="text-lg md:text-xl text-gray-600 mt-4">Heroku, Railway, VPS & Reverse Proxy Nginx</p>
+            <div class="w-20 h-1 bg-sky-500 mx-auto rounded-full my-5"></div>
+            <p class="text-gray-500 max-w-md mx-auto">Transformez votre code local en application accessible 24h/24, sécurisée et performante.</p>
+            <!-- dessin SVG d'un déploiement cloud simplifié -->
+            <div class="flex justify-center mt-8">
+                <svg width="240" height="90" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="20" y="30" width="70" height="40" rx="12" fill="#38bdf8" opacity="0.9" />
+                    <text x="55" y="55" fill="white" font-size="10" text-anchor="middle">💻 Dev</text>
+                    <path d="M90 50 L130 50" stroke="#475569" stroke-width="3" stroke-dasharray="4" />
+                    <rect x="135" y="30" width="70" height="40" rx="12" fill="#f97316" />
+                    <text x="170" y="55" fill="white" font-size="10" text-anchor="middle">☁️ Cloud</text>
+                    <path d="M205 50 L245 50" stroke="#475569" stroke-width="3" stroke-dasharray="4" />
+                    <rect x="250" y="30" width="40" height="40" rx="8" fill="#10b981" />
+                    <text x="270" y="55" fill="white" font-size="9" text-anchor="middle">🌍</text>
+                </svg>
+            </div>
+            <button class="next-slide mt-10 bg-sky-600 text-white px-8 py-3 rounded-full font-medium shadow-lg hover:bg-sky-700 transition">Commencer →</button>
+        </div>
+
+        <!-- SLIDE 2 : OBJECTIFS -->
+        <div class="slide p-6 md:p-10" data-slide="1">
+            <div class="flex items-center gap-3 border-b border-sky-200 pb-3 mb-5">
+                <span class="text-3xl">📌</span>
+                <h2 class="text-2xl md:text-3xl font-bold text-sky-800">Objectifs de la leçon</h2>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="bg-sky-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🚀 Préparer l'app</span><br>Variables NODE_ENV, gestion des ports, scripts de démarrage.</div>
+                <div class="bg-sky-50 p-4 rounded-xl shadow-sm"><span class="font-bold">☁️ Plateformes PaaS</span><br>Déployer sur Heroku ou Railway avec Git.</div>
+                <div class="bg-sky-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🔄 Reverse Proxy</span><br>Configurer Nginx pour rediriger le trafic et servir du statique.</div>
+                <div class="bg-sky-50 p-4 rounded-xl shadow-sm"><span class="font-bold">🛡️ Bonnes pratiques</span><br>Variables d'environnement, logs, process management.</div>
+            </div>
+            <div class="mt-6 bg-amber-50 border-l-4 border-amber-400 p-3 rounded text-sm">💡 Un déploiement réussi = application accessible, sécurisée et capable de redémarrer après une panne.</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 3 : Préparation pour la production -->
+        <div class="slide p-6 md:p-10" data-slide="2">
+            <div class="flex gap-2 items-center"><span class="text-3xl">⚙️</span><h2 class="text-2xl font-bold text-sky-800">Préparer l'application</h2></div>
+            <p class="mt-2">Avant tout déploiement, on doit configurer :</p>
+            <ul class="list-disc pl-6 space-y-1 mt-2">
+                <li><code class="bg-gray-100 px-1 rounded">NODE_ENV=production</code> (optimisations, moins de logs)</li>
+                <li>Utiliser <code class="bg-gray-100 px-1 rounded">dotenv</code> pour charger <code>.env</code> mais ne jamais versionner ce fichier</li>
+                <li>Définir le port via <code class="bg-gray-100 px-1 rounded">process.env.PORT</code> (Requis pour Heroku/Railway)</li>
+                <li>Script <code>"start": "node app.js"</code> dans <code>package.json</code></li>
+            </ul>
+            <div class="bg-gray-900 rounded-xl mt-4 overflow-auto">
+                <pre><code>// app.js
+const express = require('express');
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get('/', (req, res) => res.send('API en ligne !'));
+app.listen(PORT, () => console.log(`prêt sur ${PORT}`));</code></pre>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 4 : Déploiement sur Heroku / Railway -->
+        <div class="slide p-6 md:p-10" data-slide="3">
+            <h2 class="text-2xl font-bold flex gap-2"><span>☁️</span> Plateformes modernes (PaaS)</h2>
+            <div class="grid md:grid-cols-2 gap-5 mt-4">
+                <div class="border border-indigo-200 p-4 rounded-xl bg-indigo-50/40">
+                    <p class="font-bold text-indigo-700">Heroku (legacy mais concept clé)</p>
+                    <p class="text-sm">`git push heroku main` <br> Ajouter `Procfile` : <code>web: node app.js</code></p>
+                </div>
+                <div class="border border-emerald-200 p-4 rounded-xl bg-emerald-50/40">
+                    <p class="font-bold text-emerald-700">Railway (moderne & simple)</p>
+                    <p class="text-sm">Connectez GitHub → déploiement auto, variables d'environnement via UI. Support natif MongoDB, PostgreSQL.</p>
+                </div>
+            </div>
+            <p class="mt-4 font-medium">✅ Étapes génériques :</p>
+            <ol class="list-decimal pl-6 text-sm space-y-1">
+                <li>Mettre le code sur GitHub</li>
+                <li>Créer un compte sur Railway.app / Heroku</li>
+                <li>Lier le dépôt et configurer les variables (DATABASE_URL, JWT_SECRET...)</li>
+                <li>Déclencher le déploiement → URL publique générée</li>
+            </ol>
+            <div class="bg-slate-100 p-3 rounded-lg mt-4 text-xs"><span class="font-mono">railway up</span> ou via dashboard.</div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 5 : Reverse Proxy Nginx (explication + config) -->
+        <div class="slide p-6 md:p-10" data-slide="4">
+            <div class="flex gap-2"><span class="text-3xl">🔄</span><h2 class="text-2xl font-bold text-sky-800">Nginx : Reverse Proxy</h2></div>
+            <p>Nginx écoute sur le port 80 (HTTP) ou 443 (HTTPS) et redirige le trafic vers votre app Node.js (ex: localhost:3000).</p>
+            <div class="bg-gray-900 rounded-xl mt-3 p-3">
+                <pre><code># /etc/nginx/sites-available/monapp
+server {
+    listen 80;
+    server_name mon-domaine.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}</code></pre>
+            </div>
+            <p class="text-sm mt-2">🔒 Avantages : gestion SSL, équilibrage de charge, cache, protection contre les attaques.</p>
+            <!-- petit schéma intégré -->
+            <div class="flex justify-center mt-3">
+                <svg width="280" height="60" viewBox="0 0 350 70">
+                    <rect x="10" y="15" width="70" height="35" fill="#f97316" rx="8" />
+                    <text x="45" y="38" fill="white" font-size="10" text-anchor="middle">🌐 Client</text>
+                    <path d="M80 32 L130 32" stroke="#334155" stroke-width="3" />
+                    <rect x="135" y="15" width="80" height="35" fill="#2c6e9e" rx="8" />
+                    <text x="175" y="38" fill="white" font-size="11" text-anchor="middle">Nginx (Proxy)</text>
+                    <path d="M215 32 L265 32" stroke="#334155" stroke-width="3" />
+                    <rect x="270" y="15" width="70" height="35" fill="#10b981" rx="8" />
+                    <text x="305" y="38" fill="white" font-size="10" text-anchor="middle">Node.js :3000</text>
+                </svg>
+            </div>
+            <div class="flex justify-between mt-6"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 6 : Variables d'environnement et sécurisation -->
+        <div class="slide p-6 md:p-10" data-slide="5">
+            <h2 class="text-2xl font-bold">🔐 Sécurité & configuration</h2>
+            <div class="mt-3 space-y-3">
+                <div class="flex items-start gap-2"><span class="text-xl">🔑</span> <span>Ne jamais stocker de clés dans le code. Utiliser <strong>.env</strong> et les variables d'environnement de la plateforme.</span></div>
+                <div class="flex items-start gap-2"><span class="text-xl">🛡️</span> <span>Activer Helmet.js et CORS restreint en production.</span></div>
+                <div class="flex items-start gap-2"><span class="text-xl">📁</span> <span>Les fichiers uploadés : utiliser un service cloud (S3) ou un volume persistant.</span></div>
+            </div>
+            <div class="bg-slate-800 text-white p-3 rounded-xl mt-4">
+                <pre><code># Exemple de gestion des variables
+DB_PASSWORD=XXXX
+JWT_SECRET=super_long_secret
+NODE_ENV=production</code></pre>
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 7 : Gestion des processus (PM2 ou systemd) -->
+        <div class="slide p-6 md:p-10" data-slide="6">
+            <h2 class="text-2xl font-bold">🔄 Garder l'application en vie</h2>
+            <p>Sur VPS (sans PaaS), on utilise <strong>PM2</strong> ou <strong>systemd</strong> pour redémarrer l'app en cas de crash.</p>
+            <div class="bg-gray-800 rounded-xl mt-3">
+                <pre><code>npm install -g pm2
+pm2 start app.js --name "mon-api"
+pm2 save
+pm2 startup   # redémarrage au boot du serveur</code></pre>
+            </div>
+            <div class="mt-4 bg-teal-50 p-4 rounded-lg border border-teal-200">
+                📌 <span class="font-semibold">Avec Nginx + PM2</span> : votre API résiste aux pannes et redémarre automatiquement.
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 8 : Exemple complet & bonnes pratiques -->
+        <div class="slide p-6 md:p-10" data-slide="7">
+            <h2 class="text-2xl font-bold">🏁 Déploiement express (VPS Ubuntu)</h2>
+            <div class="text-sm space-y-2">
+                <p>1. <code>git clone</code> votre projet → <code>npm install</code></p>
+                <p>2. Configurer Nginx (proxy vers localhost:3000)</p>
+                <p>3. Démarrer l'app avec PM2</p>
+                <p>4. Configurer le firewall (UFW) : autoriser 22, 80, 443</p>
+                <p>5. Pointer votre domaine (DNS) vers l'IP du serveur</p>
+                <p>6. Optionnel : Certbot pour HTTPS (Let's Encrypt)</p>
+            </div>
+            <div class="mt-4 bg-green-50 p-3 rounded-xl text-green-800 border">
+                ✅ Résultat : une API professionnelle, haute disponibilité.
+            </div>
+            <div class="flex justify-between mt-8"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 9 : Quiz rapide de validation -->
+        <div class="slide p-6 md:p-10" data-slide="8">
+            <h2 class="text-2xl font-bold text-sky-800">🧪 Testez vos connaissances</h2>
+            <div class="bg-white rounded-xl shadow p-4 mt-2 space-y-4">
+                <div><p class="font-medium">1️⃣ Quel est le rôle principal d’un reverse proxy comme Nginx ?</p>
+                    <label class="block"><input type="radio" name="q1" value="a"> Compiler le code Node.js</label>
+                    <label class="block"><input type="radio" name="q1" value="b"> Rediriger les requêtes clients vers l'application interne et gérer la sécurité</label>
+                    <label class="block"><input type="radio" name="q1" value="c"> Héberger la base de données</label>
+                </div>
+                <div><p class="font-medium">2️⃣ Sur Railway / Heroku, comment l'application connaît-elle le port à écouter ?</p>
+                    <label class="block"><input type="radio" name="q2" value="a"> Port fixe 8080</label>
+                    <label class="block"><input type="radio" name="q2" value="b"> Via la variable <code>process.env.PORT</code></label>
+                    <label class="block"><input type="radio" name="q2" value="c"> Le port est automatiquement détecté par Express</label>
+                </div>
+                <button id="checkQuizDeploy" class="bg-indigo-600 text-white px-5 py-2 rounded-full hover:bg-indigo-700">Vérifier</button>
+                <div id="quizResultDeploy" class="text-sm font-medium"></div>
+            </div>
+            <div class="flex justify-between mt-6"><button class="prev-slide bg-gray-200 px-5 py-2 rounded-full">← Précédent</button><button class="next-slide bg-sky-600 text-white px-5 py-2 rounded-full">Suivant →</button></div>
+        </div>
+
+        <!-- SLIDE 10 : Félicitations -->
+        <div class="slide p-6 md:p-10 text-center" data-slide="9">
+            <div class="text-6xl mb-3">🎉🚀</div>
+            <h2 class="text-3xl font-bold text-sky-700">Félicitations !</h2>
+            <p class="mt-3 text-gray-600">Vous maîtrisez maintenant les étapes pour mettre une API Node.js en production, avec ou sans plateforme cloud.</p>
+            <p class="mt-2 text-sm">N'oubliez pas : variables d'environnement, reverse proxy, et gestion des processus.</p>
+            <button class="restart-slides mt-8 bg-slate-700 text-white px-6 py-2 rounded-full shadow">Revoir la leçon</button>
+        </div>
+
+    </div>
+
+    <!-- Barre de progression -->
+    <div class="mt-5 flex justify-center items-center gap-3 text-xs text-gray-500">
+        <span id="slide-counter">1</span> / <span id="total-slides">10</span>
+        <div class="w-40 bg-gray-200 rounded-full h-1.5">
+            <div id="progress-fill" class="bg-sky-600 h-1.5 rounded-full progress-bar" style="width: 10%"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let currentSlide = 0;
+        const slides = $('.slide');
+        const total = slides.length;
+        $('#total-slides').text(total);
+        
+        function updateSlides(){
+            slides.removeClass('active');
+            $(slides[currentSlide]).addClass('active');
+            $('#slide-counter').text(currentSlide+1);
+            let percent = ((currentSlide+1)/total)*100;
+            $('#progress-fill').css('width', percent+'%');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function next(){ if(currentSlide < total-1){ currentSlide++; updateSlides(); } }
+        function prev(){ if(currentSlide > 0){ currentSlide--; updateSlides(); } }
+        $('.next-slide').on('click', next);
+        $('.prev-slide').on('click', prev);
+        $('.restart-slides').on('click', function(){ currentSlide = 0; updateSlides(); });
+        
+        // Quiz simple
+        $('#checkQuizDeploy').on('click', function(){
+            let q1 = $('input[name="q1"]:checked').val();
+            let q2 = $('input[name="q2"]:checked').val();
+            if(q1 === 'b' && q2 === 'b'){
+                $('#quizResultDeploy').html('<span class="text-green-600 font-semibold">✔️ Parfait ! Nginx proxy + PORT via env sont corrects.</span>');
+            } else {
+                let feedback = '';
+                if(q1 !== 'b') feedback += ' Nginx agit comme reverse proxy. ';
+                if(q2 !== 'b') feedback += ' Les PaaS attribuent un port dynamique via process.env.PORT.';
+                $('#quizResultDeploy').html('<span class="text-red-600">❌' + feedback + '</span>');
+            }
+        });
+        
+        // Navigation clavier
+        $(document).on('keydown', function(e){
+            if(e.key === 'ArrowRight') next();
+            if(e.key === 'ArrowLeft') prev();
+        });
+    });
+</script>
+</body>
+</html>

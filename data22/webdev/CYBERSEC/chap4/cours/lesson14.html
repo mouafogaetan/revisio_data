@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 14 : Failles web avancées - CSRF, Auth, XXE & SSRF</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* smooth scrolling + transitions pour slides */
+        html {
+            scroll-behavior: smooth;
+        }
+        .slide {
+            transition: all 0.2s ease;
+        }
+        /* couleurs personnalisées douces mais lisibles */
+        body {
+            background: #f8fafc;
+        }
+        .card-bg {
+            background: #ffffff;
+        }
+        .badge-csrf { background-color: #e11d48; color: white; }
+        .badge-xss { background-color: #f97316; }
+        .badge-auth { background-color: #3b82f6; }
+        .badge-xxe { background-color: #8b5cf6; }
+        .badge-ssrf { background-color: #059669; }
+        .shadow-soft {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            transform: translateY(-2px);
+            background-color: #1e293b;
+            color: white;
+        }
+        .prose-code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 640px) {
+            .slide-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <!-- conteneur principal avec padding responsive -->
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 md:py-10">
+        <!-- navigation par slide : petit indicateur et boutons fixes -->
+        <div class="sticky top-4 z-20 flex justify-between items-center bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm p-2 mb-6 border border-gray-200">
+            <div class="flex gap-2 overflow-x-auto no-scrollbar px-1">
+                <span class="text-sm font-medium text-gray-500 hidden sm:inline-block">📖 Leçon 14 :</span>
+                <div id="slide-indicators" class="flex gap-2 text-xs font-medium"></div>
+            </div>
+            <div class="flex gap-2">
+                <button id="prevSlide" class="btn-nav bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded-xl text-sm font-semibold transition">◀ Précédent</button>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-sm font-semibold transition">Suivant ▶</button>
+            </div>
+        </div>
+
+        <!-- slides wrapper -->
+        <div id="slides-container" class="space-y-8">
+            <!-- chaque slide sera injecté via JS, mais pour la structure initiale on met un loader ou on construit en JS -->
+        </div>
+
+        <!-- footer discret -->
+        <div class="text-center text-gray-400 text-xs mt-12 pt-4 border-t border-gray-200">
+            Cours d'initiation à la cybersécurité — Enseignant Cameroun • Leçon 14 : Attaques web avancées
+        </div>
+    </div>
+
+    <script>
+        // ----- Définition des slides (titre, contenu HTML)
+        const slidesData = [
+            { // slide 0 : titre
+                type: "title",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-10 border border-indigo-100">
+                        <div class="flex flex-col items-center text-center">
+                            <span class="inline-block bg-indigo-100 text-indigo-800 rounded-full px-4 py-1 text-sm font-semibold mb-4">Chapitre 4 • Sécurisation du développement</span>
+                            <h1 class="slide-title text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">Failles critiques : CSRF, authentification défaillante, XXE & SSRF</h1>
+                            <p class="text-gray-600 text-lg mt-4 max-w-2xl">Comprendre les attaques web méconnues mais dangereuses, et savoir les contrer.</p>
+                            <div class="mt-8 flex flex-wrap justify-center gap-3">
+                                <div class="bg-gray-100 rounded-full px-4 py-1 text-sm">🔐 CSRF</div>
+                                <div class="bg-gray-100 rounded-full px-4 py-1 text-sm">⚠️ Auth break</div>
+                                <div class="bg-gray-100 rounded-full px-4 py-1 text-sm">📄 XXE</div>
+                                <div class="bg-gray-100 rounded-full px-4 py-1 text-sm">🌐 SSRF</div>
+                            </div>
+                            <div class="mt-8 w-16 h-1 bg-indigo-300 rounded-full"></div>
+                            <p class="text-gray-500 text-sm mt-6">Cliquez sur Suivant pour découvrir les objectifs et les détails</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 1 : objectifs pédagogiques
+                type: "objectifs",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <div class="flex items-center gap-3 border-b border-gray-200 pb-4 mb-5">
+                            <div class="bg-green-100 p-2 rounded-full"><svg class="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800">🎯 Objectifs de la leçon</h2>
+                        </div>
+                        <ul class="space-y-4 text-gray-700">
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Comprendre CSRF</strong> (Cross-Site Request Forgery) : comment un site malveillant force l'utilisateur à exécuter des actions non voulues.</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Maîtriser l'authentification défaillante et la gestion de session</strong> : identifier les failles de session, mots de passe faibles, et mauvaises configurations.</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Découvrir les failles XXE (XML External Entity)</strong> : attaque sur parseurs XML permettant de lire des fichiers sensibles ou de réaliser une SSRF.</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Comprendre la SSRF (Server-Side Request Forgery)</strong> : contournement de pare-feu et accès à des ressources internes via le serveur.</span></li>
+                            <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span><strong>Appliquer les contre-mesures</strong> (tokens CSRF, SameSite cookies, validation entrées, désactivation des entités externes XML).</span></li>
+                        </ul>
+                        <div class="mt-6 bg-blue-50 rounded-xl p-4 text-sm text-blue-800"><span class="font-bold">💡 Pourquoi c'est important ?</span> Ces failles figurent dans le Top 10 OWASP et touchent applications web, API, systèmes critiques. Les comprendre vous rend meilleur développeur et administrateur.</div>
+                    </div>
+                `
+            },
+            { // slide 2 : CSRF en détail
+                type: "content",
+                title: "🔁 CSRF : Cross-Site Request Forgery",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <div class="flex flex-wrap justify-between items-start border-b pb-3 mb-4">
+                            <h2 class="text-2xl font-bold text-gray-800"><span class="badge-csrf px-3 py-1 rounded-full text-sm mr-2">CSRF</span> Requête forgée entre sites</h2>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <p class="text-gray-700 leading-relaxed"><strong>Principe :</strong> Un attaquant piège un utilisateur authentifié sur un site (ex: banque, réseau social) pour qu’il exécute une action à son insu (transfert d’argent, changement de mot de passe).</p>
+                                <div class="bg-amber-50 p-4 rounded-xl mt-4 border-l-4 border-amber-500">
+                                    <p class="font-semibold">⚙️ Exemple :</p>
+                                    <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm overflow-x-auto">&lt;img src="https://bank.com/transfer?to=attaquant&montant=1000" /&gt;</pre>
+                                    <p class="text-sm mt-2">L'image invisible déclenche la requête avec les cookies de session de l'utilisateur.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-800">🛡️ Contre-mesures essentielles :</p>
+                                <ul class="list-disc list-inside space-y-1 mt-2 text-gray-700">
+                                    <li><strong>Tokens CSRF</strong> : champ caché avec valeur aléatoire liée à la session.</li>
+                                    <li><strong>Cookies SameSite</strong> : attribut <code class="prose-code">SameSite=Lax</code> ou <code class="prose-code">Strict</code>.</li>
+                                    <li>En-tête <code class="prose-code">Referer</code> / <code class="prose-code">Origin</code> validation.</li>
+                                    <li>Double soumission de cookies (crypto).</li>
+                                </ul>
+                                <div class="mt-4 bg-green-50 p-3 rounded-lg">
+                                    <p class="text-green-800 text-sm">✅ Bonne pratique : frameworks modernes (Django, Laravel, Spring) intègrent des protections CSRF automatiques.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 text-center text-gray-500 text-sm italic">"Un utilisateur connecté peut être victime sans le savoir → exige des tokens uniques."</div>
+                    </div>
+                `
+            },
+            { // slide 3 : Authentification défaillante
+                type: "content",
+                title: "🔓 Authentification & Gestion de session vulnérable",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2"><span class="badge-auth px-3 py-1 rounded-full text-sm">Auth</span> Quand l'identité est fragile</h2>
+                        <div class="mt-4 space-y-4">
+                            <p>Les failles d'authentification permettent aux attaquants de compromettre des comptes utilisateurs ou de contourner les mécanismes de session. Parmi les exemples courants :</p>
+                            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                <li class="bg-red-50 p-3 rounded-lg">❌ Mots de passe faibles ou par défaut (admin/admin)</li>
+                                <li class="bg-red-50 p-3 rounded-lg">❌ Absence de double facteur (2FA/MFA)</li>
+                                <li class="bg-red-50 p-3 rounded-lg">❌ Session ID prévisible ou non renouvelé après login</li>
+                                <li class="bg-red-50 p-3 rounded-lg">❌ Stockage des mots de passe en clair ou hash faible (MD5)</li>
+                            </ul>
+                            <div class="bg-indigo-50 p-4 rounded-xl">
+                                <p class="font-semibold">🔧 Correction :</p>
+                                <ul class="list-decimal list-inside ml-2">
+                                    <li>Politique de mots de passe robustes (12+ caractères, 2FA).</li>
+                                    <li>Utilisation de hash avec sel + itérations (bcrypt, Argon2).</li>
+                                    <li>Gestion de session sécurisée : Secure, HttpOnly, timeout.</li>
+                                    <li>Limitation des tentatives de connexion (rate limiting).</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 4 : XXE (XML eXternal Entity)
+                type: "content",
+                title: "📄 XXE : XML External Entity Attack",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <div class="flex flex-wrap gap-2 items-center"><span class="badge-xxe px-3 py-1 rounded-full text-sm">XXE</span> <h2 class="text-2xl font-bold text-gray-800">Attaque sur parseurs XML</h2></div>
+                        <p class="mt-3">Si une application accepte du XML mal formé ou inclut des entités externes, l'attaquant peut lire des fichiers locaux du serveur ou réaliser une attaque SSRF.</p>
+                        <div class="my-5 bg-gray-900 text-green-300 p-4 rounded-xl overflow-x-auto text-sm font-mono">
+                            &lt;?xml version="1.0" encoding="UTF-8"?&gt;<br>
+                            &lt;!DOCTYPE foo [ &lt;!ENTITY xxe SYSTEM "file:///etc/passwd" &gt; ]&gt;<br>
+                            &lt;data&gt;&amp;xxe;&lt;/data&gt;
+                        </div>
+                        <div class="flex flex-wrap gap-4 mt-2">
+                            <div class="flex-1 bg-red-100 p-3 rounded-lg"><span class="font-bold">💣 Impact :</span> fuite de données sensibles, attaque par déni de service (Billion Laughs), SSRF.</div>
+                            <div class="flex-1 bg-green-100 p-3 rounded-lg"><span class="font-bold">🛡️ Solution :</span> Désactiver les entités externes et la résolution DTD dans le parseur XML. <br> <code class="prose-code">XMLParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)</code></div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-4"><strong>Important :</strong> Si vous utilisez JSON, privilégiez JSON plutôt que XML non sécurisé, mais beaucoup de vieux systèmes (SOAP, API bancaires) restent vulnérables.</p>
+                    </div>
+                `
+            },
+            { // slide 5 : SSRF (Server Side Request Forgery)
+                type: "content",
+                title: "🌍 SSRF - Server Side Request Forgery",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <div class="flex items-center gap-2"><span class="badge-ssrf px-3 py-1 rounded-full text-sm">SSRF</span><h2 class="text-2xl font-bold text-gray-800">Détourner le serveur pour attaquer l'interne</h2></div>
+                        <p class="mt-3">Un attaquant fournit une URL malicieuse (ex: <code class="prose-code">http://169.254.169.254/latest/meta-data/</code> sur AWS) et le serveur web va exécuter une requête vers des ressources internes. Résultat : accès à métadonnées cloud, à des bases de données internes ou scan de réseau interne.</p>
+                        <div class="grid md:grid-cols-2 gap-5 mt-5">
+                            <div class="border rounded-xl p-4">
+                                <p class="font-bold text-red-600">🎯 Exemples d'attaques :</p>
+                                <ul class="list-disc list-inside">
+                                    <li>Accès à l'API metadata AWS/GCP.</li>
+                                    <li>Contournement des règles de pare-feu.</li>
+                                    <li>Scan de ports internes (ex: 127.0.0.1:8080).</li>
+                                </ul>
+                            </div>
+                            <div class="border border-green-200 bg-green-50 rounded-xl p-4">
+                                <p class="font-bold text-green-800">✅ Défense :</p>
+                                <ul class="list-disc list-inside">
+                                    <li>Valider / mettre en liste blanche les domaines autorisés.</li>
+                                    <li>Ne pas retourner les réponses brutes d'URL distante.</li>
+                                    <li>Isoler le serveur applicatif (filtrage sortant).</li>
+                                    <li>Utiliser des librairies qui interdisent les redirections non prévues.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-5 text-sm text-gray-600 italic">"Un endpoint comme ?url= permet souvent la SSRF. Interdire les adresses IP internes, loopback et link-local."</div>
+                    </div>
+                `
+            },
+            { // slide 6 : récapitulatif & exemples de code sécurisé
+                type: "content",
+                title: "Récapitulatif + Tableau de bord des vulnérabilités",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8">
+                        <h2 class="text-2xl font-bold">📌 Synthèse des attaques et bonnes pratiques</h2>
+                        <div class="overflow-x-auto mt-5">
+                            <table class="min-w-full bg-white border border-gray-200 rounded-xl text-sm">
+                                <thead class="bg-gray-100"><tr><th class="px-4 py-2">Vulnérabilité</th><th class="px-4 py-2">Risque principal</th><th class="px-4 py-2">Contre-mesure clé</th></tr></thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="px-4 py-2 font-semibold">CSRF</td><td>Actions non autorisées sur l'utilisateur connecté</td><td>Token CSRF + SameSite cookies</td></tr>
+                                    <tr class="border-b"><td class="px-4 py-2 font-semibold">Auth défaillante</td><td>Prise de contrôle de compte / brute force</td><td>MFA, hash forts, gestion session sécurisée</td></tr>
+                                    <tr class="border-b"><td class="px-4 py-2 font-semibold">XXE</td><td>Lecture fichiers système, attaque interne</td><td>Désactiver les entités externes XML</td></tr>
+                                    <tr class="border-b"><td class="px-4 py-2 font-semibold">SSRF</td><td>Accès ressources internes, fuite métadonnées</td><td>Whitelist URL, interdire IP privées</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-6 flex flex-wrap gap-3 text-center justify-center bg-indigo-50 p-4 rounded-2xl">
+                            <div>🔐 <strong>OWASP Top 10 - 2021 :</strong> A01:2021 (Contrôle d'accès défaillant) & A06:2021 (Composants vulnérables). La gestion de session et CSRF font partie des enjeux majeurs.</div>
+                        </div>
+                        <!-- Petit dessin simple pour illustrer le flux CSRF (ASCII friendly mais on peut mettre un mini SVG) -->
+                        <div class="mt-6 text-center text-gray-500 border-t pt-4">
+                            <svg width="200" height="60" viewBox="0 0 300 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="mx-auto">
+                                <rect x="10" y="20" width="50" height="30" fill="#e2e8f0" stroke="#334155" stroke-width="1.5" />
+                                <text x="20" y="40" font-size="8" fill="#1e293b">Site A</text>
+                                <path d="M65 35 L120 35" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 2" />
+                                <text x="80" y="28" font-size="7" fill="#b91c1c">requête</text>
+                                <rect x="125" y="20" width="50" height="30" fill="#fee2e2" stroke="#b91c1c" stroke-width="1.5" />
+                                <text x="135" y="40" font-size="8" fill="#991b1b">Attaquant</text>
+                                <path d="M175 35 L230 35" stroke="#3b82f6" stroke-width="2" />
+                                <text x="190" y="28" font-size="7" fill="#1e40af">avec cookie</text>
+                                <rect x="235" y="20" width="50" height="30" fill="#dcfce7" stroke="#15803d" stroke-width="1.5" />
+                                <text x="245" y="40" font-size="8" fill="#14532d">Site B</text>
+                            </svg>
+                            <p class="text-xs">Illustration : l'utilisateur visite site A (attaquant) qui déclenche requête vers site B avec session active.</p>
+                        </div>
+                    </div>
+                `
+            },
+            { // slide 7 : quiz / question réflexion
+                type: "conclusion",
+                content: `
+                    <div class="slide card-bg rounded-3xl shadow-soft p-6 md:p-8 text-center">
+                        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-3xl">🧠</span></div>
+                        <h2 class="text-2xl font-bold">Testez votre compréhension</h2>
+                        <p class="mt-3 text-gray-600">Pourquoi un token CSRF doit être différent pour chaque session et non prévisible ?</p>
+                        <div class="bg-gray-100 p-4 rounded-xl my-4 text-left">
+                            <p><span class="font-bold">✅ Réponse :</span> Pour empêcher un attaquant de deviner ou de réutiliser le token, il doit être unique et lié à la session utilisateur (non réutilisable). Sans cela, une faille XSS pourrait voler le token.</p>
+                        </div>
+                        <p class="text-gray-500">Discutez avec votre formateur pour mettre en place des démos pratiques (simulation CSRF sur lab local).</p>
+                        <div class="mt-6 flex justify-center gap-3 text-sm text-indigo-700 font-medium">✍️ Suivant: Atelier pratique sur Burp Suite</div>
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlideIndex = 0;
+        const totalSlides = slidesData.length;
+        let $container = $("#slides-container");
+        let $indicators = $("#slide-indicators");
+
+        function renderSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentSlideIndex = index;
+            const slide = slidesData[index];
+            $container.html(slide.content);
+            // mettre à jour les indicateurs
+            let indicatorsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === currentSlideIndex) ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700";
+                let label = "";
+                if (i === 0) label = "🏠";
+                else if (i === 1) label = "🎯";
+                else label = `${i}`;
+                indicatorsHtml += `<button data-slide="${i}" class="indicator-btn w-8 h-8 rounded-full ${activeClass} text-xs font-bold transition">${label}</button>`;
+            }
+            $indicators.html(indicatorsHtml);
+            // scroll en haut
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function nextSlide() {
+            if (currentSlideIndex + 1 < totalSlides) {
+                renderSlide(currentSlideIndex + 1);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlideIndex - 1 >= 0) {
+                renderSlide(currentSlideIndex - 1);
+            }
+        }
+
+        // gestion clics sur indicateurs
+        $(document).on("click", ".indicator-btn", function() {
+            let idx = $(this).data("slide");
+            if (idx !== undefined) renderSlide(idx);
+        });
+
+        $("#nextSlide").on("click", nextSlide);
+        $("#prevSlide").on("click", prevSlide);
+
+        // clavier gauche/droite
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") nextSlide();
+            if (e.key === "ArrowLeft") prevSlide();
+        });
+
+        // initialisation
+        renderSlide(0);
+    </script>
+</body>
+</html>

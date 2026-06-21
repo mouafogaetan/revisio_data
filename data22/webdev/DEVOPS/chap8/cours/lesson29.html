@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 29 : Prometheus - Surveillance et Métriques | DevOps</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes légères) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules (optionnel, mais présent) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation douce -->
+    <style>
+        /* Transition fluide pour les slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* Ajustements pour petits écrans : texte lisible */
+        @media (max-width: 640px) {
+            .prose {
+                font-size: 0.95rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            h3 {
+                font-size: 1.25rem;
+            }
+        }
+        /* Couleurs agréables : fond chaud, bleu paisible pour les slides */
+        body {
+            background: #f0f9ff; /* soft sky */
+        }
+        .card-slide {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .btn-nav:hover {
+            transform: scale(1.02);
+            background-color: #1e3a8a;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur Slides -->
+        <div id="slides-container" class="relative">
+            <!-- Les slides seront injectées dynamiquement via jQuery -->
+        </div>
+
+        <!-- Navigation + progression -->
+        <div class="flex flex-wrap justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed btn-nav">◀ Précédent</button>
+            <div class="flex-1 max-w-xs mx-2 bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div id="progressFill" class="bg-blue-600 h-full rounded-full progress-bar" style="width: 0%;"></div>
+            </div>
+            <button id="nextBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition btn-nav">Suivant ▶</button>
+        </div>
+        <p id="slideCounter" class="text-center text-sm text-gray-500 mt-3"></p>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        // DONNÉES DE LA LEÇON 29: "Installer et configurer Prometheus"
+        // Basé sur les objectifs de la lesson29 du programme.
+        // 3 objectifs : 
+        //  0: Installer et configurer Prometheus
+        //  1: Comprendre le modèle de données (metrics, labels, timestamp)
+        //  2: Utiliser PromQL pour interroger les métriques
+        // --------------------------------------------------------------
+        const slideData = [
+            { // Slide 0 : Titre principal
+                type: "title",
+                title: "📊 Prometheus : Surveillance & Métriques",
+                subtitle: "Leçon 29 – Initiation au DevOps",
+                desc: "Découvrez l’installation, le modèle de données et le langage PromQL"
+            },
+            { // Slide 1 : Objectifs d'apprentissage (pédagogiques)
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "✅ Installer et configurer Prometheus sur un serveur Linux",
+                    "✅ Comprendre le modèle de données : metrics, labels, timestamp",
+                    "✅ Utiliser PromQL pour interroger et analyser les métriques"
+                ]
+            },
+            { // Slide 2 : Qu'est-ce que Prometheus ? (contexte + installation)
+                type: "content",
+                title: "🔧 1. Installation et configuration de Prometheus",
+                content: `
+                    <p class="mb-3"><strong>Prometheus</strong> est un système de monitoring open-source, qui collecte des métriques via un modèle "pull". Il fait partie de la Cloud Native Computing Foundation.</p>
+                    <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-blue-500 my-4">
+                        <p class="font-semibold">📥 Installation rapide (Ubuntu/Debian) :</p>
+                        <pre class="bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto mt-2"><code># Télécharger la dernière version
+wget https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz
+tar xvf prometheus-*.tar.gz
+cd prometheus-*/</code></pre>
+                        <p class="mt-2">Configuration : éditez <code class="bg-gray-200 px-1 rounded">prometheus.yml</code> pour définir les cibles à surveiller.</p>
+                        <pre class="bg-gray-800 text-gray-100 p-3 rounded-md text-sm overflow-x-auto mt-2"><code>global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9090']</code></pre>
+                        <p class="mt-2">Lancement : <code>./prometheus --config.file=prometheus.yml</code> → interface web sur <strong>http://localhost:9090</strong></p>
+                    </div>
+                    <p class="text-sm text-gray-600">💡 Prometheus s'installe aussi via Docker : <code>docker run -p 9090:9090 prom/prometheus</code></p>
+                `
+            },
+            { // Slide 3 : Modèle de données (metrics, labels, timestamp)
+                type: "content",
+                title: "📈 2. Modèle de données Prometheus",
+                content: `
+                    <p>Dans Prometheus, chaque donnée est une <strong>série temporelle</strong> identifiée par :</p>
+                    <ul class="list-disc pl-6 my-3 space-y-2">
+                        <li><span class="font-mono bg-blue-100 px-1 rounded">metric name</span> : décrit la caractéristique mesurée (ex: <code>http_requests_total</code>)</li>
+                        <li><span class="font-mono bg-blue-100 px-1 rounded">labels</span> : paires clé/valeur pour filtrer (ex: <code>method="GET"</code>, <code>status="200"</code>)</li>
+                        <li><span class="font-mono bg-blue-100 px-1 rounded">timestamp</span> : moment précis de la mesure (millisecondes Unix)</li>
+                    </ul>
+                    <div class="bg-indigo-50 p-4 rounded-lg my-3">
+                        <p class="font-medium">📌 Exemple concret :</p>
+                        <code class="block bg-gray-800 text-green-300 p-2 rounded text-sm">http_requests_total{method="POST", endpoint="/api"}</code>
+                        <p class="text-sm mt-2">Ceci représente le compteur total de requêtes POST sur /api. Chaque point est associé à un timestamp et une valeur.</p>
+                    </div>
+                    <p>📐 Les métriques peuvent être de 4 types : Counter, Gauge, Histogram, Summary.</p>
+                `
+            },
+            { // Slide 4 : PromQL - Interroger les métriques
+                type: "content",
+                title: "🔍 3. Utiliser PromQL (Prometheus Query Language)",
+                content: `
+                    <p>PromQL permet d'extraire et d'agréger les séries temporelles. Interface graphique : onglet "Graph" ou requêtes via API.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                        <div class="bg-gray-50 p-3 rounded-md shadow-sm">
+                            <p class="font-semibold">📘 Exemples de base :</p>
+                            <ul class="list-disc pl-5 text-sm space-y-1">
+                                <li><code>up</code> → état des cibles (1 = actif)</li>
+                                <li><code>node_cpu_seconds_total{mode="user"}</code></li>
+                                <li><code>rate(http_requests_total[5m])</code> → requêtes par seconde</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-md shadow-sm">
+                            <p class="font-semibold">⚙️ Opérateurs & fonctions :</p>
+                            <ul class="list-disc pl-5 text-sm space-y-1">
+                                <li><code>sum()</code>, <code>avg()</code>, <code>count()</code></li>
+                                <li><code>histogram_quantile(0.95, ...)</code></li>
+                                <li><code>topk(3, node_memory_MemFree_bytes)</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-2">
+                        <p class="text-sm">✨ <strong>Astuce enseignant :</strong> Dans l'interface Prometheus, allez dans "Graph" → saisissez <code>prometheus_http_requests_total</code> → Exécutez pour voir les métriques de Prometheus lui-même.</p>
+                    </div>
+                    <p class="mt-3">🎯 Avec PromQL, vous pouvez créer des alertes (Alertmanager) et dashboards dans Grafana.</p>
+                `
+            },
+            { // Slide 5 : Mise en pratique / mini-exercice
+                type: "content",
+                title: "🧪 Activité pratique : Premier test Prometheus",
+                content: `
+                    <p>⏱️ <strong>À faire sur votre poste (ou VM) :</strong></p>
+                    <ol class="list-decimal pl-6 space-y-2 my-3">
+                        <li>Installez Prometheus (via Docker ou binaire).</li>
+                        <li>Assurez-vous que la cible <code>localhost:9090</code> est bien dans <code>prometheus.yml</code> (scrape job).</li>
+                        <li>Accédez à <code>http://localhost:9090/targets</code> → vérifiez que l'état est <strong>UP</strong>.</li>
+                        <li>Dans l'onglet "Graph", tapez la requête <code>prometheus_target_interval_length_seconds</code>.</li>
+                        <li>Observez les labels (<code>quantile</code>, etc.) et le graphique évolutif.</li>
+                    </ol>
+                    <div class="mt-4 bg-green-50 p-3 rounded-md text-green-800 text-sm">
+                        💡 <strong>Pour aller plus loin :</strong> Installez un exporter (Node Exporter) pour collecter les métriques système (CPU, RAM). Prometheus viendra les scraper toutes les 15s.
+                    </div>
+                `
+            },
+            { // Slide 6 : Résumé & transition
+                type: "recap",
+                title: "📌 Récapitulons !",
+                points: [
+                    "Prometheus se configure facilement via un fichier YAML avec des cibles (targets).",
+                    "Le modèle de données combine nom_métrique + labels + timestamp.",
+                    "PromQL est puissant pour analyser les performances et diagnostiquer.",
+                    "Prometheus est souvent associé à Grafana pour des dashboards pro."
+                ],
+                footer: "Prochaine leçon : Grafana pour la visualisation"
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slideData.length;
+
+        // Rendu d'une slide en fonction de son type
+        function renderSlide(index) {
+            const data = slideData[index];
+            if (!data) return "";
+
+            if (data.type === "title") {
+                return `
+                    <div class="card-slide p-6 md:p-10 text-center min-h-[450px] flex flex-col justify-center">
+                        <div class="mb-4 text-6xl">📡</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">${escapeHtml(data.title)}</h1>
+                        <p class="text-xl text-blue-700 mt-3 font-medium">${escapeHtml(data.subtitle)}</p>
+                        <p class="text-gray-500 mt-5 text-lg">${escapeHtml(data.desc)}</p>
+                        <div class="mt-8 text-sm text-gray-400">👨‍🏫 Cours DevOps – Cameroun</div>
+                    </div>
+                `;
+            }
+            else if (data.type === "objectives") {
+                let objItems = "";
+                data.objectives.forEach(obj => {
+                    objItems += `<li class="mb-3 flex items-start gap-2"><span class="text-green-600 text-xl">✓</span> <span class="text-gray-700">${escapeHtml(obj)}</span></li>`;
+                });
+                return `
+                    <div class="card-slide p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-4 border-blue-400 inline-block pb-1 mb-5">${escapeHtml(data.title)}</h2>
+                        <ul class="mt-4 space-y-2 text-lg">${objItems}</ul>
+                        <div class="mt-8 bg-blue-50 p-4 rounded-xl italic text-blue-800 text-sm">
+                            🧠 Après cette leçon, vous serez capable de déployer Prometheus et d’exploiter ses métriques.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (data.type === "content") {
+                return `
+                    <div class="card-slide p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4 flex items-center gap-2">📖 ${escapeHtml(data.title)}</h2>
+                        <div class="prose max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                `;
+            }
+            else if (data.type === "recap") {
+                let bulletPoints = "";
+                data.points.forEach(p => {
+                    bulletPoints += `<li class="mb-2 flex items-start gap-2"><span class="text-blue-500 text-lg">•</span> <span>${escapeHtml(p)}</span></li>`;
+                });
+                return `
+                    <div class="card-slide p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-5">${escapeHtml(data.title)}</h2>
+                        <ul class="list-none space-y-2 text-gray-700 text-lg">${bulletPoints}</ul>
+                        <div class="mt-8 p-4 bg-gray-100 rounded-xl text-center text-gray-600 font-medium">
+                            ${escapeHtml(data.footer)}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="card-slide p-6">Contenu non défini</div>`;
+        }
+
+        // Fonction utilitaire pour éviter XSS
+        function escapeHtml(str) {
+            if (!str) return "";
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Mise à jour de l'affichage (slide + progression)
+        function updateDisplay() {
+            const htmlSlide = renderSlide(currentSlide);
+            $("#slides-container").html(htmlSlide);
+            // Mise à jour du compteur et de la barre
+            $("#slideCounter").text(`Slide ${currentSlide+1} / ${totalSlides}`);
+            const progressPercent = ((currentSlide) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", progressPercent + "%");
+            
+            // Gérer l'état des boutons (désactiver si premier/dernier)
+            $("#prevBtn").prop("disabled", currentSlide === 0);
+            $("#nextBtn").prop("disabled", currentSlide === totalSlides - 1);
+            
+            // Scroll en haut de la slide (pour un confort mobile)
+            $('html, body').animate({ scrollTop: 0 }, 200);
+        }
+
+        // Événements navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateDisplay();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateDisplay();
+            }
+        }
+
+        // Gestion clavier (flèches)
+        $(document).keydown(function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+            }
+        });
+
+        // Initialisation et rendu
+        $(document).ready(function() {
+            updateDisplay();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+        });
+    </script>
+    <!-- Note explicative : l'utilisation de MathJax n'est pas nécessaire ici car pas de formules complexes, mais incluse -->
+</body>
+</html>

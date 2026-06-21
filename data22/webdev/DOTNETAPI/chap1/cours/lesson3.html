@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 3 : Builder, Services & Middleware - API .NET Core</title>
+    <!-- Tailwind CSS + Font Awesome (icons utiles) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (au cas où des formules mathématiques seraient nécessaires, mais nous n'en avons pas dans cette leçon spécifique. Préparé) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Couleurs personnalisées pour un confort visuel */
+        body {
+            background: #f4f7fc;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .slide-container {
+            transition: all 0.3s ease;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            background-color: #1e3a8a;
+            color: white;
+        }
+        .nav-btn:hover {
+            background-color: #1e40af;
+            transform: scale(1.02);
+        }
+        .progress-bar {
+            background: #cbd5e1;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #2563eb;
+            width: 0%;
+            height: 0.5rem;
+            transition: width 0.3s ease;
+        }
+        .dot-indicators span {
+            width: 10px;
+            height: 10px;
+            background-color: #cbd5e6;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .dot-indicators span.active {
+            background-color: #2563eb;
+            transform: scale(1.2);
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.5rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+        /* pour les petits écrans */
+        .lesson-content p, .lesson-content li {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Entête avec titre matière/classe -->
+        <div class="text-center mb-6 md:mb-8">
+            <span class="text-sm font-semibold text-blue-700 bg-blue-100 px-4 py-1 rounded-full">📘 Développement Web | API .NET (ASP.NET Core)</span>
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mt-3">Leçon 3 : Comprendre le Builder, les Services et les Middleware</h1>
+            <p class="text-gray-600 mt-2">ASP.NET Core – Configuration et pipeline de requêtes</p>
+        </div>
+
+        <!-- Slides dynamiques -->
+        <div class="slide-card p-5 md:p-8 mb-6" id="slideArea">
+            <!-- Le contenu des slides sera injecté via jQuery -->
+        </div>
+
+        <!-- Navigation + progression + indicateurs -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+            <button id="prevSlide" class="nav-btn px-6 py-2 rounded-full font-medium shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                ← Précédent
+            </button>
+            <div class="flex flex-col items-center gap-2">
+                <div class="progress-bar w-48 md:w-64 h-2">
+                    <div id="progressFill" class="progress-fill h-full rounded-full"></div>
+                </div>
+                <div id="dotIndicator" class="dot-indicators flex justify-center mt-1"></div>
+                <span id="slideCounter" class="text-xs text-gray-500 font-medium">Slide 1 / X</span>
+            </div>
+            <button id="nextSlide" class="nav-btn px-6 py-2 rounded-full font-medium shadow-md flex items-center gap-2">
+                Suivant →
+            </button>
+        </div>
+
+        <!-- petite note responsive -->
+        <p class="text-center text-xs text-gray-400 mt-8">✨ Cours conçu pour une maîtrise complète du pipeline ASP.NET Core | Cameroun 🇨🇲</p>
+    </div>
+
+    <script>
+        // Définition des slides pour la lesson3 : Builder, services, middleware
+        // D'après les objectifs de lesson3: 
+        // 1. Comprendre le builder et l'application (WebApplicationBuilder)
+        // 2. Configurer les services avec Add...() (injection de dépendances)
+        // 3. Utiliser app.Use...() pour ajouter des middleware (Routing, Authentication, etc.)
+        
+        const slides = [
+            { // slide 0 : titre de la leçon (premier slide)
+                type: "title",
+                title: "⚙️ Leçon 3 : WebApplicationBuilder, Services et Middleware",
+                subtitle: "Les fondations d'une API .NET performante",
+                content: "Découvrons comment ASP.NET Core construit et exécute votre application web. Le builder, le conteneur de services et le pipeline middleware sont les piliers de toute API moderne."
+            },
+            { // slide 1 : objectifs pédagogiques
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Comprendre le rôle de WebApplicationBuilder et de l'objet Application dans une API .NET",
+                    "Configurer des services avec les méthodes Add...() (injection de dépendances)",
+                    "Utiliser app.Use...() pour ajouter des middlewares : Routing, Authentication, etc.",
+                    "Savoir ordonner correctement les middlewares dans le pipeline"
+                ]
+            },
+            { // slide 2 : contenu principal - WebApplicationBuilder expliqué
+                type: "content",
+                title: "🏗️ 1. WebApplicationBuilder : le constructeur d'applications",
+                paragraphs: [
+                    "Dans les versions récentes d'ASP.NET Core (6+), on utilise <strong>WebApplicationBuilder</strong> qui simplifie la configuration. Avant, on avait HostBuilder et Startup.cs, maintenant tout est unifié.",
+                    "<code>var builder = WebApplication.CreateBuilder(args);</code> crée un builder. Cet objet nous permet d'ajouter des services et de configurer l'hébergement.",
+                    "Le builder expose <code>builder.Services</code> (collection de services pour l'injection de dépendances) et <code>builder.Configuration</code> pour les paramètres.",
+                    "Après configuration, on construit l'application avec <code>var app = builder.Build();</code> et c'est cette instance <strong>app</strong> qui gère le pipeline middleware."
+                ],
+                codeSample: "// Exemple typique Program.cs\nvar builder = WebApplication.CreateBuilder(args);\n\n// Ajout des services (contrôleurs, Swagger, DB...)\nbuilder.Services.AddControllers();\nbuilder.Services.AddEndpointsApiExplorer();\nbuilder.Services.AddSwaggerGen();\n\nvar app = builder.Build();\n\n// Configuration du pipeline middleware\napp.UseHttpsRedirection();\napp.UseAuthorization();\napp.MapControllers();\n\napp.Run();"
+            },
+            { // slide 3 : services - injection de dépendances
+                type: "content",
+                title: "📦 2. Configurer les services : AddScoped, AddTransient, AddSingleton",
+                paragraphs: [
+                    "Les services sont enregistrés dans <strong>builder.Services</strong>. ASP.NET Core possède un conteneur DI (Dependency Injection) intégré.",
+                    "On utilise des méthodes comme <code>AddScoped&lt;T&gt;()</code>, <code>AddTransient&lt;T&gt;()</code>, <code>AddSingleton&lt;T&gt;()</code> selon la durée de vie souhaitée.",
+                    "Pour les contrôleurs API, on utilise <code>AddControllers()</code> ou <code>AddEndpointsApiExplorer()</code> pour la documentation.",
+                    "Exemples concrets : <code>builder.Services.AddDbContext&lt;AppDbContext&gt;();</code> pour Entity Framework, <code>builder.Services.AddScoped&lt;IProductRepository, ProductRepository&gt;();</code>.",
+                    "Ces services seront ensuite injectés dans les constructeurs de vos contrôleurs : <strong>couplage faible et testabilité</strong>."
+                ],
+                codeSample: "// Enregistrement de services personnalisés\nbuilder.Services.AddScoped<IWeatherService, WeatherService>();\nbuilder.Services.AddSingleton<ICacheService, MemoryCacheService>();\nbuilder.Services.AddTransient<IOperationTransient, Operation>();\n\n// Pour l'authentification JWT\nbuilder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)\n    .AddJwtBearer(options => { /* config */ });"
+            },
+            { // slide 4 : middleware - app.Use...()
+                type: "content",
+                title: "🔄 3. Middleware : le pipeline de requêtes",
+                paragraphs: [
+                    "Un middleware est un composant qui traite les requêtes et réponses. Chaque middleware peut décider de passer la requête au suivant ou de court-circuiter la réponse.",
+                    "Avec <strong>app.Use()</strong>, <strong>app.Run()</strong> et <strong>app.Map()</strong>, on construit le pipeline. L'ordre est crucial : les middlewares sont exécutés dans l'ordre où ils sont ajoutés.",
+                    "Middleware courants : <code>app.UseRouting()</code> (active le routage), <code>app.UseAuthentication()</code>, <code>app.UseAuthorization()</code>, <code>app.UseCors()</code>, <code>app.UseExceptionHandler()</code>.",
+                    "Exemple type : 1) UseExceptionHandler 2) UseHttpsRedirection 3) UseRouting 4) UseAuthentication 5) UseAuthorization 6) MapControllers."
+                ],
+                codeSample: "// Exemple d'ajout de middleware personnalisé\napp.Use(async (context, next) =>\n{\n    Console.WriteLine(\"Avant le prochain middleware\");\n    await next(); // appel du middleware suivant\n    Console.WriteLine(\"Après le middleware suivant\");\n});\n\napp.UseRouting();\n\napp.UseAuthentication();\napp.UseAuthorization();\n\napp.MapControllers(); // MapControllers est un middleware de point de terminaison"
+            },
+            { // slide 5 : exemple complet + bonnes pratiques
+                type: "content",
+                title: "💡 Mise en pratique & Ordre recommandé",
+                paragraphs: [
+                    "Pour une API REST typique, voici le pipeline idéal :",
+                    "1️⃣ <strong>app.UseExceptionHandler()</strong> → capture les erreurs globales",
+                    "2️⃣ <strong>app.UseHsts()</strong> (en production) et <strong>UseHttpsRedirection()</strong>",
+                    "3️⃣ <strong>app.UseRouting()</strong> → correspondance des routes",
+                    "4️⃣ <strong>app.UseCors()</strong> → gestion des accès cross-origin",
+                    "5️⃣ <strong>app.UseAuthentication()</strong> + <strong>UseAuthorization()</strong> → sécurité",
+                    "6️⃣ <strong>app.MapControllers()</strong> ou <strong>app.UseEndpoints()</strong> → exécution des endpoints.",
+                    "📌 Rappel : L'injection de dépendances permet d'avoir des contrôleurs propres et découplés. Le builder prépare tout cela avant le Build()."
+                ],
+                codeSample: "var app = builder.Build();\n\nif (app.Environment.IsDevelopment())\n{\n    app.UseSwagger();\n    app.UseSwaggerUI();\n}\n\napp.UseExceptionHandler(configure => { /* ... */ });\napp.UseHttpsRedirection();\napp.UseRouting();\napp.UseCors(policy => policy.AllowAnyOrigin());\napp.UseAuthentication();\napp.UseAuthorization();\napp.MapControllers();\n\napp.Run();"
+            },
+            { // slide 6 : résumé et conclusion (vérification des acquis)
+                type: "summary",
+                title: "📌 Récapitulatif et points clés",
+                points: [
+                    "✅ WebApplicationBuilder simplifie la création de l'application et l'enregistrement des services.",
+                    "✅ Les services (DI) s'enregistrent avec builder.Services.Add{Type}() : Transient, Scoped, Singleton.",
+                    "✅ Après builder.Build(), on obtient l'objet 'app' pour configurer le pipeline middleware.",
+                    "✅ L'ordre des middlewares est critique : erreurs → sécurité → routage → endpoints.",
+                    "✅ Les méthodes 'Use...' ajoutent des middlewares, et MapControllers ajoute le routage des API.",
+                    "✅ Cette architecture garantie des API robustes, testables et performantes."
+                ],
+                footer: "Prochaine étape : création d’un contrôleur complet avec endpoints REST"
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+
+        // Fonction de rendu du slide en fonction du type (avec HTML/Tailwind)
+        function renderSlide(index) {
+            const slide = slides[index];
+            if (!slide) return;
+
+            let html = '';
+            const baseCardClass = "space-y-5";
+
+            if (slide.type === "title") {
+                html = `
+                    <div class="text-center py-6 md:py-10">
+                        <div class="text-6xl mb-4">🚀</div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-gray-800">${slide.title}</h2>
+                        <p class="text-xl text-blue-600 font-medium mt-3">${slide.subtitle || ""}</p>
+                        <div class="mt-8 border-t border-gray-200 pt-6 text-gray-600">
+                            <p>${slide.content}</p>
+                        </div>
+                        <div class="mt-6 text-sm text-gray-400 italic">👨‍🏫 Cliquez sur Suivant pour voir les objectifs et le contenu</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-5">${slide.title}</h2>
+                        <ul class="space-y-3 text-gray-700">
+                            ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-blue-500 text-xl">✓</span> <span class="text-lg">${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-blue-50 p-4 rounded-xl text-blue-800">
+                            💡 À la fin de cette leçon, vous saurez configurer le cœur d’une API .NET Core.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-4">${slide.title}</h2>
+                        <div class="lesson-content space-y-4 text-gray-700">
+                            ${slide.paragraphs.map(p => `<p>${p}</p>`).join('')}
+                        </div>
+                        ${slide.codeSample ? `<div class="mt-5"><pre class="text-sm"><code>${escapeHtml(slide.codeSample)}</code></pre></div>` : ''}
+                    </div>
+                `;
+            }
+            else if (slide.type === "summary") {
+                html = `
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-green-500 pl-4 mb-5">${slide.title}</h2>
+                        <ul class="space-y-2 mb-6">
+                            ${slide.points.map(p => `<li class="flex gap-2 text-gray-700"><span class="text-green-600">⭐</span> ${p}</li>`).join('')}
+                        </ul>
+                        <div class="bg-gray-100 p-4 rounded-xl italic text-gray-600">${slide.footer || "Maîtrisez ces concepts pour devenir un pro des API .NET"}</div>
+                    </div>
+                `;
+            }
+
+            // injection dans slideArea
+            $("#slideArea").html(html);
+            
+            // Mise à jour des indicateurs et du compteur
+            $("#slideCounter").text(`Slide ${index+1} / ${totalSlides}`);
+            updateProgress(index, totalSlides);
+            updateDots(index);
+            
+            // Gérer l'état des boutons prev/next
+            $("#prevSlide").prop("disabled", index === 0);
+            $("#nextSlide").prop("disabled", index === totalSlides-1);
+            if(index === totalSlides-1){
+                $("#nextSlide").text("Terminé ✓");
+            } else {
+                $("#nextSlide").text("Suivant →");
+            }
+        }
+
+        function escapeHtml(str) {
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        function updateProgress(current, total) {
+            const percent = ((current + 1) / total) * 100;
+            $("#progressFill").css("width", `${percent}%`);
+        }
+
+        function updateDots(activeIndex) {
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                dotsHtml += `<span class="${i === activeIndex ? 'active' : ''}" data-index="${i}"></span>`;
+            }
+            $("#dotIndicator").html(dotsHtml);
+            // événement clic sur les points
+            $(".dot-indicators span").off('click').on('click', function() {
+                let newIndex = parseInt($(this).data('index'));
+                if (!isNaN(newIndex) && newIndex >= 0 && newIndex < totalSlides) {
+                    currentIndex = newIndex;
+                    renderSlide(currentIndex);
+                }
+            });
+        }
+
+        // navigation
+        $("#prevSlide").on("click", function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+            }
+        });
+        
+        $("#nextSlide").on("click", function() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+            } else if (currentIndex === totalSlides - 1) {
+                // Optionnel: message de fin de cours
+                alert("🎉 Félicitations ! Vous avez terminé la leçon 3. N'oubliez pas de pratiquer en configurant vous-même un projet ASP.NET Core.");
+            }
+        });
+
+        // Initialisation du premier slide
+        renderSlide(0);
+
+        // Support clavier (gauche/droite)
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowLeft") {
+                $("#prevSlide").click();
+            } else if (e.key === "ArrowRight") {
+                $("#nextSlide").click();
+            }
+        });
+        
+        // Ajustement MathJax si jamais des formules apparaissent (cette leçon n'en contient pas, mais pour d'autres cas)
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+        
+        // rajout d'un petit message console sympa
+        console.log("Leçon 3 chargée : WebApplicationBuilder, Services & Middleware | Enseignant Cameroun");
+    </script>
+</body>
+</html>

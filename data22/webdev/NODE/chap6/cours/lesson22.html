@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 22 : Sécuriser une API - Helmet, CORS et Rate Limiting | Node.js</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax for formulas (optional but ready) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Custom styles for slide navigation & readability -->
+    <style>
+        /* smooth transitions and slide container */
+        .slide-container {
+            transition: all 0.3s ease-in-out;
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active {
+            display: block;
+            opacity: 1;
+        }
+        /* custom scrollbar for better mobile */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        body {
+            font-family: system-ui, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+        /* card style & interactive elements */
+        .code-block {
+            background-color: #1e293b;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+        .badge-pill {
+            @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f3b5f',
+                        secondary: '#1e6f5c',
+                        accent: '#f0a500',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen py-6 px-3 sm:px-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header / progress indicator -->
+        <div class="mb-4 flex justify-between items-center flex-wrap gap-2">
+            <div class="text-sm text-gray-600 bg-white/70 backdrop-blur-sm rounded-full px-4 py-1 shadow-sm">
+                📘 Backend avec Node.js | Chapitre 6 : Sécuriser une API
+            </div>
+            <div class="text-sm font-medium text-primary bg-white/70 rounded-full px-4 py-1">
+                Leçon 22 / 38
+            </div>
+        </div>
+        
+        <!-- Slide controls and navigation -->
+        <div class="flex justify-between items-center mb-5">
+            <button id="prevSlide" class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-l-full rounded-r-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary">◀ Précédent</button>
+            <span id="slideCounter" class="text-sm bg-white/60 px-3 py-1 rounded-full">Slide 1 / ?</span>
+            <button id="nextSlide" class="bg-primary hover:bg-indigo-800 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary">Suivant ▶</button>
+        </div>
+
+        <!-- Slides container -->
+        <div class="slide-container bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl p-5 md:p-8 border border-white/40">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide active" id="slide1">
+                <div class="text-center my-6 md:my-10">
+                    <div class="inline-block p-3 bg-primary/10 rounded-full mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-primary tracking-tight">Sécuriser son API avec Helmet, CORS et Rate Limiting</h1>
+                    <p class="text-lg text-gray-700 mt-4 max-w-xl mx-auto">Protégez votre application Node.js/Express contre les attaques courantes du web</p>
+                    <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full">🛡️ Helmet</span>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">🌍 CORS</span>
+                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full">⏱️ Rate Limiting</span>
+                    </div>
+                    <div class="mt-10 text-gray-500 text-sm">👨‍🏫 Cours pour développeurs Camerounais • Pratique et accessible</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS D'APPRENTISSAGE -->
+            <div class="slide" id="slide2">
+                <h2 class="text-2xl font-bold text-primary border-l-4 border-accent pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3 bg-white/70 p-4 rounded-xl shadow-sm">
+                        <span class="text-accent text-xl">✓</span>
+                        <span><strong class="font-semibold">Utiliser Helmet</strong> pour sécuriser les en-têtes HTTP et prévenir certaines vulnérabilités (XSS, clickjacking...).</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-white/70 p-4 rounded-xl shadow-sm">
+                        <span class="text-accent text-xl">✓</span>
+                        <span><strong class="font-semibold">Configurer CORS</strong> afin d’autoriser ou restreindre les origines qui peuvent accéder à votre API.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-white/70 p-4 rounded-xl shadow-sm">
+                        <span class="text-accent text-xl">✓</span>
+                        <span><strong class="font-semibold">Implémenter un rate limiting</strong> (express-rate-limit) pour contrer les attaques DDoS et abus.</span>
+                    </div>
+                    <div class="flex items-start gap-3 bg-white/70 p-4 rounded-xl shadow-sm">
+                        <span class="text-accent text-xl">✓</span>
+                        <span>Comprendre les bonnes pratiques de sécurité pour une API Node.js en production.</span>
+                    </div>
+                </div>
+                <div class="mt-8 text-center text-indigo-600 text-sm italic">“Un backend sécurisé, c'est la base de la confiance utilisateur.”</div>
+            </div>
+
+            <!-- SLIDE 3 : INTRODUCTION - POURQUOI SÉCURISER SON API -->
+            <div class="slide" id="slide3">
+                <h2 class="text-2xl font-bold text-primary mb-4">🔐 Pourquoi renforcer la sécurité d'une API ?</h2>
+                <p class="mb-4 text-gray-700">Les API sont exposées sur internet et peuvent subir plusieurs types d'attaques :</p>
+                <ul class="list-disc pl-6 space-y-2 text-gray-700 mb-5">
+                    <li><strong>Cross-Site Scripting (XSS)</strong> : injection de scripts malveillants.</li>
+                    <li><strong>Clickjacking</strong> : tromper l'utilisateur pour qu'il clique sur des éléments cachés.</li>
+                    <li><strong>Requêtes malveillantes depuis d'autres domaines</strong> (CSRF, vols de données).</li>
+                    <li><strong>Attaques par déni de service (DDoS)</strong> : surcharge du serveur.</li>
+                </ul>
+                <div class="bg-primary/5 p-4 rounded-xl border border-primary/20">
+                    <p class="font-medium">💡 Node.js + Express propose des middlewares simples à intégrer pour mitiger ces risques : Helmet, CORS et express-rate-limit.</p>
+                </div>
+                <!-- schéma simple dessiné en SVG -->
+                <div class="mt-6 flex justify-center">
+                    <svg width="280" height="100" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg" class="max-w-full">
+                        <rect x="10" y="35" width="70" height="30" fill="#0f3b5f" rx="6" />
+                        <text x="25" y="54" fill="white" font-size="10">Client Web</text>
+                        <path d="M85 50 L115 50" stroke="#f0a500" stroke-width="3" marker-end="url(#arrow)" />
+                        <rect x="120" y="30" width="100" height="40" fill="#1e6f5c" rx="8" />
+                        <text x="138" y="54" fill="white" font-size="10">Middleware sécurités</text>
+                        <path d="M225 50 L255 50" stroke="#f0a500" stroke-width="3" />
+                        <rect x="260" y="35" width="35" height="30" fill="#0f3b5f" rx="6" />
+                        <text x="267" y="54" fill="white" font-size="8">API</text>
+                        <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#f0a500"/></marker></defs>
+                    </svg>
+                </div>
+                <p class="text-center text-xs text-gray-500 mt-2">Les middlewares de sécurité agissent avant vos routes</p>
+            </div>
+
+            <!-- SLIDE 4 : HELMET - SÉCURITÉ DES EN-TÊTES HTTP -->
+            <div class="slide" id="slide4">
+                <h2 class="text-2xl font-bold text-primary mb-3">🪖 Helmet : Protéger les en-têtes HTTP</h2>
+                <p>Helmet définit plusieurs en-têtes pour bloquer les attaques courantes : <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>X-XSS-Protection</code>, etc.</p>
+                <div class="mt-4 code-block">
+                    <pre class="text-sm text-gray-200"><code>// Installation
+npm install helmet
+
+// Dans votre app Express
+const helmet = require('helmet');
+app.use(helmet()); // Active toutes les protections par défaut
+
+// Configuration personnalisée (exemple)
+app.use(helmet({
+    frameguard: { action: 'deny' },   // anti-clickjacking
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+        }
+    }
+}));</code></pre>
+                </div>
+                <div class="mt-4 bg-green-50 p-3 rounded-lg text-sm">
+                    ✅ Helmet réduit la surface d'attaque, indispensable en production.
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : CORS - PARTAGE RESSOURCES ENTRE ORIGINES -->
+            <div class="slide" id="slide5">
+                <h2 class="text-2xl font-bold text-primary mb-3">🌐 CORS : Qui peut appeler votre API ?</h2>
+                <p class="mb-3">Par défaut, les navigateurs bloquent les requêtes AJAX vers un domaine différent. Avec CORS, vous autorisez des origines spécifiques.</p>
+                <div class="code-block">
+                    <pre><code>npm install cors
+
+const cors = require('cors');
+
+// Autoriser toutes les origines (⚠️ à éviter en production)
+app.use(cors());
+
+// Configuration sécurisée
+app.use(cors({
+    origin: 'https://monfrontend.com', // domaine autorisé
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true, // autoriser cookies / headers auth
+}));
+
+// Ou utiliser dynamiquement
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (process.env.WHITELIST.split(',').includes(origin)) callback(null, true);
+        else callback(new Error('Non autorisé par CORS'));
+    }
+}</code></pre>
+                </div>
+                <p class="mt-3 text-gray-600 text-sm">💡 Pour le développement, on utilise <code>cors({ origin: '*' })</code>, mais en production, restreignez les origines.</p>
+            </div>
+
+            <!-- SLIDE 6 : RATE LIMITING - PROTECTION DDoS -->
+            <div class="slide" id="slide6">
+                <h2 class="text-2xl font-bold text-primary mb-3">⏱️ Rate Limiting : Limiter les requêtes abusives</h2>
+                <p>Empêche une même IP d'envoyer trop de requêtes en peu de temps (brute force, DDoS).</p>
+                <div class="code-block mt-3">
+                    <pre><code>npm install express-rate-limit
+
+const rateLimit = require('express-rate-limit');
+
+// Limiteur global
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // maximum 100 requêtes par IP
+    message: 'Trop de requêtes, veuillez réessayer plus tard.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use(limiter);
+
+// Limiteur plus strict pour une route sensible (login)
+const loginLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 10,
+    skipSuccessfulRequests: true, // éviter de bloquer les succès
+});
+app.post('/api/login', loginLimiter, (req, res) => { ... });</code></pre>
+                </div>
+                <div class="mt-4 bg-amber-50 p-3 rounded-lg border-l-4 border-amber-400">
+                    📌 Astuce : Combine rate limit + Redis en production pour du partagé entre plusieurs instances.
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : EXEMPLE COMPLET D'INTÉGRATION DANS UNE API -->
+            <div class="slide" id="slide7">
+                <h2 class="text-2xl font-bold text-primary mb-4">🛠️ Mise en pratique : Exemple complet d'index.js</h2>
+                <div class="code-block text-sm">
+                    <pre><code>const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+
+// 1. Sécurité des en-têtes
+app.use(helmet());
+
+// 2. CORS pour un frontend spécifique
+app.use(cors({ origin: 'https://monapp-cameroun.com' }));
+
+// 3. Rate limit global
+const globalLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 200,
+});
+app.use(globalLimiter);
+
+// 4. Middleware JSON
+app.use(express.json());
+
+// 5. Routes protégées
+app.get('/api/public', (req, res) => {
+    res.json({ message: 'Accès autorisé avec sécurité' });
+});
+
+app.listen(3000, () => console.log('API sécurisée en ligne'));</code></pre>
+                </div>
+                <div class="mt-4 p-3 bg-slate-100 rounded-md text-sm">
+                    🔁 Ordre des middlewares important : helmet → cors → rateLimit → body parsers → routes.
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : SIMULATION D'ERREUR & BONNES PRATIQUES -->
+            <div class="slide" id="slide8">
+                <h2 class="text-2xl font-bold text-primary mb-4">📌 Meilleures pratiques et pièges à éviter</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <div class="font-bold text-green-700">✅ À faire</div>
+                        <ul class="list-disc pl-5 mt-2 space-y-1 text-sm">
+                            <li>Utiliser Helmet par défaut</li>
+                            <li>Limiter les origines CORS strictement</li>
+                            <li>Mettre des rate limits différents selon les endpoints (login, inscription)</li>
+                            <li>Utiliser des variables d'environnement pour la liste blanche</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <div class="font-bold text-red-600">❌ À éviter</div>
+                        <ul class="list-disc pl-5 mt-2 space-y-1 text-sm">
+                            <li>cors({ origin: '*' }) en production</li>
+                            <li>Oublier Helmet sur les API sensibles</li>
+                            <li>Rate limit trop bas qui bloque les utilisateurs légitimes</li>
+                            <li>Ne pas gérer les erreurs CORS correctement</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6 bg-primary/5 p-4 rounded-xl text-center">
+                    <p class="italic">"La sécurité est un processus, pas un état final — testez toujours votre API avec des outils comme Postman en simulant des origines différentes."</p>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : EXERCICE & RAPPEL -->
+            <div class="slide" id="slide9">
+                <h2 class="text-2xl font-bold text-primary mb-4">🧪 Exercice pratique (à réaliser chez vous)</h2>
+                <div class="bg-gray-50 p-5 rounded-xl">
+                    <p class="font-semibold">Objectif : Sécuriser un mini serveur Express</p>
+                    <ol class="list-decimal pl-6 mt-3 space-y-2 text-gray-700">
+                        <li>Créez un projet Node.js, installez express, helmet, cors, express-rate-limit.</li>
+                        <li>Configurez Helmet, CORS (autoriser uniquement http://localhost:3001).</li>
+                        <li>Ajoutez un limiteur : max 50 requêtes toutes les 5 minutes.</li>
+                        <li>Créez une route GET /api/securite qui retourne "API protégée ✅".</li>
+                        <li>Testez avec un script ou via un navigateur : dépasser la limite doit retourner 429 Too Many Requests.</li>
+                    </ol>
+                    <div class="mt-4 p-3 bg-indigo-50 rounded-lg text-sm">
+                        💡 Pour vérifier les en-têtes Helmet, ouvrez l'onglet réseau dans les outils développeur.
+                    </div>
+                </div>
+                <div class="mt-6 text-center text-primary text-sm">👨‍🏫 Une fois terminé, vous pourrez impressionner vos collègues avec une API robuste !</div>
+            </div>
+
+            <!-- SLIDE 10 : RÉSUMÉ ET CONCLUSION -->
+            <div class="slide" id="slide10">
+                <h2 class="text-2xl font-bold text-primary mb-4">🏁 Récapitulons !</h2>
+                <div class="space-y-3">
+                    <div class="flex gap-2 items-start"><span class="text-primary text-xl">🛡️</span><span><strong>Helmet</strong> : protège les en-têtes HTTP (XSS, clickjacking, MIME sniffing).</span></div>
+                    <div class="flex gap-2 items-start"><span class="text-primary text-xl">🌍</span><span><strong>CORS</strong> : contrôle précis des origines autorisées à consommer l'API.</span></div>
+                    <div class="flex gap-2 items-start"><span class="text-primary text-xl">⏱️</span><span><strong>Rate limiting</strong> : bloque les abus et protège contre les attaques de force brute/DDoS.</span></div>
+                    <div class="flex gap-2 items-start"><span class="text-primary text-xl">⚙️</span><span>Ces middlewares s'ajoutent en quelques lignes mais améliorent énormément la sécurité.</span></div>
+                </div>
+                <div class="mt-6 bg-gradient-to-r from-primary/10 to-indigo-100 p-4 rounded-2xl text-center">
+                    <p class="text-md">🎉 Vous savez maintenant comment durcir vos applications Node.js avant de les déployer en production. Prochaine étape : validation des données et gestion des uploads !</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- navigation dots quick indicator -->
+        <div class="flex justify-center gap-2 mt-6 flex-wrap" id="dotsContainer"></div>
+    </div>
+
+    <script>
+        $(document).ready(function(){
+            let slides = $('.slide');
+            let totalSlides = slides.length;
+            let currentIndex = 0;
+            
+            function updateSlides() {
+                slides.removeClass('active');
+                $(slides[currentIndex]).addClass('active');
+                $('#slideCounter').text(`Slide ${currentIndex+1} / ${totalSlides}`);
+                // update dots active style
+                $('.dot').removeClass('bg-primary').addClass('bg-gray-300');
+                $(`.dot[data-index="${currentIndex}"]`).removeClass('bg-gray-300').addClass('bg-primary');
+                // disable prev/next accordingly
+                $('#prevSlide').prop('disabled', currentIndex === 0);
+                $('#nextSlide').prop('disabled', currentIndex === totalSlides-1);
+            }
+            
+            function goNext() {
+                if(currentIndex < totalSlides-1){
+                    currentIndex++;
+                    updateSlides();
+                }
+            }
+            
+            function goPrev() {
+                if(currentIndex > 0){
+                    currentIndex--;
+                    updateSlides();
+                }
+            }
+            
+            $('#nextSlide').on('click', goNext);
+            $('#prevSlide').on('click', goPrev);
+            
+            // keyboard navigation
+            $(document).on('keydown', function(e) {
+                if(e.key === 'ArrowRight') goNext();
+                if(e.key === 'ArrowLeft') goPrev();
+            });
+            
+            // generate dots
+            let dotsHtml = '';
+            for(let i=0; i<totalSlides; i++) {
+                dotsHtml += `<button class="dot w-3 h-3 rounded-full mx-1 transition-all ${i===0 ? 'bg-primary' : 'bg-gray-300'} focus:outline-none" data-index="${i}"></button>`;
+            }
+            $('#dotsContainer').html(dotsHtml);
+            
+            $('.dot').on('click', function() {
+                let idx = parseInt($(this).attr('data-index'));
+                if(!isNaN(idx) && idx >=0 && idx < totalSlides){
+                    currentIndex = idx;
+                    updateSlides();
+                }
+            });
+            
+            // initial update
+            updateSlides();
+            
+            // optional touch swipe for mobile? simple
+            let touchStartX = 0;
+            $('.slide-container').on('touchstart', function(e) {
+                touchStartX = e.originalEvent.touches[0].clientX;
+            });
+            $('.slide-container').on('touchend', function(e) {
+                let endX = e.originalEvent.changedTouches[0].clientX;
+                let diff = endX - touchStartX;
+                if(Math.abs(diff) > 50) {
+                    if(diff > 0) goPrev();
+                    else goNext();
+                }
+            });
+        });
+    </script>
+    <!-- Note: aucune image externe insérée car schémas dessinés en SVG. Tous les schémas sont minimalistes et accessibles -->
+</body>
+</html>

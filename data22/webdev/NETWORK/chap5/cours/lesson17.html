@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 17 : HTTP/2 et HTTP/3 - La nouvelle génération du Web</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt pour formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f0f4f8;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide-content {
+            flex: 1;
+            padding: 2rem 1.8rem;
+        }
+        .nav-btn {
+            cursor: pointer;
+            background: #0f172a;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            transform: scale(0.97);
+        }
+        .dot-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .dot-indicator.active {
+            background-color: #0f172a;
+            width: 24px;
+            border-radius: 12px;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 8px;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem 1rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        .version-badge {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <div id="slidesWrapper" class="relative"></div>
+
+    <!-- Navigation et indicateurs -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevSlide" class="nav-btn px-5 py-2 text-sm md:text-base">← Précédent</button>
+        <div id="dotsContainer" class="flex gap-2 justify-center flex-wrap my-2"></div>
+        <button id="nextSlide" class="nav-btn px-5 py-2 text-sm md:text-base">Suivant →</button>
+    </div>
+</div>
+
+<script>
+    // Slides pour la leçon 17 : HTTP/2 et HTTP/3
+    const slidesData = [
+        {
+            type: "title",
+            title: "⚡ HTTP/2 & HTTP/3",
+            subtitle: "Les protocoles qui accélèrent le Web moderne",
+            emoji: "🚀🌐"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Comprendre les améliorations d'HTTP/2 : multiplexage, push serveur, compression d'en-tête",
+                "Découvrir HTTP/3 basé sur QUIC (UDP) pour des performances accrues",
+                "Comparer les versions HTTP (1.1, 2, 3) en termes de performance et sécurité"
+            ]
+        },
+        {
+            type: "content",
+            title: "📜 Rappel : les limites d'HTTP/1.1",
+            content: `<p>HTTP/1.1 était le standard pendant des années, mais il présentait des faiblesses :</p>
+            <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li><strong>Head-of-line blocking</strong> : une requête lente bloque les suivantes sur la même connexion.</li>
+                <li>Nécessité d'ouvrir plusieurs connexions TCP parallèles (6-8 par domaine) pour contourner.</li>
+                <li>En-têtes textuels non compressés, répétés à chaque requête → gaspillage de bande passante.</li>
+                <li>Pas de push serveur : impossible d'envoyer des ressources avant que le client les demande.</li>
+            </ul>
+            <div class="bg-amber-50 p-3 rounded-lg mt-3">💡 Pour accélérer, HTTP/1.1 utilisait le <strong>domain sharding</strong> (répartir sur plusieurs sous-domaines). Une solution bricolée !</div>`
+        },
+        {
+            type: "content",
+            title: "🔀 HTTP/2 : Le multiplexage",
+            content: `<p><span class="version-badge">HTTP/2</span> Introduit en 2015, basé sur le protocole SPDY de Google.</p>
+            <p><strong>Multiplexage</strong> : plusieurs requêtes et réponses peuvent être envoyées simultanément sur une <strong>seule connexion TCP</strong> (en parallèle, sans blocage).</p>
+            <pre><code>Connexion TCP unique
+├── Stream 1 (GET /index.html)
+├── Stream 3 (GET /style.css)
+├── Stream 5 (GET /script.js)
+└── Stream 7 (GET /image.png)</code></pre>
+            <p>Chaque flux a un identifiant et peut être entrelacé. Plus besoin de connexions parallèles !</p>`
+        },
+        {
+            type: "content",
+            title: "📦 HTTP/2 : Push serveur et compression HPACK",
+            content: `<p><strong>Server Push</strong> : le serveur peut envoyer des ressources (CSS, JS, images) <strong>avant même</strong> que le client ne les demande. Exemple : le serveur envoie style.css avec index.html.</p>
+            <p><strong>Compression HPACK</strong> : les en-têtes HTTP (souvent identiques) sont compressés et indexés. Réduction significative de la charge réseau.</p>
+            <div class="bg-green-50 p-3 rounded-lg mt-2">
+                ✅ Bénéfice : pages web plus rapides, moins de latence, meilleure utilisation de la bande passante.
+            </div>
+            <p class="mt-2">⚠️ Attention : le push serveur peut être mal utilisé (envoi de ressources inutiles). Les navigateurs modernes le gèrent prudemment.</p>`
+        },
+        {
+            type: "content",
+            title: "📊 Comparaison HTTP/1.1 vs HTTP/2",
+            content: `<div class="comparison-grid">
+                <div class="bg-slate-100 p-3 rounded-lg">
+                    <p class="font-bold">HTTP/1.1</p>
+                    <ul class="list-disc pl-4 text-sm">
+                        <li>Connexions multiples (6-8 par domaine)</li>
+                        <li>En-têtes textuels non compressés</li>
+                        <li>Blocking par requête</li>
+                        <li>Pas de push serveur</li>
+                    </ul>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-lg">
+                    <p class="font-bold">HTTP/2</p>
+                    <ul class="list-disc pl-4 text-sm">
+                        <li>Une seule connexion TCP</li>
+                        <li>Compression HPACK</li>
+                        <li>Multiplexage (flux parallèles)</li>
+                        <li>Server push possible</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="mt-3"><span class="highlight">Chiffres clés</span> : HTTP/2 réduit la latence de 30 à 50% sur les connexions sécurisées (TLS).</p>`
+        },
+        {
+            type: "content",
+            title: "🔄 Mais HTTP/2 a encore une limite : TCP",
+            content: `<p>TCP est fiable mais souffre du <strong>head-of-line blocking</strong> au niveau <strong>transport</strong> : si un paquet est perdu, toute la connexion TCP attend sa retransmission, même les flux HTTP/2 non concernés.</p>
+            <p>Sur les réseaux mobiles (3G/4G) ou à forte perte, cela dégrade l'expérience.</p>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-2">
+                🧠 Idée : pourquoi ne pas remplacer TCP par un protocole plus moderne ?
+            </div>`
+        },
+        {
+            type: "content",
+            title: "⚡ HTTP/3 : Le Web sur UDP avec QUIC",
+            content: `<p><span class="version-badge" style="background:#10b981;">HTTP/3</span> Utilise <strong>QUIC</strong> (Quick UDP Internet Connections) au lieu de TCP.</p>
+            <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li>Basé sur <strong>UDP</strong> (non fiable en soi) mais QUIC ajoute fiabilité, contrôle de congestion, chiffrement intégré (TLS 1.3).</li>
+                <li><strong>Pas de head-of-line blocking</strong> : une perte de paquet affecte uniquement un flux, pas toute la connexion.</li>
+                <li>Établissement de connexion <strong>0-RTT</strong> (réduction de latence significative).</li>
+                <li>Migration de connexion (quand vous changez de réseau Wi-Fi → 4G, la connexion continue).</li>
+            </ul>
+            <p class="mt-2">🎯 HTTP/3 est déjà utilisé par Google (YouTube, Search), Cloudflare, Facebook, etc.</p>`
+        },
+        {
+            type: "content",
+            title: "🔐 Sécurité intégrée dans HTTP/3",
+            content: `<p>Contrairement à HTTP/2 où TLS est optionnel (mais recommandé), HTTP/3 <strong>impose le chiffrement</strong> via TLS 1.3 intégré à QUIC.</p>
+            <ul class="list-disc pl-5 mt-2">
+                <li>Réduction des allers-retours : handshake combiné (transport + chiffrement).</li>
+                <li>Protection contre les attaques de réécriture et d’écoute.</li>
+                <li>Amélioration de la vie privée.</li>
+            </ul>
+            <div class="bg-indigo-50 p-3 rounded-lg mt-2">
+                💡 Par défaut, HTTP/3 s'écoute sur le port UDP 443.
+            </div>`
+        },
+        {
+            type: "content",
+            title: "📈 Adoption et compatibilité",
+            content: `<p>Aujourd'hui, environ 30% des sites web supportent HTTP/3 (chiffres 2025).</p>
+            <p><strong>Comment savoir si un site utilise HTTP/3 ?</strong> : via les DevTools du navigateur (onglet Network, regardez le protocole : 'h3' pour HTTP/3).</p>
+            <p>Navigateurs compatibles : Chrome, Edge, Firefox, Safari (dernières versions).</p>
+            <div class="bg-slate-100 p-3 rounded-lg mt-2 flex flex-wrap gap-2 justify-center">
+                <img src="" alt="Logo HTTP/3 et QUIC explication schéma" style="display:none;">
+                <span class="text-sm">📌 Schéma : HTTP/3 évite le blocage de tête contrairement à HTTP/2 sur TCP.</span>
+            </div>`
+        },
+        {
+            type: "content",
+            title: "📝 Tableau récapitulatif des versions HTTP",
+            content: `<table class="min-w-full bg-white border border-gray-200 rounded-lg text-sm">
+                <thead class="bg-gray-100">
+                    <tr><th class="p-2 border">Version</th><th class="p-2 border">Transport</th><th class="p-2 border">Multiplexage</th><th class="p-2 border">Push</th><th class="p-2 border">Compression</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="p-2 border">HTTP/1.1</td><td class="p-2 border">TCP</td><td class="p-2 border">❌ (connexions parallèles)</td><td class="p-2 border">❌</td><td class="p-2 border">❌</td></tr>
+                    <tr><td class="p-2 border">HTTP/2</td><td class="p-2 border">TCP (TLS optionnel)</td><td class="p-2 border">✅ (flux multiples)</td><td class="p-2 border">✅</td><td class="p-2 border">HPACK</td></tr>
+                    <tr><td class="p-2 border bg-green-50">HTTP/3</td><td class="p-2 border bg-green-50">UDP + QUIC (TLS 1.3 intégré)</td><td class="p-2 border bg-green-50">✅ (sans HOL blocking)</td><td class="p-2 border bg-green-50">✅</td><td class="p-2 border bg-green-50">QPACK</td></tr>
+                </tbody>
+            </table>
+            <p class="mt-3 text-xs text-gray-500">QPACK est l'adaptation de HPACK pour QUIC.</p>`
+        },
+        {
+            type: "end",
+            title: "🏁 Félicitations !",
+            message: "Vous avez découvert les évolutions majeures d'HTTP : de HTTP/1.1 à HTTP/3.",
+            nextAction: "Activez les outils développeur de votre navigateur et inspectez le protocole utilisé par vos sites préférés (h2, h3)."
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(index) {
+        const data = slidesData[index];
+        let html = '';
+        if (data.type === 'title') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[55vh]">
+                        <div class="text-7xl mb-4">${data.emoji}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-800 to-indigo-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${data.subtitle}</p>
+                        <div class="mt-6 text-sm text-gray-400">HTTP/2 · HTTP/3 · QUIC · Performance web</div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (data.type === 'objectifs') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-4 border-indigo-400 pb-2 inline-block">${data.title}</h2>
+                        <ul class="mt-6 space-y-3">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 text-lg"><span class="text-indigo-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 p-4 bg-indigo-50 rounded-2xl">
+                            <p class="text-indigo-800">À la fin de cette leçon, vous saurez pourquoi le Web moderne est plus rapide et plus réactif.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'content') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'end') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[50vh]">
+                        <div class="text-5xl mb-4">🏆</div>
+                        <h2 class="text-3xl font-bold text-slate-800">${data.title}</h2>
+                        <p class="text-xl text-gray-600 mt-3">${data.message}</p>
+                        <p class="mt-6 italic text-gray-500">✨ ${data.nextAction}</p>
+                        <div class="mt-6 text-sm bg-slate-100 px-4 py-2 rounded-full">HTTP/2 & HTTP/3 maîtrisés ✅</div>
+                    </div>
+                </div>
+            `;
+        }
+        $('#slidesWrapper').html(html);
+        updateDots(index);
+        if (window.MathJax) MathJax.typesetPromise();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateDots(activeIndex) {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const activeClass = i === activeIndex ? 'active' : '';
+            dotsHtml += `<div class="dot-indicator ${activeClass}" data-index="${i}"></div>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('.dot-indicator').on('click', function() {
+            const idx = parseInt($(this).data('index'));
+            if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                currentSlide = idx;
+                renderSlide(currentSlide);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            if(currentSlide === totalSlides-1){
+                $('#nextSlide').text('✔ Terminé');
+                setTimeout(()=>$('#nextSlide').text('Suivant →'), 1000);
+            }
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+            $('#nextSlide').text('Suivant →');
+        }
+    }
+
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        $(document).on('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        let touchStartX = 0, touchEndX = 0;
+        const wrapper = document.getElementById('slidesWrapper');
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextSlide();
+            if (touchEndX > touchStartX + 50) prevSlide();
+        });
+    });
+</script>
+<footer class="text-center text-xs text-gray-400 border-t border-gray-200 mt-8 py-5">
+    <p>🌐 Cours Réseaux — Leçon 17 : HTTP/2 et HTTP/3 | Enseignant Cameroun 🇨🇲 | Web plus rapide, plus sécurisé</p>
+</footer>
+</body>
+</html>

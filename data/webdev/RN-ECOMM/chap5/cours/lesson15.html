@@ -1,417 +1,1387 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-  <title>Leçon 15 : React Query & persistance offline | React Native e-commerce</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-  <!-- Font Awesome 6 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- MathJax (prêt pour d'éventuelles formules) -->
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-  <style>
-    .slide {
-      transition: opacity 0.25s ease-in-out;
-    }
-    body {
-      background: #f0f7ff;
-    }
-    .nav-btn {
-      min-width: 44px;
-      min-height: 44px;
-    }
-    pre {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-slate-100 to-indigo-50 font-sans antialiased">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Présentation mobile</title>
 
-  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
-    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
-      
-      <!-- En-tête -->
-      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
-        <div class="flex items-center gap-2">
-          <i class="fas fa-database text-lg"></i>
-          <span class="font-semibold text-sm md:text-base">API & Offline first · React Query</span>
-        </div>
-        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
-          Leçon 15 / 55
-        </div>
-      </div>
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+            svg: { fontCache: 'global' },
+            options: { skipHtmlTypes: 'script' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 
-      <!-- conteneur slides -->
-      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+    crossorigin="anonymous">
+</script>
 
-      <!-- navigation -->
-      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
-        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
-          <i class="fas fa-arrow-left"></i> Précédent
-        </button>
-        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
-        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
-          Suivant <i class="fas fa-arrow-right"></i>
-        </button>
-      </div>
-    </div>
-    <div class="text-center text-sm text-gray-500 mt-6">
-      <i class="fas fa-cloud-upload-alt"></i> Requêtes, cache, persistance offline et synchronisation auto
-    </div>
-  </div>
-
-  <script>
-    // ----------------------------------------------
-    // Données des slides - Leçon 15: @tanstack/react-query
-    // Configuration QueryClient, persistance offline, useQuery, useMutation
-    // ----------------------------------------------
-    const slidesData = [
-      {
-        type: "title",
-        title: "📡 React Query : requêtes & cache intelligent",
-        subtitle: "Gestion des appels API, offline first et synchronisation",
-        icon: "fa-query",
-        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
-      },
-      {
-        type: "objectives",
-        title: "🎯 Objectifs de la leçon",
-        objectives: [
-          "Installer et configurer @tanstack/react-query avec QueryClient",
-          "Utiliser useQuery pour récupérer des produits et le panier",
-          "Implémenter useMutation pour les actions (ajout au panier, commande)",
-          "Mettre en place la persistance offline des requêtes",
-          "Synchroniser automatiquement au retour de connexion"
-        ]
-      },
-      {
-        type: "content",
-        title: "🧩 Pourquoi React Query dans une app e-commerce ?",
-        content: `<p>React Query (maintenant TanStack Query) est une bibliothèque qui facilite la gestion des états asynchrones (API, base de données). En mobile e-commerce, on doit :</p>
-        <ul class="list-disc pl-6 mt-2 space-y-1">
-          <li>✅ Mettre en cache les données (catalogue produits) pour éviter des appels réseau inutiles</li>
-          <li>✅ Revalider les données en arrière-plan (vérifier si les prix ont changé)</li>
-          <li>✅ Gérer le chargement et les erreurs facilement</li>
-          <li>✅ Synchroniser en mode offline ( grâce à des plugins de persistance)</li>
-        </ul>
-        <div class="mt-4 bg-indigo-50 p-4 rounded-xl">
-          <i class="fas fa-brain text-indigo-600"></i> <strong>Avantage clé</strong> : Moins de code boilerplate, état global simplifié.
-        </div>`
-      },
-      {
-        type: "content",
-        title: "🔧 Installation & configuration de base",
-        content: `<p>Commence par installer la librairie :</p>
-        <pre class="bg-gray-800 text-green-300 p-3 rounded-lg text-sm overflow-auto">
-npm install @tanstack/react-query
-        </pre>
-        <p class="mt-3">Crée un <strong>QueryClient</strong> et enveloppe ton application avec <strong>QueryClientProvider</strong> :</p>
-        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
-// App.tsx
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 min
-      cacheTime: 1000 * 60 * 10,
-      retry: 2,
-    },
-  },
-});
-
-export default function App() {
-  return (
-    &lt;QueryClientProvider client={queryClient}&gt;
-      {/* le reste de l'app */}
-    &lt;/QueryClientProvider&gt;
-  );
-}
-        </pre>
-        <p class="text-sm text-gray-600 mt-2"><i class="fas fa-hourglass-half"></i> <code>staleTime</code> : temps avant de considérer les données "périmées". <code>cacheTime</code> : durée de conservation en cache.</p>`
-      },
-      {
-        type: "content",
-        title: "📥 useQuery : récupérer des produits",
-        content: `<p>Un exemple simple pour afficher une liste de produits depuis une API :</p>
-        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm overflow-auto">
-import { useQuery } from '@tanstack/react-query';
-import { getProducts } from '../services/api';
-
-function ProductList() {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['products'],
-    queryFn: getProducts,
-  });
-
-  if (isLoading) return &lt;ActivityIndicator /&gt;;
-  if (error) return &lt;Text&gt;Erreur : {error.message}&lt;/Text&gt;;
-
-  return (
-    &lt;FlatList 
-      data={data}
-      renderItem={({item}) => &lt;ProductCard product={item} /&gt;}
-    /&gt;
-  );
-}
-        </pre>
-        <div class="mt-3 p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
-          💡 <strong>Explication</strong> : <code>queryKey</code> identifie la donnée (utile pour l'invalidation). React Query gère le cache, les recharges automatiques.
-        </div>`
-      },
-      {
-        type: "content",
-        title: "✍️ useMutation : modifier le panier (POST / PUT)",
-        content: `<p>Pour les actions qui modifient le serveur (ajout au panier, checkout, like), on utilise <strong>useMutation</strong> :</p>
-        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addToCart } from '../services/api';
-
-function AddToCartButton({ productId }) {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: (id) => addToCart(id),
-    onSuccess: () => {
-      // invalider le cache du panier pour le rafraîchir
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      // Afficher un toast
-      Toast.show('Produit ajouté');
-    },
-  });
-
-  return &lt;Button onPress={() => mutation.mutate(productId)} 
-            loading={mutation.isPending} /&gt;;
-}
-        </pre>
-        <p class="mt-2"><i class="fas fa-sync-alt"></i> <strong>OnSuccess</strong> permet de revalider les requêtes liées (panier, total).</p>`
-      },
-      {
-        type: "content",
-        title: "📀 Persistance offline avec AsyncStorage + react-query",
-        content: `<p>Pour permettre une expérience hors ligne, on utilise <strong>@tanstack/react-query-persist-client</strong> et <strong>AsyncStorage</strong>.</p>
-        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
-npm install @tanstack/react-query-persist-client @react-native-async-storage/async-storage
-        </pre>
-        <p>Configuration : sauvegarder le cache dans AsyncStorage.</p>
-        <pre class="bg-gray-800 text-gray-200 p-3 rounded-lg text-sm overflow-auto">
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const persister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  throttleTime: 1000,
-});
-
-&lt;PersistQueryClientProvider
-  client={queryClient}
-  persistOptions={{ persister }}
-&gt;
-  {/* app */}
-&lt;/PersistQueryClientProvider&gt;
-        </pre>
-        <p>✅ Dès que l'utilisateur revient en ligne, React Query revalide automatiquement les données périmées.</p>`
-      },
-      {
-        type: "content",
-        title: "🌐 Détection de connexion avec NetInfo + synchronisation",
-        content: `<p>React Query ne détecte pas nativement le retour de connexion. On utilise <strong>NetInfo</strong> pour surveiller et déclencher des revalidations.</p>
-        <pre class="bg-gray-800 text-yellow-200 p-3 rounded-lg text-sm">
-import NetInfo from '@react-native-community/netinfo';
-import { onlineManager } from '@tanstack/react-query';
-
-// Dans un useEffect ou au démarrage
-NetInfo.addEventListener(state => {
-  onlineManager.setOnline(state.isConnected ?? false);
-});
-        </pre>
-        <div class="bg-green-50 p-3 rounded-lg mt-3">
-          <i class="fas fa-wifi text-green-600"></i> <strong>Fonctionnement :</strong> Quand la connexion revient, React Query relance les requêtes en échec ou marquées comme "périmées". Parfait pour les paniers offline !
-        </div>
-        <p class="mt-2 text-sm">On peut aussi ajouter un <strong>refetchOnReconnect</strong> dans les options par défaut.</p>`
-      },
-      {
-        type: "content",
-        title: "⚙️ Mettre en file d'attente les actions offline (avancé)",
-        content: `<p>Pour les mutations hors ligne (ex: ajout produit sans connexion), on peut combiner <strong>React Query + persisted mutations</strong> ou une librairie dédiée. Une approche simple :</p>
-        <ul class="list-disc pl-6 mt-2 space-y-1">
-          <li>Utiliser <strong>Zustand</strong> pour stocker les actions en attente.</li>
-          <li>Lorsque NetInfo indique "online", exécuter les mutations en série.</li>
-        </ul>
-        <pre class="bg-gray-800 text-gray-100 p-2 rounded text-xs mt-2">
-const offlineQueue = useRef([]);
-const addOfflineAction = (action) => {
-  offlineQueue.current.push(action);
-  AsyncStorage.setItem('pendingActions', JSON.stringify(offlineQueue.current));
-};
-
-// useEffect sur la connexion
-NetInfo.addEventListener(state => {
-  if (state.isConnected && offlineQueue.current.length) {
-    offlineQueue.current.forEach(mut => mutation.mutate(mut));
-    offlineQueue.current = [];
-  }
-});
-        </pre>
-        <p class="mt-2"><i class="fas fa-tasks"></i> <strong>Métier :</strong> Idéal pour les zones à faible réseau (Cameroun, zones rurales). L'utilisateur navigue et ses actions sont jouées plus tard.</p>`
-      },
-      {
-        type: "content",
-        title: "📊 Optimisation et revalidation intelligente",
-        content: `<div class="grid md:grid-cols-2 gap-4">
-          <div class="bg-white p-3 rounded-lg shadow-sm">
-            <i class="fas fa-hourglass-start"></i>
-            <h3 class="font-bold">staleTime vs cacheTime</h3>
-            <p class="text-sm">staleTime : durée avant que donnée ne soit considérée "périmée" (défaut 0). cacheTime : durée avant suppression du cache (défaut 5 min).</p>
-          </div>
-          <div class="bg-white p-3 rounded-lg shadow-sm">
-            <i class="fas fa-sync"></i>
-            <h3 class="font-bold">Revalidation automatique</h3>
-            <p class="text-sm">Focus sur l'app, reconnexion réseau, ou invalidation manuelle via <code>invalidateQueries</code>.</p>
-          </div>
-        </div>
-        <pre class="bg-gray-100 p-3 rounded mt-3 text-sm">
-// Invalider la liste produits après un changement
-queryClient.invalidateQueries({ queryKey: ['products'] });
-// ou recharger spécifiquement
-queryClient.refetchQueries({ queryKey: ['cart'] });
-        </pre>
-        <p class="mt-2">Ainsi l'interface reste toujours à jour sans effort !</p>`
-      },
-      {
-        type: "summary",
-        title: "📦 Récapitulatif : React Query offline-ready",
-        points: [
-          "Installation de @tanstack/react-query et QueryClientProvider",
-          "useQuery : lecture et mise en cache (produits, commandes)",
-          "useMutation : écriture (ajout panier, login) avec invalidation",
-          "Persistance AsyncStorage pour mode hors ligne",
-          "NetInfo + onlineManager pour synchronisation automatique",
-          "Possibilité de file d'attente offline pour mutations"
-        ],
-        icon: "fa-check-double"
-      }
-    ];
-
-    let currentIndex = 0;
-    const totalSlides = slidesData.length;
-
-    // Rendu slide
-    function renderSlide(slide, idx) {
-      if (slide.type === "title") {
-        return `
-          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
-            <i class="fas ${slide.icon || 'fa-database'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
-            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
-            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
-            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">TanStack Query · Offline-first</div>
-          </div>
-        `;
-      }
-      else if (slide.type === "objectives") {
-        return `
-          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
-            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
-              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
-              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
-            </div>
-            <ul class="space-y-4 flex-1">
-              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
-            </ul>
-            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Naviguez pour maîtriser React Query</div>
-          </div>
-        `;
-      }
-      else if (slide.type === "content") {
-        return `
-          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
-            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
-            <div class="prose max-w-none text-gray-700">${slide.content}</div>
-          </div>
-        `;
-      }
-      else if (slide.type === "summary") {
-        return `
-          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
-            <div class="text-center">
-              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
-              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
-              <ul class="text-left max-w-md mx-auto space-y-3">
-                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
-              </ul>
-              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
-                <i class="fas fa-mobile-alt"></i> Application e-commerce réactive, même sans réseau !
-              </div>
-            </div>
-          </div>
-        `;
-      }
-      return `<div class="p-8 text-red-500">Erreur contenu</div>`;
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    function updateSlide() {
-      const slideHtml = renderSlide(slidesData[currentIndex], currentIndex);
-      $('#slides-container').fadeOut(150, function() {
-        $(this).html(slideHtml);
-        $(this).fadeIn(200);
-      });
-      let indicatorsHtml = '';
-      for (let i = 0; i < totalSlides; i++) {
-        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
-        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
-      }
-      $('#slide-indicators').html(indicatorsHtml);
-      $('#prevSlide').prop('disabled', currentIndex === 0);
-      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    html, body {
+        height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background: #0b1120;
+        color: #ffffff;
+        overflow: hidden;
+        touch-action: manipulation;
     }
 
-    function nextSlide() {
-      if (currentIndex < totalSlides - 1) {
-        currentIndex++;
-        updateSlide();
-      } else {
-        alert('🎉 Félicitations ! Vous maîtrisez React Query avec persistance offline. Entraînez-vous sur les exercices !');
-      }
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        max-width: 500px;
+        margin: 0 auto;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,0,0,0.6);
     }
 
-    function prevSlide() {
-      if (currentIndex > 0) {
-        currentIndex--;
-        updateSlide();
-      }
+    .slide-header {
+        flex-shrink: 0;
+        padding: 18px 16px 10px 16px;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        z-index: 10;
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 
-    $(document).ready(function() {
-      updateSlide();
-      $('#nextSlide').on('click', nextSlide);
-      $('#prevSlide').on('click', prevSlide);
-      
-      $(document).on('click', '.indicator-dot', function() {
-        const idx = $(this).data('index');
-        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
-          currentIndex = idx;
-          updateSlide();
+    .slide-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1.3;
+        padding: 0 4px;
+        word-break: break-word;
+    }
+
+    .slide-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 16px 18px 20px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+
+    .slide-body::-webkit-scrollbar {
+        width: 4px;
+    }
+    .slide-body::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.05);
+    }
+    .slide-body::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+    }
+
+    .content-card {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 20px;
+        padding: 18px 16px;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        flex-shrink: 0;
+    }
+
+    .content-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .content-card li {
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+
+    .content-card li:last-child {
+        border-bottom: none;
+    }
+
+    .bullet-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        width: 32px;
+        text-align: center;
+    }
+
+    .math-block {
+        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 16px;
+        padding: 16px 12px;
+        text-align: center;
+        overflow-x: auto;
+        flex-shrink: 0;
+        margin: 4px 0;
+    }
+
+    .math-block .math {
+        font-size: 1.2rem;
+        color: #e2e8f0;
+    }
+
+    .note-box {
+        background: rgba(96, 165, 250, 0.08);
+        border-left: 4px solid #60a5fa;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-style: italic;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+        flex-shrink: 0;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 999;
+        border-radius: 0;
+        flex-direction: column;
+    }
+
+    .loading-card {
+        background: #1e293b;
+        padding: 32px 28px;
+        border-radius: 28px;
+        text-align: center;
+        max-width: 320px;
+        width: 90%;
+        border: 1px solid rgba(255,255,255,0.06);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #334155;
+        border-top: 3px solid #60a5fa;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        margin: 0 auto 16px auto;
+    }
+
+    .loading-text {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #f1f5f9;
+        margin-bottom: 4px;
+    }
+    .loading-sub {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        margin-bottom: 16px;
+    }
+    .loading-progress {
+        height: 3px;
+        background: #334155;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    .loading-progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        animation: loadingProgress 30s ease-out forwards;
+    }
+
+    .loading-timeout {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-bottom: 12px;
+    }
+
+    .btn-cancel-loading {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 40px;
+        padding: 8px 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #f87171;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .btn-cancel-loading:active {
+        transform: scale(0.94);
+        background: rgba(239, 68, 68, 0.25);
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes loadingProgress {
+        0% { width: 0%; }
+        100% { width: 100%; }
+    }
+
+    .slide-footer {
+        flex-shrink: 0;
+        padding: 12px 14px 16px 14px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-top: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+    }
+
+    .footer-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 4px;
+    }
+
+    .slide-counter {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
+        background: rgba(255,255,255,0.05);
+        padding: 4px 14px;
+        border-radius: 30px;
+        letter-spacing: 0.5px;
+        border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 4px 12px;
+        border-radius: 30px;
+        background: rgba(96, 165, 250, 0.12);
+        color: #93bbfc;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(96, 165, 250, 0.1);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 55%;
+    }
+
+    .status-badge .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background: #60a5fa;
+        border-radius: 50%;
+        animation: pulse-dot 1.2s infinite;
+        flex-shrink: 0;
+    }
+
+    .status-badge.idle .dot {
+        animation: none;
+        background: #64748b;
+    }
+    .status-badge.speaking .dot {
+        background: #34d399;
+        animation: pulse-dot 0.8s infinite;
+    }
+    .status-badge.error .dot {
+        background: #f87171;
+        animation: none;
+    }
+    .status-badge.paused .dot {
+        animation: none;
+        background: #fbbf24;
+    }
+    .status-badge.waiting .dot {
+        animation: pulse-dot 1.5s infinite;
+        background: #fbbf24;
+    }
+    .status-badge.loading .dot {
+        animation: pulse-dot 0.5s infinite;
+        background: #60a5fa;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(0.7); }
+    }
+
+    .footer-buttons {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 40px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 40px;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+        flex: 0 1 auto;
+    }
+
+    .btn:active {
+        transform: scale(0.94);
+        background: rgba(255,255,255,0.1);
+    }
+
+    .btn-secondary {
+        background: rgba(255,255,255,0.04);
+        border-color: rgba(255,255,255,0.06);
+    }
+
+    .btn-icon {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    .btn-play {
+        background: rgba(52, 211, 153, 0.15);
+        border-color: rgba(52, 211, 153, 0.2);
+        color: #34d399;
+        min-width: 80px;
+        justify-content: center;
+    }
+    .btn-play:active {
+        background: rgba(52, 211, 153, 0.25);
+    }
+    .btn-play.playing {
+        background: rgba(251, 191, 36, 0.15);
+        border-color: rgba(251, 191, 36, 0.2);
+        color: #fbbf24;
+    }
+
+    .auto-indicator {
+        font-size: 0.65rem;
+        color: #64748b;
+        text-align: center;
+        letter-spacing: 0.3px;
+        padding: 2px 0;
+    }
+
+    @media (max-width: 400px) {
+        .slide-header h1 {
+            font-size: 1.2rem;
         }
-      });
-      
-      // Swipe mobile
-      let touchStartX = 0, touchEndX = 0;
-      const container = document.getElementById('slides-container');
-      if (container) {
-        container.addEventListener('touchstart', (e) => {
-          touchStartX = e.changedTouches[0].screenX;
+        .content-card li {
+            font-size: 0.9rem;
+            padding: 8px 0;
+        }
+        .btn {
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            min-height: 34px;
+        }
+        .btn-play {
+            min-width: 60px;
+        }
+        .footer-buttons {
+            gap: 5px;
+        }
+        .slide-body {
+            padding: 12px 12px 16px 12px;
+        }
+        .loading-card {
+            padding: 20px 16px;
+        }
+        .math-block .math {
+            font-size: 1rem;
+        }
+    }
+
+    @media (min-width: 600px) {
+        .app-container {
+            max-width: 480px;
+            border-radius: 32px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            height: 90vh;
+            height: 90dvh;
+        }
+        .loading-overlay {
+            border-radius: 32px;
+        }
+    }
+
+    /* Mode jour (par défaut) */
+    html, body {
+        background: #f0f4f8 !important;
+        color: #1a202c !important;
+    }
+    .app-container {
+        background: linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%) !important;
+    }
+    .slide-header {
+        background: rgba(255, 255, 255, 0.85) !important;
+        border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .slide-header h1 {
+        background: linear-gradient(135deg, #2b6cb0, #6b46c1) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+    }
+    .slide-footer {
+        background: rgba(255, 255, 255, 0.9) !important;
+        border-top: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .content-card {
+        background: rgba(255,255,255,0.8) !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .content-card li {
+        border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    }
+    .note-box {
+        background: rgba(96, 165, 250, 0.12) !important;
+        border-left: 4px solid #4299e1 !important;
+        color: #2c3e50 !important;
+    }
+    .math-block {
+        background: rgba(0,0,0,0.05) !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .math-block .math {
+        color: #2d3748 !important;
+    }
+    .slide-counter {
+        color: #4a5568 !important;
+        background: rgba(0,0,0,0.05) !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .status-badge {
+        background: rgba(96, 165, 250, 0.15) !important;
+        color: #2b6cb0 !important;
+        border: 1px solid rgba(96, 165, 250, 0.15) !important;
+    }
+    .btn {
+        color: #2d3748 !important;
+        background: rgba(0,0,0,0.05) !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .btn-secondary {
+        background: rgba(0,0,0,0.04) !important;
+        border-color: rgba(0,0,0,0.08) !important;
+    }
+    .btn-play {
+        background: rgba(52, 211, 153, 0.15) !important;
+        border-color: rgba(52, 211, 153, 0.2) !important;
+        color: #38a169 !important;
+    }
+    .btn-play.playing {
+        background: rgba(251, 191, 36, 0.15) !important;
+        border-color: rgba(251, 191, 36, 0.2) !important;
+        color: #d69e2e !important;
+    }
+    .auto-indicator {
+        color: #718096 !important;
+    }
+    .loading-card {
+        background: #ffffff !important;
+        border: 1px solid rgba(0,0,0,0.08) !important;
+    }
+    .loading-text {
+        color: #1a202c !important;
+    }
+    .loading-sub {
+        color: #4a5568 !important;
+    }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <header class="slide-header">
+        <h1 id="slideTitle">Chargement...</h1>
+    </header>
+
+    <main class="slide-body" id="slideBody"></main>
+
+    <!-- LOADING OVERLAY AVEC BOUTON ANNULER -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loadingText">Préparation vocale...</div>
+            <div class="loading-sub" id="loadingSub">Synthèse en cours</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgressBar"></div>
+            </div>
+            <div class="loading-timeout" id="loadingTimeout">⏱️ 30 secondes maximum</div>
+            <button class="btn-cancel-loading" id="cancelLoadingBtn">
+                <span>✕</span> Annuler
+            </button>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <div class="footer-top">
+            <span class="slide-counter" id="slideCounter">1 / 3</span>
+            <span class="status-badge idle" id="statusBadge">
+                <span class="dot"></span>
+                <span id="statusText">Prêt</span>
+            </span>
+        </div>
+
+        <div class="footer-buttons">
+            <button class="btn btn-secondary" id="prevBtn">
+                <span class="btn-icon">◀</span> <span class="btn-label">Préc.</span>
+            </button>
+            <button class="btn btn-secondary" id="nextBtn">
+                <span class="btn-label">Suiv.</span> <span class="btn-icon">▶</span>
+            </button>
+            <button class="btn btn-secondary" id="replayBtn">
+                <span class="btn-icon">🔁</span> <span class="btn-label">Relire</span>
+            </button>
+            <button class="btn btn-play" id="playBtn">
+                <span class="btn-icon">▶</span> <span class="btn-label">Play</span>
+            </button>
+        </div>
+
+        <div class="auto-indicator" id="autoIndicator">⏸ Lecture manuelle</div>
+    </footer>
+</div>
+
+<script>
+$(function() {
+
+    // ================================================================
+    // SLIDES
+    // ================================================================
+    const slides = [
+  {
+    "titre": "Introduction à React Query Mobile",
+    "contenu": "<div style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px;'><div style='background: #1e293b; padding: 25px; border-radius: 16px; color: #f8fafc; max-width: 700px;'><h2 style='margin-top: 0; color: #60a5fa; text-align: center;'>Pourquoi React Query dans une app mobile ?</h2><p style='font-size: 1.1rem; line-height: 1.6;'>Dans une application mobile e-commerce, la gestion des données serveur est cruciale. React Query simplifie :</p><ul style='font-size: 1.1rem; line-height: 1.8;'><li><strong>✅ Le chargement</strong> : États de chargement et d'erreur</li><li><strong>✅ Le cache</strong> : Évite les appels réseau inutiles</li><li><strong>✅ La synchronisation</strong> : Mise à jour automatique des données</li></ul><div style='background: #334155; padding: 15px; border-radius: 8px; margin-top: 15px;'><p style='margin: 0; text-align: center;'>Aujourd'hui, nous allons installer et configurer <strong>@tanstack/react-query</strong> avec persistance hors-ligne.</p></div></div></div>",
+    "texteParle": "Bonjour à tous. Aujourd'hui nous allons découvrir React Query, un outil puissant pour gérer les données serveur dans nos applications React Native. Pour une application e-commerce, la gestion des données est essentielle. React Query nous facilite la vie en gérant le chargement, le cache, et la synchronisation avec le serveur. Nous allons voir comment l'installer, le configurer, et même ajouter une persistance pour le mode hors-ligne.",
+    "note": "Introduction : React Query simplifie la gestion des données serveur dans les applications mobiles."
+  },
+  {
+    "titre": "Installation de React Query",
+    "contenu": "<div style='padding: 10px;'><div style='background: #f1f5f9; border-radius: 16px; padding: 20px; max-width: 700px; margin: 0 auto;'><h4 style='color: #0f172a; margin-top: 0;'>Installation avec Expo</h4><p style='color: #0f172a;'>Pour installer React Query dans un projet Expo :</p><div style='background: #0f172a; padding: 15px; border-radius: 8px; color: #f1f5f9; font-family: monospace; overflow-x: auto; margin: 15px 0;'><pre style='margin: 0;'>npx expo install @tanstack/react-query</pre></div><p style='color: #0f172a;'>Pour la persistance hors-ligne, nous aurons besoin de :</p><div style='background: #0f172a; padding: 15px; border-radius: 8px; color: #f1f5f9; font-family: monospace; overflow-x: auto;'><pre style='margin: 0;'>npx expo install @tanstack/react-query-persist-client<br>npx expo install @tanstack/query-async-storage-persister</pre></div><div style='background: #e0f2fe; padding: 12px; border-radius: 8px; margin-top: 15px;'><p style='margin: 0; color: #0c4a6e;'>💡 Ces packages permettront de sauvegarder le cache sur le disque de l'appareil.</p></div></div></div>",
+    "texteParle": "Pour installer React Query, nous utilisons la commande 'npx expo install @tanstack/react-query'. Si nous voulons ajouter la persistance hors-ligne, nous installons deux autres packages : 'react-query-persist-client' et 'query-async-storage-persister'. Ces packages nous permettront de sauvegarder le cache sur le disque de l'appareil, ce qui est très utile en cas de perte de connexion.",
+    "note": "Installation de React Query et des packages pour la persistance offline."
+  },
+  {
+    "titre": "Configuration du QueryClient",
+    "contenu": "<div style='padding: 10px;'><div style='background: #0f172a; border-radius: 16px; padding: 20px; color: #e2e8f0; max-width: 700px; margin: 0 auto;'><h4 style='color: #facc15; margin-top: 0;'>Créer le client de requête</h4><p>Le QueryClient est le cœur de React Query. Il gère le cache et les requêtes.</p><div style='background: #1e293b; padding: 15px; border-radius: 8px; font-family: monospace; overflow-x: auto; margin: 15px 0;'><pre style='margin: 0; white-space: pre-wrap; word-break: break-word;'>import { QueryClient } from '@tanstack/react-query';<br><br>const queryClient = new QueryClient({<br>  defaultOptions: {<br>    queries: {<br>      staleTime: 1000 * 60 * 5, // 5 minutes<br>      gcTime: 1000 * 60 * 60 * 24, // 24 heures<br>      retry: 2,<br>    },<br>  },<br>});</pre></div><div style='background: #334155; padding: 12px; border-radius: 8px;'><p style='margin: 0;'><strong>🔑 Explication :</strong> <code>staleTime</code> définit pendant combien de temps les données sont considérées comme fraîches. <code>gcTime</code> est le temps avant que les données ne soient supprimées du cache.</p></div></div></div>",
+    "texteParle": "La première étape est de créer un QueryClient. C'est l'objet central qui va gérer tout le cache et les requêtes. Nous pouvons le configurer avec des options par défaut, comme le staleTime qui indique pendant combien de temps les données sont considérées comme fraîches, ou le gcTime pour le garbage collection. Ces paramètres sont importants pour optimiser les performances et l'utilisation du réseau.",
+    "note": "Création et configuration du QueryClient avec des options par défaut."
+  },
+  {
+    "titre": "Ajout de la persistance offline",
+    "contenu": "<div style='padding: 10px;'><div style='background: #ecfdf5; border-radius: 16px; padding: 20px; border-left: 8px solid #10b981; max-width: 700px; margin: 0 auto;'><h4 style='color: #065f46; margin-top: 0;'>Persister le cache</h4><p>Pour que les données restent disponibles hors-ligne :</p><div style='background: #0f172a; padding: 15px; border-radius: 8px; color: #f1f5f9; font-family: monospace; overflow-x: auto; margin: 15px 0;'><pre style='margin: 0; white-space: pre-wrap; word-break: break-word;'>import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';<br>import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';<br>import AsyncStorage from '@react-native-async-storage/async-storage';<br><br>const persister = createAsyncStoragePersister({<br>  storage: AsyncStorage,<br>  key: 'REACT_QUERY_CACHE',<br>});</pre></div><div style='background: #d1fae5; padding: 12px; border-radius: 8px;'><p style='margin: 0; color: #065f46;'>✅ Le cache sera sauvegardé automatiquement dans AsyncStorage sous la clé 'REACT_QUERY_CACHE'.</p></div></div></div>",
+    "texteParle": "Pour ajouter la persistance, nous utilisons 'PersistQueryClientProvider' et 'createAsyncStoragePersister'. Nous configurons le persister avec AsyncStorage, qui est le système de stockage persistant de React Native. Nous définissons une clé pour identifier notre cache. Ainsi, même si l'utilisateur quitte l'application, les données restent disponibles et peuvent être affichées immédiatement au prochain démarrage.",
+    "note": "Persistance du cache avec AsyncStorage pour le mode hors-ligne."
+  },
+  {
+    "titre": "Wrapper de l'application",
+    "contenu": "<div style='padding: 10px;'><div style='background: #fdf4ff; border-radius: 16px; padding: 20px; border-left: 8px solid #a855f7; max-width: 700px; margin: 0 auto;'><h4 style='color: #4c1d95; margin-top: 0;'>Envelopper l'application</h4><p>Pour que toute l'application ait accès à React Query :</p><div style='background: #0f172a; padding: 15px; border-radius: 8px; color: #f1f5f9; font-family: monospace; overflow-x: auto; margin: 15px 0;'><pre style='margin: 0; white-space: pre-wrap; word-break: break-word;'>function App() {<br>  return (<br>    &lt;PersistQueryClientProvider<br>      client={queryClient}<br>      persistOptions={{ persister }}<br>    &gt;<br>      &lt;NavigationContainer&gt;<br>        &lt;AppNavigator /&gt;<br>      &lt;/NavigationContainer&gt;<br>    &lt;/PersistQueryClientProvider&gt;<br>  );<br>}</pre></div><div style='background: #f5f3ff; padding: 12px; border-radius: 8px;'><p style='margin: 0;'>🔹 Le <code>PersistQueryClientProvider</code> remplace le <code>QueryClientProvider</code> standard pour ajouter la persistance.</p></div></div></div>",
+    "texteParle": "Maintenant que nous avons notre client et notre persister, nous devons envelopper toute l'application avec 'PersistQueryClientProvider'. Cela permet à tous les composants d'accéder au cache et de bénéficier de la persistance. C'est très simple, nous remplaçons simplement 'QueryClientProvider' par 'PersistQueryClientProvider' en lui passant les options de persistance.",
+    "note": "Enveloppement de l'application avec PersistQueryClientProvider."
+  },
+  {
+    "titre": "Utiliser useQuery et useMutation",
+    "contenu": "<div style='padding: 10px;'><div style='background: #f0f9ff; border-radius: 16px; padding: 20px; border-left: 8px solid #0ea5e9; max-width: 700px; margin: 0 auto;'><h4 style='color: #0c4a6e; margin-top: 0;'>Les hooks principaux</h4><p>React Query expose deux hooks principaux :</p><div style='display: flex; flex-wrap: wrap; gap: 15px; margin: 15px 0;'><div style='background: #e0f2fe; padding: 15px; border-radius: 12px; flex: 1;'><strong style='color: #0369a1;'>useQuery</strong><br><small>Pour <strong>lire</strong> des données</small><br><code style='background: #f8fafc; padding: 2px 6px; border-radius: 4px;'>useQuery(['products'], fetchProducts)</code></div><div style='background: #fce7f3; padding: 15px; border-radius: 12px; flex: 1;'><strong style='color: #be185d;'>useMutation</strong><br><small>Pour <strong>modifier</strong> des données</small><br><code style='background: #f8fafc; padding: 2px 6px; border-radius: 4px;'>useMutation(addToCart)</code></div></div><div style='background: #e0f2fe; padding: 12px; border-radius: 8px;'><p style='margin: 0;'>💡 Ces hooks retournent des objets avec des propriétés comme <code>data</code>, <code>isLoading</code>, <code>error</code>, et <code>mutate</code>.</p></div></div></div>",
+    "texteParle": "React Query repose sur deux hooks principaux. 'useQuery' pour lire des données, et 'useMutation' pour modifier des données. Ces hooks sont très pratiques car ils gèrent automatiquement les états de chargement, d'erreur, et le cache. Par exemple, 'useQuery' nous retourne la donnée, un indicateur de chargement, et une éventuelle erreur. 'useMutation' nous permet de déclencher des modifications comme ajouter au panier ou passer une commande.",
+    "note": "Présentation des hooks useQuery et useMutation pour les opérations CRUD."
+  },
+  {
+    "titre": "Gestion du cache offline",
+    "contenu": "<div style='padding: 10px;'><div style='background: #fef2f2; border-radius: 16px; padding: 20px; border-left: 8px solid #dc2626; max-width: 700px; margin: 0 auto;'><h4 style='color: #991b1b; margin-top: 0;'>Cache et hors-ligne</h4><p>Avec la persistance, le cache est sauvegardé sur le disque. L'application peut donc afficher des données même sans connexion.</p><div style='background: #0f172a; padding: 15px; border-radius: 8px; color: #f1f5f9; font-family: monospace; overflow-x: auto; margin: 15px 0;'><pre style='margin: 0; white-space: pre-wrap; word-break: break-word;'>// Lorsque l'utilisateur revient en ligne<br>const { data, refetch } = useQuery(['products'], fetchProducts, {<br>  // Les données sont considérées comme fraîches pendant 5 minutes<br>  staleTime: 1000 * 60 * 5,<br>});<br><br>// Rafraîchir automatiquement au retour en ligne<br>useEffect(() => {<br>  const unsubscribe = NetInfo.addEventListener(state => {<br>    if (state.isConnected) {<br>      refetch();<br>    }<br>  });<br>  return unsubscribe;<br>}, [refetch]);</pre></div><div style='background: #fef9c3; padding: 12px; border-radius: 8px;'><p style='margin: 0;'>⚠️ Pensez à <strong>rafraîchir</strong> les données lorsque l'utilisateur revient en ligne pour qu'elles soient à jour.</p></div></div></div>",
+    "texteParle": "Un des avantages majeurs de React Query avec la persistance est le support du mode hors-ligne. Les données sont sauvegardées sur le disque, donc même sans connexion, l'utilisateur peut consulter le catalogue. Pour les mises à jour, nous utilisons la fonction 'refetch' pour rafraîchir les données quand l'utilisateur revient en ligne. Nous pouvons détecter ce retour grâce à la bibliothèque NetInfo. C'est un point important pour une application e-commerce mobile au Cameroun, où la connexion peut parfois être instable.",
+    "note": "Utilisation du cache pour l'affichage hors-ligne et rafraîchissement au retour en ligne."
+  },
+  {
+    "titre": "Résumé et Bonnes Pratiques",
+    "contenu": "<div style='padding: 10px;'><div style='background: #f8fafc; border-radius: 16px; padding: 20px; max-width: 700px; margin: 0 auto; border: 1px solid #cbd5e1;'><h3 style='color: #0f172a; text-align: center; margin-top: 0;'>Ce qu'il faut retenir</h3><ul style='font-size: 1.1rem; line-height: 1.8; color: #0f172a;'><li>✅ <strong>React Query</strong> : Simplifie la gestion des données serveur</li><li>✅ <strong>Persistance</strong> : Sauvegarde du cache dans AsyncStorage</li><li>✅ <strong>Hooks</strong> : useQuery pour lire, useMutation pour modifier</li><li>✅ <strong>Hors-ligne</strong> : Consultation du catalogue sans connexion</li></ul><div style='background: #fef3c7; padding: 12px; border-radius: 8px; margin-top: 15px;'><p style='margin: 0;'>💡 <strong>Astuce Cameroun :</strong> Une application qui fonctionne hors-ligne est un vrai plus pour les zones avec une connexion internet limitée. Elle fidélise les utilisateurs.</p></div></div></div>",
+    "texteParle": "Pour conclure, retenons les points clés. React Query simplifie énormément la gestion des données serveur. Avec la persistance, nous sauvegardons le cache et nous offrons une expérience hors-ligne. Nous utilisons 'useQuery' pour les lectures et 'useMutation' pour les modifications. N'oubliez pas de rafraîchir les données au retour en ligne pour garantir leur fraîcheur. Tous ces éléments font de React Query un outil indispensable pour nos applications e-commerce.",
+    "note": "Récapitulatif des concepts clés pour une gestion efficace des données."
+  }
+];
+
+    // ================================================================
+    // ÉTAT
+    // ================================================================
+    let currentIndex = 0;
+    let isSpeaking = false;
+    let isPaused = false;
+    let currentUtterance = null;
+    let isLoading = false;
+    let loadingTimeout = null;
+    let isTransitioning = false;
+    let speechSupported = true;
+    let userInteracted = false;
+    let isPlaying = false;
+    let loadingCancelled = false;
+
+    const total = slides.length;
+    const synth = window.speechSynthesis;
+
+    // Références jQuery
+    const $title = $('#slideTitle');
+    const $body = $('#slideBody');
+    const $counter = $('#slideCounter');
+    const $statusText = $('#statusText');
+    const $statusBadge = $('#statusBadge');
+    const $loading = $('#loadingOverlay');
+    const $loadingText = $('#loadingText');
+    const $loadingSub = $('#loadingSub');
+    const $loadingTimeout = $('#loadingTimeout');
+    const $loadingProgressBar = $('#loadingProgressBar');
+    const $autoIndicator = $('#autoIndicator');
+    const $prev = $('#prevBtn');
+    const $next = $('#nextBtn');
+    const $replay = $('#replayBtn');
+    const $play = $('#playBtn');
+    const $cancelLoading = $('#cancelLoadingBtn');
+
+    // ================================================================
+    // FONCTIONS
+    // ================================================================
+    function setStatus(text, type) {
+        $statusText.text(text);
+        $statusBadge.removeClass('idle speaking error paused waiting loading');
+        if (type === 'speaking') $statusBadge.addClass('speaking');
+        else if (type === 'error') $statusBadge.addClass('error');
+        else if (type === 'paused') $statusBadge.addClass('paused');
+        else if (type === 'waiting') $statusBadge.addClass('waiting');
+        else if (type === 'loading') $statusBadge.addClass('loading');
+        else $statusBadge.addClass('idle');
+    }
+
+    function updatePlayButton() {
+        if (isPlaying) {
+            $play.addClass('playing');
+            $play.find('.btn-icon').text('⏸');
+            $play.find('.btn-label').text('Pause');
+        } else {
+            $play.removeClass('playing');
+            $play.find('.btn-icon').text('▶');
+            $play.find('.btn-label').text('Play');
+        }
+    }
+
+    function showLoading() {
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        
+        loadingCancelled = false;
+        isLoading = true;
+        
+        // Réinitialiser la barre de progression
+        $loadingProgressBar.css('animation', 'none');
+        $loadingProgressBar.css('width', '0%');
+        // Forcer un reflow
+        $loadingProgressBar[0].offsetHeight;
+        $loadingProgressBar.css('animation', 'loadingProgress 30s ease-out forwards');
+        
+        $loadingText.text('Préparation vocale...');
+        $loadingSub.text('Synthèse en cours');
+        $loadingTimeout.text('⏱️ 30 secondes maximum');
+        $loading.fadeIn(300);
+        setStatus("⏳ Chargement...", 'loading');
+        
+        // 🔥 TIMEOUT DE 30 SECONDES
+        loadingTimeout = setTimeout(() => {
+            if (isLoading && !loadingCancelled) {
+                hideLoading();
+                setStatus("⚠️ Délai dépassé (30s)", 'error');
+                isPlaying = false;
+                updatePlayButton();
+                $loadingSub.text('La synthèse vocale a pris trop de temps');
+                $loadingTimeout.text('❌ Délai dépassé');
+            }
+        }, 30000);
+    }
+
+    function hideLoading() {
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        isLoading = false;
+        loadingCancelled = false;
+        $loading.fadeOut(300);
+        // Ne pas changer le statut si on est en train de parler
+        if (!isSpeaking && !isPlaying) {
+            setStatus("⏸ Lecture arrêtée", 'paused');
+        }
+    }
+
+    function cancelLoading() {
+        loadingCancelled = true;
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+        hideLoading();
+        stopSpeaking();
+        setStatus("⏸ Annulé", 'paused');
+        isPlaying = false;
+        updatePlayButton();
+        $loadingText.text('Annulé par l\'utilisateur');
+        $loadingSub.text('Vous pouvez réessayer');
+        $loadingTimeout.text('✕ Annulation');
+    }
+
+    // Arrêter la parole proprement
+    function stopSpeaking() {
+        try {
+            if (synth && (synth.speaking || synth.pending)) {
+                synth.cancel();
+            }
+        } catch(e) {
+            console.warn('Erreur stopSpeaking:', e);
+        }
+        if (currentUtterance) {
+            try {
+                currentUtterance.onend = null;
+                currentUtterance.onerror = null;
+                currentUtterance.onstart = null;
+            } catch(e) {}
+            currentUtterance = null;
+        }
+        isSpeaking = false;
+        isPlaying = false;
+        updatePlayButton();
+    }
+
+    // Mettre en pause la parole
+    function pauseSpeaking() {
+        try {
+            if (synth && synth.speaking) {
+                synth.pause();
+                isPaused = true;
+                isPlaying = false;
+                setStatus("⏸ Lecture en pause", 'paused');
+                updatePlayButton();
+            }
+        } catch(e) {
+            console.warn('Erreur pauseSpeaking:', e);
+            stopSpeaking();
+        }
+    }
+
+    // Reprendre la parole
+    function resumeSpeaking() {
+        try {
+            if (synth && synth.paused) {
+                synth.resume();
+                isPaused = false;
+                isPlaying = true;
+                setStatus("🔊 Lecture en cours", 'speaking');
+                updatePlayButton();
+            } else if (!isSpeaking && !synth.speaking && !synth.pending) {
+                speakSlide(currentIndex);
+            }
+        } catch(e) {
+            console.warn('Erreur resumeSpeaking:', e);
+            speakSlide(currentIndex);
+        }
+    }
+
+    function renderSlide(index) {
+        const slide = slides[index];
+        $title.text(slide.titre);
+
+        let html = '';
+        html += `<div class="content-card">${slide.contenu}</div>`;
+        if (slide.note) {
+            html += `<div class="note-box">${slide.note}</div>`;
+        }
+        $body.html(html);
+        $counter.text(`${index+1} / ${total}`);
+
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise().catch(err => console.warn('MathJax error:', err));
+        }
+    }
+
+    // ================================================================
+    // LECTURE VOCALE
+    // ================================================================
+    function speakSlide(index) {
+        return new Promise((resolve) => {
+            const slide = slides[index];
+            const text = slide.texteParle;
+            
+            if (!text || text.trim() === '' || !speechSupported) {
+                resolve();
+                return;
+            }
+
+            if (!window.speechSynthesis) {
+                setStatus("❌ Synthèse vocale non supportée", 'error');
+                speechSupported = false;
+                resolve();
+                return;
+            }
+
+            // Arrêter toute lecture en cours
+            stopSpeaking();
+            
+            // Réinitialiser l'état de pause
+            isPaused = false;
+            
+            showLoading();
+            setStatus("Initialisation...", 'loading');
+
+            try {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'fr-FR';
+                utterance.rate = 0.92;
+                utterance.pitch = 1.05;
+                utterance.volume = 1;
+
+                let isFinished = false;
+                let errorHandled = false;
+
+                utterance.onstart = function() {
+                    if (loadingCancelled) {
+                        stopSpeaking();
+                        resolve();
+                        return;
+                    }
+                    hideLoading();
+                    isSpeaking = true;
+                    isPlaying = true;
+                    isPaused = false;
+                    setStatus("🔊 Lecture en cours", 'speaking');
+                    updatePlayButton();
+                };
+
+                utterance.onend = function() {
+                    if (isFinished) return;
+                    isFinished = true;
+                    isSpeaking = false;
+                    isPlaying = false;
+                    isPaused = false;
+                    setStatus("✅ Terminé", 'idle');
+                    hideLoading();
+                    updatePlayButton();
+                    resolve();
+                };
+
+                utterance.onerror = function(e) {
+                    if (isFinished || errorHandled) return;
+                    errorHandled = true;
+                    isFinished = true;
+                    isSpeaking = false;
+                    isPlaying = false;
+                    isPaused = false;
+                    hideLoading();
+                    updatePlayButton();
+                    
+                    if (e.error === 'not-allowed') {
+                        setStatus("⚠️ Permission refusée", 'error');
+                    } else if (e.error === 'synthesis-unavailable') {
+                        setStatus("⚠️ Synthèse indisponible", 'error');
+                    } else if (e.error === 'canceled') {
+                        setStatus("⏸ Annulé", 'paused');
+                    } else {
+                        setStatus("❌ Erreur audio: " + (e.error || 'inconnue'), 'error');
+                    }
+                    
+                    resolve();
+                };
+
+                // Gestion du chargement des voix
+                if (synth.getVoices().length === 0) {
+                    synth.onvoiceschanged = function() {
+                        if (!loadingCancelled) {
+                            try {
+                                synth.speak(utterance);
+                            } catch(err) {
+                                // Silencieux
+                            }
+                        }
+                        synth.onvoiceschanged = null;
+                    };
+                }
+
+                currentUtterance = utterance;
+                
+                if (!loadingCancelled) {
+                    try {
+                        synth.speak(utterance);
+                    } catch(err) {
+                        setTimeout(() => {
+                            if (!loadingCancelled) {
+                                try {
+                                    synth.speak(utterance);
+                                } catch(e) {
+                                    setStatus("❌ Erreur de lecture", 'error');
+                                    isPlaying = false;
+                                    updatePlayButton();
+                                    hideLoading();
+                                    resolve();
+                                }
+                            } else {
+                                resolve();
+                            }
+                        }, 100);
+                    }
+                } else {
+                    resolve();
+                }
+
+            } catch(err) {
+                hideLoading();
+                setStatus("❌ Erreur générale", 'error');
+                isPlaying = false;
+                updatePlayButton();
+                console.error('Erreur speakSlide:', err);
+                resolve();
+            }
         });
-        container.addEventListener('touchend', (e) => {
-          touchEndX = e.changedTouches[0].screenX;
-          if (touchEndX < touchStartX - 50) nextSlide();
-          if (touchEndX > touchStartX + 50) prevSlide();
+    }
+
+    // ================================================================
+    // NAVIGATION
+    // ================================================================
+    async function goToSlide(index) {
+        if (isTransitioning) return;
+        if (index < 0) index = 0;
+        if (index >= total) index = total - 1;
+        
+        // Si on est en train de lire, on met en pause avant de naviguer
+        if (isSpeaking || isPlaying) {
+            pauseSpeaking();
+        }
+        
+        // Arrêter complètement la lecture
+        stopSpeaking();
+        
+        await new Promise(r => setTimeout(r, 50));
+        
+        if (index === currentIndex) {
+            setStatus("📄 Slide actuel", 'idle');
+            return;
+        }
+
+        isTransitioning = true;
+        currentIndex = index;
+        renderSlide(index);
+        
+        // Réinitialiser l'état de lecture
+        isPlaying = false;
+        updatePlayButton();
+        setStatus("⏸ Lecture arrêtée", 'paused');
+
+        await new Promise(r => setTimeout(r, 150));
+        isTransitioning = false;
+    }
+
+    async function goToNext() {
+        if (isTransitioning) return;
+        
+        if (isSpeaking || isPlaying) {
+            pauseSpeaking();
+        }
+        
+        if (currentIndex + 1 < total) {
+            await goToSlide(currentIndex + 1);
+        } else {
+            setStatus("🏁 Dernier slide", 'idle');
+        }
+    }
+
+    async function goToPrev() {
+        if (isTransitioning) return;
+        
+        if (isSpeaking || isPlaying) {
+            pauseSpeaking();
+        }
+        
+        if (currentIndex - 1 >= 0) {
+            await goToSlide(currentIndex - 1);
+        } else {
+            setStatus("🔁 Premier slide", 'idle');
+        }
+    }
+
+    // ================================================================
+    // GESTION PLAY/PAUSE
+    // ================================================================
+    function togglePlay() {
+        if (!userInteracted) {
+            userInteracted = true;
+        }
+
+        // Si le chargement est en cours, on l'annule
+        if (isLoading) {
+            cancelLoading();
+            return;
+        }
+
+        // Si le synthétiseur est en pause, on reprend
+        if (synth && synth.paused) {
+            resumeSpeaking();
+            return;
+        }
+
+        // Si la lecture est en cours, on met en pause
+        if (isSpeaking || isPlaying) {
+            pauseSpeaking();
+            return;
+        }
+
+        // Sinon, on démarre la lecture du slide courant
+        if (!isSpeaking && !isPlaying) {
+            stopSpeaking();
+            speakSlide(currentIndex);
+        }
+    }
+
+    // ================================================================
+    // INIT
+    // ================================================================
+    async function init() {
+        // Vérifier la compatibilité
+        if (!window.speechSynthesis) {
+            setStatus("❌ Synthèse vocale non supportée", 'error');
+            speechSupported = false;
+        }
+
+        // Précharger les voix
+        try {
+            if (synth.getVoices) {
+                synth.getVoices();
+                setTimeout(() => {
+                    try {
+                        synth.getVoices();
+                    } catch(e) {}
+                }, 200);
+            }
+        } catch(e) {
+            console.warn('Erreur chargement voix:', e);
+        }
+
+        // Afficher le premier slide
+        renderSlide(0);
+        $counter.text(`1 / ${total}`);
+        
+        // État initial
+        setStatus("⏸ Appuie sur Play", 'paused');
+        updatePlayButton();
+        $autoIndicator.text('⏸ Lecture manuelle');
+
+        // ================================================================
+        // ÉVÉNEMENTS
+        // ================================================================
+        
+        // Bouton Play/Pause
+        $play.on('click', function() {
+            togglePlay();
         });
-      }
+
+        // Bouton Annuler le chargement
+        $cancelLoading.on('click', function() {
+            cancelLoading();
+        });
+
+        // Navigation
+        $prev.on('click', function() {
+            // Si chargement en cours, on annule
+            if (isLoading) cancelLoading();
+            goToPrev();
+        });
+
+        $next.on('click', function() {
+            if (isLoading) cancelLoading();
+            goToNext();
+        });
+
+        // Replay - relire le slide courant
+        $replay.on('click', function() {
+            if (isLoading) cancelLoading();
+            stopSpeaking();
+            setTimeout(() => {
+                speakSlide(currentIndex);
+            }, 100);
+        });
+
+        // Support du clavier (espace pour play/pause)
+        $(document).on('keydown', function(e) {
+            if (e.key === ' ' || e.key === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+
+        // Nettoyage
+        $(window).on('beforeunload', function() {
+            try {
+                if (synth.speaking) synth.cancel();
+            } catch(e) {}
+            hideLoading();
+        });
+
+        // Gérer les cas où la synthèse se termine de manière inattendue
+        setInterval(() => {
+            if (isPlaying && !synth.speaking && !synth.pending && !isPaused && !isLoading) {
+                isPlaying = false;
+                updatePlayButton();
+                setStatus("⏸ Lecture arrêtée", 'paused');
+            }
+        }, 1000);
+    }
+
+    init();
+});
+
+
+
+    // ================================================================
+    // GESTION DU THÈME JOUR/NUIT
+    // ================================================================
+    let isDarkMode = false;
+
+    function toggleTheme() {
+        isDarkMode = !isDarkMode;
+        const body = document.body;
+        const appContainer = document.querySelector('.app-container');
+        const header = document.querySelector('.slide-header');
+        const footer = document.querySelector('.slide-footer');
+        const contentCards = document.querySelectorAll('.content-card');
+        const noteBoxes = document.querySelectorAll('.note-box');
+        const mathBlocks = document.querySelectorAll('.math-block');
+        const buttons = document.querySelectorAll('.btn');
+        const statusBadge = document.querySelector('.status-badge');
+        const slideCounter = document.querySelector('.slide-counter');
+        const autoIndicator = document.querySelector('.auto-indicator');
+        const themeBtn = document.getElementById('themeToggle');
+
+        if (isDarkMode) {
+            // Mode nuit
+            body.style.background = '#0b1120';
+            body.style.color = '#f1f5f9';
+            appContainer.style.background = 'linear-gradient(145deg, #0f172a 0%, #1e293b 100%)';
+            header.style.background = 'rgba(15, 23, 42, 0.85)';
+            footer.style.background = 'rgba(15, 23, 42, 0.9)';
+            contentCards.forEach(card => {
+                card.style.background = 'rgba(255,255,255,0.05)';
+                card.style.borderColor = 'rgba(255,255,255,0.06)';
+            });
+            noteBoxes.forEach(note => {
+                note.style.background = 'rgba(96, 165, 250, 0.08)';
+                note.style.color = '#cbd5e1';
+            });
+            mathBlocks.forEach(block => {
+                block.style.background = 'rgba(0,0,0,0.25)';
+                block.style.borderColor = 'rgba(255,255,255,0.06)';
+            });
+            buttons.forEach(btn => {
+                btn.style.color = '#e2e8f0';
+            });
+            if (statusBadge) {
+                statusBadge.style.background = 'rgba(96, 165, 250, 0.12)';
+                statusBadge.style.color = '#93bbfc';
+            }
+            if (slideCounter) {
+                slideCounter.style.color = '#94a3b8';
+            }
+            if (autoIndicator) {
+                autoIndicator.style.color = '#64748b';
+            }
+            if (themeBtn) {
+                themeBtn.textContent = '☀️';
+                themeBtn.title = 'Passer en mode jour';
+            }
+            // Couleurs des titres dans les slides
+            document.querySelectorAll('.slide-body h1, .slide-body h2, .slide-body h3, .slide-body h4').forEach(el => {
+                if (!el.closest('.note-box')) {
+                    el.style.color = '#e2e8f0';
+                }
+            });
+            document.querySelectorAll('.slide-body p, .slide-body li, .slide-body td, .slide-body th').forEach(el => {
+                if (!el.closest('.note-box') && !el.closest('.math-block')) {
+                    el.style.color = '#e2e8f0';
+                }
+            });
+        } else {
+            // Mode jour (par défaut)
+            body.style.background = '#f0f4f8';
+            body.style.color = '#1a202c';
+            appContainer.style.background = 'linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%)';
+            header.style.background = 'rgba(255, 255, 255, 0.85)';
+            footer.style.background = 'rgba(255, 255, 255, 0.9)';
+            contentCards.forEach(card => {
+                card.style.background = 'rgba(255,255,255,0.8)';
+                card.style.borderColor = 'rgba(0,0,0,0.08)';
+            });
+            noteBoxes.forEach(note => {
+                note.style.background = 'rgba(96, 165, 250, 0.12)';
+                note.style.color = '#2c3e50';
+            });
+            mathBlocks.forEach(block => {
+                block.style.background = 'rgba(0,0,0,0.05)';
+                block.style.borderColor = 'rgba(0,0,0,0.08)';
+            });
+            buttons.forEach(btn => {
+                btn.style.color = '#2d3748';
+            });
+            if (statusBadge) {
+                statusBadge.style.background = 'rgba(96, 165, 250, 0.15)';
+                statusBadge.style.color = '#2b6cb0';
+            }
+            if (slideCounter) {
+                slideCounter.style.color = '#4a5568';
+            }
+            if (autoIndicator) {
+                autoIndicator.style.color = '#718096';
+            }
+            if (themeBtn) {
+                themeBtn.textContent = '🌓';
+                themeBtn.title = 'Passer en mode nuit';
+            }
+            // Couleurs des titres dans les slides
+            document.querySelectorAll('.slide-body h1, .slide-body h2, .slide-body h3, .slide-body h4').forEach(el => {
+                if (!el.closest('.note-box')) {
+                    el.style.color = '#2c3e50';
+                }
+            });
+            document.querySelectorAll('.slide-body p, .slide-body li, .slide-body td, .slide-body th').forEach(el => {
+                if (!el.closest('.note-box') && !el.closest('.math-block')) {
+                    el.style.color = '#2d3748';
+                }
+            });
+        }
+    }
+
+    // Initialiser en mode jour
+    document.addEventListener('DOMContentLoaded', function() {
+        // Appliquer le mode jour par défaut
+        const body = document.body;
+        body.style.background = '#f0f4f8';
+        body.style.color = '#1a202c';
+        
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) {
+            appContainer.style.background = 'linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%)';
+        }
+        
+        const header = document.querySelector('.slide-header');
+        if (header) {
+            header.style.background = 'rgba(255, 255, 255, 0.85)';
+        }
+        
+        const footer = document.querySelector('.slide-footer');
+        if (footer) {
+            footer.style.background = 'rgba(255, 255, 255, 0.9)';
+        }
+        
+        document.querySelectorAll('.content-card').forEach(card => {
+            card.style.background = 'rgba(255,255,255,0.8)';
+            card.style.borderColor = 'rgba(0,0,0,0.08)';
+        });
+        
+        document.querySelectorAll('.note-box').forEach(note => {
+            note.style.background = 'rgba(96, 165, 250, 0.12)';
+            note.style.color = '#2c3e50';
+        });
+        
+        document.querySelectorAll('.math-block').forEach(block => {
+            block.style.background = 'rgba(0,0,0,0.05)';
+            block.style.borderColor = 'rgba(0,0,0,0.08)';
+        });
+        
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.style.color = '#2d3748';
+        });
+        
+        const statusBadge = document.querySelector('.status-badge');
+        if (statusBadge) {
+            statusBadge.style.background = 'rgba(96, 165, 250, 0.15)';
+            statusBadge.style.color = '#2b6cb0';
+        }
+        
+        const slideCounter = document.querySelector('.slide-counter');
+        if (slideCounter) {
+            slideCounter.style.color = '#4a5568';
+        }
+        
+        const autoIndicator = document.querySelector('.auto-indicator');
+        if (autoIndicator) {
+            autoIndicator.style.color = '#718096';
+        }
+        
+        document.querySelectorAll('.slide-body h1, .slide-body h2, .slide-body h3, .slide-body h4').forEach(el => {
+            if (!el.closest('.note-box')) {
+                el.style.color = '#2c3e50';
+            }
+        });
+        
+        document.querySelectorAll('.slide-body p, .slide-body li, .slide-body td, .slide-body th').forEach(el => {
+            if (!el.closest('.note-box') && !el.closest('.math-block')) {
+                el.style.color = '#2d3748';
+            }
+        });
+        
+        const themeBtn = document.getElementById('themeToggle');
+        if (themeBtn) {
+            themeBtn.textContent = '🌓';
+            themeBtn.title = 'Passer en mode nuit';
+        }
     });
-  </script>
+</script>
 </body>
 </html>

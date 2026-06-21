@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 33 : Tester avec React Testing Library | React</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #f0fdf4;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            margin: 1.2rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 640px) {
+            .code-block {
+                font-size: 0.7rem;
+                padding: 0.75rem;
+            }
+        }
+        .note-info {
+            background: #dbeafe;
+            border-left: 5px solid #3b82f6;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        .note-success {
+            background: #ecfdf5;
+            border-left: 5px solid #10b981;
+            padding: 0.8rem 1rem;
+            border-radius: 1rem;
+            margin: 1rem 0;
+        }
+        .badge-test {
+            background: #e0e7ff;
+            color: #3730a3;
+            font-weight: 600;
+            padding: 0.2rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            display: inline-block;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+    </style>
+    <!-- jQuery & MathJax -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Zone d'affichage dynamique des slides -->
+        <div id="slides-container" class="relative"></div>
+
+        <!-- Navigation entre slides -->
+        <div class="flex justify-between items-center mt-8 gap-3">
+            <button id="prevBtn" class="bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed border border-slate-300 text-sm md:text-base">◀ Précédent</button>
+            <div class="text-sm bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm text-slate-600">
+                Slide <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+            </div>
+            <button id="nextBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm md:text-base">Suivant ▶</button>
+        </div>
+    </div>
+
+    <footer class="text-center text-slate-400 text-xs py-5 border-t border-slate-200 mt-6">
+        🇨🇲 Cours React – Enseignant Cameroun | Leçon 33 : React Testing Library & Jest
+    </footer>
+
+    <script>
+        // Contenu des slides pour la leçon 33 (Tests avec React Testing Library)
+        const slidesData = [
+            {
+                type: "title",
+                icon: "🧪",
+                title: "Tester des composants React",
+                subtitle: "Rendez votre application fiable avec Jest et React Testing Library",
+                badge: "Leçon 33 · Niveau Intermédiaire"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                list: [
+                    "✅ Installer et configurer Jest et React Testing Library",
+                    "✅ Écrire des tests unitaires pour des composants simples",
+                    "✅ Utiliser render, screen et les queries pour trouver des éléments",
+                    "✅ Simuler des interactions utilisateur avec fireEvent",
+                    "✅ Tester des comportements asynchrones (API, timers)",
+                    "✅ Appliquer les bonnes pratiques : tester le comportement, pas l'implémentation"
+                ]
+            },
+            {
+                type: "content",
+                title: "🧠 Pourquoi tester ses composants React ?",
+                content: `
+                    <p>Les tests automatisés permettent de :</p>
+                    <ul class="list-disc pl-6 mt-3 space-y-1">
+                        <li>✅ <span class="font-semibold">Détecter les régressions</span> : une modification ne casse pas une fonctionnalité existante.</li>
+                        <li>✅ <span class="font-semibold">Documenter le comportement attendu</span> : les tests servent de spécification.</li>
+                        <li>✅ <span class="font-semibold">Refactorer en toute confiance</span> : on peut réorganiser le code sans peur.</li>
+                    </ul>
+                    <div class="note-info mt-3">
+                        📦 <strong>Outils standards</strong> : <span class="font-mono">Jest</span> (test runner + assertions) + <span class="font-mono">React Testing Library</span> (pour interagir avec les composants).
+                    </div>
+                    <p>Create React App et Vite (avec template react-ts) incluent déjà Jest et RTL.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔧 Premier test : affichage d'un composant",
+                content: `
+                    <p>Supposons un composant <code>Greeting</code> :</p>
+                    <div class="code-block">
+                        function Greeting({ name }) {
+                          return &lt;h1&gt;Bonjour, {name} !&lt;/h1&gt;;
+                        }
+                        export default Greeting;
+                    </div>
+                    <p>Le fichier de test <code>Greeting.test.jsx</code> :</p>
+                    <div class="code-block">
+                        import { render, screen } from '@testing-library/react';
+                        import Greeting from './Greeting';
+
+                        test('affiche le message de bienvenue avec le nom', () => {
+                          render(&lt;Greeting name="Alice" /&gt;);
+                          const heading = screen.getByText(/Bonjour, Alice/i);
+                          expect(heading).toBeInTheDocument();
+                        });
+                    </div>
+                    <p><span class="font-semibold">Explications</span> : <code>render</code> monte le composant, <code>screen.getByText</code> cherche un élément par son texte. L'assertion vérifie sa présence.</p>
+                `
+            },
+            {
+                type: "content",
+                title: "🔍 Les différentes queries (getBy, findBy, queryBy)",
+                content: `
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li><strong>getBy...</strong> : retourne l'élément, lance une erreur s'il n'existe pas (pour les éléments attendus).</li>
+                        <li><strong>queryBy...</strong> : retourne l'élément ou <code>null</code> (pour vérifier qu'un élément n'est PAS présent).</li>
+                        <li><strong>findBy...</strong> : retourne une Promise qui résout quand l'élément apparaît (pour les éléments asynchrones).</li>
+                    </ul>
+                    <div class="code-block">
+                        // Vérifier qu'un élément est absent
+                        const element = screen.queryByText('Contenu caché');
+                        expect(element).not.toBeInTheDocument();
+
+                        // Pour un élément asynchrone (ex: après fetch)
+                        const asyncElement = await screen.findByText('Données chargées');
+                        expect(asyncElement).toBeInTheDocument();
+                    </div>
+                    <div class="note-success mt-2">
+                        💡 <strong>Bonnes pratiques</strong> : préférez <code>getByRole</code> ou <code>getByText</code> plutôt que <code>getByTestId</code> (sauf cas exceptionnel).
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🖱️ Simuler des interactions : fireEvent",
+                content: `
+                    <p>Pour tester un bouton qui incrémente un compteur :</p>
+                    <div class="code-block">
+                        import { render, screen, fireEvent } from '@testing-library/react';
+                        import Counter from './Counter';
+
+                        test('incrémente le compteur au clic', () => {
+                          render(&lt;Counter /&gt;);
+                          const button = screen.getByRole('button', { name: /incrémenter/i });
+                          const countDisplay = screen.getByText(/compteur : 0/i);
+                          
+                          fireEvent.click(button);
+                          
+                          expect(screen.getByText(/compteur : 1/i)).toBeInTheDocument();
+                        });
+                    </div>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li><code>fireEvent.click(element)</code> : déclenche un clic.</li>
+                        <li><code>fireEvent.change(input, { target: { value: 'texte' } })</code> : simule la saisie.</li>
+                        <li><code>userEvent</code> (bibliothèque séparée) est plus réaliste pour les interactions complexes.</li>
+                    </ul>
+                `
+            },
+            {
+                type: "content",
+                title: "⏳ Tester du code asynchrone (API, setTimeout)",
+                content: `
+                    <p>Un composant qui charge des données :</p>
+                    <div class="code-block">
+                        import { render, screen, waitFor } from '@testing-library/react';
+                        import UserProfile from './UserProfile';
+
+                        test('affiche les données utilisateur après chargement', async () => {
+                          render(&lt;UserProfile userId={1} /&gt;);
+                          
+                          // Vérifier l'état de chargement
+                          expect(screen.getByText(/chargement/i)).toBeInTheDocument();
+                          
+                          // Attendre que le nom apparaisse
+                          const nameElement = await screen.findByText('Alice');
+                          expect(nameElement).toBeInTheDocument();
+                        });
+                    </div>
+                    <div class="note-info">
+                        ⚡ <strong>Astuce</strong> : utilisez <code>waitFor</code> pour attendre plusieurs conditions ou <code>findBy</code> pour un seul élément. Pensez à mocker <code>fetch</code> avec <code>jest.spyOn</code> ou <code>msw</code>.
+                    </div>
+                `
+            },
+            {
+                type: "content",
+                title: "🏁 Bonnes pratiques et résumé",
+                content: `
+                    <p><span class="font-bold text-indigo-700">✅ Ce qu'il faut retenir :</span></p>
+                    <ul class="list-disc pl-6 mt-2 space-y-1">
+                        <li>Testez le comportement visible par l'utilisateur, pas les détails d'implémentation (state, props).</li>
+                        <li>Utilisez <strong>screen</strong> et les queries par rôle/text plutôt que <code>data-testid</code>.</li>
+                        <li>Simulez les interactions avec <code>fireEvent</code> ou <code>userEvent</code>.</li>
+                        <li>Pour le code asynchrone, préférez <code>findBy</code> ou <code>waitFor</code>.</li>
+                        <li>Isolez les appels réseau avec des mocks (jest.fn()).</li>
+                    </ul>
+                    <div class="grid grid-cols-2 gap-2 mt-4 text-center text-sm">
+                        <div class="bg-indigo-50 p-2 rounded-lg">🧪 render + screen</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">🔍 getBy / findBy / queryBy</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">🖱️ fireEvent.click</div>
+                        <div class="bg-indigo-50 p-2 rounded-lg">⏳ waitFor / async</div>
+                    </div>
+                    <p class="mt-4 italic text-slate-500">"Des tests fiables = une application robuste. Testez tôt, testez souvent !" – Enseignant Cameroun 🇨🇲</p>
+                `
+            }
+        ];
+
+        let currentIdx = 0;
+        const total = slidesData.length;
+
+        function renderSlide(index) {
+            const s = slidesData[index];
+            if (!s) return "<div class='text-center p-10'>Erreur slide</div>";
+            
+            if (s.type === "title") {
+                return `
+                    <div class="slide-card bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl shadow-xl p-6 md:p-10 text-center border border-green-100">
+                        <div class="text-7xl mb-4">${s.icon}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold text-green-800 leading-tight">${s.title}</h1>
+                        <p class="text-lg md:text-xl text-slate-600 mt-4 max-w-xl mx-auto">${s.subtitle}</p>
+                        <div class="mt-6 inline-block bg-green-200 px-4 py-1 rounded-full text-green-800 text-sm font-medium">${s.badge}</div>
+                        <div class="mt-8 w-16 h-1 bg-green-300 mx-auto rounded-full"></div>
+                    </div>
+                `;
+            } 
+            else if (s.type === "objectifs") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8 border-l-8 border-indigo-500">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 mb-5">${s.title}</h2>
+                        <ul class="space-y-3">
+                            ${s.list.map(item => `<li class="flex items-start gap-3 text-slate-700 text-base md:text-lg"><span class="text-indigo-500 text-xl shrink-0">📌</span> <span>${item}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-6 bg-indigo-50 p-3 rounded-xl text-indigo-700 text-sm italic">
+                            🧠 Après cette leçon, vous saurez tester vos composants React comme un vrai développeur professionnel !
+                        </div>
+                    </div>
+                `;
+            }
+            else if (s.type === "content") {
+                return `
+                    <div class="slide-card bg-white rounded-3xl shadow-xl p-6 md:p-8">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-700 border-b border-indigo-200 pb-3 mb-5">${s.title}</h2>
+                        <div class="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+                            ${s.content}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div class="bg-white rounded-2xl p-6">Contenu non disponible</div>`;
+        }
+
+        function updateDisplay() {
+            const html = renderSlide(currentIdx);
+            $("#slides-container").html(html);
+            $("#currentSlide").text(currentIdx + 1);
+            $("#totalSlides").text(total);
+            
+            $("#prevBtn").prop("disabled", currentIdx === 0);
+            $("#nextBtn").prop("disabled", currentIdx === total - 1);
+            
+            $("html, body").animate({ scrollTop: 0 }, 80);
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise();
+            }
+        }
+
+        function nextSlide() {
+            if (currentIdx < total - 1) {
+                currentIdx++;
+                updateDisplay();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                updateDisplay();
+            }
+        }
+
+        $(document).ready(function() {
+            updateDisplay();
+            $("#nextBtn").on("click", nextSlide);
+            $("#prevBtn").on("click", prevSlide);
+            
+            $(document).keydown(function(e) {
+                if (e.key === "ArrowRight") { nextSlide(); e.preventDefault(); }
+                else if (e.key === "ArrowLeft") { prevSlide(); e.preventDefault(); }
+            });
+            
+            let touchStartX = 0, touchEndX = 0;
+            const container = document.getElementById("slides-container");
+            if (container) {
+                container.addEventListener('touchstart', (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                }, { passive: true });
+                container.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    if (touchEndX < touchStartX - 45) nextSlide();
+                    if (touchEndX > touchStartX + 45) prevSlide();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

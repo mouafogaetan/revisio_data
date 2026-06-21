@@ -1,0 +1,179 @@
+[
+  {
+    "intitule": "Identifier l'utilité du rate limiting",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, le rate limiting (limitation de débit) est une mesure de sécurité essentielle.</p><p>Expliquez ce qu'est le rate limiting et citez deux attaques qu'il permet de prévenir.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définir le rate limiting et énumérer deux attaques qu'il contrecarre.",
+        "niveau": "easy",
+        "reponse": "Le rate limiting est une technique qui limite le nombre de requêtes qu'un client peut envoyer à une API sur une période donnée.\n\nAttaques prévenues :\n1. **Attaques par force brute** : tentative de deviner des mots de passe par essais répétés\n2. **Attaques DDoS** : saturation du serveur par un trop grand nombre de requêtes\n3. **Web scraping abusif** : extraction massive de données\n4. **Déni de service par épuisement des ressources**",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer ThrottlerModule",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez configurer le module <code>@nestjs/throttler</code> dans une application NestJS pour limiter les requêtes à <strong>10 requêtes par minute</strong> par défaut.</p><p>La configuration doit être globale et utiliser Redis comme stockage en production.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la configuration du ThrottlerModule dans AppModule avec les paramètres demandés.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// app.module.ts\nimport { Module } from '@nestjs/common';\nimport { ThrottlerModule } from '@nestjs/throttler';\nimport { ThrottlerStorageRedisService } from '@nestjs/throttler-storage-redis';\n\n@Module({\n  imports: [\n    ThrottlerModule.forRoot({\n      throttlers: [\n        {\n          name: 'default',\n          ttl: 60000,    // 60 secondes = 1 minute\n          limit: 10,     // 10 requêtes\n        },\n      ],\n      // Utiliser Redis en production\n      storage: process.env.NODE_ENV === 'production' \n        ? new ThrottlerStorageRedisService({\n            host: process.env.REDIS_HOST,\n            port: parseInt(process.env.REDIS_PORT),\n          })\n        : undefined,\n    }),\n  ],\n})\nexport class AppModule {}\n```\n\nAlternative plus simple avec valeurs par défaut :\n```typescript\nThrottlerModule.forRoot({\n  ttl: 60,\n  limit: 10,\n})\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Limiter les tentatives de connexion",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Pour sécuriser l'authentification, vous devez limiter les tentatives de connexion à <strong>5 tentatives par minute</strong> sur la route <code>POST /auth/login</code>.</p><p>Au-delà de cette limite, l'API doit retourner une erreur <code>429 Too Many Requests</code>.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Appliquer le throttler sur le contrôleur d'authentification avec une configuration spécifique.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// auth.controller.ts\nimport { Throttle } from '@nestjs/throttler';\n\n@Controller('auth')\nexport class AuthController {\n  @Post('login')\n  @Throttle({ default: { ttl: 60000, limit: 5 } })\n  // ou avec la syntaxe plus simple :\n  // @Throttle(5, 60)  // 5 requêtes par 60 secondes\n  async login(@Body() loginDto: LoginDto) {\n    // Logique de connexion\n  }\n}\n```\n\nOu globalement avec override :\n```typescript\n@Throttle({ default: { limit: 5, ttl: 60000 } })\n@Post('login')\nasync login() { ... }\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Différencier les limites par IP et par utilisateur",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans une API e-commerce, on souhaite deux niveaux de limitation :</p><ul><li><strong>Par IP</strong> : 100 requêtes par minute pour les utilisateurs non authentifiés</li><li><strong>Par utilisateur</strong> : 1000 requêtes par minute pour les utilisateurs authentifiés</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer comment @nestjs/throttler différencie les limites par IP et par utilisateur, et proposer une configuration.",
+        "niveau": "hard",
+        "reponse": "@nestjs/throttler utilise par défaut l'IP du client comme identifiant. Pour différencier par utilisateur, on peut créer un garde personnalisé ou utiliser le décorateur `@SkipThrottle()` avec des identifiants personnalisés.\n\n**Configuration :**\n```typescript\n// app.module.ts\nThrottlerModule.forRoot({\n  throttlers: [\n    {\n      name: 'ip-based',\n      ttl: 60000,\n      limit: 100,\n    },\n    {\n      name: 'user-based',\n      ttl: 60000,\n      limit: 1000,\n    },\n  ],\n})\n```\n\n**Garde personnalisé :**\n```typescript\n// custom-throttler.guard.ts\n@Injectable()\nexport class CustomThrottlerGuard extends ThrottlerGuard {\n  protected async getTracker(req: Request): Promise<string> {\n    // Si utilisateur authentifié, utiliser son ID\n    if (req.user && req.user.id) {\n      return `user-${req.user.id}`;\n    }\n    // Sinon, utiliser l'IP\n    return req.ip;\n  }\n}\n```\n\n**Application globale :**\n```typescript\n// main.ts\napp.useGlobalGuards(new CustomThrottlerGuard());\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Désactiver le throttling pour certaines routes",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Certaines routes d'administration interne ne doivent pas être limitées par le throttler (ex: healthcheck, métriques).</p><p>Le décorateur <code>@SkipThrottle()</code> permet de désactiver la limitation.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Appliquer @SkipThrottle() sur une route de healthcheck.",
+        "niveau": "easy",
+        "reponse": "```typescript\n@Controller('health')\nexport class HealthController {\n  @Get()\n  @SkipThrottle()\n  // Désactive complètement le throttling pour cette route\n  check() {\n    return { status: 'ok' };\n  }\n\n  @Get('metrics')\n  @SkipThrottle({ default: false }) // Réactive pour cette route si désactivé globalement\n  getMetrics() {\n    return { cpu: 10, memory: 256 };\n  }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Calculer la fenêtre de temps glissante",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Le throttler utilise une fenêtre de temps glissante (sliding window) pour compter les requêtes.</p><p>Si la limite est de <span class=\"math inline\">$L = 10$</span> requêtes par <span class=\"math inline\">$T = 60$</span> secondes, et qu'un client a fait 8 requêtes dans les 50 premières secondes, combien de requêtes supplémentaires peut-il faire dans les 10 secondes restantes ?</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Calculer le nombre de requêtes encore autorisées dans la fenêtre courante.",
+        "niveau": "medium",
+        "reponse": "Avec une fenêtre glissante, le calcul prend en compte le poids des requêtes anciennes qui sortent de la fenêtre.\n\nFormule simplifiée :\n- Limite totale : 10 requêtes\n- Requêtes déjà effectuées dans les 60 dernières secondes : 8\n- Requêtes encore autorisées : 10 - 8 = 2\n\nLe client peut donc faire **2 requêtes supplémentaires** dans les 10 prochaines secondes.\n\nS'il fait une 9e requête, elle sera acceptée. La 11e (au-delà de la limite) sera refusée avec un statut 429.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Personnaliser la réponse 429",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Par défaut, @nestjs/throttler renvoie un message générique 'Too Many Requests'. Vous souhaitez personnaliser la réponse pour inclure :</p><ul><li>Le temps d'attente recommandé (retry-after en secondes)</li><li>La limite configurée</li><li>Le nombre de requêtes restantes dans la fenêtre</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créer un filtre d'exception personnalisé pour intercepter les erreurs Throttler et renvoyer une réponse enrichie.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// throttler-exception.filter.ts\nimport { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';\nimport { ThrottlerException } from '@nestjs/throttler';\nimport { Response } from 'express';\n\n@Catch(ThrottlerException)\nexport class ThrottlerExceptionFilter implements ExceptionFilter {\n  catch(exception: ThrottlerException, host: ArgumentsHost) {\n    const ctx = host.switchToHttp();\n    const response = ctx.getResponse<Response>();\n    const request = ctx.getRequest();\n\n    // Récupérer les headers de throttling (si présents)\n    const retryAfter = response.getHeader('Retry-After') || 60;\n    const limit = response.getHeader('X-RateLimit-Limit') || 10;\n    const remaining = response.getHeader('X-RateLimit-Remaining') || 0;\n\n    response.status(HttpStatus.TOO_MANY_REQUESTS).json({\n      statusCode: HttpStatus.TOO_MANY_REQUESTS,\n      message: 'Trop de requêtes. Veuillez réessayer plus tard.',\n      error: 'Too Many Requests',\n      timestamp: new Date().toISOString(),\n      path: request.url,\n      retryAfter: retryAfter,\n      rateLimit: {\n        limit: limit,\n        remaining: remaining,\n        resetTime: new Date(Date.now() + retryAfter * 1000).toISOString(),\n      },\n    });\n  }\n}\n```\n\n**Application :**\n```typescript\n// main.ts\napp.useGlobalFilters(new ThrottlerExceptionFilter());\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Configurer des limites différentes selon les endpoints",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour une API e-commerce, vous devez appliquer des limites différentes selon la sensibilité des endpoints :</p><ul><li><code>POST /auth/login</code> : 5 requêtes/minute</li><li><code>POST /orders</code> : 20 requêtes/minute</li><li><code>GET /products</code> : 200 requêtes/minute</li><li><code>POST /payments</code> : 10 requêtes/minute</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Configurer plusieurs throttlers nommés et les appliquer aux endpoints correspondants.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// app.module.ts - Configuration multiple\nThrottlerModule.forRoot({\n  throttlers: [\n    { name: 'login', ttl: 60000, limit: 5 },\n    { name: 'orders', ttl: 60000, limit: 20 },\n    { name: 'products', ttl: 60000, limit: 200 },\n    { name: 'payments', ttl: 60000, limit: 10 },\n  ],\n})\n```\n\n```typescript\n// auth.controller.ts\n@Controller('auth')\nexport class AuthController {\n  @Post('login')\n  @Throttle({ login: { ttl: 60000, limit: 5 } })\n  async login() {}\n}\n\n// orders.controller.ts\n@Controller('orders')\nexport class OrdersController {\n  @Post()\n  @Throttle({ orders: { ttl: 60000, limit: 20 } })\n  async createOrder() {}\n}\n\n// products.controller.ts\n@Controller('products')\nexport class ProductsController {\n  @Get()\n  @Throttle({ products: { ttl: 60000, limit: 200 } })\n  async findAll() {}\n}\n\n// payments.controller.ts\n@Controller('payments')\nexport class PaymentsController {\n  @Post()\n  @Throttle({ payments: { ttl: 60000, limit: 10 } })\n  async processPayment() {}\n}\n```\n\n**Avec garde personnalisé pour combiner plusieurs limites :**\n```typescript\n@Post('checkout')\n@Throttle([\n  { name: 'user-based', limit: 10, ttl: 60000 },    // 10 par user\n  { name: 'ip-based', limit: 30, ttl: 60000 }       // 30 par IP\n])\nasync checkout() {}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Simuler un scénario d'attaque et la prévention",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un attaquant tente de brute-forcer le mot de passe d'un compte administrateur sur <code>POST /auth/login</code>. Il envoie <strong>100 requêtes en 10 secondes</strong>.</p><p>La configuration du throttler est : limite 5 requêtes/minute par IP.</p><p>Un utilisateur légitime (même IP derrière un NAT) essaie ensuite de se connecter normalement.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analyser l'impact de cette attaque sur les utilisateurs légitimes et proposer une solution pour atténuer le problème.",
+        "niveau": "very hard",
+        "reponse": "**Analyse :**\n- L'attaquant a envoyé 100 requêtes en 10 secondes\n- Dès la 6e requête, le throttler bloque l'IP pour 60 secondes (limite 5/min)\n- Tous les utilisateurs partageant la même IP (NAT d'entreprise, cybercafé, campus universitaire) sont bloqués pendant 1 minute\n- C'est un **problème de faux positifs** (collatéraux)\n\n**Solutions :**\n\n1. **Limiter par utilisateur + IP combinée** (plutôt qu'IP seule)\n```typescript\nprotected async getTracker(req: Request): Promise<string> {\n  if (req.user) return `user-${req.user.id}`;\n  return `ip-${req.ip}`;\n}\n```\n\n2. **Augmenter la fenêtre et réduire la limite progressive** :\n   - 5 requêtes/minute, puis 10 requêtes/10 minutes après échecs répétés\n\n3. **Ajouter un CAPTCHA après 3 échecs** :\n```typescript\nif (failedAttempts >= 3 && !captchaValid) {\n  throw new UnauthorizedException('CAPTCHA requis');\n}\n```\n\n4. **Utiliser un délai progressif (exponential backoff)** :\n   - 1er échec : pas de délai\n   - 2e échec : 1 seconde\n   - 3e échec : 5 secondes\n   - 4e échec : 30 secondes\n\n5. **Notifier l'administrateur** en cas de seuil d'alerte dépassé (ex: 20 tentatives échouées en 1 minute)",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Combien de requêtes de l'attaquant ont été traitées avant le blocage ?",
+            "niveau": "medium",
+            "reponse": "5 requêtes (les 5 premières). La 6e déclenche le blocage pour la minute suivante.",
+            "sousQuestions": []
+          },
+          {
+            "numero": "1.b",
+            "texte": "Combien de temps l'IP reste-t-elle bloquée pour les utilisateurs légitimes ?",
+            "niveau": "easy",
+            "reponse": "60 secondes (1 minute), selon la configuration ttl: 60000.",
+            "sousQuestions": []
+          }
+        ]
+      }
+    ]
+  }
+]

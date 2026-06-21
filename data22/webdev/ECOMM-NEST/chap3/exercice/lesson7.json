@@ -1,0 +1,132 @@
+[
+  {
+    "intitule": "Modélisation des entités User et Role avec TypeORM",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans le cadre du développement d'une API e-commerce avec NestJS et TypeORM, vous devez créer les entités <strong>User</strong> et <strong>Role</strong> avec une relation ManyToMany (un utilisateur peut avoir plusieurs rôles, un rôle peut être attribué à plusieurs utilisateurs).</p><p><strong>Consigne :</strong> Répondez aux questions suivantes en vous basant sur les bonnes pratiques de NestJS/TypeORM.</p>",
+      "images": [
+        "diagramme entité-association entre User et Role avec relation ManyToMany et table de liaison user_roles"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Décrire la structure de l'entité User avec les attributs suivants : id (UUID), email (unique), password, firstName, lastName, phone, createdAt, updatedAt, lastLogin.",
+        "niveau": "medium",
+        "reponse": "L'entité User doit contenir : @PrimaryGeneratedColumn('uuid') id; @Column({ unique: true }) email; @Column() password; @Column() firstName; @Column() lastName; @Column({ nullable: true }) phone; @CreateDateColumn() createdAt; @UpdateDateColumn() updatedAt; @Column({ nullable: true, type: 'timestamp' }) lastLogin;",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment implémenter la relation ManyToMany entre User et Role en utilisant TypeORM, y compris la table de jonction.",
+        "niveau": "hard",
+        "reponse": "Dans l'entité User : @ManyToMany(() => Role) @JoinTable({ name: 'user_roles', joinColumn: { name: 'user_id', referencedColumnName: 'id' }, inverseJoinColumn: { name: 'role_id', referencedColumnName: 'id' } }) roles: Role[];. Dans l'entité Role : @ManyToMany(() => User, user => user.roles) users: User[];. La table de jonction 'user_roles' contiendra les clés étrangères user_id et role_id.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Justifier l'utilisation de @CreateDateColumn et @UpdateDateColumn plutôt que de gérer manuellement les dates.",
+        "niveau": "medium",
+        "reponse": "@CreateDateColumn et @UpdateDateColumn sont gérés automatiquement par TypeORM. Ils garantissent que createdAt est défini à l'insertion et updatedAt mis à jour à chaque modification, sans code supplémentaire. Cela évite les erreurs manuelles et assure la cohérence des données.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création des rôles par défaut et insertion en base",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Une plateforme e-commerce doit disposer de trois rôles par défaut : <strong>admin</strong>, <strong>customer</strong> (client) et <strong>seller</strong> (vendeur).</p><p><strong>Consigne :</strong> Rédigez le code nécessaire pour créer ces rôles lors de l'initialisation de l'application (seed) en utilisant le pattern de données de TypeORM.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un fichier de seed (ex: role.seed.ts) qui insère les trois rôles s'ils n'existent pas déjà.",
+        "niveau": "medium",
+        "reponse": "const rolesData = [{ name: 'admin' }, { name: 'customer' }, { name: 'seller' }]; for (const roleData of rolesData) { const exists = await roleRepository.findOne({ where: { name: roleData.name } }); if (!exists) { const role = roleRepository.create(roleData); await roleRepository.save(role); } }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer comment exécuter ce seed automatiquement au démarrage de l'application NestJS.",
+        "niveau": "medium",
+        "reponse": "Dans le module principal (app.module.ts), on peut injecter le RoleService dans le constructeur et appeler une méthode onApplicationBootstrap() qui exécute le seed. Ou utiliser le pattern des commandes CLI avec typeorm-extension. Une autre approche : écouter l'événement 'app.module.init' dans un provider dédié.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Identifier les avantages d'avoir un système de rôles plutôt qu'un simple champ 'isAdmin' boolean.",
+        "niveau": "easy",
+        "reponse": "Un système de rôles est extensible : on peut ajouter des rôles (modérateur, support) sans modifier le schéma. Il permet des combinaisons (un utilisateur peut être à la fois vendeur et client). Il centralise la gestion des permissions et facilite le contrôle d'accès (RBAC).",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion des champs temporels et mise à jour de lastLogin",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Lorsqu'un utilisateur se connecte avec succès, on souhaite mettre à jour le champ <strong>lastLogin</strong> avec la date et l'heure actuelles.</p><p><strong>Consigne :</strong> Rédigez la méthode du service d'authentification qui met à jour lastLogin après validation des identifiants.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire la méthode updateLastLogin(userId: string) dans le UserService en utilisant TypeORM.",
+        "niveau": "medium",
+        "reponse": "async updateLastLogin(userId: string): Promise<void> { await this.userRepository.update(userId, { lastLogin: new Date() }); }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer pourquoi on utilise new Date() plutôt que CURRENT_TIMESTAMP dans la requête.",
+        "niveau": "hard",
+        "reponse": "new Date() génère la date depuis le serveur Node.js, ce qui garantit une cohérence si la base de données est sur un fuseau horaire différent. CURRENT_TIMESTAMP dépend du SGBD et de son fuseau horaire. L'approche JavaScript est plus prévisible dans une architecture multi-couches.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Décrire comment modifier le champ lastLogin pour qu'il ne soit pas modifiable directement par l'API (seulement via le service d'auth).",
+        "niveau": "hard",
+        "reponse": "Dans le DTO UpdateUserDto, on omet le champ lastLogin. Dans le UserController, on interdit toute mise à jour directe de lastLogin. On expose uniquement une route interne ou une méthode privée du service qui est appelée par le AuthService après authentification. On peut aussi utiliser @Exclude() dans le DTO.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Requête avancée : utilisateurs avec leurs rôles",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour le panneau d'administration, vous devez afficher la liste des utilisateurs avec leurs rôles associés.</p><p><strong>Consigne :</strong> Écrivez la requête TypeORM (Repository) qui charge tous les utilisateurs avec leurs relations ManyToMany (roles) et filtre ceux qui ont le rôle 'seller'.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Rédiger la méthode findAllSellers() dans UserRepository utilisant find et les relations.",
+        "niveau": "medium",
+        "reponse": "async findAllSellers(): Promise<User[]> { return this.find({ relations: ['roles'], where: { roles: { name: 'seller' } } }); }",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquer la différence entre eager loading et lazy loading dans ce contexte et justifier le choix.",
+        "niveau": "very hard",
+        "reponse": "Eager loading charge automatiquement la relation à chaque requête sur l'entité (via eager: true dans la décorateur). Lazy loading charge à la demande quand on accède à la propriété (Promise). Ici, pour une requête spécifique, mieux vaut utiliser relations: ['roles'] pour éviter de surcharger les requêtes non concernées. Eager loading pourrait ralentir toutes les requêtes.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédiger une variante utilisant QueryBuilder pour optimiser la sélection des colonnes (ne retourner que l'email, firstName, lastName et les noms des rôles).",
+        "niveau": "very hard",
+        "reponse": "return this.createQueryBuilder('user') .leftJoinAndSelect('user.roles', 'role') .select(['user.email', 'user.firstName', 'user.lastName', 'role.name']) .where('role.name = :roleName', { roleName: 'seller' }) .getMany();",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Quelle est la relation correcte entre un utilisateur et sa wishlist dans une base de données relationnelle ?",
+    "options": [
+      "OneToOne entre User et Wishlist",
+      "OneToMany entre User et Wishlist",
+      "ManyToMany entre User et Product via Wishlist",
+      "ManyToOne entre User et Wishlist"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "Une wishlist est généralement une relation ManyToMany entre User et Product. Un utilisateur peut avoir plusieurs produits dans sa wishlist, et un produit peut être dans la wishlist de plusieurs utilisateurs. La table pivot `user_wishlist_products` contient les paires (userId, productId)."
+  },
+  {
+    "questionText": "En TypeORM, quelle est la configuration correcte pour une relation ManyToMany entre User et Product pour une wishlist ?",
+    "options": [
+      "@OneToMany(() => Product, product => product.wishlists)",
+      "@ManyToMany(() => Product, product => product.wishlistedBy) @JoinTable()",
+      "@ManyToOne(() => Product) @JoinColumn()",
+      "@OneToOne(() => Product) @JoinTable()"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "En TypeORM, une relation ManyToMany nécessite le décorateur `@ManyToMany()` avec `@JoinTable()` sur le côté propriétaire. L'option avec `product => product.wishlistedBy` définit la relation inverse du côté Product."
+  },
+  {
+    "questionText": "Quel endpoint REST serait le plus approprié pour ajouter un produit (id=10) à la wishlist de l'utilisateur connecté (id=5) ?",
+    "options": [
+      "`POST /users/5/wishlist/products/10`",
+      "`POST /wishlist/products/10`",
+      "`POST /users/wishlist/add?productId=10`",
+      "`GET /wishlist/add/5/10`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "L'utilisateur connecté est identifié via son token JWT, son ID n'a pas besoin d'être dans l'URL (sécurité). L'endpoint `POST /wishlist/products/10` est plus RESTful : on ajoute un produit spécifique à la wishlist de l'utilisateur authentifié."
+  },
+  {
+    "questionText": "Voici un extrait de code. Quelle ligne permet de supprimer un produit de la wishlist ?\n\n```typescript\n@Delete('products/:productId')\nasync removeFromWishlist(@Param('productId') productId: string, @Req() req) {\n  // À compléter\n}\n```",
+    "options": [
+      "`return this.wishlistService.add(productId, req.user.id);`",
+      "`return this.wishlistService.remove(productId, req.user.id);`",
+      "`return this.wishlistService.clear(req.user.id);`",
+      "`return this.productService.delete(productId);`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Pour supprimer un produit spécifique de la wishlist, on appelle une méthode `remove` ou `delete` qui prend l'ID du produit et l'ID de l'utilisateur. La méthode `clear` viderait toute la wishlist, ce qui n'est pas l'intention ici."
+  },
+  {
+    "questionText": "Comment implémenter la vérification qu'un produit est déjà dans la wishlist avant de l'ajouter (pour éviter les doublons) ?",
+    "options": [
+      "Utiliser une contrainte UNIQUE sur (userId, productId) dans la table pivot",
+      "Vérifier côté serveur avec un `findOne` avant d'ajouter",
+      "Ajouter une contrainte CHECK dans PostgreSQL",
+      "Les deux réponses A et B sont correctes"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "hard",
+    "explanation": "Il est recommandé d'avoir une double protection : (1) une contrainte UNIQUE en base de données (userId, productId) pour garantir l'intégrité au niveau SQL, et (2) une vérification côté application avant insertion pour éviter une erreur et donner un message clair à l'utilisateur."
+  },
+  {
+    "questionText": "Quel pattern utiliser pour notifier les utilisateurs lorsqu'un produit de leur wishlist est en promotion ou de nouveau en stock ?",
+    "options": [
+      "Polling (requête périodique du frontend)",
+      "WebSocket pour une notification temps réel",
+      "Queue asynchrone (Bull) + email ou notification push",
+      "Tous les patterns ci-dessus peuvent être combinés"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "hard",
+    "explanation": "La solution optimale combine plusieurs patterns : un job cron vérifie les produits en promo/baisse de prix, envoie des tâches dans une queue Bull, qui ensuite envoient des emails (asynchrone). Pour les notifications temps réel (utilisateur connecté), on peut utiliser WebSocket. Le polling est moins efficace mais peut être une solution de fallback."
+  },
+  {
+    "questionText": "Pour permettre à un utilisateur de partager sa wishlist publiquement, quelle approche est la plus sécurisée ?",
+    "options": [
+      "Générer un token unique (UUID) pour la wishlist et exposer `/shared/{token}`",
+      "Rendre l'ID de l'utilisateur public dans l'URL `/users/5/wishlist`",
+      "Créer une copie publique de la wishlist dans une table séparée",
+      "Désactiver l'authentification sur la route GET de la wishlist"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "hard",
+    "explanation": "La meilleure approche est de générer un token aléatoire (UUID) associé à la wishlist, et de créer un endpoint public `/wishlist/shared/{token}`. Cela permet de partager sans exposer l'identifiant numérique de l'utilisateur, et le token peut être révoqué à tout moment (ex: `regenerateShareToken`)."
+  },
+  {
+    "questionText": "Dans une architecture NestJS, quel module ajouter pour gérer les notifications de wishlist (ex: email quand un produit devient disponible) ?",
+    "options": [
+      "@nestjs/websockets",
+      "@nestjs/bull",
+      "@nestjs/event-emitter",
+      "@nestjs/schedule"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "@nestjs/bull est idéal pour gérer les tâches asynchrones comme l'envoi d'emails. On peut combiner avec @nestjs/schedule pour un cron job qui vérifie périodiquement les changements de stock/prix, et Bull pour l'exécution non bloquante des notifications."
+  },
+  {
+    "questionText": "Quelle entité TypeORM serait nécessaire pour implémenter le suivi des alertes de stock (notifier quand un produit favori est de nouveau disponible) ?",
+    "options": [
+      "Une table `stock_alert` avec userId, productId, createdAt, notifiedAt",
+      "Une colonne `notify_when_back_in_stock` dans la table User",
+      "Une table `wishlist` avec une colonne `notify_stock`",
+      "Une colonne `last_stock_check` dans Product"
+    ],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "explanation": "Pour gérer les alertes de stock, il faut une table dédiée `stock_alert` (ou `wishlist_notification`) qui lie l'utilisateur et le produit, avec une date de notification pour éviter d'envoyer des doublons. On peut aussi stocker la dernière quantité connue pour détecter un passage de 0 à >0."
+  },
+  {
+    "questionText": "Quelle méthode du service `WishlistService` permettrait de récupérer la wishlist complète avec les détails des produits (prix, stock, images) en une seule requête optimisée ?",
+    "options": [
+      "`this.wishlistRepository.find({ relations: ['products'] })`",
+      "`this.userRepository.findOne({ where: { id }, relations: ['wishlist', 'wishlist.products', 'wishlist.products.images'] })`",
+      "Une requête personnalisée avec QueryBuilder et leftJoinAndSelect",
+      "Toutes les méthodes ci-dessus sont possibles selon le contexte"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "medium",
+    "explanation": "Plusieurs approches fonctionnent : (1) `find({ relations })` si la relation est correctement configurée, (2) une requête via User avec relations imbriquées, (3) un QueryBuilder pour un contrôle plus fin. Le choix dépend de la structure des entités et des besoins de chargement."
+  }
+]

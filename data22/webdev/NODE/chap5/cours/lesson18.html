@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 18 : Migrations et Seeders avec Sequelize | Node.js</title>
+    <!-- Tailwind CSS + base & inter font -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Styles personnalisés pour slides et lisibilité -->
+    <style>
+        /* Transition douce pour les slides */
+        .slide-container {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .slide {
+            transition: opacity 0.25s ease-in-out;
+        }
+        /* Pour l'impression et la lecture, fond clair mais confortable */
+        body {
+            background: #f8fafc;
+        }
+        .card-slide {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(0px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+        /* Navigation buttons */
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            background-color: #1e293b;
+        }
+        .dot-active {
+            background-color: #3b82f6;
+            width: 2rem;
+        }
+        /* meilleur espacement mobile */
+        @media (max-width: 640px) {
+            .card-slide {
+                border-radius: 1.5rem;
+                padding: 1.25rem !important;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gradient-to-br from-slate-50 to-sky-50/40">
+
+    <!-- Conteneur principal avec max-width et marges -->
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Slide dynamique : on injecte via jQuery -->
+        <div id="slidesWrapper" class="relative">
+            <!-- zone slide -->
+            <div class="slide-container overflow-hidden rounded-3xl">
+                <div id="currentSlideContent" class="card-slide p-6 md:p-10 transition-all duration-300">
+                    <!-- le contenu est chargé dynamiquement -->
+                    <div class="flex justify-center items-center min-h-[60vh]">
+                        <div class="animate-pulse text-slate-400">Chargement de la leçon...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- indicateurs et navigation (flèches + points) -->
+            <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+                <button id="prevSlide" class="nav-btn bg-slate-800 text-white px-5 py-2.5 rounded-full shadow-md hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    Précédent
+                </button>
+                <div id="slideDots" class="flex gap-2 justify-center flex-wrap"></div>
+                <button id="nextSlide" class="nav-btn bg-blue-600 text-white px-5 py-2.5 rounded-full shadow-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2">
+                    Suivant
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- petite note de bas de page pédagogique -->
+        <p class="text-center text-xs text-slate-500 mt-8 border-t pt-4">Cours Node.js - Backend avec Express & Sequelize | Prof. Cameroun 🇨🇲</p>
+    </div>
+
+    <script>
+        // Données de la leçon 18 : migrations + seeders (basé sur l'objectif fourni)
+        // Titres et contenu structuré en slides : 1) titre principal, 2) objectifs, 3-5 contenu approfondi
+        const slidesData = [
+            {
+                type: "title",
+                title: "📦 Leçon 18 : Migrations & Seeders",
+                subtitle: "Versionner et peupler votre base de données comme un pro",
+                icon: "🐘"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Créer et exécuter des migrations pour versionner le schéma de la base de données (Sequelize).",
+                    "Utiliser les seeders pour peupler la base de données avec des données de test ou initiales.",
+                    "Maîtriser les bonnes pratiques de gestion de schéma en équipe.",
+                    "Comprendre l'intérêt des migrations dans le cycle de vie d'une application Node.js."
+                ]
+            },
+            {
+                type: "content",
+                title: "🗃️ Pourquoi les migrations ?",
+                content: `<p class="mb-3">En développement d'applications, la base de données évolue : on ajoute une colonne, on modifie un type, on crée une nouvelle table. <strong>Les migrations</strong> sont des fichiers qui décrivent ces modifications de façon <strong>versionnée</strong> et <strong>automatisée</strong>.</p>
+                <div class="bg-blue-50 p-4 rounded-xl border-l-8 border-blue-500 my-4">
+                    <p class="font-semibold">✅ Avantages :</p>
+                    <ul class="list-disc list-inside space-y-1 mt-1">
+                        <li>Garder l'historique des changements du schéma.</li>
+                        <li>Travailler à plusieurs sans conflit manuel.</li>
+                        <li>Déployer facilement en production (migration automatique).</li>
+                        <li>Revenir en arrière (rollback) si nécessaire.</li>
+                    </ul>
+                </div>
+                <p>Avec <strong>Sequelize</strong> (ORM pour PostgreSQL, MySQL, SQLite), l'outil CLI permet de générer et d'exécuter des migrations.</p>`
+            },
+            {
+                type: "content",
+                title: "⚙️ Générer et exécuter une migration (Sequelize)",
+                content: `<p class="font-mono text-sm bg-gray-100 p-2 rounded mb-2">npx sequelize-cli migration:generate --name create-users-table</p>
+                <p class="mb-3">Cela crée un fichier dans <code class="bg-gray-200 px-1 rounded">migrations/</code> avec des fonctions <code>up</code> (appliquer) et <code>down</code> (annuler).</p>
+                <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg text-sm overflow-x-auto"><code>module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('Users', {
+      id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
+      name: { type: Sequelize.STRING, allowNull: false },
+      email: { type: Sequelize.STRING, unique: true },
+      createdAt: Sequelize.DATE,
+      updatedAt: Sequelize.DATE
+    });
+  },
+  down: async (queryInterface) => {
+    await queryInterface.dropTable('Users');
+  }
+};</code></pre>
+                <p>Exécuter les migrations : <code class="bg-gray-200 px-2 rounded">npx sequelize-cli db:migrate</code>. Pour annuler la dernière : <code class="bg-gray-200 px-2 rounded">npx sequelize-cli db:migrate:undo</code>.</p>`
+            },
+            {
+                type: "content",
+                title: "🌱 Les Seeders : peupler avec des données initiales",
+                content: `<p>Les seeders permettent d'insérer des données de démonstration, des rôles par défaut ou des données de test.</p>
+                <div class="my-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <p class="font-bold">✨ Commande pour générer un seeder :</p>
+                    <code class="block bg-white p-2 rounded mt-1">npx sequelize-cli seed:generate --name demo-users</code>
+                </div>
+                <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg text-sm overflow-x-auto"><code>module.exports = {
+  up: async (queryInterface) => {
+    await queryInterface.bulkInsert('Users', [
+      { name: 'Alice', email: 'alice@example.com', createdAt: new Date(), updatedAt: new Date() },
+      { name: 'Bob', email: 'bob@example.com', createdAt: new Date(), updatedAt: new Date() }
+    ], {});
+  },
+  down: async (queryInterface) => {
+    await queryInterface.bulkDelete('Users', null, {});
+  }
+};</code></pre>
+                <p class="mt-2">Exécuter tous les seeders : <code class="bg-gray-200 px-1 rounded">npx sequelize-cli db:seed:all</code>. Annuler : <code>db:seed:undo:all</code>.</p>`
+            },
+            {
+                type: "content",
+                title: "🏗️ Bonnes pratiques migrations & seeders en équipe",
+                content: `<ul class="list-disc pl-6 space-y-3">
+                    <li><span class="font-semibold">Ne jamais modifier manuellement une migration déjà partagée</span> : créer une nouvelle migration pour altérer la table.</li>
+                    <li><span class="font-semibold">Nommer clairement les migrations</span> (ex: 20250320120000-add-age-to-users.js).</li>
+                    <li><span class="font-semibold">Tester les rollbacks</span> localement avant de pousser en production.</li>
+                    <li><span class="font-semibold">Séparer seeders de développement et de production</span> (ex: utiliser env pour distinguer).</li>
+                    <li>Utiliser <code class="bg-gray-100 px-1 rounded">queryInterface.sequelize.transaction</code> pour garantir atomicité des migrations complexes.</li>
+                </ul>
+                <div class="mt-5 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                    ⚠️ <strong>Conseil pro</strong> : En équipe, toujours versionner les dossiers <code>migrations/</code> et <code>seeders/</code> dans Git. Chaque membre exécute les migrations pour synchroniser son schéma.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📝 Exemple pratique : Ajout d'une colonne via migration",
+                content: `<p>Imaginons qu'on doive ajouter la colonne "phone" à la table Users après déploiement :</p>
+                <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg text-sm overflow-x-auto"><code>npx sequelize-cli migration:generate --name add-phone-to-users</code></pre>
+                <pre class="bg-slate-800 text-slate-100 p-3 rounded-lg text-sm overflow-x-auto mt-2"><code>module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.addColumn('Users', 'phone', {
+      type: Sequelize.STRING,
+      allowNull: true
+    });
+  },
+  down: async (queryInterface) => {
+    await queryInterface.removeColumn('Users', 'phone');
+  }
+};</code></pre>
+                <p>Exécuter : <code>npx sequelize-cli db:migrate</code>. Votre base est mise à jour sans perte de données ! 🚀</p>`
+            },
+            {
+                type: "content", 
+                title: "🔁 Exercice de synthèse",
+                content: `<div class="bg-indigo-50 p-5 rounded-2xl">
+                    <p class="font-bold text-indigo-800">💡 À vous de jouer :</p>
+                    <ol class="list-decimal list-inside mt-2 space-y-1">
+                        <li>Créez un modèle "Product" avec les champs name, price, stock.</li>
+                        <li>Générez la migration correspondante via Sequelize CLI.</li>
+                        <li>Créez un seeder pour insérer 3 produits fictifs.</li>
+                        <li>Exécutez migration + seed, puis vérifiez avec un petit script Node.js.</li>
+                    </ol>
+                    <p class="mt-3 text-sm">🎯 Objectif : valider la compétence "versionner et peupler la BDD".</p>
+                </div>
+                <p class="mt-4 text-slate-600">Les migrations et seeders sont des piliers dans un projet Node.js professionnel. Maîtrisez-les pour gagner en fiabilité !</p>`
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML du slide en fonction du type
+        function renderSlide(index) {
+            const data = slidesData[index];
+            if (!data) return "<div>Erreur slide</div>";
+            
+            if (data.type === "title") {
+                return `
+                    <div class="text-center py-4 md:py-8">
+                        <div class="text-6xl mb-4">${data.icon || "📘"}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-slate-800 to-blue-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-lg text-gray-600 mt-4 max-w-md mx-auto">${data.subtitle || "Migrations & Seeders avec Sequelize"}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="h-1 w-16 bg-blue-500 rounded-full"></div>
+                        </div>
+                        <p class="text-sm text-gray-400 mt-6">Classe Développement Web | Node.js avancé</p>
+                    </div>
+                `;
+            } 
+            else if (data.type === "objectifs") {
+                return `
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800 border-l-5 border-blue-500 pl-3 mb-5">${data.title}</h2>
+                        <ul class="space-y-4">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 bg-white/60 p-3 rounded-xl shadow-sm"><span class="text-blue-600 text-xl">🎯</span> <span class="text-gray-700">${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 bg-blue-50 p-4 rounded-2xl text-sm">
+                            <p class="font-medium">📌 À la fin de ce chapitre, vous serez capable de gérer l'évolution de base de données comme un vrai backend engineer.</p>
+                        </div>
+                    </div>
+                `;
+            }
+            else if (data.type === "content") {
+                return `
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2 mb-5"><span class="text-blue-600 text-2xl">📖</span> ${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed space-y-3">
+                            ${data.content}
+                        </div>
+                    </div>
+                `;
+            }
+            return `<div>Contenu non disponible</div>`;
+        }
+
+        // Mise à jour de l'affichage et des contrôles
+        function updateSlideUI() {
+            const htmlContent = renderSlide(currentIndex);
+            $("#currentSlideContent").fadeOut(150, function() {
+                $(this).html(htmlContent).fadeIn(200);
+                // Rafraîchir MathJax si nécessaire (formules)
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            });
+            
+            // Gestion des boutons précédent/suivant
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            $("#nextSlide").prop("disabled", currentIndex === totalSlides - 1);
+            
+            // Mise à jour des dots
+            updateDots();
+        }
+
+        function updateDots() {
+            let dotsHtml = "";
+            for (let i = 0; i < totalSlides; i++) {
+                let activeClass = (i === currentIndex) ? "bg-blue-600 w-8" : "bg-gray-300 w-3";
+                dotsHtml += `<button class="dot-nav h-2 rounded-full transition-all duration-200 ${activeClass} hover:bg-blue-400" data-index="${i}"></button>`;
+            }
+            $("#slideDots").html(dotsHtml);
+            // click events sur les dots
+            $(".dot-nav").on("click", function() {
+                const newIdx = parseInt($(this).data("index"));
+                if (!isNaN(newIdx) && newIdx !== currentIndex && newIdx >=0 && newIdx < totalSlides) {
+                    currentIndex = newIdx;
+                    updateSlideUI();
+                }
+            });
+        }
+
+        // Navigation
+        $("#prevSlide").on("click", function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSlideUI();
+            }
+        });
+        
+        $("#nextSlide").on("click", function() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateSlideUI();
+            }
+        });
+        
+        // Gestion clavier (flèches gauche/droite)
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowLeft") {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    updateSlideUI();
+                }
+            } else if (e.key === "ArrowRight") {
+                if (currentIndex < totalSlides - 1) {
+                    currentIndex++;
+                    updateSlideUI();
+                }
+            }
+        });
+        
+        // Initialisation
+        updateSlideUI();
+
+        // Option: dessiner une miniature SVG représentant un schéma de migration (pour illustrer, petite insertion dynamique sans image externe)
+        // En accord avec la consigne "si nécessaire tu dessines toi-même", j'ajoute un petit schéma SVG dans le contenu d'un slide (celui des bonnes pratiques par ex)
+        // Mais on le fait après chargement pour enrichir le slide 5 (bonnes pratiques) sans casser, on injecte une illustration simple via jQuery après rendu.
+        // On utilise un MutationObserver ou on le fait après chaque slide (mais juste pour le slide index 5 amélioration)
+        function injectCustomIllustrations() {
+            // pour le slide "bonnes pratiques" ou "migrations" ajouter une petite frise SVG
+            if (slidesData[currentIndex] && (slidesData[currentIndex].title.includes("Bonnes pratiques") || slidesData[currentIndex].title.includes("migrations"))) {
+                if ($("#svg-mig-draw").length === 0 && $(".card-slide").find("pre").length > 0) {
+                    // insérer un petit diagramme après le premier bloc pour montrer le flux migration
+                    let schemaSvg = `<div id="svg-mig-draw" class="my-5 flex justify-center">
+                        <svg width="280" height="90" viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="70" height="40" rx="8" fill="#e2e8f0" stroke="#3b82f6" stroke-width="2" />
+                            <text x="28" y="35" font-size="10" fill="#1e293b">Modèle</text>
+                            <text x="24" y="48" font-size="8" fill="#475569">v1</text>
+                            <path d="M85 30 L115 30" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+                            <rect x="120" y="10" width="70" height="40" rx="8" fill="#e2e8f0" stroke="#3b82f6" stroke-width="2" />
+                            <text x="135" y="35" font-size="10" fill="#1e293b">Migration</text>
+                            <text x="142" y="48" font-size="8" fill="#475569">add column</text>
+                            <path d="M195 30 L225 30" stroke="#f97316" stroke-width="2"/>
+                            <rect x="230" y="10" width="60" height="40" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2" />
+                            <text x="245" y="35" font-size="10" fill="#1e293b">BDD</text>
+                            <text x="250" y="48" font-size="8" fill="#166534">v2</text>
+                            <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f97316"/></marker></defs>
+                        </svg>
+                        <p class="sr-only">Schéma migration: évolution du modèle vers base de données</p>
+                    </div>`;
+                    // On évite du double, insère après le premier paragraphe
+                    if ($("#svg-mig-draw").length === 0 && $(".card-slide").children().length > 1) {
+                        $(".card-slide .prose p:first-child").after(schemaSvg);
+                    }
+                }
+            } else {
+                // on retire si besoin mais pas obligatoire
+            }
+        }
+
+        // Après chaque mise à jour du slide, tenter d'injecter dessin si approprié
+        const originalUpdate = updateSlideUI;
+        window.updateSlideUI = function() {
+            originalUpdate();
+            setTimeout(() => {
+                injectCustomIllustrations();
+                // également ajouter des exemples de code bien formatés
+                $("pre code").each(function() {
+                    if($(this).parent("pre").length) $(this).parent("pre").addClass("overflow-x-auto");
+                });
+            }, 100);
+        };
+        updateSlideUI = window.updateSlideUI;
+        updateSlideUI();
+        
+        // Pour rester cohérent, redéfinir la méthode initiale
+        // remplacement manuel
+        const boundUpdate = updateSlideUI.bind(this);
+        $("#nextSlide, #prevSlide, .dot-nav").off().on("click", function(e) {
+            if($(this).hasClass("dot-nav")) {
+                let idx = $(this).data("index");
+                if(idx!==undefined && idx!==currentIndex) {
+                    currentIndex = idx;
+                    boundUpdate();
+                }
+                return;
+            }
+            if($(this).attr("id")==="nextSlide" && currentIndex<totalSlides-1) {
+                currentIndex++;
+                boundUpdate();
+            } else if($(this).attr("id")==="prevSlide" && currentIndex>0) {
+                currentIndex--;
+                boundUpdate();
+            }
+        });
+        // Re-associer les events dots car elles sont régénérées
+        function rebindDots() {
+            $(".dot-nav").off("click").on("click", function() {
+                let idx = $(this).data("index");
+                if(idx!==undefined && idx!==currentIndex) {
+                    currentIndex = idx;
+                    boundUpdate();
+                }
+            });
+        }
+        // surcharge updateDots
+        const superDots = updateDots;
+        window.updateDots = function() {
+            superDots();
+            rebindDots();
+        };
+        updateDots = window.updateDots;
+        updateDots();
+        
+        // fix pour les clavier après le overrides
+        $(document).off("keydown").on("keydown", function(e) {
+            if (e.key === "ArrowLeft") {
+                if (currentIndex > 0) { currentIndex--; boundUpdate(); }
+            } else if (e.key === "ArrowRight") {
+                if (currentIndex < totalSlides - 1) { currentIndex++; boundUpdate(); }
+            }
+        });
+    </script>
+</body>
+</html>

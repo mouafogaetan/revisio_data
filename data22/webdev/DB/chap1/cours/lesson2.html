@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 2 : SQL vs NoSQL - Initiation aux Bases de Données</title>
+    <!-- Tailwind CSS + Font Awesome (pour quelques icônes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Personnalisation légère pour fluidité des slides et transitions */
+        body {
+            background: #f1f5f9;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            transition: all 0.2s ease;
+        }
+        .slide-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 1.5rem;
+        }
+        .nav-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .nav-btn:hover {
+            transform: scale(1.03);
+            background-color: #1e293b;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .slide-card {
+                border-radius: 1.2rem;
+            }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+        }
+        /* rendre les listes agréables */
+        .custom-list li {
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .custom-list li::before {
+            content: "▹";
+            color: #0f3b5c;
+            font-weight: bold;
+            display: inline-block;
+            width: 1.2rem;
+        }
+        .bullet-db {
+            background: #eef2ff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50">
+
+    <!-- Conteneur principal -->
+    <div class="min-h-screen py-6 px-3 md:py-10 md:px-6 flex flex-col items-center justify-center">
+        <div class="slide-container w-full">
+            <!-- Slide Cards wrapper -->
+            <div id="slides-wrapper" class="relative">
+                <!-- Les slides seront injectées dynamiquement par jQuery -->
+            </div>
+
+            <!-- Navigation + indicateur de progression -->
+            <div class="flex justify-between items-center mt-6 gap-3 flex-wrap">
+                <button id="prevSlide" class="nav-btn bg-gray-800 text-white px-5 py-2 rounded-full shadow-md hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+                    ← Précédent
+                </button>
+                <div class="flex items-center gap-3 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+                    <span id="slideCounter" class="text-sm font-medium text-gray-700">Slide 1 / 1</span>
+                    <div class="w-32 md:w-48 h-2 bg-gray-300 rounded-full overflow-hidden">
+                        <div id="progressFill" class="progress-bar h-full bg-blue-700 rounded-full" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <button id="nextSlide" class="nav-btn bg-blue-800 text-white px-5 py-2 rounded-full shadow-md hover:bg-blue-900 flex items-center gap-2">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides pour la leçon 2 : "Distinguer SQL / NoSQL, sous-catégories, choix"
+        // D'après le fichier : lesson2 (chap1) objectifs : 
+        // 1. Distinguer relationnel (SQL) et non relationnel (NoSQL)
+        // 2. Découvrir sous-catégories (document, clé-valeur, colonnaire, graphe)
+        // 3. Choisir le bon type selon cas d'usage
+        const slidesData = [
+            {
+                type: "title",
+                title: "📚 Types de bases de données",
+                subtitle: "SQL vs NoSQL – Comprendre pour bien choisir",
+                chapter: "Leçon 2 · Initiation aux Bases de données",
+                icon: "🗄️"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Distinguer les bases de données relationnelles (SQL) et non relationnelles (NoSQL).",
+                    "Découvrir les sous-catégories : document, clé-valeur, colonnaire, graphe.",
+                    "Choisir le bon type de base de données selon le cas d'usage."
+                ]
+            },
+            {
+                type: "content",
+                title: "🔹 Qu'est-ce qu'une base de données relationnelle (SQL) ?",
+                content: `<p class="text-gray-800 leading-relaxed">Les bases <span class="font-semibold text-blue-800">SQL (Structured Query Language)</span> sont fondées sur le modèle relationnel inventé par E.F. Codd. Elles organisent les données en <strong>tables</strong> reliées entre elles par des clés (primaire/étrangère). Chaque table a un schéma fixe (colonnes avec types définis).</p>
+                <div class="mt-4 bg-blue-50 p-4 rounded-xl border-l-4 border-blue-600">
+                    <p class="font-medium">📌 Exemples populaires :</p>
+                    <p class="mt-1">MySQL, PostgreSQL, SQLite, Oracle, Microsoft SQL Server.</p>
+                    <p class="mt-2 text-sm text-gray-700">✅ Idéal pour les applications nécessitant <strong>intégrité référentielle</strong>, transactions ACID, et requêtes complexes.</p>
+                </div>
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="bg-white rounded-lg p-3 shadow-sm border"><span class="font-bold">✔️ Avantages</span> : Cohérence forte, langage standardisé, maturité, sécurité.</div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm border"><span class="font-bold">⚠️ Inconvénients</span> : Schéma rigide, difficulté de scalabilité horizontale, parfois moins performant pour gros volumes non structurés.</div>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🔸 Découverte : Bases NoSQL (Not Only SQL)",
+                content: `<p class="text-gray-800 leading-relaxed">Les bases <span class="font-semibold text-emerald-700">NoSQL</span> sont apparues pour répondre aux besoins des applications modernes (gros volumes, données non structurées, scalabilité horizontale). Elles abandonnent (ou allègent) certaines contraintes relationnelles pour gagner en <strong>flexibilité</strong> et en <strong>performance</strong> à grande échelle.</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">Schéma dynamique</span>
+                    <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">Scalabilité horizontale</span>
+                    <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm">Haute disponibilité</span>
+                </div>
+                <p class="mt-4 text-gray-700">Contrairement au SQL, NoSQL propose plusieurs modèles de données. Chaque famille répond à des problématiques spécifiques.</p>`
+            },
+            {
+                type: "content",
+                title: "📂 Les 4 grandes familles NoSQL",
+                content: `<div class="space-y-5">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-8 border-l-amber-500"><span class="font-bold text-lg">📄 1. Bases document</span><br>Stockage sous forme de documents (JSON, BSON). Ex: <strong>MongoDB</strong>, CouchDB. Flexible, proche des objets en programmation.</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-8 border-l-sky-500"><span class="font-bold text-lg">🔑 2. Clé-valeur (Key-Value)</span><br>Associations uniques clé → valeur. Ultra rapide pour des lectures simples. Ex: <strong>Redis</strong>, DynamoDB (mode clé-valeur). Idéal pour cache, sessions.</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-8 border-l-purple-500"><span class="font-bold text-lg">📊 3. Colonnaire (Wide Column)</span><br>Organisation par colonnes, adapté à l'analyse de gros volumes. Ex: <strong>Cassandra</strong>, HBase.</div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-8 border-l-rose-500"><span class="font-bold text-lg">🕸️ 4. Bases graphe</span><br>Priorité aux relations entre entités (nœuds et arêtes). Ex: <strong>Neo4j</strong>, ArangoDB. Parfait pour réseaux sociaux, moteurs de recommandation.</div>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "⚖️ SQL vs NoSQL : Comparaison visuelle",
+                content: `<div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-xl shadow-md text-sm md:text-base">
+                        <thead class="bg-gray-100 border-b">
+                            <tr><th class="px-4 py-3 text-left">Critère</th><th class="px-4 py-3 text-left">SQL (Relationnel)</th><th class="px-4 py-3 text-left">NoSQL</th></tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr><td class="px-4 py-2 font-medium">Schéma</td><td class="px-4 py-2">Fixe, prédéfini</td><td class="px-4 py-2">Dynamique / flexible</td></tr>
+                            <tr><td class="px-4 py-2 font-medium">Scalabilité</td><td class="px-4 py-2">Verticale (augmenter puissance serveur)</td><td class="px-4 py-2">Horizontale (ajouter des serveurs)</td></tr>
+                            <tr><td class="px-4 py-2 font-medium">Transactions ACID</td><td class="px-4 py-2">Fort support</td><td class="px-4 py-2">Souvent BASE (finale cohérence)</td></tr>
+                            <tr><td class="px-4 py-2 font-medium">Requêtes</td><td class="px-4 py-2">SQL puissant, jointures complexes</td><td class="px-4 py-2">API spécifique, agrégations selon modèle</td></tr>
+                            <tr><td class="px-4 py-2 font-medium">Cas typique</td><td class="px-4 py-2">ERP, finance, applications critiques</td><td class="px-4 py-2">Big Data, IoT, réseaux sociaux, cache</td></tr>
+                    </tbody></table>
+                </div>
+                <p class="text-xs text-gray-500 mt-3 italic">*BASE : Basically Available, Soft state, Eventual consistency.</p>`
+            },
+            {
+                type: "content",
+                title: "🧭 Comment bien choisir ? (Cas concrets)",
+                content: `<div class="grid md:grid-cols-2 gap-5">
+                    <div class="bg-indigo-50 rounded-xl p-4 shadow-inner"><span class="font-bold text-indigo-800">🏦 Quand choisir SQL ?</span>
+                        <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700"><li>Données structurées avec relations complexes.</li><li>Exigences d'intégrité forte (comptes bancaires, commandes).</li><li>Besoin de requêtes ad-hoc et de rapports précis.</li><li>Équipe déjà familière avec SQL.</li></ul>
+                    </div>
+                    <div class="bg-emerald-50 rounded-xl p-4 shadow-inner"><span class="font-bold text-emerald-800">☁️ Quand choisir NoSQL ?</span>
+                        <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-700"><li>Données semi-structurées ou non structurées (JSON, logs).</li><li>Scalabilité horizontale massive (millions d'utilisateurs).</li><li>Évolution rapide du schéma (agile).</li><li>Cas spécifiques : cache (Redis), graphe (Neo4j), documents (MongoDB).</li></ul>
+                    </div>
+                </div>
+                <div class="mt-6 bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-500 text-sm"><strong>💡 Règle d'or :</strong> Il n'y a pas de "meilleur" absolu. Certaines applications combinent SQL + NoSQL (polyglotte persistance). Exemple : catalogue produit en MongoDB et gestion des commandes en PostgreSQL.</div>`
+            },
+            {
+                type: "content",
+                title: "📌 Mini quiz / Synthèse",
+                content: `<div class="space-y-4">
+                    <p class="font-semibold">🧠 Vérifions la compréhension :</p>
+                    <div class="bg-white rounded-xl p-4 shadow-sm"><span class="block font-medium">1️⃣ Quelle famille NoSQL convient pour un système de recommandation d'amis ?</span> <span class="text-gray-700">→ Base de données graphe (Neo4j par ex).</span></div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm"><span class="block font-medium">2️⃣ Quel est un avantage clé des bases SQL ?</span> <span class="text-gray-700">→ Intégrité référentielle et support ACID pour les transactions.</span></div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm"><span class="block font-medium">3️⃣ Citez deux exemples de bases clé-valeur.</span> <span class="text-gray-700">→ Redis, Amazon DynamoDB (mode clé-valeur), Memcached.</span></div>
+                </div>
+                <p class="mt-5 text-center text-sm text-gray-500">👨‍🏫 Dans la prochaine leçon nous verrons les SGBD (Systèmes de Gestion de Bases de Données).</p>`
+            },
+            {
+                type: "end",
+                title: "✨ Récapitulons ✨",
+                message: "Vous savez maintenant distinguer SQL et NoSQL, identifier les 4 grandes familles NoSQL et choisir selon le contexte. Continuez à pratiquer !",
+                cta: "Fin du cours - Revoir les slides"
+            }
+        ];
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour générer le HTML d'une slide selon son type
+        function renderSlide(slide, idx) {
+            if (slide.type === "title") {
+                return `<div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-10 w-full transition-all">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="text-6xl mb-4">${slide.icon || "🗄️"}</div>
+                                <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-blue-800 to-indigo-700 bg-clip-text text-transparent">${slide.title}</h1>
+                                <p class="text-gray-600 text-lg md:text-xl mt-3">${slide.subtitle}</p>
+                                <div class="mt-8 bg-gray-100 px-6 py-2 rounded-full text-sm text-gray-600">${slide.chapter}</div>
+                                <div class="mt-10 w-16 h-1 bg-blue-500 rounded-full"></div>
+                                <p class="mt-6 text-gray-500 text-sm">👉 Glissez ou utilisez les boutons</p>
+                            </div>
+                        </div>`;
+            } 
+            else if (slide.type === "objectives") {
+                return `<div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-8 w-full">
+                            <div class="border-b border-blue-200 pb-3 mb-5">
+                                <h2 class="text-2xl md:text-3xl font-bold text-blue-900">${slide.title}</h2>
+                            </div>
+                            <ul class="space-y-4 text-gray-800 text-base md:text-lg">
+                                ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-blue-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                            </ul>
+                            <div class="mt-8 p-3 bg-blue-50 rounded-xl text-sm italic text-blue-700">À la fin de cette leçon, vous serez capable de faire ces distinctions essentielles pour développer des applications modernes.</div>
+                        </div>`;
+            }
+            else if (slide.type === "content") {
+                return `<div class="slide-card bg-white shadow-2xl rounded-2xl p-6 md:p-8 w-full">
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-6 border-blue-600 pl-3 mb-5">${slide.title}</h2>
+                            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+                        </div>`;
+            }
+            else if (slide.type === "end") {
+                return `<div class="slide-card bg-white shadow-2xl rounded-2xl p-8 md:p-12 w-full text-center">
+                            <div class="text-5xl mb-4">🏁</div>
+                            <h2 class="text-3xl font-bold text-gray-800">${slide.title}</h2>
+                            <p class="text-gray-700 mt-4 text-lg">${slide.message}</p>
+                            <button id="restartBtn" class="mt-8 bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-full transition shadow-md">⟳ Revoir depuis le début</button>
+                        </div>`;
+            }
+            return `<div class="slide-card bg-white shadow-xl rounded-2xl p-6">Contenu par défaut</div>`;
+        }
+
+        // Mise à jour de l'affichage : slide active + navigation + progression
+        function updateDisplay() {
+            const currentSlideData = slidesData[currentIndex];
+            const slideHtml = renderSlide(currentSlideData, currentIndex);
+            $("#slides-wrapper").html(slideHtml);
+            
+            // Met à jour compteur
+            $("#slideCounter").text(`Slide ${currentIndex+1} / ${totalSlides}`);
+            const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+            $("#progressFill").css("width", `${progressPercent}%`);
+            
+            // Gestion état boutons
+            $("#prevSlide").prop("disabled", currentIndex === 0);
+            if (currentIndex === 0) {
+                $("#prevSlide").addClass("opacity-50 cursor-not-allowed");
+            } else {
+                $("#prevSlide").removeClass("opacity-50 cursor-not-allowed");
+            }
+            
+            if (currentIndex === totalSlides - 1) {
+                $("#nextSlide").text("Terminé ✓");
+            } else {
+                $("#nextSlide").text("Suivant →");
+            }
+            
+            // événement spécial pour le bouton "revoir" dans la slide de fin
+            if (currentSlideData.type === "end") {
+                $("#restartBtn").off("click").on("click", function() {
+                    currentIndex = 0;
+                    updateDisplay();
+                });
+            }
+            
+            // scroll automatique en haut pour les mobiles
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                updateDisplay();
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+        
+        // Gestion des événements clavier (flèches gauche/droite) pour accessibilité
+        $(document).on("keydown", function(e) {
+            if (e.key === "ArrowRight") {
+                nextSlide();
+                e.preventDefault();
+            } else if (e.key === "ArrowLeft") {
+                prevSlide();
+                e.preventDefault();
+            }
+        });
+        
+        // Initialisation
+        $(document).ready(function() {
+            updateDisplay();
+            $("#nextSlide").on("click", nextSlide);
+            $("#prevSlide").on("click", prevSlide);
+            
+            // swiper tactile minimal (pour mobile) - option simple avec jQuery touch events
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const wrapper = document.getElementById("slides-wrapper");
+            if(wrapper) {
+                wrapper.addEventListener("touchstart", (e) => {
+                    touchStartX = e.changedTouches[0].screenX;
+                });
+                wrapper.addEventListener("touchend", (e) => {
+                    touchEndX = e.changedTouches[0].screenX;
+                    if (touchEndX < touchStartX - 50) nextSlide();
+                    if (touchEndX > touchStartX + 50) prevSlide();
+                });
+            }
+        });
+    </script>
+    <!-- Message supplémentaire : petite note de bas de page -->
+    <footer class="text-center text-gray-400 text-xs py-6 w-full">
+        Cours conçu pour la classe Développement Web — Initiation aux Bases de données (Leçon 2) | Cameroun 🇨🇲
+    </footer>
+</body>
+</html>

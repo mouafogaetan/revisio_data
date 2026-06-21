@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 46 : PWA avec Vite - Cache et hors ligne</title>
+    <!-- Tailwind CSS + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour formules légères -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide {
+            transition: opacity 0.4s ease-in-out, transform 0.3s ease;
+            opacity: 0;
+            transform: translateX(20px);
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+            position: relative;
+        }
+        .slide-container {
+            position: relative;
+            min-height: 70vh;
+        }
+        body {
+            background: linear-gradient(145deg, #f6f2fc 0%, #eef2ff 100%);
+        }
+        .card-glass {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.12);
+        }
+        .btn-nav {
+            transition: all 0.2s;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.75rem;
+            margin: 1rem 0;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 640px) {
+            pre { font-size: 0.7rem; padding: 0.75rem; }
+            .card-glass { padding: 1.2rem; }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <!-- En-tête avec progression -->
+    <div class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div class="bg-white/80 backdrop-blur-sm rounded-full px-5 py-2 shadow-sm">
+            <span class="font-semibold text-indigo-700">📱 Module 12 · Progressive Web App</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm bg-white/60 rounded-full px-4 py-1.5 shadow-sm">
+            <span class="font-medium text-gray-700">Leçon 46/57</span>
+            <div class="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div class="progress-bar h-full bg-indigo-600 w-[80%]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteneur principal slides -->
+    <div class="card-glass p-6 md:p-8 border border-indigo-100">
+        <div class="slide-container" id="slidesContainer">
+            <!-- SLIDE 1 : Titre de la leçon -->
+            <div class="slide active" data-slide="0">
+                <div class="text-center py-8 md:py-12">
+                    <div class="inline-block p-3 bg-indigo-100 rounded-full mb-4">
+                        <svg class="w-12 h-12 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-800 to-purple-700 bg-clip-text text-transparent">PWA avec Vite & Hors-ligne</h1>
+                    <p class="text-lg text-gray-600 mt-4 max-w-xl mx-auto">Transformer votre e-commerce en Progressive Web App : cache, service worker et fonctionnalités offline</p>
+                    <div class="mt-8 flex flex-wrap justify-center gap-3 text-sm">
+                        <span class="bg-indigo-50 px-4 py-1.5 rounded-full">📱 PWA</span>
+                        <span class="bg-indigo-50 px-4 py-1.5 rounded-full">⚙️ Vite PWA Plugin</span>
+                        <span class="bg-indigo-50 px-4 py-1.5 rounded-full">💾 Cache stratégies</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : Objectifs pédagogiques -->
+            <div class="slide" data-slide="1">
+                <div class="py-4">
+                    <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-4 mb-6">🎯 Objectifs de la leçon</h2>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="bg-indigo-50/50 rounded-xl p-4 flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span>Installer et configurer le plugin Vite PWA</span></div>
+                        <div class="bg-indigo-50/50 rounded-xl p-4 flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span>Comprendre le service worker et la stratégie de cache</span></div>
+                        <div class="bg-indigo-50/50 rounded-xl p-4 flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span>Cacher les assets critiques (images, CSS, JS)</span></div>
+                        <div class="bg-indigo-50/50 rounded-xl p-4 flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span><span>Permettre la consultation du catalogue hors-ligne</span></div>
+                    </div>
+                    <div class="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-sm">💡 Une PWA se comporte comme une application native : installation, icône sur l'écran d'accueil, fonctionnement sans internet.</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : Installation et configuration de vite-plugin-pwa -->
+            <div class="slide" data-slide="2">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">📦 Installation et configuration</h2>
+                <p>On ajoute le plugin officiel à notre projet Vite :</p>
+                <pre><code>npm install -D vite-plugin-pwa</code></pre>
+                <p>Configuration dans <code>vite.config.js</code> :</p>
+                <pre><code>import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      manifest: {
+        name: 'Mon E-commerce',
+        short_name: 'E-shop',
+        theme_color: '#4f46e5',
+        background_color: '#ffffff',
+        display: 'standalone',
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.mon-site\.com\/products/,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'api-cache' }
+          }
+        ]
+      }
+    })
+  ]
+});</code></pre>
+                <div class="text-sm text-gray-600 mt-2">✨ Le manifest génère l'icône d'installation ; Workbox gère la stratégie de cache.</div>
+            </div>
+
+            <!-- SLIDE 4 : Stratégies de cache (NetworkFirst, CacheFirst, StaleWhileRevalidate) -->
+            <div class="slide" data-slide="3">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">🔄 Stratégies de cache (Workbox)</h2>
+                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                    <span class="font-bold">NetworkFirst :</span> requête réseau d'abord, fallback cache → parfait pour l'API (produits, prix)
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                    <span class="font-bold">CacheFirst :</span> d'abord le cache, très rapide → pour les assets statiques (CSS, JS, images de marque)
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <span class="font-bold">StaleWhileRevalidate :</span> retourne le cache immédiatement, met à jour en arrière-plan → idéal pour les avis clients.
+                </div>
+                <pre class="text-xs mt-3"><code>// Exemple pour les images produits : CacheFirst
+{
+  urlPattern: /\.(png|jpg|jpeg|webp)$/,
+  handler: 'CacheFirst',
+  options: { cacheName: 'image-cache', expiration: { maxEntries: 50, maxAgeSeconds: 30*24*60*60 } }
+}</code></pre>
+            </div>
+
+            <!-- SLIDE 5 : Caching des assets critiques -->
+            <div class="slide" data-slide="4">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">💾 Cacher les assets critiques</h2>
+                <p>Le manifest définit quels fichiers sont pré-cachés à l'installation :</p>
+                <pre><code>workbox: {
+  globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+  // Inclusion manuelle
+  additionalManifestEntries: [
+    { url: '/offline.html', revision: '1' }
+  ]
+}</code></pre>
+                <p>Le service worker installe ces fichiers dans le cache dès la première visite. Grâce à cela, l'application se lance même sans réseau (offline-first).</p>
+                <div class="bg-blue-50 p-3 rounded-lg mt-2 text-blue-800">📌 Astuce : proposez une page hors-ligne personnalisée <code>offline.html</code> pour informer l'utilisateur.</div>
+            </div>
+
+            <!-- SLIDE 6 : Fonctionnalités hors-ligne (catalogue consultable) -->
+            <div class="slide" data-slide="5">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">📱 Consultation du catalogue hors-ligne</h2>
+                <p>Pour que les produits restent accessibles sans connexion :</p>
+                <ul class="list-disc pl-6 space-y-1 text-gray-700 mb-4">
+                    <li>Utiliser <strong>NetworkFirst</strong> sur l'API GET /products</li>
+                    <li>Stocker les résultats dans IndexedDB via Workbox</li>
+                    <li>Fournir un fallback si aucune donnée en cache.</li>
+                </ul>
+                <pre><code>// runtimeCaching
+{
+  urlPattern: /\/api\/v1\/products/,
+  handler: 'NetworkFirst',
+  options: {
+    cacheName: 'products-cache',
+    networkTimeoutSeconds: 3,
+    expiration: { maxEntries: 100, maxAgeSeconds: 86400 }
+  }
+}</code></pre>
+                <div class="bg-green-50 p-3 rounded-lg text-green-800 text-sm">✅ L'utilisateur peut ainsi naviguer dans les derniers produits consultés, même en avion ou zone blanche.</div>
+            </div>
+
+            <!-- SLIDE 7 : Mise à jour du service worker et prompt d'installation -->
+            <div class="slide" data-slide="6">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-4">🆙 Mise à jour et installation</h2>
+                <p>Quand on modifie l'application, le service worker se met à jour automatiquement (<code>registerType: 'autoUpdate'</code>).</p>
+                <p>Pour afficher un bouton "Installer l'application" :</p>
+                <pre><code>// Dans un composant React
+useEffect(() => {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    setDeferredPrompt(e);
+    setShowInstall(true);
+  });
+}, []);
+
+const installApp = () => {
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => setShowInstall(false));
+};</code></pre>
+                <div class="bg-indigo-50 p-3 rounded-lg mt-2">💡 L'utilisateur pourra ajouter votre e-commerce à l'écran d'accueil comme une vraie app.</div>
+            </div>
+
+            <!-- SLIDE 8 : TP / Mise en pratique -->
+            <div class="slide" data-slide="7">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-3">🧪 Exercice pratique</h2>
+                <div class="bg-white border border-indigo-200 rounded-xl p-5">
+                    <p class="font-medium mb-2">🎯 À réaliser :</p>
+                    <ul class="list-disc pl-6 space-y-1 text-sm mb-4">
+                        <li>Ajouter vite-plugin-pwa à un projet Vite + React existant</li>
+                        <li>Configurer le manifest (icônes, nom, thème)</li>
+                        <li>Mettre en cache l'API des produits avec stratégie NetworkFirst</li>
+                        <li>Tester le mode hors-ligne (DevTools → Application → Service workers → Offline)</li>
+                        <li>Ajouter un prompt d'installation personnalisé</li>
+                    </ul>
+                    <div class="bg-indigo-50 p-3 rounded-lg text-indigo-800 text-sm">
+                        💡 Indice : utilisez le panneau Application des DevTools pour inspecter le cache et simuler l'absence de réseau.
+                    </div>
+                    <button id="showHintBtn" class="mt-3 text-indigo-600 underline text-sm">Voir un extrait de prompt d'installation</button>
+                    <div id="hintBlock" class="hidden mt-2 p-3 bg-gray-800 text-green-300 rounded-lg text-xs font-mono">
+                        const [deferredPrompt, setDeferredPrompt] = useState(null);<br>
+                        useEffect(() => { window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); }) }, []);
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : Récapitulatif -->
+            <div class="slide" data-slide="8">
+                <h2 class="text-2xl font-bold text-indigo-800 mb-5">📌 Récapitulatif</h2>
+                <div class="space-y-3">
+                    <div class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✅</span><span><strong>vite-plugin-pwa</strong> simplifie la génération du manifest et du service worker</span></div>
+                    <div class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✅</span><span><strong>Stratégies Workbox</strong> : NetworkFirst, CacheFirst, StaleWhileRevalidate</span></div>
+                    <div class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✅</span><span><strong>Assets critiques</strong> : pré-cacher JS/CSS et icônes pour lancement offline</span></div>
+                    <div class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✅</span><span><strong>Catalogue offline</strong> : cacher les requêtes GET /products en Background Sync</span></div>
+                </div>
+                <div class="mt-6 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border">
+                    <p class="font-medium">🚀 Prochaine leçon : Tests unitaires et d'intégration avec Vitest + React Testing Library.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons + indicateur de slide -->
+        <div class="flex justify-between items-center mt-10 pt-4 border-t border-gray-200">
+            <button id="prevSlide" class="btn-nav bg-gray-100 hover:bg-indigo-100 text-gray-700 font-medium py-2 px-5 rounded-full shadow-sm transition disabled:opacity-40" disabled>◀ Précédent</button>
+            <div class="flex gap-1.5" id="dotsContainer"></div>
+            <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow transition">Suivant ▶</button>
+        </div>
+    </div>
+    <div class="text-center text-xs text-gray-400 mt-6">
+        © Enseignant Cameroun – Développement Web React | PWA & Expérience hors ligne
+    </div>
+</div>
+
+<script>
+    $(document).ready(function(){
+        let currentSlide = 0;
+        const slides = $('.slide');
+        const totalSlides = slides.length;
+        let dotsArray = [];
+
+        function generateDots() {
+            $('#dotsContainer').empty();
+            for(let i=0; i<totalSlides; i++) {
+                const dot = $('<button>')
+                    .addClass('w-2.5 h-2.5 rounded-full transition-all mx-1 focus:outline-none')
+                    .attr('data-index', i);
+                if(i === currentSlide) {
+                    dot.addClass('bg-indigo-700 w-5');
+                } else {
+                    dot.addClass('bg-gray-300 hover:bg-indigo-300');
+                }
+                dot.on('click', function() {
+                    goToSlide(parseInt($(this).attr('data-index')));
+                });
+                $('#dotsContainer').append(dot);
+                dotsArray.push(dot);
+            }
+        }
+
+        function updateDots() {
+            dotsArray.forEach((dot, idx) => {
+                dot.removeClass('bg-indigo-700 w-5').addClass('bg-gray-300 w-2.5');
+                if(idx === currentSlide) {
+                    dot.removeClass('bg-gray-300').addClass('bg-indigo-700 w-5');
+                } else {
+                    dot.removeClass('bg-indigo-700 w-5').addClass('bg-gray-300 w-2.5');
+                }
+            });
+        }
+
+        function goToSlide(index) {
+            if(index < 0) index = 0;
+            if(index >= totalSlides) index = totalSlides -1;
+            if(index === currentSlide) return;
+            slides.removeClass('active');
+            slides.eq(index).addClass('active');
+            currentSlide = index;
+            updateDots();
+            $('#prevSlide').prop('disabled', currentSlide === 0);
+            $('#nextSlide').prop('disabled', currentSlide === totalSlides-1);
+            $('html, body').animate({ scrollTop: $('.slide-container').offset().top - 20 }, 200);
+        }
+
+        $('#nextSlide').on('click', function() {
+            if(currentSlide < totalSlides-1) goToSlide(currentSlide+1);
+        });
+        $('#prevSlide').on('click', function() {
+            if(currentSlide > 0) goToSlide(currentSlide-1);
+        });
+        $(document).on('keydown', function(e) {
+            if(e.key === 'ArrowRight' && currentSlide < totalSlides-1) goToSlide(currentSlide+1);
+            else if(e.key === 'ArrowLeft' && currentSlide > 0) goToSlide(currentSlide-1);
+        });
+
+        $('#showHintBtn').on('click', function() {
+            $('#hintBlock').toggleClass('hidden');
+        });
+
+        generateDots();
+        goToSlide(0);
+    });
+</script>
+</body>
+</html>

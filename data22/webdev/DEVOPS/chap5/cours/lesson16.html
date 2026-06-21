@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cours Docker | Gestion des conteneurs (Lesson 16)</title>
+  <!-- Tailwind CSS + Font Awesome (quelques icônes utiles) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- MathJax (pour formules si besoin, mais reste simple) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    /* Transition douce pour les slides et scroll */
+    .slide {
+      transition: opacity 0.3s ease-in-out;
+    }
+    /* Customisation des barres de navigation et couleurs lisibles */
+    body {
+      background: #f4f7fc;
+    }
+    .card-slide {
+      background: white;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+    }
+    .btn-nav {
+      transition: all 0.2s ease;
+    }
+    .btn-nav:hover {
+      transform: scale(1.03);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+    /* couleurs agréables */
+    h1, h2, h3 {
+      letter-spacing: -0.01em;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+    @media (max-width: 640px) {
+      .code-block {
+        font-size: 0.75rem;
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body class="font-sans antialiased">
+
+  <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+    <!-- affichage slide container -->
+    <div id="slides-container" class="relative">
+      <!-- Les slides seront injectées dynamiquement via jQuery -->
+    </div>
+
+    <!-- Navigation + indicateur de progression -->
+    <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
+      <button id="prevSlide" class="btn-nav bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        Précédent
+      </button>
+      <div class="flex flex-col items-center gap-2 w-full md:w-auto">
+        <div class="text-sm text-gray-600 font-medium">
+          Diapositive <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span>
+        </div>
+        <div class="w-48 md:w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div id="progressFill" class="progress-bar h-full bg-blue-600 rounded-full" style="width: 0%;"></div>
+        </div>
+      </div>
+      <button id="nextSlide" class="btn-nav bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        Suivant
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Définition des slides : titre, objectifs, contenu riche pour lesson16 (docker : images, conteneurs, ports, volumes, réseaux)
+    // Conformément au programme : objectifsLesson de la lesson16 (docker pull, build, images, run, ps, stop, rm, logs, exec, ports, volumes, réseaux)
+    // On va découper le contenu pédagogique en plusieurs slides interactifs.
+    const slidesData = [
+      { // Slide 0 : Titre principal
+        type: "title",
+        title: "🐳 Docker – Gestion des conteneurs",
+        subtitle: "Maîtriser les commandes essentielles : images, conteneurs, ports, volumes et réseaux",
+        badge: "Lesson 16 · Initiation DevOps"
+      },
+      { // Slide 1 : Objectifs d'apprentissage
+        type: "objectifs",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Gérer les images Docker : pull, build, list, supprimer (docker pull, build, images, rmi)",
+          "Maîtriser le cycle de vie des conteneurs : run, ps, stop, rm, logs, exec",
+          "Comprendre et utiliser les ports, volumes et réseaux pour des applications conteneurisées",
+          "Savoir lier des conteneurs et persister des données"
+        ]
+      },
+      { // Slide 2 : Introduction - images vs conteneurs
+        type: "content",
+        title: "📦 Image vs Conteneur : la différence",
+        content: `
+          <div class="grid md:grid-cols-2 gap-6 mt-2">
+            <div class="bg-blue-50 p-5 rounded-2xl border-l-8 border-blue-500">
+              <h3 class="font-bold text-xl flex items-center gap-2"><span class="text-2xl">🏷️</span> Image Docker</h3>
+              <p class="mt-2 text-gray-700">C'est un modèle <strong>immutable</strong> (lecture seule) qui contient tout le nécessaire pour exécuter une app : code, librairies, variables d'environnement. Comme une "recette" ou un instantané.</p>
+              <code class="block mt-3 text-sm bg-gray-800 text-white p-2 rounded">docker pull nginx:alpine</code>
+            </div>
+            <div class="bg-green-50 p-5 rounded-2xl border-l-8 border-green-600">
+              <h3 class="font-bold text-xl flex items-center gap-2"><span class="text-2xl">📦</span> Conteneur</h3>
+              <p class="mt-2 text-gray-700">C'est une <strong>instance exécutable</strong> d'une image. On peut le démarrer, arrêter, le supprimer. Chaque conteneur est isolé mais peut communiquer via réseau.</p>
+              <code class="block mt-3 text-sm bg-gray-800 text-white p-2 rounded">docker run -d --name mon_nginx nginx:alpine</code>
+            </div>
+          </div>
+          <p class="mt-4 text-sm text-gray-600 italic">💡 Analogie : L'image est comme une classe (plan) et le conteneur un objet (instance).</p>
+        `
+      },
+      { // Slide 3 : Commandes images (pull, build, images, rmi)
+        type: "content",
+        title: "🖼️ Gestion des images Docker",
+        content: `
+          <div class="space-y-4">
+            <div><span class="font-mono font-bold text-blue-700">docker pull &lt;image&gt;</span> – Télécharger une image depuis un registre (Docker Hub).</div>
+            <div><span class="font-mono font-bold text-blue-700">docker images</span> – Lister les images téléchargées localement.</div>
+            <div><span class="font-mono font-bold text-blue-700">docker build -t nom_app .</span> – Construire une image à partir d'un Dockerfile.</div>
+            <div><span class="font-mono font-bold text-blue-700">docker rmi &lt;image_id&gt;</span> – Supprimer une image (si aucun conteneur ne l'utilise).</div>
+            <div class="code-block mt-2"># Exemples pratiques :<br>docker pull ubuntu:22.04<br>docker images<br>docker rmi ubuntu:22.04</div>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-2"><span class="font-semibold">🧠 Astuce :</span> Utilisez <span class="font-mono">--no-cache</span> lors du build pour éviter l'utilisation du cache.</div>
+          </div>
+        `
+      },
+      { // Slide 4 : Cycle de vie des conteneurs (run, ps, stop, start, rm)
+        type: "content",
+        title: "⚙️ Commander les conteneurs (cycle de vie)",
+        content: `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm md:text-base">
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker run -it ubuntu bash</span><br/>Démarre un conteneur interactif.</div>
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker ps</span><br/>Lister les conteneurs actifs.<br/><span class="text-xs">docker ps -a → tous (y compris arrêtés).</span></div>
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker stop nom_conteneur</span><br/>Arrêter proprement un conteneur.</div>
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker start nom_conteneur</span><br/>Redémarrer un conteneur arrêté.</div>
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker rm nom_conteneur</span><br/>Supprimer un conteneur (arrêté).</div>
+            <div class="bg-gray-50 p-3 rounded-xl"><span class="font-mono font-bold">docker logs -f nom</span><br/>Voir les logs en temps réel.</div>
+            <div class="bg-gray-50 p-3 rounded-xl col-span-1 sm:col-span-2"><span class="font-mono font-bold">docker exec -it conteneur bash</span><br/>Exécuter une commande dans un conteneur déjà en cours (ex: entrer dans son terminal).</div>
+          </div>
+          <div class="mt-4 p-2 border border-dashed border-blue-300 bg-blue-50 rounded-lg text-blue-800 text-sm">🔥 Exercice rapide : <code>docker run -d --name web nginx</code> puis <code>docker exec -it web bash</code> et explorez !</div>
+        `
+      },
+      { // Slide 5 : Ports, expositions et mapping
+        type: "content",
+        title: "🔌 Exposer et mapper les ports",
+        content: `
+          <p>Un conteneur a son propre réseau interne. Pour accéder à son service depuis votre machine, on utilise <strong>port mapping</strong> : <span class="font-mono bg-gray-100 px-1">-p HOST:CONTAINER</span></p>
+          <div class="code-block my-4">
+            docker run -d -p 8080:80 nginx
+          </div>
+          <ul class="list-disc pl-6 space-y-1">
+            <li>Accès à l'application via <span class="font-mono">http://localhost:8080</span></li>
+            <li>Plusieurs ports possibles : <span class="font-mono">-p 3000:3000 -p 9229:9229</span></li>
+            <li>Vérifier les ports exposés avec <span class="font-mono">docker port &lt;conteneur&gt;</span></li>
+          </ul>
+          <div class="mt-3 bg-indigo-50 p-3 rounded-lg"><span class="font-bold">💡 Important :</span> Sans mapping, votre application tourne dans le conteneur mais inaccessible depuis l'extérieur.</div>
+        `
+      },
+      { // Slide 6 : Volumes Docker – persistance des données
+        type: "content",
+        title: "💾 Volumes : sauvegarder vos données",
+        content: `
+          <p>Par défaut, les données d'un conteneur disparaissent quand on le supprime. <strong>Les volumes</strong> permettent de persister ou partager des données.</p>
+          <div class="grid md:grid-cols-2 gap-4 mt-3">
+            <div class="border rounded-xl p-4">
+              <span class="font-mono font-bold">Volume nommé</span>
+              <div class="code-block text-xs mt-1">docker volume create mes_donnees<br>docker run -v mes_donnees:/data alpine</div>
+            </div>
+            <div class="border rounded-xl p-4">
+              <span class="font-mono font-bold">Bind mount (dossier local)</span>
+              <div class="code-block text-xs mt-1">docker run -v /home/user/data:/app/data nginx</div>
+            </div>
+          </div>
+          <p class="mt-3 text-sm">📌 Commandes utiles : <span class="font-mono">docker volume ls</span>, <span class="font-mono">docker volume rm</span>, <span class="font-mono">docker inspect volume_name</span></p>
+          <div class="mt-2 p-2 bg-green-100 rounded-lg">🎯 Exemple typique : base de données MySQL persiste ses données grâce à un volume.</div>
+        `
+      },
+      { // Slide 7 : Réseaux Docker – communication entre conteneurs
+        type: "content",
+        title: "🌐 Réseaux Docker (communication inter-conteneurs)",
+        content: `
+          <p>Docker crée par défaut trois réseaux : <code>bridge</code>, <code>host</code>, <code>none</code>. Pour qu’un conteneur dialogue avec un autre, on crée un réseau personnalisé.</p>
+          <div class="code-block my-3">
+            # Créer un réseau<br>
+            docker network create mon_reseau<br>
+            # Lancer des conteneurs sur ce réseau<br>
+            docker run -d --name app1 --network mon_reseau nginx<br>
+            docker run -d --name app2 --network mon_reseau alpine sleep 3600<br>
+            # Depuis app2, on peut ping app1 (via son nom)
+          </div>
+          <ul class="list-disc pl-6">
+            <li><span class="font-mono">docker network ls</span> → lister les réseaux</li>
+            <li><span class="font-mono">docker network inspect mon_reseau</span> → détails des conteneurs connectés</li>
+            <li>Avantage : la résolution DNS interne permet d’utiliser le nom du conteneur comme hôte.</li>
+          </ul>
+        `
+      },
+      { // Slide 8 : Atelier pratique – mini exemple Node.js + volume + port
+        type: "content",
+        title: "🧪 Exemple concret : serveur web avec persistance",
+        content: `
+          <div class="bg-gray-900 text-gray-100 p-4 rounded-xl text-sm font-mono overflow-x-auto">
+            # 1. Créer un conteneur nginx avec un volume pour la configuration<br>
+            docker run -d --name web_demo -p 8888:80 -v ./mon_site:/usr/share/nginx/html nginx<br><br>
+            # 2. Ajouter un fichier index.html dans ./mon_site (depuis l'hôte)<br>
+            echo "&lt;h1&gt;Mon site Docker&lt;/h1&gt;" > ./mon_site/index.html<br><br>
+            # 3. Voir les logs : docker logs web_demo<br>
+            # 4. Exécuter une commande pour modifier des fichiers: docker exec -it web_demo bash<br>
+            # 5. Arrêter et supprimer le conteneur : docker stop web_demo && docker rm web_demo <br>
+            # 6. Le volume bind mount garde les fichiers (./mon_site intact)
+          </div>
+          <p class="mt-3">✨ Vous venez de combiner : <strong>port mapping + volume + exécution interactive</strong> !</p>
+        `
+      },
+      { // Slide 9 : Récapitulatif visuel des commandes indispensables
+        type: "content",
+        title: "📌 Récapitulatif des commandes clés",
+        content: `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div><span class="font-bold">📥 Images :</span> pull, build, images, rmi</div>
+            <div><span class="font-bold">📦 Conteneurs :</span> run, ps, stop, start, rm, logs, exec</div>
+            <div><span class="font-bold">🔌 Ports :</span> -p 80:80 , docker port</div>
+            <div><span class="font-bold">💾 Volumes :</span> -v, volume create, ls, rm</div>
+            <div><span class="font-bold">🌐 Réseaux :</span> network create, ls, connect, inspect</div>
+            <div><span class="font-bold">🧹 Nettoyage :</span> docker system prune -a (attention)</div>
+          </div>
+          <div class="mt-5 flex justify-center">
+            <div class="bg-gray-100 p-3 rounded-lg text-center max-w-md">
+              <span class="text-lg">🎓</span> Petit dessin du cycle conteneur :<br/>
+              <span class="text-xs font-mono">(Image) → docker run → [ Running ] → stop → [ Exited ] → start → Running → rm → Supprimé</span>
+            </div>
+          </div>
+        `
+      },
+      { // Slide 10 : Quiz / Questions pour vérifier la compréhension
+        type: "quiz",
+        title: "🤔 Vérifions vos acquis",
+        questions: [
+          "Quelle commande permet de lister tous les conteneurs (y compris arrêtés) ?",
+          "Comment lancer un conteneur en mode détaché (arrière-plan) avec le nom 'webapp' ?",
+          "Quel argument utilise-t-on pour rendre persistant un dossier entre l'hôte et le conteneur ?",
+          "Que signifie le flag `-p 3000:80` lors du `docker run` ?"
+        ],
+        answers: [
+          "docker ps -a",
+          "docker run -d --name webapp nginx",
+          "-v (ou --volume)",
+          "Mapper le port 80 du conteneur vers le port 3000 de l'hôte"
+        ]
+      },
+      { // Slide 11 : Félicitations et conclusion
+        type: "conclusion",
+        title: "🎉 Félicitations !",
+        message: "Vous savez désormais gérer des conteneurs Docker, manipuler les images, mapper les ports, utiliser des volumes pour persister les données et créer des réseaux personnalisés. Ces bases sont essentielles pour orchestrer des applications avec Docker Compose et Kubernetes par la suite.",
+        nextStep: "Prochaine étape : Écrire des Dockerfiles et optimiser les images (multi-stage builds) – Lesson 17"
+      }
+    ];
+
+    let currentIndex = 0;
+    let totalSlides = slidesData.length;
+
+    // Fonction pour générer le HTML d'un slide selon son type
+    function renderSlide(slide, idx) {
+      if (slide.type === "title") {
+        return `
+          <div class="card-slide p-6 md:p-10 text-center">
+            <div class="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold mb-4">${slide.badge}</div>
+            <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 mb-4">${slide.title}</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">${slide.subtitle}</p>
+            <div class="mt-10 flex justify-center">
+              <div class="w-16 h-1 bg-blue-400 rounded-full"></div>
+            </div>
+            <p class="text-sm text-gray-400 mt-6">Utilisez les boutons ◀ ▶ pour naviguer</p>
+          </div>
+        `;
+      } 
+      else if (slide.type === "objectifs") {
+        return `
+          <div class="card-slide p-6 md:p-8">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-l-8 border-blue-500 pl-4 mb-6">${slide.title}</h2>
+            <ul class="space-y-3 text-gray-700">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3"><span class="text-blue-500 text-xl">✓</span> <span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-8 bg-blue-50 p-4 rounded-xl text-blue-800 italic text-sm">📘 Au terme de cette leçon, vous serez capable d'utiliser Docker en ligne de commande comme un pro.</div>
+          </div>
+        `;
+      } 
+      else if (slide.type === "content") {
+        return `
+          <div class="card-slide p-6 md:p-8">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-blue-200 pb-2 mb-5">${slide.title}</h2>
+            <div class="prose prose-lg max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "quiz") {
+        return `
+          <div class="card-slide p-6 md:p-8">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">${slide.title}</h2>
+            <div class="space-y-5">
+              ${slide.questions.map((q, i) => `
+                <div class="bg-gray-50 p-4 rounded-xl">
+                  <p class="font-semibold text-gray-800">${i+1}. ${q}</p>
+                  <p class="text-green-700 mt-2 border-l-4 border-green-400 pl-3">💡 Réponse : ${slide.answers[i]}</p>
+                </div>
+              `).join('')}
+            </div>
+            <div class="mt-6 text-center text-sm text-gray-500">📢 Revoyez les slides si nécessaire, la pratique est clé !</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "conclusion") {
+        return `
+          <div class="card-slide p-6 md:p-10 text-center">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-3xl font-bold text-gray-800">${slide.title}</h2>
+            <p class="text-gray-700 mt-4 text-lg max-w-xl mx-auto">${slide.message}</p>
+            <p class="mt-6 font-medium text-blue-600">${slide.nextStep}</p>
+            <button id="restartBtn" class="mt-8 bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-full text-sm transition">⟳ Revoir la leçon</button>
+          </div>
+        `;
+      }
+      return `<div class="card-slide p-6">Erreur</div>`;
+    }
+
+    function updateSlides() {
+      const container = $("#slides-container");
+      const slideHtml = renderSlide(slidesData[currentIndex], currentIndex);
+      container.html(slideHtml);
+      $("#currentSlideIdx").text(currentIndex + 1);
+      $("#totalSlidesCount").text(totalSlides);
+      const progressPercent = ((currentIndex) / (totalSlides - 1)) * 100;
+      $("#progressFill").css("width", `${progressPercent}%`);
+      
+      // désactiver les boutons si début ou fin
+      if (currentIndex === 0) {
+        $("#prevSlide").prop("disabled", true);
+      } else {
+        $("#prevSlide").prop("disabled", false);
+      }
+      if (currentIndex === totalSlides - 1) {
+        $("#nextSlide").prop("disabled", true);
+      } else {
+        $("#nextSlide").prop("disabled", false);
+      }
+
+      // ré-attacher événement pour le bouton restart sur la slide de conclusion
+      if (slidesData[currentIndex].type === "conclusion") {
+        $("#restartBtn").on("click", function() {
+          currentIndex = 0;
+          updateSlides();
+        });
+      }
+    }
+
+    // navigation
+    $("#nextSlide").on("click", function() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlides();
+      }
+    });
+    $("#prevSlide").on("click", function() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlides();
+      }
+    });
+
+    // initialisation
+    updateSlides();
+
+    // Support clavier (flèches)
+    $(document).on("keydown", function(e) {
+      if (e.key === "ArrowLeft") {
+        $("#prevSlide").click();
+      } else if (e.key === "ArrowRight") {
+        $("#nextSlide").click();
+      }
+    });
+  </script>
+</body>
+</html>

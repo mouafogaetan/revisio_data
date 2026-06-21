@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours JavaScript | Les Variables (var, let, const) et leur portée</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes discrètes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Tailwind pour personnaliser couleurs douces -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cours-bg': '#f9fafb',
+                        'cours-card': '#ffffff',
+                        'cours-primary': '#1e4a76',
+                        'cours-accent': '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (formules simples, au cas où) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        /* Ajustements supplémentaires pour lisibilité + transitions slides */
+        body {
+            background: #f0f4f8;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+        /* animation slide */
+        .slide {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(10px);
+        }
+        .slide-active {
+            display: block;
+            opacity: 1;
+            transform: translateX(0);
+        }
+        /* pour les snippets code */
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .card-hover {
+            transition: box-shadow 0.2s;
+        }
+        .card-hover:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        }
+        /* couleurs douces pour les boutons */
+        .btn-nav {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            transition: all 0.2s;
+        }
+        .btn-nav:hover:not(:disabled) {
+            background-color: #cbd5e1;
+            transform: scale(0.98);
+        }
+        .btn-nav:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        @media (max-width: 640px) {
+            pre {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-cours-bg antialiased">
+
+    <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal slides -->
+        <div class="bg-cours-card rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+            <!-- header fixe avec progression -->
+            <div class="bg-gradient-to-r from-cours-primary to-indigo-700 px-5 py-4 md:py-5 text-white">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <span class="text-xs font-semibold tracking-wide uppercase bg-white/20 px-3 py-1 rounded-full">Initiation JavaScript · Chapitre 2</span>
+                        <h1 class="text-xl md:text-2xl font-bold mt-2">Variables & portée : <span class="font-mono">var, let, const</span></h1>
+                    </div>
+                    <div class="text-sm bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+                        Leçon 4 / 35
+                    </div>
+                </div>
+                <!-- indicateur slide -->
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-xs opacity-80">Slide <span id="currentSlideIdx">1</span> / <span id="totalSlidesCount">0</span></div>
+                    <div class="w-32 h-1.5 bg-white/30 rounded-full overflow-hidden">
+                        <div id="progressFill" class="h-full bg-white rounded-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- zone dynamique des slides -->
+            <div id="slidesContainer" class="relative min-h-[480px] md:min-h-[520px]">
+                <!-- les slides seront injectées ici via jQuery -->
+            </div>
+
+            <!-- navigation slides + pied -->
+            <div class="border-t border-gray-100 px-5 py-4 bg-gray-50 flex justify-between items-center">
+                <button id="prevBtn" class="btn-nav px-4 py-2 rounded-xl font-medium flex items-center gap-1 disabled:opacity-40">← Précédent</button>
+                <div class="text-xs text-gray-500 hidden sm:block">
+                    💡 Utilise les flèches ou les boutons
+                </div>
+                <button id="nextBtn" class="btn-nav px-4 py-2 rounded-xl font-medium flex items-center gap-1">Suivant →</button>
+            </div>
+        </div>
+        
+        <!-- petit rappel pédagogique -->
+        <div class="text-center text-gray-500 text-xs mt-6">
+            ⚡ N'oublie pas : le choix de <span class="font-mono font-semibold">var / let / const</span> influence la portée et la mutabilité.
+        </div>
+    </div>
+
+    <script>
+        // Définition des slides correspondant à la leçon 4 : "Comprendre la différence entre var, let, const + portée + règles nommage"
+        // Slide 1 : Titre introductif
+        // Slide 2 : Objectifs pédagogiques (selon la demande: second slide les objectifs)
+        // Slide 3 : Différence var/let/const (tableau)
+        // Slide 4 : Portée des variables (globale, fonction, bloc)
+        // Slide 5 : Règles de nommage & camelCase
+        // Slide 6 : Bonnes pratiques et quiz interactif (exemples)
+        
+        const slidesData = [
+            {
+                type: "title",
+                title: "📦 Variables en JavaScript : var, let, const",
+                subtitle: "Maîtrisez la différence et évitez les bugs de portée",
+                icon: "🧩"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs d'apprentissage",
+                objectives: [
+                    "Distinguer var, let et const (déclaration, hoisting, redéclaration)",
+                    "Maîtriser la portée globale, de fonction et de bloc (scope)",
+                    "Connaître les règles de nommage (camelCase, caractères autorisés)",
+                    "Savoir quand utiliser let/const plutôt que var"
+                ]
+            },
+            {
+                type: "comparaison",
+                title: "⚖️ var vs let vs const",
+                description: "Trois façons de déclarer des variables avec des comportements distincts.",
+                tableData: {
+                    headers: ["Caractéristique", "var", "let", "const"],
+                    rows: [
+                        ["Portée", "Fonction (ou globale)", "Bloc { }", "Bloc { }"],
+                        ["Redéclaration", "✅ Oui (dangereux)", "❌ Non", "❌ Non"],
+                        ["Réaffectation", "✅ Oui", "✅ Oui", "❌ Non (constante)"],
+                        ["Hoisting", "✅ Oui (undefined)", "✅ Oui (non initialisé – TDZ)", "✅ Oui (TDZ)"],
+                        ["Utilisation moderne", "À éviter", "Privilégiée pour variables mutables", "Pour valeurs constantes/references"]
+                    ]
+                }
+            },
+            {
+                type: "scope",
+                title: "🌐 Comprendre la portée (scope)",
+                contentBlocks: [
+                    {
+                        title: "Portée Globale",
+                        text: "Variable déclarée hors de toute fonction, accessible partout (dans tout le script). Avec <code>var</code>, elle devient propriété de <code>window</code> (risque collisions).",
+                        code: `var globalVar = "je suis global";\nlet globalLet = "global let";\n\nfunction test() {\n  console.log(globalVar); // accessible\n  console.log(globalLet); // accessible\n}`
+                    },
+                    {
+                        title: "Portée de Fonction",
+                        text: "Les variables déclarées avec <code>var</code> à l'intérieur d'une fonction sont locales à cette fonction. Elles ne sont pas accessibles en dehors.",
+                        code: `function maFonction() {\n  var fonctionScope = "accessible uniquement içi";\n  if(true) {\n    var fonctionScope = "re-déclaration possible (mais pas recommandé)";\n  }\n  console.log(fonctionScope);\n}\n// console.log(fonctionScope) => ReferenceError`
+                    },
+                    {
+                        title: "Portée de Bloc { } (let / const)",
+                        text: "let et const respectent les blocs définis par { } (if, for, while etc.) ; var ignore le bloc.",
+                        code: `if (true) {\n  let blocLet = "accessible dans ce bloc";\n  var blocVar = "accessible partout dans la fonction";\n  const constanteBloc = "const aussi bloc scope";\n}\nconsole.log(blocVar); // ✅ fonctionne\nconsole.log(blocLet); // ❌ ReferenceError`
+                    }
+                ]
+            },
+            {
+                type: "naming",
+                title: "✏️ Règles de nommage & camelCase",
+                rules: [
+                    "Les noms peuvent contenir lettres, chiffres (pas en premier), $ et _",
+                    "Sensible à la casse (monVariable ≠ Monvariable)",
+                    "Ne pas utiliser les mots réservés (if, let, const, function, etc.)",
+                    "Convention JavaScript : <strong>camelCase</strong> pour variables (ex: <code>maPremiereVariable</code>)",
+                    "Les constantes globales souvent en MAJUSCULES (ex: <code>const API_URL = '...'</code>)",
+                    "Choisir des noms explicites (pas 'x', 'y' sauf dans des petites boucles)"
+                ],
+                example: "// Bonnes pratiques :\nlet nomEtudiant = \"Ahmad\";\nconst MAX_TENTATIVES = 3;\nlet isLoggedIn = false;\n\n// À éviter :\nlet x; let _temp; let 1ereVariable;"
+            },
+            {
+                type: "bestpractice",
+                title: "💡 Recommandations & exemples interactifs",
+                tips: [
+                    "✅ Privilégiez <span class='font-mono font-bold text-indigo-700'>const</span> par défaut, utilisez <span class='font-mono font-bold text-indigo-700'>let</span> si besoin de réaffectation.",
+                    "❌ Évitez <span class='font-mono font-bold text-red-600'>var</span> dans vos projets modernes (source de bugs subtils).",
+                    "🧠 Comprenez la Temporal Dead Zone (TDZ) : let/const ne sont pas accessibles avant déclaration.",
+                    "🔍 La portée bloc évite les fuites de variables accidentelles."
+                ],
+                interactiveExample: true
+            }
+        ];
+
+        // Fonction utilitaire pour échapper les HTML dans les blocs code (simplifié)
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+
+        // Génération du HTML de chaque slide
+        function renderSlide(slide, index) {
+            const total = slidesData.length;
+            let html = `<div class="slide slide-${index} p-5 md:p-8 transition-all" data-slide="${index}">`;
+            
+            if (slide.type === "title") {
+                html += `
+                    <div class="flex flex-col items-center justify-center min-h-[380px] text-center">
+                        <div class="text-6xl mb-4">${slide.icon}</div>
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-cours-primary">${slide.title}</h2>
+                        <p class="text-gray-600 text-lg mt-4 max-w-xl">${slide.subtitle}</p>
+                        <div class="mt-8 bg-blue-50 rounded-full px-5 py-2 text-sm text-blue-800">⬅️ ➡️ naviguez pour découvrir les objectifs et le contenu</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectifs") {
+                html += `
+                    <h2 class="text-2xl md:text-3xl font-bold text-cours-primary border-l-4 border-cours-accent pl-4 mb-6">${slide.title}</h2>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        ${slide.objectives.map(obj => `
+                            <div class="flex items-start gap-3 bg-gray-50 p-4 rounded-xl card-hover">
+                                <span class="text-cours-accent text-xl">✓</span>
+                                <span class="text-gray-700">${obj}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="mt-6 text-sm text-gray-500 italic">🎓 Ces compétences sont essentielles pour la suite du cours.</div>
+                `;
+            }
+            else if (slide.type === "comparaison") {
+                html += `<h2 class="text-2xl font-bold text-cours-primary mb-2">${slide.title}</h2><p class="text-gray-600 mb-5">${slide.description}</p>`;
+                const t = slide.tableData;
+                html += `<div class="overflow-x-auto"><table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-sm text-sm md:text-base">
+                            <thead class="bg-gray-100"><tr>${t.headers.map(h => `<th class="px-4 py-3 text-left font-semibold">${h}</th>`).join('')}</tr></thead>
+                            <tbody>`;
+                t.rows.forEach(row => {
+                    html += `<tr class="border-b border-gray-100">${row.map(cell => `<td class="px-4 py-2.5">${cell}</td>`).join('')}</tr>`;
+                });
+                html += `</tbody></table></div>
+                        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-amber-800 text-sm">⚠️ Attention: le hoisting avec <span class="font-mono">var</span> initialise à undefined, mais avec let/const, on ne peut pas utiliser avant déclaration (TDZ).</div>`;
+            }
+            else if (slide.type === "scope") {
+                html += `<h2 class="text-2xl font-bold text-cours-primary mb-5">${slide.title}</h2>`;
+                slide.contentBlocks.forEach(block => {
+                    html += `<div class="mb-8"><h3 class="text-xl font-semibold text-gray-800 mb-2">${block.title}</h3>
+                             <p class="text-gray-700 mb-2">${block.text}</p>
+                             <pre><code>${escapeHtml(block.code)}</code></pre></div>`;
+                });
+                html += `<div class="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-400 text-indigo-800"><strong>💡 À retenir :</strong> let/const sont plus stricts et prévisibles.</div>`;
+            }
+            else if (slide.type === "naming") {
+                html += `<h2 class="text-2xl font-bold text-cours-primary mb-4">${slide.title}</h2>
+                         <ul class="list-disc pl-6 space-y-2 text-gray-700 mb-5">${slide.rules.map(r => `<li>${r}</li>`).join('')}</ul>
+                         <pre><code>${escapeHtml(slide.example)}</code></pre>
+                         <div class="mt-4 flex items-center gap-2"><span class="bg-green-100 p-2 rounded-full">📐</span><span class="text-sm">camelCase = première lettre minuscule, puis chaque mot commence par une majuscule (ex: <span class="font-mono">maVariableEtudiante</span>)</span></div>`;
+            }
+            else if (slide.type === "bestpractice") {
+                html += `<h2 class="text-2xl font-bold text-cours-primary mb-4">${slide.title}</h2>
+                         <div class="space-y-3 mb-6">${slide.tips.map(t => `<div class="flex gap-3 items-start bg-white p-3 rounded-xl shadow-sm"><span class="text-xl">📌</span><span>${t}</span></div>`).join('')}</div>`;
+                if(slide.interactiveExample){
+                    html += `<div class="bg-gray-900 text-gray-100 p-4 rounded-xl mt-3">
+                                <p class="font-mono text-sm">// 🧪 Testez mentalement la portée :</p>
+                                <pre class="bg-gray-800 p-3 rounded"><code>let x = 10;
+if(true){
+  let x = 20;    // variable différente (portée bloc)
+  console.log(x);
+}
+console.log(x);  // Que voyez-vous ?</code></pre>
+                                <button id="revealAnswer" class="mt-2 text-xs bg-cours-accent text-white px-3 py-1 rounded-full">Afficher la réponse</button>
+                                <p id="answerExplanation" class="mt-2 text-green-300 hidden text-sm">Réponse : 20 puis 10. La variable x dans le bloc est indépendante grace à let !</p>
+                            </div>`;
+                }
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        let currentIndex = 0;
+        let totalSlides = slidesData.length;
+
+        function updateSlides() {
+            let container = $('#slidesContainer');
+            container.empty();
+            // Construire toutes les slides, mais afficher seulement celle active (gestion via classes)
+            slidesData.forEach((slide, idx) => {
+                const slideHtml = renderSlide(slide, idx);
+                const $slideDom = $(slideHtml);
+                if(idx === currentIndex) {
+                    $slideDom.addClass('slide-active').removeClass('slide-hidden');
+                } else {
+                    $slideDom.addClass('slide-hidden').removeClass('slide-active');
+                }
+                container.append($slideDom);
+            });
+            $('#currentSlideIdx').text(currentIndex+1);
+            $('#totalSlidesCount').text(totalSlides);
+            let progressPercent = ((currentIndex) / (totalSlides-1)) * 100;
+            $('#progressFill').css('width', `${progressPercent}%`);
+            // gestion désactivation boutons
+            $('#prevBtn').prop('disabled', currentIndex === 0);
+            $('#nextBtn').prop('disabled', currentIndex === totalSlides-1);
+        }
+
+        function goNext() {
+            if(currentIndex < totalSlides-1) {
+                currentIndex++;
+                updateSlides();
+                scrollToTop();
+            }
+        }
+
+        function goPrev() {
+            if(currentIndex > 0) {
+                currentIndex--;
+                updateSlides();
+                scrollToTop();
+            }
+        }
+
+        function scrollToTop() {
+            $('html, body').animate({ scrollTop: $('#slidesContainer').offset().top - 20 }, 200);
+        }
+
+        // Événements boutons + flèches clavier
+        $(document).ready(function() {
+            updateSlides();
+            $('#nextBtn').on('click', goNext);
+            $('#prevBtn').on('click', goPrev);
+            $(document).keydown(function(e) {
+                if(e.key === 'ArrowRight') {
+                    goNext();
+                } else if(e.key === 'ArrowLeft') {
+                    goPrev();
+                }
+            });
+            // délégation pour bouton réponse dans slide bestpractice
+            $(document).on('click', '#revealAnswer', function() {
+                $('#answerExplanation').removeClass('hidden');
+            });
+        });
+    </script>
+    <!-- ajout d'une meta pour la vue responsive bien gérée -->
+    <script>
+        // petite correction pour les snippets de code avec jQuery : garantir que les mathJax ne casse rien
+        if(window.MathJax) {
+            MathJax.startup.promise.then(() => {
+                console.log("MathJax chargé");
+            });
+        }
+    </script>
+</body>
+</html>

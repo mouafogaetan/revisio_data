@@ -1,0 +1,70 @@
+[
+  {
+    "intitule": "Analyser le partage de produit et le deep linking dans une app e-commerce",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application mobile e-commerce, un utilisateur souhaite partager un produit avec un ami via WhatsApp. Le lien partagé doit rediriger directement vers l'écran du produit dans l'application (deep linking). L'équipe technique doit également mettre en place un système de parrainage : chaque utilisateur génère un lien unique contenant son code de parrainage. Lorsqu'un nouveau utilisateur s'inscrit via ce lien, les deux reçoivent une réduction de 5 €.</p>",
+      "images": [
+        "Schéma illustrant le flux : application → génération lien → partage réseau social → clic → ouverture application sur écran produit"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer la différence entre un lien universel (Universal Link) sur iOS et un lien profond (Deep Link) standard. Quel est l'avantage des liens universels ?",
+        "niveau": "medium",
+        "reponse": "Un deep link standard utilise un schéma personnalisé (ex: monapp://produit/123) mais ne fonctionne pas si l'application n'est pas installée (erreur). Les Universal Links (iOS) et App Links (Android) utilisent des URLs HTTPS standard (ex: https://monapp.com/produit/123) : si l'app est installée, elle s'ouvre ; sinon, la page web (fallback) s'affiche dans le navigateur. Avantage : expérience utilisateur fluide et sécurité renforcée.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire la structure d'un lien de parrainage sécurisé (exemple avec code UUID). Proposer une méthode pour empêcher les utilisateurs de générer des liens pour d'autres comptes.",
+        "niveau": "hard",
+        "reponse": "Structure : https://monapp.com/parrainage?ref=abc123-uuid. Le code de parrainage est un jeton unique associé à l'utilisateur dans la base de données. Pour la sécurité : 1) Le jeton ne doit pas être modifiable par l'utilisateur (généré côté serveur), 2) Lors de l'inscription via le lien, l'API vérifie que le jeton existe et n'a pas expiré, 3) Un utilisateur ne peut pas générer un lien pour un autre compte car le jeton est lié à son ID de session.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Proposer une stratégie pour tester le deep linking en environnement de développement (Expo) sans publier l'application.",
+        "niveau": "medium",
+        "reponse": "Avec Expo, on peut utiliser `expo start --tunnel` et configurer `app.json` avec `scheme`. Pour tester : 1) Définir un scheme (ex: `monapp`) dans app.json, 2) Lancer l'application sur un vrai appareil via Expo Go, 3) Utiliser un navigateur ou un terminal pour ouvrir `monapp://produit/123`. Pour les liens universels, Expo propose `expo-linking` et la simulation via `npx uri-scheme open`. On peut aussi utiliser des outils comme `ngrok` pour tester HTTPS en local.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Implémenter le partage de produit et la génération de lien de parrainage",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous devez développer deux fonctionnalités pour l'application e-commerce :<br>1. Un bouton \"Partager\" sur chaque fiche produit qui ouvre la feuille de partage native (expo-sharing) avec un lien direct vers ce produit.<br>2. Un système de parrainage : l'utilisateur peut générer son lien unique (contenant son code) et le partager. Lorsqu'un nouveau compte est créé avec ce code, les deux comptes reçoivent une réduction de 10% sur leur prochaine commande.</p>",
+      "images": [
+        "Maquette d'écran produit avec bouton Partager, et écran profil avec section \"Inviter un ami\" affichant le lien de parrainage"
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevoir la fonction `shareProduct(product)` utilisant `expo-sharing` pour partager le nom, le prix et le lien profond du produit. Gérer les cas où le partage est annulé.",
+        "niveau": "medium",
+        "reponse": "import * as Sharing from 'expo-sharing';\nimport * as Linking from 'expo-linking';\n\nconst shareProduct = async (product) => {\n  const url = Linking.createURL(`/product/${product.id}`);\n  const message = `Découvrez ${product.name} à ${product.price} € sur notre app ! ${url}`;\n  const isAvailable = await Sharing.isAvailableAsync();\n  if (!isAvailable) {\n    alert('Le partage n\\'est pas disponible sur cet appareil');\n    return;\n  }\n  await Sharing.shareAsync(message, { dialogTitle: 'Partager ce produit' });\n};",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrire l'implémentation du lien de parrainage côté serveur : génération d'un code unique associé à l'utilisateur, endpoint d'inscription acceptant un code de parrainage, et crédit des réductions.",
+        "niveau": "hard",
+        "reponse": "- Table users : id, referral_code (unique), referred_by (nullable), discount_balance.<br>- Génération : à la création du compte, générer un code aléatoire (ex: `crypto.randomUUID()`) et le stocker.<br>- Endpoint `/api/auth/register` accepte `referralCode`. Si le code existe, on enregistre `referred_by` = id du parrain.<br>- Après validation de l'inscription, mise à jour : incrémenter `discount_balance` du parrain (ex: +10) et du nouveau user (ex: +10).<br>- Utiliser des transactions SQL pour éviter les doublons.",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Rédiger la configuration du deep linking dans `app.json` pour Expo (schéma personnalisé et liens universels). Expliquer comment configurer le gestionnaire de lien dans le composant racine.",
+        "niveau": "very hard",
+        "reponse": "Dans app.json :\n{\n  \"expo\": {\n    \"scheme\": \"monapp\",\n    \"extra\": {\n      \"eas\": { ... }\n    }\n  }\n}\nPour Universal Links (iOS) : ajouter `associatedDomains` avec `applinks:monapp.com`.\nDans le composant racine (App.js) :\nuseEffect(() => {\n  const handleDeepLink = (event) => {\n    const url = event.url;\n    // parser url avec Linking.parse(url)\n    if (url.includes('/product/')) {\n      const productId = url.split('/product/')[1];\n      navigation.navigate('Product', { id: productId });\n    }\n  };\n  Linking.addEventListener('url', handleDeepLink);\n  Linking.getInitialURL().then(url => { if (url) handleDeepLink({ url }); });\n  return () => Linking.removeEventListener('url', handleDeepLink);\n}, []);",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

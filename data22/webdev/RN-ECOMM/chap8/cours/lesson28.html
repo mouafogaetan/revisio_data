@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Leçon 28 : Paiement mobile - Apple Pay, Google Pay et fallback CB | React Native</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- MathJax (préparé) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+  <style>
+    .slide {
+      transition: opacity 0.25s ease-in-out;
+    }
+    body {
+      background: #f0f4fa;
+    }
+    .nav-btn {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-indigo-50 font-sans antialiased">
+
+  <div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div class="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-indigo-100 overflow-hidden">
+      
+      <!-- En-tête -->
+      <div class="bg-indigo-800 px-5 py-3 flex justify-between items-center text-white">
+        <div class="flex items-center gap-2">
+          <i class="fab fa-apple-pay text-lg"></i>
+          <i class="fab fa-google-pay text-lg mx-1"></i>
+          <span class="font-semibold text-sm md:text-base">Paiement mobile · Wallet & CB</span>
+        </div>
+        <div class="text-sm bg-indigo-700 px-3 py-1 rounded-full">
+          Leçon 28 / 55
+        </div>
+      </div>
+
+      <!-- Conteneur slides -->
+      <div id="slides-container" class="min-h-[520px] md:min-h-[560px] relative"></div>
+
+      <!-- Navigation + indicateurs -->
+      <div class="flex justify-between items-center p-5 border-t border-indigo-100 bg-gray-50">
+        <button id="prevSlide" class="nav-btn bg-white hover:bg-indigo-100 text-indigo-800 font-semibold py-2 px-5 rounded-full shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+          <i class="fas fa-arrow-left"></i> Précédent
+        </button>
+        <div id="slide-indicators" class="flex gap-2 flex-wrap justify-center"></div>
+        <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-5 rounded-full shadow transition-all flex items-center gap-2">
+          Suivant <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+    <div class="text-center text-sm text-gray-500 mt-6">
+      <i class="fas fa-credit-card"></i> Paiements sans contact, sécurisés et fallback carte classique
+    </div>
+  </div>
+
+  <script>
+    // --------------------------------------------------------------
+    // Leçon 28 : Intégration Apple Pay (iOS), Google Pay (Android) et fallback carte bancaire
+    // Slides : titre, objectifs, explications techniques, exemples de code
+    // --------------------------------------------------------------
+    const slidesData = [
+      {
+        type: "title",
+        title: "💳 Paiements mobiles sécurisés",
+        subtitle: "Apple Pay, Google Pay et solution de repli (carte bancaire classique)",
+        icon: "fa-credit-card",
+        bgClass: "bg-gradient-to-r from-indigo-800 to-purple-800"
+      },
+      {
+        type: "objectives",
+        title: "🎯 Objectifs de la leçon",
+        objectives: [
+          "Comprendre le fonctionnement d'Apple Pay sur iOS et Google Pay sur Android",
+          "Intégrer ces portefeuilles dans une app React Native (via Stripe ou autre)",
+          "Mettre en place un fallback (formulaire carte bancaire classique) pour les appareils non compatibles",
+          "Gérer les réponses de paiement et les webhooks de confirmation",
+          "Améliorer la conversion (paiement en un clic)"
+        ]
+      },
+      {
+        type: "content",
+        title: "📱 Pourquoi Apple Pay & Google Pay ?",
+        content: `<p>Les solutions de paiement par portefeuille électronique (Wallet) sont devenues incontournables pour l'e-commerce mobile :</p>
+        <ul class="list-disc pl-6 mt-2 space-y-1">
+          <li><i class="fab fa-apple text-gray-800"></i> <strong>Apple Pay</strong> : disponible sur iPhone (Face ID / Touch ID). Tokenisation sécurisée, pas de transmission du numéro de carte.</li>
+          <li><i class="fab fa-google text-green-600"></i> <strong>Google Pay</strong> : sur Android, utilise l'empreinte digitale ou le verrouillage de l'écran.</li>
+          <li><strong>Avantages</strong> : rapidité (1 clic), confiance utilisateur, réduction de l'abandon de panier.</li>
+          <li><strong>Fallback</strong> : tous les utilisateurs n'ont pas ces wallets → formulaire carte bancaire classique (Stripe, Paystack, etc.)</li>
+        </ul>
+        <div class="mt-3 p-3 bg-green-50 rounded-xl">
+          <i class="fas fa-chart-line text-green-600"></i> <strong>Impact</strong> : jusqu'à +40% de conversion avec Apple/Google Pay.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "⚙️ Configuration technique (Stripe + react-native)",
+        content: `<p>On utilise souvent Stripe comme processeur de paiement. Installation :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+npm install @stripe/stripe-react-native
+        </pre>
+        <p class="mt-2">Configuration native requise :</p>
+        <ul class="list-disc pl-6 mt-1">
+          <li><strong>iOS</strong> : ajouter le <code>merchantIdentifier</code> dans Xcode (Apple Pay).</li>
+          <li><strong>Android</strong> : ajouter la meta-data Google Pay dans <code>AndroidManifest.xml</code>.</li>
+        </ul>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm mt-2">
+// Dans App.tsx
+import { StripeProvider } from '@stripe/stripe-react-native';
+
+function App() {
+  return (
+    &lt;StripeProvider publishableKey="pk_test_..."&gt;
+      &lt;PaymentFlow /&gt;
+    &lt;/StripeProvider&gt;
+  );
+}
+        </pre>`
+      },
+      {
+        type: "content",
+        title: "🍏 Apple Pay avec Stripe React Native",
+        content: `<p>Sur iOS, pour initier un paiement Apple Pay :</p>
+        <pre class="bg-gray-800 text-blue-200 p-3 rounded-lg text-sm">
+import { useApplePay, PaymentSheet } from '@stripe/stripe-react-native';
+
+const { initPaymentSheet, presentPaymentSheet } = useApplePay();
+
+const payWithApple = async () => {
+  const { error } = await initPaymentSheet({
+    paymentIntentClientSecret: clientSecret,
+    merchantDisplayName: "MonCommerce",
+    applePay: { merchantCountryCode: 'FR' }
+  });
+  if (!error) {
+    const { error: payError } = await presentPaymentSheet();
+    if (payError) console.log("Échec", payError);
+    else console.log("Succès Apple Pay");
+  }
+};
+        </pre>
+        <div class="bg-yellow-50 p-2 rounded mt-2 text-sm">
+          <i class="fas fa-info-circle"></i> Nécessite un <strong>certificat Apple Pay</strong> et un <strong>merchant ID</strong> configuré dans le developer portal.
+        </div>`
+      },
+      {
+        type: "content",
+        title: "🤖 Google Pay avec Stripe React Native",
+        content: `<p>Configuration similaire pour Android :</p>
+        <pre class="bg-gray-800 text-green-200 p-3 rounded-lg text-sm">
+import { useGooglePay, PaymentSheet } from '@stripe/stripe-react-native';
+
+const { initGooglePay, presentGooglePay } = useGooglePay();
+
+const payWithGoogle = async () => {
+  const { error } = await initGooglePay({
+    amount: total,
+    currencyCode: 'EUR',
+    merchantName: 'Mon E-commerce'
+  });
+  if (!error) {
+    const { error: payError } = await presentGooglePay();
+    if (payError) console.log("Erreur GPay");
+    else console.log("Paiement Google Pay réussi");
+  }
+};
+        </pre>
+        <p>Il faut aussi ajouter les dépendances Google Pay dans le build.gradle (Stripe s'en charge partiellement). Tester sur un vrai appareil Android avec Google Play Services.</p>`
+      },
+      {
+        type: "content",
+        title: "💳 Fallback : formulaire carte bancaire classique",
+        content: `<p>Pour les utilisateurs sans Apple/Google Pay, ou si le paiement wallet échoue, on utilise le formulaire de carte Stripe (ou autre solution locale comme Paystack, Orange Money, etc.)</p>
+        <pre class="bg-gray-800 text-gray-100 p-3 rounded-lg text-sm">
+import { CardField, useStripe } from '@stripe/stripe-react-native';
+
+const CardPaymentForm = () => {
+  const { confirmPayment } = useStripe();
+
+  const handleCardPay = async () => {
+    const { error, paymentIntent } = await confirmPayment(clientSecret, {
+      type: 'Card',
+      billingDetails: { name: 'Jean Dupont' }
+    });
+    if (error) alert("Erreur carte");
+    else alert("Paiement réussi !");
+  };
+
+  return (
+    &lt;&gt;
+      &lt;CardField postalCodeEnabled={true} placeholders={{ number: '4242 4242...' }} /&gt;
+      &lt;Button title="Payer par carte" onPress={handleCardPay} /&gt;
+    &lt;/&gt;
+  );
+};
+        </pre>`
+      },
+      {
+        type: "content",
+        title: "🔄 Logique de détection et fallback automatique",
+        content: `<p>Idéalement, on propose les trois options : Apple Pay (si iOS + disponible), Google Pay (si Android + compatible), et toujours la carte classique.</p>
+        <pre class="bg-gray-800 text-yellow-200 p-3 rounded-lg text-sm">
+import { Platform } from 'react-native';
+import { useApplePay, useGooglePay } from '@stripe/stripe-react-native';
+
+const CheckoutScreen = () => {
+  const { isApplePaySupported } = useApplePay();
+  const { isGooglePaySupported } = useGooglePay();
+
+  return (
+    &lt;View&gt;
+      {Platform.OS === 'ios' && isApplePaySupported && (
+        &lt;Button title="Apple Pay" onPress={applePayHandler} /&gt;
+      )}
+      {Platform.OS === 'android' && isGooglePaySupported && (
+        &lt;Button title="Google Pay" onPress={googlePayHandler} /&gt;
+      )}
+      &lt;Button title="Carte bancaire" onPress={cardFormHandler} /&gt;
+    &lt;/View&gt;
+  );
+};
+        </pre>
+        <p>Avant de montrer les boutons wallets, on peut aussi vérifier qu'un token de paiement est bien prêt.</p>`
+      },
+      {
+        type: "content",
+        title: "✅ Gestion du webhook de confirmation (backend)",
+        content: `<p>Quel que soit le mode de paiement (Apple, Google, CB), Stripe envoie un webhook à ton serveur pour confirmer le statut de la transaction (succeeded, failed).</p>
+        <pre class="bg-gray-800 text-white p-3 rounded-lg text-sm">
+// Exemple Express.js (backend)
+app.post('/webhook', express.raw({type: 'application/json'}), (req, res) => {
+  const event = stripe.webhooks.constructEvent(req.body, sigHeader, endpointSecret);
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object;
+    // Marquer la commande comme payée en base de données
+    // Envoyer une confirmation à l'utilisateur
+  }
+  res.json({received: true});
+});
+        </pre>
+        <p>Sur mobile, on peut soit attendre le webhook, soit utiliser la réponse du <code>presentPaymentSheet</code> qui donne un statut immédiat.</p>`
+      },
+      {
+        type: "content",
+        title: "🌍 Adaptation contexte camerounais / africain",
+        content: `<ul class="list-disc pl-6 space-y-2">
+          <li><i class="fas fa-university"></i> <strong>Moyens locaux</strong> : même si Apple/Google Pay ne sont pas encore massivement utilisés, intégrer le fallback CB est essentiel.</li>
+          <li><i class="fas fa-mobile-alt"></i> Pensez à des solutions comme <strong>Stripe Connect</strong> ou <strong>Paystack</strong> qui supportent les cartes internationales.</li>
+          <li><i class="fas fa-check-circle"></i> Pour les marchés où les wallets sont peu répandus, prioriser l'expérience carte bancaire + Mobile Money.</li>
+          <li><i class="fas fa-shield-alt"></i> La tokenisation Stripe assure la conformité PCI-DSS, indispensable.</li>
+        </ul>
+        <div class="mt-3 p-3 bg-indigo-50 rounded-xl">
+          <i class="fas fa-globe"></i> Toujours proposer un fallback fiable pour éviter les pertes de ventes.
+        </div>`
+      },
+      {
+        type: "summary",
+        title: "📦 Récapitulatif - Paiements Wallet & fallback",
+        points: [
+          "Apple Pay (iOS) et Google Pay (Android) via Stripe React Native",
+          "Vérifier la disponibilité (isApplePaySupported / isGooglePaySupported)",
+          "Formulaire carte bancaire classique (CardField) comme fallback universel",
+          "Utiliser PaymentSheet ou les hooks dédiés pour une UX fluide",
+          "Webhook backend pour confirmer les paiements et mettre à jour les commandes",
+          "Adapter selon le marché (prioriser le fallback si les wallets sont peu utilisés)"
+        ],
+        icon: "fa-check-double"
+      }
+    ];
+
+    let currentIndex = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(slide) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide h-full w-full text-white ${slide.bgClass || 'bg-gradient-to-br from-indigo-700 to-purple-700'} rounded-2xl p-6 md:p-10 flex flex-col justify-center items-center text-center min-h-[500px]">
+            <i class="fas ${slide.icon || 'fa-credit-card'} text-6xl md:text-7xl mb-6 drop-shadow-lg"></i>
+            <h1 class="text-3xl md:text-5xl font-extrabold mb-4">${slide.title}</h1>
+            <p class="text-indigo-100 text-lg md:text-xl max-w-xl">${slide.subtitle || ''}</p>
+            <div class="mt-8 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm">Apple Pay · Google Pay · Carte bancaire</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "objectives") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] flex flex-col">
+            <div class="flex items-center gap-3 mb-5 border-b border-indigo-200 pb-3">
+              <i class="fas fa-bullseye text-indigo-600 text-3xl"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800">${slide.title}</h2>
+            </div>
+            <ul class="space-y-4 flex-1">
+              ${slide.objectives.map(obj => `<li class="flex items-start gap-3 text-gray-700 text-lg"><i class="fas fa-check-circle text-green-500 mt-1"></i><span>${obj}</span></li>`).join('')}
+            </ul>
+            <div class="mt-6 text-sm text-gray-400"><i class="fas fa-arrow-down"></i> Naviguez pour maîtriser les paiements mobiles</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "content") {
+        return `
+          <div class="slide p-6 md:p-8 bg-white rounded-2xl min-h-[500px] overflow-y-auto">
+            <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-3 mb-5">${slide.title}</h2>
+            <div class="prose max-w-none text-gray-700">${slide.content}</div>
+          </div>
+        `;
+      }
+      else if (slide.type === "summary") {
+        return `
+          <div class="slide p-6 md:p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl min-h-[500px] flex flex-col justify-center">
+            <div class="text-center">
+              <i class="fas ${slide.icon || 'fa-graduation-cap'} text-5xl text-emerald-700 mb-4"></i>
+              <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">${slide.title}</h2>
+              <ul class="text-left max-w-md mx-auto space-y-3">
+                ${slide.points.map(p => `<li class="flex gap-2 items-start"><i class="fas fa-check text-emerald-600 mt-1"></i><span class="text-gray-700">${p}</span></li>`).join('')}
+              </ul>
+              <div class="mt-8 p-3 bg-white rounded-xl inline-block shadow">
+                <i class="fas fa-mobile-alt"></i> Paiements simples, sécurisés et inclusifs !
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `<div class="p-8 text-red-500">Erreur contenu</div>`;
+    }
+
+    function updateSlide() {
+      const slideHtml = renderSlide(slidesData[currentIndex]);
+      $('#slides-container').fadeOut(150, function() {
+        $(this).html(slideHtml);
+        $(this).fadeIn(200);
+      });
+      let indicatorsHtml = '';
+      for (let i = 0; i < totalSlides; i++) {
+        const activeClass = (i === currentIndex) ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-3';
+        indicatorsHtml += `<button class="indicator-dot h-2 rounded-full ${activeClass} transition-all mx-1" data-index="${i}"></button>`;
+      }
+      $('#slide-indicators').html(indicatorsHtml);
+      $('#prevSlide').prop('disabled', currentIndex === 0);
+      $('#nextSlide').html(currentIndex === totalSlides - 1 ? 'Terminé <i class="fas fa-check-circle ml-2"></i>' : 'Suivant <i class="fas fa-arrow-right ml-2"></i>');
+    }
+
+    function nextSlide() {
+      if (currentIndex < totalSlides - 1) {
+        currentIndex++;
+        updateSlide();
+      } else {
+        alert('🎉 Félicitations ! Vous savez intégrer Apple Pay, Google Pay et le fallback CB dans une app e-commerce !');
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    $(document).ready(function() {
+      updateSlide();
+      $('#nextSlide').on('click', nextSlide);
+      $('#prevSlide').on('click', prevSlide);
+      
+      $(document).on('click', '.indicator-dot', function() {
+        const idx = $(this).data('index');
+        if (idx !== undefined && idx >= 0 && idx < totalSlides) {
+          currentIndex = idx;
+          updateSlide();
+        }
+      });
+      
+      // Swipe pour mobile
+      let touchStartX = 0, touchEndX = 0;
+      const container = document.getElementById('slides-container');
+      if (container) {
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        });
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          if (touchEndX < touchStartX - 50) nextSlide();
+          if (touchEndX > touchStartX + 50) prevSlide();
+        });
+      }
+    });
+  </script>
+</body>
+</html>

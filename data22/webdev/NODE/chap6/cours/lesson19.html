@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Lesson 19 - Hachage de mots de passe avec bcrypt | Backend Node.js</title>
+    <!-- Tailwind CSS + Font Awesome (pour icônes subtiles) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour formules mathématiques si besoin) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation supplémentaire pour la navigation slides et les couleurs confortables -->
+    <style>
+        /* Transition douce entre slides */
+        .slide {
+            transition: opacity 0.3s ease-in-out;
+        }
+        body {
+            background: #f8fafc;
+        }
+        .slide-container {
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        /* style pour la pagination des slides */
+        .dot-active {
+            background-color: #3b82f6;
+            width: 2rem;
+        }
+        .dot-inactive {
+            background-color: #cbd5e1;
+        }
+        @media (max-width: 640px) {
+            .slide-container {
+                margin-left: 0.75rem;
+                margin-right: 0.75rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+        /* éviter les trop gros contrastes agressifs */
+        .card-soft {
+            background-color: #ffffffdd;
+            backdrop-filter: blur(2px);
+        }
+        pre {
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <main class="min-h-screen py-8 px-4 md:px-6">
+        <div class="slide-container">
+            <!-- Conteneur des slides -->
+            <div id="slides-wrapper" class="relative">
+                <!-- Les slides seront injectées dynamiquement avec jQuery -->
+            </div>
+
+            <!-- Navigation controls (flèches + dots) -->
+            <div class="flex justify-between items-center mt-8 gap-4 flex-wrap">
+                <button id="prevSlide" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-5 rounded-full transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
+                    ← Précédent
+                </button>
+                <div id="dotsContainer" class="flex flex-wrap justify-center gap-2 my-2"></div>
+                <button id="nextSlide" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition shadow-md">
+                    Suivant →
+                </button>
+            </div>
+            <!-- indicateur de progression textuelle -->
+            <div class="text-center text-sm text-gray-500 mt-4" id="slideCounter"></div>
+        </div>
+    </main>
+
+    <script>
+        // ==================== DONNÉES DE LA LEÇON 19 ====================
+        // La lesson19 correspond à : "Installer bcrypt pour hacher les mots de passe"
+        // Objectifs : 
+        // 1. Installer bcrypt pour hacher les mots de passe
+        // 2. Comparer les mots de passe lors de la connexion
+        // 3. Comprendre le salage et l'importance du hachage
+
+        // Définition des slides : 
+        // Slide 0 : Titre de la leçon
+        // Slide 1 : Objectifs d'apprentissage
+        // Slide 2 : Introduction - pourquoi hacher les mots de passe?
+        // Slide 3 : Installation de bcrypt et premier hachage
+        // Slide 4 : Comparaison de mots de passe (vérification login)
+        // Slide 5 : Comprendre le "salage" (salt) et son importance
+        // Slide 6 : Bonnes pratiques et récapitulatif
+
+        const slidesData = [
+            {
+                type: "title",
+                title: "🔐 Sécurité des mots de passe avec bcrypt",
+                subtitle: "Hachage, salage et vérification sécurisée dans Node.js",
+                icon: "🛡️"
+            },
+            {
+                type: "objectives",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "Installer et utiliser bcrypt pour hacher des mots de passe",
+                    "Comparer un mot de passe en clair avec un hash stocké (login)",
+                    "Comprendre le mécanisme de 'salage' et pourquoi il est essentiel"
+                ]
+            },
+            {
+                type: "content",
+                title: "📌 Pourquoi hacher les mots de passe ?",
+                content: `<p class="mb-4">Ne jamais stocker un mot de passe en clair dans une base de données ! Si un pirate accède à la base, il verrait immédiatement tous les mots de passe. Le hachage transforme le mot de passe en une chaîne fixe impossible à inverser.</p>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md my-4">
+                    <p class="font-semibold">⚠️ Risque réel :</p>
+                    <p>Sur de nombreux sites non sécurisés, des fuites ont exposé des millions de mots de passe en clair. Le hachage cryptographique protège les utilisateurs même en cas de violation.</p>
+                </div>
+                <p>bcrypt est un algorithme moderne, lent par conception (résiste aux attaques par force brute) et intègre automatiquement le <strong class="text-blue-700">salage</strong>.</p>
+                <div class="mt-4 bg-gray-100 p-3 rounded-lg">
+                    <p class="font-mono text-sm">Exemple de hash bcrypt : $2b$10$N9qo8uLOickgx2ZMRZoMy.Mr2q4Df... 👈 le sel est inclus directement</p>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🛠️ Installation de bcrypt & premier hachage",
+                content: `<p class="mb-3">Dans votre projet Node.js (déjà initialisé avec npm), installez bcrypt :</p>
+                <pre class="bg-gray-900 text-green-300 p-3 rounded-md overflow-x-auto text-sm"><code>npm install bcrypt</code></pre>
+                <p class="mt-4 mb-2">Ensuite, pour hacher un mot de passe (ex: lors de l'inscription) :</p>
+                <pre class="bg-gray-900 text-green-300 p-3 rounded-md overflow-x-auto text-sm"><code>const bcrypt = require('bcrypt');
+const saltRounds = 10;  // facteur de coût (plus élevé = plus sécurisé mais plus lent)
+
+async function hashPassword(plainPassword) {
+    const hash = await bcrypt.hash(plainPassword, saltRounds);
+    console.log('Hash généré :', hash);
+    return hash;
+}</code></pre>
+                <div class="mt-3 text-gray-700 text-sm italic">💡 Le <span class="font-bold">saltRounds</span> détermine le temps de calcul : 10 est un bon compromis performance/sécurité.</div>`
+            },
+            {
+                type: "content",
+                title: "🔍 Comparer un mot de passe (vérification login)",
+                content: `<p class="mb-3">Lors de la connexion, l'utilisateur fournit son mot de passe en clair. On compare avec le hash stocké dans la base de données.</p>
+                <pre class="bg-gray-900 text-green-300 p-3 rounded-md overflow-x-auto text-sm"><code>async function checkPassword(plainPassword, hashedPasswordFromDB) {
+    const isMatch = await bcrypt.compare(plainPassword, hashedPasswordFromDB);
+    if (isMatch) {
+        console.log("✅ Mot de passe correct !");
+        return true;
+    } else {
+        console.log("❌ Mot de passe invalide");
+        return false;
+    }
+}</code></pre>
+                <div class="bg-blue-50 p-4 rounded-lg mt-4">
+                    <p class="font-semibold">✨ Pourquoi <code>bcrypt.compare</code> est magique ?</p>
+                    <p>Il extrait automatiquement le sel depuis le hash, puis applique le même processus de hachage sur le mot de passe fourni et compare les résultats. Vous n'avez pas à gérer le sel manuellement.</p>
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🧂 Comprendre le salage (Salt)",
+                content: `<p>Le <strong class="text-indigo-700">sel (salt)</strong> est une donnée aléatoire ajoutée au mot de passe avant le hachage. Deux utilisateurs avec le même mot de passe auront des hashs totalement différents.</p>
+                <div class="grid md:grid-cols-2 gap-4 my-4">
+                    <div class="border rounded-lg p-3 bg-white shadow-sm">
+                        <p class="font-mono text-xs">Sans sel :</p>
+                        <p class="text-sm">"azerty123" → hachage classique → toujours le même hash. Vulnérable aux tables rainbow.</p>
+                    </div>
+                    <div class="border rounded-lg p-3 bg-white shadow-sm">
+                        <p class="font-mono text-xs">Avec sel (bcrypt) :</p>
+                        <p class="text-sm">"azerty123" + sel_aléatoire → hash unique même pour des mots de passe identiques.</p>
+                    </div>
+                </div>
+                <p>bcrypt génère un sel aléatoire (16 octets) et l'intègre dans le résultat final. Il n'est pas nécessaire de stocker le sel séparément, ce qui simplifie énormément le code.</p>
+                <div class="mt-3 p-3 bg-green-50 rounded text-green-800">
+                    ✅ Avantage : même si deux utilisateurs choisissent "password123", leurs hashs sont différents, ce qui bloque les attaques pré-calculées.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "🏁 Bonnes pratiques & récapitulatif",
+                content: `<ul class="list-disc pl-6 space-y-2">
+                    <li><span class="font-bold">Toujours hacher</span> les mots de passe avant de les sauvegarder.</li>
+                    <li>Utiliser bcrypt (ou argon2) plutôt que des algorithmes rapides comme SHA256 (sans sel).</li>
+                    <li>Choisir un facteur de coût (saltRounds) adapté à votre infrastructure (10-12).</li>
+                    <li>Ne jamais implémenter son propre algorithme de hachage.</li>
+                    <li>bcrypt gère automatiquement le sel et la comparaison sécurisée (évite les timing attacks).</li>
+                </ul>
+                <div class="mt-6 bg-gray-100 p-4 rounded-xl">
+                    <p class="italic">📘 <strong>Résumé Node.js avec Express :</strong> lors de l'inscription, <code>await bcrypt.hash(req.body.password, 10)</code>, lors du login <code>await bcrypt.compare(req.body.password, userFromDB.password)</code>.</p>
+                </div>
+                <div class="flex justify-center mt-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>`
+            }
+        ];
+
+        let currentSlide = 0;
+        let totalSlides = slidesData.length;
+
+        // Fonction pour afficher un slide selon son index
+        function renderSlide(index) {
+            const slide = slidesData[index];
+            if (!slide) return;
+            let html = '';
+            const baseCardClass = "bg-white rounded-2xl shadow-xl p-6 md:p-8 transition-all duration-200 border border-gray-100";
+            
+            if (slide.type === "title") {
+                html = `
+                    <div class="${baseCardClass} text-center">
+                        <div class="text-6xl mb-4">${slide.icon || '🔐'}</div>
+                        <h1 class="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-gray-600 mt-4 text-lg">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <span class="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 text-sm">Module: Sécurité Node.js</span>
+                        </div>
+                        <div class="mt-10 text-gray-500 text-sm">👨‍🏫 Cliquez sur "Suivant" pour commencer</div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === "objectives") {
+                html = `
+                    <div class="${baseCardClass}">
+                        <h2 class="text-2xl md:text-3xl font-bold text-indigo-800 border-l-6 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                        <ul class="space-y-4">
+                            ${slide.objectives.map(obj => `
+                                <li class="flex items-start gap-3">
+                                    <span class="inline-flex items-center justify-center bg-green-100 text-green-700 rounded-full w-6 h-6 text-sm mt-0.5">✓</span>
+                                    <span class="text-gray-700 text-base md:text-lg">${obj}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <div class="mt-8 p-3 bg-blue-50 rounded-lg text-blue-800">
+                            💡 À la fin de cette leçon, vous saurez sécuriser les comptes utilisateurs dans vos applications Node.js.
+                        </div>
+                    </div>
+                `;
+            }
+            else if (slide.type === "content") {
+                html = `
+                    <div class="${baseCardClass}">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-5 flex items-center gap-2">
+                            <span class="bg-blue-100 text-blue-700 rounded-full w-8 h-8 inline-flex items-center justify-center text-lg">📘</span>
+                            ${slide.title}
+                        </h2>
+                        <div class="prose prose-blue max-w-none text-gray-700 leading-relaxed">
+                            ${slide.content}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Mettre à jour le wrapper
+            $('#slides-wrapper').html(html);
+            // Mettre à jour la pagination (dots)
+            updateDots(index);
+            updateCounter(index);
+            // Gérer l'état des boutons
+            $('#prevSlide').prop('disabled', index === 0);
+            // déclencher MathJax si besoin (au cas où on aurait des formules)
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            // Scroll en haut de la slide (meilleure UX)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function updateDots(activeIdx) {
+            let dotsHtml = '';
+            for (let i = 0; i < totalSlides; i++) {
+                let dotClass = (i === activeIdx) ? 'bg-blue-600 w-8' : 'bg-gray-300 w-3';
+                dotsHtml += `<button class="dot-item h-2 rounded-full ${dotClass} transition-all duration-200 mx-1" data-index="${i}"></button>`;
+            }
+            $('#dotsContainer').html(dotsHtml);
+            // Ajouter événements click sur les dots
+            $('.dot-item').on('click', function() {
+                let idx = parseInt($(this).data('index'));
+                if (!isNaN(idx) && idx !== currentSlide) {
+                    currentSlide = idx;
+                    renderSlide(currentSlide);
+                }
+            });
+        }
+        
+        function updateCounter(idx) {
+            $('#slideCounter').text(`Slide ${idx+1} / ${totalSlides} — Leçon 19 : Hachage avec bcrypt`);
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                renderSlide(currentSlide);
+            } else {
+                // animation petit message si dernière slide
+                $('#nextSlide').effect ? null : null;
+                alert("🎉 Félicitations ! Vous avez terminé cette leçon. Passez aux exercices pratiques.");
+            }
+        }
+        
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide(currentSlide);
+            }
+        }
+        
+        // Gestion clavier flèches gauche/droite pour plus de confort
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight') {
+                nextSlide();
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+                e.preventDefault();
+            }
+        });
+        
+        // Initialisation
+        $(document).ready(function() {
+            renderSlide(0);
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+        });
+        
+        // design additionnel : rendre le fond homogène
+        $('body').addClass('bg-gradient-to-br from-slate-50 to-gray-100');
+        
+    </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+[
+  {
+    "questionText": "Quel est l’objectif principal d’un Dockerfile multi-stage dans le contexte d’une API NestJS ?",
+    "options": [
+      "Exécuter plusieurs commandes CMD dans un seul conteneur",
+      "Réduire la taille finale de l’image en séparant la phase de build (dépendances, compilation) de la phase d’exécution",
+      "Permettre d’utiliser plusieurs bases de données dans le même conteneur",
+      "Augmenter le nombre de couches Docker pour un meilleur cache"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Un multi-stage build permet d’avoir une première étape (build) avec tous les outils de compilation (TypeScript, devDependencies) et une seconde étape (production) où l’on copie uniquement le code compilé et les dépendances de production. Cela réduit considérablement la taille de l’image finale (souvent de plusieurs centaines de Mo à ~150-200 Mo pour une API NestJS)."
+  },
+  {
+    "questionText": "Dans un Dockerfile multi-stage pour NestJS, que contient généralement la première étape (`builder`) ?",
+    "options": [
+      "L’exécution de `npm install --production` uniquement",
+      "L’installation de toutes les dépendances (`npm install`), la compilation TypeScript et la génération du dossier `dist`",
+      "Le téléchargement de l’image Node.js alpine sans aucune installation",
+      "La copie des fichiers statiques uniquement"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "La première étape (builder) installe toutes les dépendances (dev et prod), compile le code TypeScript avec `nest build` ou `tsc`, et produit le dossier `dist`. Les devDependencies (TypeScript, @nestjs/cli, etc.) sont nécessaires ici mais ne seront pas copiées dans l’image finale."
+  },
+  {
+    "questionText": "Quelle instruction Dockerfile permet de copier les artefacts de l’étape `builder` vers l’étape `production` ?",
+    "options": [
+      "`FROM builder AS production`",
+      "`COPY --from=builder /app/dist ./dist`",
+      "`RUN --from=builder cp -r /app/dist ./dist`",
+      "`MULTICOPY builder /app/dist ./dist`"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "La syntaxe `COPY --from=<stage_name> <source> <dest>` est utilisée pour copier des fichiers depuis une étape précédente du build multi-stage. Exemple : `COPY --from=builder /app/dist ./dist` pour copier le dossier compilé."
+  },
+  {
+    "questionText": "Dans un fichier `docker-compose.yml` pour une API e-commerce, pourquoi déclare-t-on un service `postgres` et un service `redis` ?",
+    "options": [
+      "Pour exécuter l’API directement sans Node.js",
+      "Pour fournir une base de données relationnelle et un cache/file d’attente nécessaires à l’application",
+      "Pour stocker uniquement les logs applicatifs",
+      "Pour remplacer le système de fichiers de l’hôte"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "L’API e-commerce a besoin de PostgreSQL pour stocker les données (utilisateurs, produits, commandes) et de Redis pour la gestion du cache, des sessions, du rate limiting ou des files d’attente (Bull). docker-compose permet de lancer les trois services ensemble avec un seul réseau."
+  },
+  {
+    "questionText": "Comment docker-compose permet-il à l’API NestJS de se connecter à PostgreSQL et Redis sans utiliser d’IP dynamique ?",
+    "options": [
+      "En utilisant des adresses MAC fixes pour chaque conteneur",
+      "En exposant tous les ports sur l’hôte local",
+      "En mettant à disposition un DNS interne : le nom du service (`postgres`) résout l’IP du conteneur",
+      "En générant automatiquement un fichier `/etc/hosts` partagé"
+    ],
+    "correctAnswer": 2,
+    "difficulty": "medium",
+    "explanation": "docker-compose crée un réseau par défaut où chaque service peut être atteint via son nom de service. Exemple : dans le code de l’API, la variable `DB_HOST=postgres` permettra de se connecter au conteneur PostgreSQL. C’est plus simple que d’utiliser des IPs fixes ou dynamiques."
+  },
+  {
+    "questionText": "Comment passe-t-on des variables d’environnement différentes (dev, staging, prod) à un conteneur Docker sans recompiler l’image ?",
+    "options": [
+      "En modifiant le Dockerfile avant chaque déploiement",
+      "En utilisant le fichier `.env` ou le champ `environment` dans `docker-compose.yml`",
+      "En inscrivant les variables en dur dans le code source",
+      "En utilisant une base de données externe"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Les variables d’environnement doivent être injectées au moment de l’exécution, pas au build. On peut utiliser :\n- un fichier `.env` automatiquement lu par docker-compose,\n- la section `environment` dans `docker-compose.yml`,\n- ou l’option `-e` avec `docker run`.\nCela permet d’avoir une seule image utilisable en développement, test et production."
+  },
+  {
+    "questionText": "Que signifie l’instruction `HEALTHCHECK` dans un Dockerfile ?",
+    "options": [
+      "Elle empêche le conteneur de redémarrer",
+      "Elle permet de vérifier périodiquement que le service (ex: API) répond correctement et de marquer le conteneur comme `healthy` ou `unhealthy`",
+      "Elle affiche des logs de santé sans action",
+      "Elle supprime le conteneur automatiquement s’il est malade"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "`HEALTHCHECK` exécute une commande (ex: `curl http://localhost:3000/health`) à intervalles réguliers. Si la commande échoue, le conteneur est marqué `unhealthy`. Docker peut alors redémarrer le conteneur ou l’exclure d’un load balancer (utile en orchestration)."
+  },
+  {
+    "questionText": "Quelle est la meilleure pratique concernant l’utilisateur dans un Dockerfile de production ?",
+    "options": [
+      "Toujours exécuter les processus en tant que `root` pour éviter les problèmes de permissions",
+      "Créer un utilisateur non root (ex: `node`) et l’utiliser avec `USER node` pour limiter les privilèges",
+      "Ne pas spécifier d’utilisateur, Docker utilise root par défaut",
+      "Désactiver complètement le système de fichiers"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "explanation": "Exécuter les applications en tant que `root` est dangereux : si un attaquant exploite une faille, il a tous les privilèges sur le conteneur. La bonne pratique est d’utiliser un utilisateur non root (souvent `node` fourni par l’image officielle Node.js) avec l’instruction `USER node`."
+  },
+  {
+    "questionText": "Dans `docker-compose.yml`, que permet l’instruction `volumes` (ex: `./uploads:/app/uploads`) ?",
+    "options": [
+      "De dupliquer les fichiers entre plusieurs conteneurs",
+      "De persister les données sur l’hôte (ex: fichiers téléchargés) pour qu’elles ne disparaissent pas à l’arrêt du conteneur",
+      "D’augmenter la mémoire RAM du conteneur",
+      "De désactiver le système de fichiers"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "Les volumes montent un répertoire de l’hôte dans le conteneur. Cela permet de conserver les fichiers (images uploadées, logs) après la suppression du conteneur. Exemple typique : `./uploads:/app/uploads` lie le dossier local `uploads` au dossier `/app/uploads` dans le conteneur."
+  },
+  {
+    "questionText": "Pourquoi est-il important d’avoir un fichier `.dockerignore` dans un projet NestJS ?",
+    "options": [
+      "Pour arrêter le conteneur automatiquement",
+      "Pour exclure du contexte Docker les fichiers inutiles (node_modules, .git, dist, logs) et accélérer le build",
+      "Pour empêcher Docker d’installer les dépendances",
+      "Pour chiffrer l’image Docker"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "explanation": "`.dockerignore` évite d’envoyer des fichiers lourds ou inutiles au démon Docker lors de `docker build`. Exemples : `node_modules/`, `.git/`, `dist/`, `.env`. Cela réduit la taille du contexte, accélère le build et évite les mauvaises surprises."
+  }
+]

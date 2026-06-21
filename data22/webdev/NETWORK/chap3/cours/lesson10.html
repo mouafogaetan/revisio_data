@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cours Réseaux - Routage (Routeurs, tables et protocoles)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { transition: opacity 0.4s ease-in-out; }
+        .progress-bar { transition: width 0.3s ease; }
+        .nav-btn { transition: all 0.2s ease; }
+        .nav-btn:hover { transform: scale(1.05); }
+        pre {
+            background: #1e1e2f;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        code { font-family: 'Courier New', monospace; }
+        .comparison-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #cbd5e1;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .comparison-table th { background-color: #dbeafe; font-weight: 600; }
+        @media (max-width: 640px) {
+            .comparison-table th, .comparison-table td { padding: 0.5rem; font-size: 0.75rem; }
+            pre { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 font-sans antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-6 md:py-10">
+    <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        
+        <!-- Slide 1 : Titre -->
+        <div class="slide p-6 md:p-10" data-slide="0">
+            <div class="flex flex-col min-h-[500px] justify-center items-center text-center">
+                <div class="mb-6"><span class="text-sm font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">Réseaux Informatiques - Chapitre 3</span></div>
+                <h1 class="text-3xl md:text-5xl font-extrabold text-slate-800 mb-4">🌍 Le routage IP</h1>
+                <p class="text-xl md:text-2xl text-slate-600 mb-8">Routeurs, tables de routage et protocoles dynamiques</p>
+                <div class="w-24 h-1 bg-indigo-500 rounded-full mx-auto mb-8"></div>
+                <p class="text-slate-500">Cliquez sur les boutons ci-dessous pour naviguer</p>
+            </div>
+        </div>
+
+        <!-- Slide 2 : Objectifs -->
+        <div class="slide hidden p-6 md:p-10" data-slide="1">
+            <div class="flex flex-col min-h-[500px] justify-center">
+                <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-6 flex items-center gap-2">🎯 Objectifs pédagogiques</h2>
+                <ul class="space-y-4 text-slate-700">
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">✓</span> Comprendre le rôle d'un routeur et la table de routage</li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">✓</span> Distinguer routage statique et routage dynamique</li>
+                    <li class="flex items-start gap-3"><span class="text-indigo-600 font-bold text-xl">✓</span> Découvrir les protocoles de routage (RIP, OSPF, BGP)</li>
+                </ul>
+                <div class="mt-8 bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                    <p class="text-indigo-800 text-sm">💡 À la fin de cette leçon, vous saurez comment les paquets voyagent d'un réseau à un autre sur Internet.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3 : Rôle du routeur -->
+        <div class="slide hidden p-6 md:p-10" data-slide="2">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🔁 Le routeur : aiguilleur du réseau</h2>
+            <p>Un routeur est un équipement de <strong>niveau 3 (couche réseau)</strong> qui connecte plusieurs réseaux différents et achemine les paquets IP vers leur destination.</p>
+            <div class="bg-slate-50 p-4 rounded-lg my-4">
+                <p class="font-semibold">📌 Fonctions principales :</p>
+                <ul class="list-disc list-inside mt-2 space-y-1">
+                    <li>Consulter sa <strong>table de routage</strong> pour décider du prochain saut (next-hop)</li>
+                    <li>Transférer les paquets d'une interface à une autre</li>
+                    <li>Isoler les domaines de broadcast (contrairement au switch)</li>
+                    <li>Assurer la traduction d'adresses (NAT/PAT) dans les routeurs domestiques</li>
+                </ul>
+            </div>
+            <pre class="text-xs text-center">Représentation simplifiée d'un routeur :
+   [Réseau A] --- (interface1) [ROUTEUR] (interface2) --- [Réseau B]
+                       | 
+                   Table de routage</pre>
+        </div>
+
+        <!-- Slide 4 : Table de routage -->
+        <div class="slide hidden p-6 md:p-10" data-slide="3">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📋 La table de routage</h2>
+            <p>Une table de routage contient des entrées qui indiquent où envoyer les paquets. Chaque entrée comprend :</p>
+            <ul class="list-disc list-inside mt-2 space-y-1 mb-4">
+                <li><strong>Réseau destination</strong> (ex: 192.168.1.0/24)</li>
+                <li><strong>Masque de sous-réseau</strong></li>
+                <li><strong>Passerelle (next-hop)</strong> : adresse IP du routeur suivant</li>
+                <li><strong>Interface de sortie</strong> (ex: eth0, Serial0)</li>
+                <li><strong>Métrique / coût</strong> (priorité)</li>
+            </ul>
+            <pre class="text-sm">Exemple de table de routage simplifiée :
+Destination     Masque          Passerelle        Interface
+0.0.0.0         0.0.0.0         192.168.1.254     eth0     (défaut)
+192.168.1.0     255.255.255.0   0.0.0.0           eth1     (direct)
+10.0.0.0        255.0.0.0       192.168.2.1       eth0</pre>
+            <p class="text-sm mt-2">💡 La route par défaut (0.0.0.0/0) capture tous les paquets dont la destination n'est pas dans la table.</p>
+        </div>
+
+        <!-- Slide 5 : Routage statique -->
+        <div class="slide hidden p-6 md:p-10" data-slide="4">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">✍️ Routage statique</h2>
+            <p>Les routes sont ajoutées <strong>manuellement</strong> par l'administrateur réseau. Elles ne changent pas toutes seules.</p>
+            <div class="grid md:grid-cols-2 gap-4 my-4">
+                <div class="bg-green-50 p-3 rounded-lg"><p class="font-bold text-green-800">✅ Avantages</p><ul class="list-disc list-inside text-sm"><li>Simple à configurer sur petits réseaux</li><li>Aucune charge CPU supplémentaire</li><li>Sécurisé (pas d'annonce spontanée)</li></ul></div>
+                <div class="bg-red-50 p-3 rounded-lg"><p class="font-bold text-red-800">❌ Inconvénients</p><ul class="list-disc list-inside text-sm"><li>Non adapté aux grands réseaux</li><li>Pas de tolérance aux pannes (rupture manuelle)</li><li>Maintenance lourde en cas de changement</li></ul></div>
+            </div>
+            <pre class="text-sm">Commande exemple (Cisco) :
+ip route 192.168.5.0 255.255.255.0 192.168.1.2</pre>
+        </div>
+
+        <!-- Slide 6 : Routage dynamique -->
+        <div class="slide hidden p-6 md:p-10" data-slide="5">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🔄 Routage dynamique</h2>
+            <p>Les routeurs échangent automatiquement des informations sur les réseaux via des <strong>protocoles de routage</strong>. Les routes s'adaptent en temps réel aux changements (panne, nouvelle liaison).</p>
+            <div class="grid md:grid-cols-2 gap-4 my-4">
+                <div class="bg-blue-50 p-3 rounded-lg"><p class="font-bold text-blue-800">✅ Avantages</p><ul class="list-disc list-inside text-sm"><li>Adaptation automatique aux pannes</li><li>Convient aux grands réseaux</li><li>Répartition de charge possible</li></ul></div>
+                <div class="bg-orange-50 p-3 rounded-lg"><p class="font-bold text-orange-800">⚠️ Inconvénients</p><ul class="list-disc list-inside text-sm"><li>Consomme bande passante et CPU</li><li>Configuration plus complexe</li><li>Temps de convergence</li></ul></div>
+            </div>
+        </div>
+
+        <!-- Slide 7 : Protocoles de routage (RIP, OSPF, BGP) -->
+        <div class="slide hidden p-6 md:p-10" data-slide="6">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📡 Principaux protocoles de routage</h2>
+            <table class="comparison-table">
+                <thead><tr><th>Protocole</th><th>Type</th><th>Métrique</th><th>Portée</th></tr></thead>
+                <tbody>
+                    <tr><td class="font-mono">RIP (v2)</td><td>IGP (Distance Vector)</td><td>Nb de sauts (max 15)</td><td>Petit réseau</td></tr>
+                    <tr><td class="font-mono">OSPF</td><td>IGP (Link State)</td><td>Coût (bande passante)</td><td>Grand réseau interne</td></tr>
+                    <tr><td class="font-mono">BGP</td><td>EGP (Path Vector)</td><td>Chemin AS, politiques</td><td>Internet (entre AS)</td></tr>
+                </tbody>
+            </table>
+            <div class="mt-4 text-sm bg-slate-100 p-3 rounded">
+                <p>📌 <strong>IGP</strong> = Interior Gateway Protocol (au sein d'un même AS). <strong>EGP</strong> = Exterior Gateway Protocol (entre AS).<br>
+                En Afrique, les FAI utilisent BGP pour se connecter entre eux et aux câbles sous-marins.</p>
+            </div>
+        </div>
+
+        <!-- Slide 8 : Comparaison statique vs dynamique -->
+        <div class="slide hidden p-6 md:p-10" data-slide="7">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">⚖️ Routage statique vs dynamique</h2>
+            <table class="comparison-table">
+                <tr><th>Critère</th><th>Statique</th><th>Dynamique</th></tr>
+                <tr><td>Configuration</td><td>Manuelle</td><td>Automatique (protocoles)</td></tr>
+                <tr><td>Adaptation panne</td><td>Non</td><td>Oui (convergence)</td></tr>
+                <tr><td>Charge CPU</td><td>Nulle</td><td>Élevée</td></tr>
+                <tr><td>Bande passante</td><td>0</td><td>Consommation pour échanges</td></tr>
+                <tr><td>Sécurité</td><td>Très bonne</td><td>Risque d'annonces frauduleuses</td></tr>
+                <tr><td>Usage typique</td><td>Route par défaut, petites entreprises, liaison spéciale</td><td>Réseaux d'entreprise, cœur d'Internet</td></tr>
+            </table>
+        </div>
+
+        <!-- Slide 9 : Exemple de routage simple -->
+        <div class="slide hidden p-6 md:p-10" data-slide="8">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">🏠 Exemple concret : petit réseau avec routeur</h2>
+            <p>Configuration typique d'un routeur domestique qui connecte le LAN à Internet :</p>
+            <pre class="text-sm my-3">
+LAN (192.168.1.0/24)  --- [Routeur] ---  (IP publique) --- Internet
+                                |
+                           Table de routage :
+                           - 192.168.1.0/24  → interface LAN (direct)
+                           - 0.0.0.0/0       → passerelle (FAI)
+            </pre>
+            <p>Le routeur fait aussi NAT pour que tous les PC du LAN partagent la même IP publique.</p>
+            <div class="bg-amber-50 p-3 rounded-lg mt-2">
+                <p>Au Cameroun, les box Internet (Orange, MTN, CAMTEL) fonctionnent sur ce principe : routeur + NAT + WiFi.</p>
+            </div>
+        </div>
+
+        <!-- Slide 10 : Récapitulatif -->
+        <div class="slide hidden p-6 md:p-10" data-slide="9">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">📌 À retenir</h2>
+            <ul class="list-disc list-inside space-y-2 text-slate-700">
+                <li>Le routeur connecte des réseaux différents et utilise une <strong>table de routage</strong>.</li>
+                <li><strong>Routage statique</strong> : routes manuelles, fixes, simple mais rigide.</li>
+                <li><strong>Routage dynamique</strong> : protocoles (RIP, OSPF, BGP), auto-adaptatif.</li>
+                <li>La route par défaut (0.0.0.0/0) est la passerelle pour tout ce qui n'est pas connu.</li>
+                <li>Sur Internet, BGP est indispensable pour interconnecter les fournisseurs d'accès.</li>
+            </ul>
+            <div class="mt-6 bg-indigo-50 p-4 rounded-xl">
+                <p class="font-semibold">🎓 Exercice de réflexion :</p>
+                <p>Que se passe-t-il si la route par défaut est mal configurée sur un routeur ?</p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="absolute bottom-4 right-4 flex gap-2">
+            <button id="prevBtn" class="nav-btn bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-indigo-100 disabled:opacity-40 transition" disabled>◀</button>
+            <button id="nextBtn" class="nav-btn bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-md hover:bg-indigo-100">▶</button>
+        </div>
+
+        <!-- Indicateur de progression -->
+        <div class="absolute bottom-4 left-4 text-xs text-slate-500 bg-white/70 px-2 py-1 rounded-full">
+            Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">10</span>
+        </div>
+        <div class="w-full h-1 bg-slate-200 absolute bottom-0 left-0">
+            <div id="progressBar" class="progress-bar h-full bg-indigo-500 w-0"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        let currentIndex = 0;
+        const slides = $('.slide');
+        const total = slides.length;
+        $('#totalSlides').text(total);
+
+        function updateSlides() {
+            slides.each(function(index) {
+                if (index === currentIndex) $(this).removeClass('hidden').addClass('block');
+                else $(this).removeClass('block').addClass('hidden');
+            });
+            $('#currentSlideIdx').text(currentIndex + 1);
+            const progressPercent = ((currentIndex + 1) / total) * 100;
+            $('#progressBar').css('width', progressPercent + '%');
+            $('#prevBtn').prop('disabled', currentIndex === 0);
+            $('#nextBtn').prop('disabled', currentIndex === total - 1);
+        }
+
+        $('#nextBtn').on('click', function() { if (currentIndex < total - 1) { currentIndex++; updateSlides(); } });
+        $('#prevBtn').on('click', function() { if (currentIndex > 0) { currentIndex--; updateSlides(); } });
+        $(document).on('keydown', function(e) {
+            if (e.key === 'ArrowRight' && currentIndex < total - 1) { currentIndex++; updateSlides(); }
+            else if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updateSlides(); }
+        });
+        updateSlides();
+    });
+</script>
+</body>
+</html>

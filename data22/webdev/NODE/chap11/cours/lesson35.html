@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Docker pour Node.js - Containerisation d'applications</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .slide {
+            display: none;
+            transition: all 0.3s ease;
+        }
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .nav-btn {
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .code-block {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            margin: 1rem 0;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .terminal {
+            background: #0a0a0a;
+            border-left: 4px solid #10b981;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .code-block {
+                font-size: 0.7rem;
+            }
+        }
+        .badge {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto max-w-4xl py-6 px-4 sm:px-6">
+        <!-- Barre de progression -->
+        <div class="mb-5 bg-slate-700/50 rounded-full h-2 overflow-hidden">
+            <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Indicateur de slide -->
+        <div class="text-center mb-3 text-sm text-gray-300 font-medium">
+            <i class="fas fa-layer-group"></i> Slide <span id="currentSlideIdx">1</span> / <span id="totalSlides">0</span>
+        </div>
+
+        <div id="slidesContainer">
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <div class="text-center">
+                    <div class="inline-block p-4 bg-blue-900/50 rounded-full mb-6">
+                        <i class="fab fa-docker text-6xl text-blue-400"></i>
+                    </div>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 mb-4">
+                        Docker & Node.js
+                    </h1>
+                    <p class="text-xl text-gray-300 mb-3">Containeriser votre application backend</p>
+                    <div class="border-t border-slate-600 w-24 mx-auto my-6"></div>
+                    <p class="text-gray-400"><i class="fas fa-ship"></i> Déployez n'importe où • <i class="fas fa-box"></i> Isolation • <i class="fas fa-rocket"></i> Scalabilité</p>
+                    <div class="mt-8 flex justify-center gap-4 text-sm text-gray-400">
+                        <span><i class="fas fa-graduation-cap text-blue-400"></i> Niveau: Intermédiaire+</span>
+                        <span><i class="fas fa-clock"></i> Durée: 60 min</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl sm:text-3xl font-bold text-white border-l-8 border-cyan-500 pl-4 mb-6">
+                    🎯 Objectifs de la leçon
+                </h2>
+                <ul class="space-y-4 text-gray-200">
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-400 mt-1"></i> <span>Comprendre ce qu'est Docker et un conteneur.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-400 mt-1"></i> <span>Créer un <strong class="text-blue-300">Dockerfile</strong> pour une application Node.js.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-400 mt-1"></i> <span>Construire une image Docker et exécuter un conteneur.</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-400 mt-1"></i> <span>Utiliser <strong class="text-blue-300">docker-compose</strong> pour orchestrer plusieurs services (app + base de données).</span></li>
+                    <li class="flex items-start gap-3"><i class="fas fa-check-circle text-green-400 mt-1"></i> <span>Déployer un conteneur sur un serveur de production.</span></li>
+                </ul>
+                <div class="mt-8 bg-blue-950/50 p-4 rounded-xl text-blue-200 text-sm border border-blue-800">
+                    <i class="fas fa-lightbulb"></i> À la fin, vous saurez "dockeriser" n'importe quelle API Node.js et la lancer avec une base de données en quelques commandes !
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : DOCKER ? C'EST QUOI ? -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">🐳 Docker en 2 minutes</h2>
+                <p class="text-gray-300 mb-4">Docker est une plateforme qui permet d'empaqueter une application et ses dépendances dans un <strong class="text-cyan-300">conteneur isolé</strong>.</p>
+                <div class="bg-slate-900 p-4 rounded-xl mb-5 text-center">
+                    <i class="fas fa-cube text-5xl text-cyan-400 mb-2 block"></i>
+                    <p class="text-gray-300 text-sm">Conteneur = environnement portable et léger (pas de machine virtuelle lourde)</p>
+                </div>
+                <!-- Dessin SVG comparatif VM vs Conteneur -->
+                <div class="flex flex-wrap justify-center gap-4 my-4">
+                    <div class="text-center">
+                        <svg width="160" height="120" viewBox="0 0 180 120" class="mx-auto">
+                            <rect x="10" y="20" width="150" height="90" fill="#475569" rx="8" />
+                            <rect x="25" y="35" width="120" height="25" fill="#ef4444" rx="4" />
+                            <text x="85" y="52" fill="white" font-size="8" text-anchor="middle">App + Node</text>
+                            <rect x="25" y="65" width="120" height="20" fill="#f59e0b" rx="4" />
+                            <text x="85" y="79" fill="white" font-size="8" text-anchor="middle">OS invité (plusieurs Go)</text>
+                            <rect x="25" y="90" width="120" height="15" fill="#3b82f6" rx="4" />
+                            <text x="85" y="100" fill="white" font-size="7" text-anchor="middle">Hyperviseur</text>
+                            <text x="85" y="118" fill="#94a3b8" font-size="8">Machine Virtuelle</text>
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <svg width="160" height="120" viewBox="0 0 180 120" class="mx-auto">
+                            <rect x="10" y="20" width="150" height="90" fill="#475569" rx="8" />
+                            <rect x="25" y="35" width="120" height="25" fill="#10b981" rx="4" />
+                            <text x="85" y="52" fill="white" font-size="8" text-anchor="middle">App + Node</text>
+                            <rect x="25" y="65" width="120" height="20" fill="#14b8a6" rx="4" />
+                            <text x="85" y="79" fill="white" font-size="8" text-anchor="middle">Docker Engine</text>
+                            <rect x="25" y="90" width="120" height="15" fill="#3b82f6" rx="4" />
+                            <text x="85" y="100" fill="white" font-size="7" text-anchor="middle">OS Hôte (Linux)</text>
+                            <text x="85" y="118" fill="#94a3b8" font-size="8">Conteneur Docker</text>
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-sm mt-2">✅ Avantages : portable, reproductible, léger, idéal pour le déploiement moderne.</p>
+            </div>
+
+            <!-- SLIDE 4 : LE DOCKERFILE -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">📄 Le Dockerfile</h2>
+                <p class="text-gray-300 mb-3">Un fichier texte contenant les instructions pour construire l'image Docker.</p>
+                <div class="code-block terminal">
+                    <pre><code># Utiliser l'image officielle Node.js
+FROM node:18-alpine
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer les dépendances
+RUN npm install
+
+# Copier le reste du code
+COPY . .
+
+# Exposer le port de l'application
+EXPOSE 3000
+
+# Commande de démarrage
+CMD ["node", "server.js"]</code></pre>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-sm text-gray-300">
+                    <div><span class="badge">FROM</span> Image de base</div>
+                    <div><span class="badge">WORKDIR</span> Dossier de travail</div>
+                    <div><span class="badge">COPY</span> Copie de fichiers</div>
+                    <div><span class="badge">RUN</span> Exécute commande (build)</div>
+                    <div><span class="badge">EXPOSE</span> Port exposé</div>
+                    <div><span class="badge">CMD</span> Commande par défaut</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 5 : CONSTRUIRE ET LANCER -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">🔧 Construire et exécuter</h2>
+                <p class="text-gray-300 mb-2">Commandes essentielles :</p>
+                <div class="code-block terminal">
+                    <pre><code># Construire l'image (docker build -t nom_image chemin)
+docker build -t mon-api-node .
+
+# Lancer un conteneur (docker run -p hôte:conteneur nom_image)
+docker run -p 3000:3000 mon-api-node
+
+# Mode détaché (background)
+docker run -d -p 3000:3000 --name mon-app mon-api-node
+
+# Lister les conteneurs actifs
+docker ps
+
+# Arrêter un conteneur
+docker stop mon-app
+
+# Supprimer un conteneur
+docker rm mon-app</code></pre>
+                </div>
+                <div class="bg-green-950/30 p-3 rounded-lg border border-green-700 text-green-300 text-sm mt-2">
+                    <i class="fas fa-info-circle"></i> L'option <code>-p 3000:3000</code> mappe le port 3000 de l'hôte au port 3000 du conteneur.
+                </div>
+            </div>
+
+            <!-- SLIDE 6 : DOCKER-COMPOSE (multi-services) -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">🐙 Docker Compose</h2>
+                <p class="text-gray-300 mb-3">Pour orchestrer plusieurs conteneurs (Node.js + MongoDB / PostgreSQL).</p>
+                <div class="code-block">
+                    <pre><code>version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://db:27017/mydb
+    depends_on:
+      - db
+  db:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:</code></pre>
+                </div>
+                <p class="text-gray-300 mt-3">Commandes :</p>
+                <div class="code-block terminal">
+                    <pre><code>docker-compose up -d     # Lance tous les services en arrière-plan
+docker-compose down      # Arrête et supprime les conteneurs
+docker-compose logs -f   # Voir les logs en direct</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : VOLUMES & PERSISTANCE -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">💾 Les volumes Docker</h2>
+                <p class="text-gray-300">Les conteneurs sont éphémères → les données disparaissent à l'arrêt. Les volumes persistent les données.</p>
+                <div class="flex flex-wrap gap-4 my-5 justify-center">
+                    <div class="bg-slate-900 p-3 rounded-xl w-40 text-center">
+                        <i class="fas fa-database text-3xl text-cyan-400"></i>
+                        <p class="text-sm text-gray-300 mt-1">Volume nommé<br><code>docker volume create</code></p>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-xl w-40 text-center">
+                        <i class="fas fa-folder-open text-3xl text-cyan-400"></i>
+                        <p class="text-sm text-gray-300 mt-1">Bind mount<br><code>./dossier:/app/data</code></p>
+                    </div>
+                </div>
+                <pre class="code-block"><code># Exemple de bind mount pour le développement
+docker run -v $(pwd):/app -p 3000:3000 mon-api-node</code></pre>
+                <p class="text-gray-400 text-sm mt-2">📌 Avec docker-compose, on déclare les volumes dans la section `volumes` et on les attache aux services.</p>
+            </div>
+
+            <!-- SLIDE 8 : OPTIMISATIONS (multi-stage) -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">⚡ Optimiser l'image</h2>
+                <p class="text-gray-300">Utiliser le multi-stage build pour réduire la taille de l'image finale.</p>
+                <div class="code-block">
+                    <pre><code># Étape 1 : build
+FROM node:18 AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Étape 2 : image finale légère
+FROM node:18-alpine
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
+EXPOSE 3000
+CMD ["node", "server.js"]</code></pre>
+                </div>
+                <div class="bg-yellow-950/30 p-3 rounded-lg border border-yellow-700 text-yellow-300 text-sm mt-2">
+                    <i class="fas fa-chart-line"></i> Réduction typique : de 900MB → ~150MB !
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : DÉPLOIEMENT EN PRODUCTION -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">☁️ Déployer sur un serveur</h2>
+                <ol class="list-decimal pl-5 space-y-3 text-gray-300">
+                    <li>Installer Docker sur le serveur (Ubuntu/CentOS).</li>
+                    <li>Copier le code source (ou utiliser Git).</li>
+                    <li>Construire l'image : <code>docker build -t mon-api .</code></li>
+                    <li>Lancer avec <code>docker run -d -p 80:3000 --restart always mon-api</code>.</li>
+                    <li>Option avancée : utiliser Docker Compose en production.</li>
+                </ol>
+                <div class="mt-5 bg-slate-900 p-3 rounded-lg font-mono text-sm text-gray-300">
+                    <i class="fas fa-cloud-upload-alt"></i> Exemple sur un VPS (DigitalOcean, OVH, etc.) :
+                    <pre class="mt-2">scp -r ./mon-projet user@server:~
+ssh user@server
+cd mon-projet
+docker build -t api .
+docker run -d -p 80:3000 api</pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 10 : BONNES PRATIQUES -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">🎯 Bonnes pratiques Docker Node.js</h2>
+                <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                    <li>Utiliser des images officielles <code>node:*-alpine</code> (légères).</li>
+                    <li>Ordonner les couches du Dockerfile du plus stable au plus changeant (cache).</li>
+                    <li>Ne pas exécuter en tant que root à l'intérieur du conteneur : <code>USER node</code>.</li>
+                    <li>Utiliser <code>.dockerignore</code> pour exclure <code>node_modules</code>, logs, etc.</li>
+                    <li>Ne pas stocker les secrets dans l'image → variables d'environnement ou secrets Docker.</li>
+                </ul>
+                <pre class="code-block mt-4"><code># .dockerignore
+node_modules
+npm-debug.log
+.env
+.git</code></pre>
+            </div>
+
+            <!-- SLIDE 11 : EXERCICE PRATIQUE -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">🧪 Exercice : Dockeriser une API simple</h2>
+                <p class="text-gray-300 mb-3">Objectif : Créer un fichier Dockerfile et docker-compose pour une API Express qui se connecte à MongoDB.</p>
+                <div class="bg-slate-900 p-4 rounded-xl">
+                    <p class="font-mono text-cyan-300">Structure attendue :</p>
+                    <pre class="text-gray-300">mon-api/
+├── Dockerfile
+├── docker-compose.yml
+├── package.json
+├── server.js
+└── .dockerignore</pre>
+                </div>
+                <div class="mt-4 flex gap-3">
+                    <button id="showHint2" class="bg-cyan-700 hover:bg-cyan-800 text-white px-4 py-2 rounded-lg transition text-sm"><i class="fas fa-lightbulb"></i> Indice</button>
+                    <button id="showSolution" class="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 rounded-lg transition text-sm"><i class="fas fa-code"></i> Aperçu solution</button>
+                </div>
+                <div id="hintBox2" class="hidden mt-3 text-gray-400 italic bg-slate-900 p-3 rounded-lg">Utilisez <code>docker-compose up -d</code> et connectez-vous à la base via l'URI <code>mongodb://db:27017</code> (hostname = nom du service).</div>
+                <div id="solutionBox" class="hidden mt-3">
+                    <pre class="code-block"><code># docker-compose.yml simplifié
+version:'3'
+services:
+  app:
+    build: .
+    ports: ["3000:3000"]
+    depends_on: [mongo]
+  mongo:
+    image: mongo:latest
+    volumes: ["mongo-data:/data/db"]
+volumes:
+  mongo-data:</code></pre>
+                </div>
+            </div>
+
+            <!-- SLIDE 12 : RÉCAPITULATIF -->
+            <div class="slide bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-10 mb-6 border border-slate-700">
+                <h2 class="text-2xl font-bold text-white mb-4">📌 Synthèse</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-slate-900 p-3 rounded-lg"><i class="fab fa-docker text-blue-400 mr-2"></i> <strong>Image</strong> = modèle</div>
+                    <div class="bg-slate-900 p-3 rounded-lg"><i class="fas fa-play-circle text-green-400 mr-2"></i> <strong>Conteneur</strong> = instance</div>
+                    <div class="bg-slate-900 p-3 rounded-lg"><i class="fas fa-file-alt text-cyan-400 mr-2"></i> <strong>Dockerfile</strong> = recette</div>
+                    <div class="bg-slate-900 p-3 rounded-lg"><i class="fas fa-cubes text-purple-400 mr-2"></i> <strong>Compose</strong> = orchestration</div>
+                </div>
+                <p class="text-gray-300 mt-6 text-center">🚀 Docker vous permet de reproduire l'environnement partout : du dev à la prod !</p>
+                <div class="mt-6 text-center text-gray-400 text-sm">
+                    <i class="fas fa-check-circle text-green-400"></i> Félicitations, vous avez les bases pour containeriser vos apps Node.js !
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons navigation -->
+        <div class="flex justify-between items-center mt-5 gap-4">
+            <button id="prevBtn" class="nav-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl shadow-md transition disabled:opacity-50">
+                <i class="fas fa-arrow-left"></i> Précédent
+            </button>
+            <div class="flex gap-2" id="dotsContainer"></div>
+            <button id="nextBtn" class="nav-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-md transition">
+                Suivant <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let slides = $('.slide');
+            let total = slides.length;
+            let current = 0;
+            $('#totalSlides').text(total);
+            updateDots();
+
+            function updateProgress() {
+                let percent = ((current + 1) / total) * 100;
+                $('#progressBar').css('width', percent + '%');
+                $('#currentSlideIdx').text(current + 1);
+            }
+
+            function showSlide(index) {
+                slides.removeClass('active');
+                $(slides[index]).addClass('active');
+                current = index;
+                updateProgress();
+                updateDots();
+                $('#prevBtn').prop('disabled', current === 0);
+                if (current === total-1) {
+                    $('#nextBtn').html('Terminer <i class="fas fa-check-circle"></i>');
+                } else {
+                    $('#nextBtn').html('Suivant <i class="fas fa-arrow-right"></i>');
+                }
+                if (window.MathJax) MathJax.typesetPromise();
+            }
+
+            function updateDots() {
+                $('#dotsContainer').empty();
+                for(let i = 0; i < total; i++) {
+                    let dot = $('<div>').addClass('w-3 h-3 rounded-full transition-all duration-200 cursor-pointer mx-1')
+                        .css('background-color', i === current ? '#3b82f6' : '#64748b');
+                    dot.on('click', (function(idx) { return function() { showSlide(idx); }; })(i));
+                    $('#dotsContainer').append(dot);
+                }
+            }
+
+            $('#nextBtn').click(function() {
+                if(current < total-1) showSlide(current+1);
+                else alert('🎉 Bravo ! Vous avez terminé la leçon sur Docker. Lancez-vous dans la pratique !');
+            });
+            $('#prevBtn').click(function() {
+                if(current > 0) showSlide(current-1);
+            });
+
+            $('#showHint2').click(function() { $('#hintBox2').toggleClass('hidden'); });
+            $('#showSolution').click(function() { $('#solutionBox').toggleClass('hidden'); });
+
+            showSlide(0);
+        });
+    </script>
+    <footer class="text-center text-gray-500 text-sm py-5 border-t border-slate-700 mt-6">
+        <p><i class="fas fa-chalkboard-teacher"></i> Cours Docker & Node.js - Programme Développement Web (Cameroun)</p>
+        <p class="text-xs">Containerisation moderne pour déploiement fiable</p>
+    </footer>
+</body>
+</html>

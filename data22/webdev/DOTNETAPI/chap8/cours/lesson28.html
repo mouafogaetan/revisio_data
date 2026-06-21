@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 28 : Configuration avancée - IConfiguration, Options Pattern et Environnements | ASP.NET Core API</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (pour les formules si besoin, reste léger) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Personnalisation Tailwind supplémentaire pour confort visuel -->
+    <style>
+        /* Couleurs douces mais lisibles, transitions fluides */
+        body {
+            background: #f8fafc; /* fond clair apaisant */
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        /* Slides container */
+        .slide {
+            transition: all 0.3s ease-in-out;
+        }
+        .slide-hidden {
+            display: none;
+        }
+        /* boutons de navigation */
+        .nav-btn {
+            transition: background 0.2s, transform 0.1s;
+        }
+        .nav-btn:active {
+            transform: scale(0.96);
+        }
+        /* code snippets légèrement ombrés */
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: #eef2ff;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            color: #1e40af;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .badge-env {
+            background-color: #dbeafe;
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            h2 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <!-- Conteneur principal des slides -->
+        <div id="slides-container" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+            
+            <!-- Header commun (titre de matière) -->
+            <div class="bg-indigo-700 text-white px-6 py-3 flex justify-between items-center flex-wrap gap-2">
+                <div>
+                    <span class="text-xs font-semibold tracking-wide uppercase bg-indigo-500 px-2 py-0.5 rounded-full">ASP.NET Core API</span>
+                    <p class="text-sm mt-1 opacity-90">Classe : Développement Web | Matière : API .NET</p>
+                </div>
+                <div class="text-sm bg-indigo-800 px-3 py-1 rounded-full">
+                    Leçon 28 / 39
+                </div>
+            </div>
+
+            <!-- Dynamic slide area -->
+            <div id="slide-content" class="slide-content p-6 md:p-10 transition-all">
+                <!-- Le contenu sera injecté par jQuery -->
+                <div class="flex justify-center items-center h-64">
+                    <div class="animate-pulse text-slate-400">Chargement de la leçon...</div>
+                </div>
+            </div>
+
+            <!-- Navigation buttons + progression -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                <button id="prevSlide" class="nav-btn bg-white hover:bg-gray-100 text-gray-700 font-medium py-2 px-5 rounded-xl border border-gray-300 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+                    ← Précédent
+                </button>
+                <div class="text-sm text-gray-500 bg-gray-100 px-4 py-1 rounded-full">
+                    Slide <span id="current-slide-num">1</span> / <span id="total-slides">0</span>
+                </div>
+                <button id="nextSlide" class="nav-btn bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-xl shadow-md transition">
+                    Suivant →
+                </button>
+            </div>
+        </div>
+
+        <!-- Petit pied de page explicatif -->
+        <p class="text-center text-xs text-slate-400 mt-6">Leçon conforme au programme Camerounais | Architecture ASP.NET Core - Configuration et environnements</p>
+    </div>
+
+    <script>
+        // Définition des slides pour la lesson28 (IConfiguration, Options, Environnements)
+        // Titre Slide 1, Objectifs Slide 2, puis contenu théorique + exemples pratiques
+        const slides = [
+            {
+                type: "title",
+                title: "Configuration avancée dans ASP.NET Core",
+                subtitle: "IConfiguration, Pattern Options & Gestion multi-environnements",
+                badge: "Leçon 28 · API .NET",
+                icon: "⚙️"
+            },
+            {
+                type: "objectifs",
+                title: "🎯 Objectifs de la leçon",
+                objectives: [
+                    "🔹 Lire la configuration à partir de appsettings.json et variables d’environnement avec IConfiguration",
+                    "🔹 Utiliser le pattern Options (IOptions&lt;T&gt;, IOptionsSnapshot&lt;T&gt;, IOptionsMonitor&lt;T&gt;) pour des configurations fortement typées",
+                    "🔹 Gérer plusieurs environnements (Development, Staging, Production) de manière professionnelle"
+                ]
+            },
+            {
+                type: "content",
+                title: "📁 Qu’est-ce que IConfiguration ?",
+                content: `<p class="mb-4">Dans ASP.NET Core, <code>IConfiguration</code> est le service central qui permet d'accéder aux paramètres de l'application, quelle que soit leur source : <strong>fichiers JSON</strong> (appsettings.json), <strong>variables d'environnement</strong>, secrets utilisateur, arguments en ligne de commande, etc.</p>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-xl my-4">
+                    <p class="font-semibold text-blue-800">💡 Pourquoi c'est crucial ?</p>
+                    <p class="text-gray-700">Sans IConfiguration, vous devriez coder en dur des chaînes de connexion ou des clés, ce qui est dangereux et non flexible. Grâce à IConfiguration, vous pouvez changer le comportement sans recompiler !</p>
+                </div>
+                <pre><code>// Exemple d'accès basique dans un contrôleur ou service
+public class WeatherController : ControllerBase
+{
+    private readonly IConfiguration _config;
+    public WeatherController(IConfiguration config) => _config = config;
+    
+    public IActionResult Get()
+    {
+        var dbConnection = _config["ConnectionStrings:DefaultConnection"];
+        var apiKey = _config["ApiSettings:OpenWeatherKey"];
+        return Ok(new { dbConnection, apiKey });
+    }
+}</code></pre>`
+            },
+            {
+                type: "content",
+                title: "🧩 Structure des fichiers de configuration",
+                content: `<p class="mb-3">Par défaut, <strong>appsettings.json</strong> contient les paramètres. Exemple type :</p>
+                <pre><code>{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost;Database=MyDb;Trusted_Connection=true"
+  },
+  "ApiSettings": {
+    "OpenWeatherKey": "votre-clé-ici",
+    "MaxItemsPerPage": 25
+  },
+  "Logging": { ... }
+}</code></pre>
+                <p class="mt-4">Pour accéder à des valeurs imbriquées, utilisez les deux-points <code>:</code>. Ex: <code>_config["ApiSettings:MaxItemsPerPage"]</code></p>
+                <div class="bg-amber-50 p-3 rounded-lg mt-3">
+                    <span class="font-bold">⚠️ Bonne pratique :</span> Ne jamais stocker de secrets en dur dans appsettings.json en production → utilisez <strong>Variables d'environnement</strong> ou <strong>Azure Key Vault</strong>.
+                </div>`
+            },
+            {
+                type: "content",
+                title: "📦 Pattern Options (IOptions&lt;T&gt;)",
+                content: `<p>Le pattern Options permet de lier une section de configuration à une classe C# fortement typée, bénéficiant ainsi de l'<strong>injection de dépendances</strong> et de la validation.</p>
+                <div class="grid md:grid-cols-2 gap-4 my-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="font-bold text-indigo-800">1. Définir une classe POCO</p>
+                        <pre class="text-xs"><code>public class ApiSettings
+{
+    public string OpenWeatherKey { get; set; }
+    public int MaxItemsPerPage { get; set; }
+}</code></pre>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="font-bold text-indigo-800">2. Enregistrer dans Program.cs</p>
+                        <pre class="text-xs"><code>builder.Services.Configure&lt;ApiSettings&gt;(
+    builder.Configuration.GetSection("ApiSettings")
+);</code></pre>
+                    </div>
+                </div>
+                <p>3. Injecter <code>IOptions&lt;ApiSettings&gt;</code> dans votre contrôleur ou service :</p>
+                <pre><code>private readonly ApiSettings _apiSettings;
+public MyController(IOptions&lt;ApiSettings&gt; options) 
+{
+    _apiSettings = options.Value;
+}</code></pre>
+                <p class="mt-2 text-green-700">✅ Avantages : typage sécurisé, modification centralisée, test unitaire facile.</p>`
+            },
+            {
+                type: "content",
+                title: "🔄 Comparaison : IOptions / IOptionsSnapshot / IOptionsMonitor",
+                content: `<p>Selon le besoin de rechargement ou de scope, trois variantes existent :</p>
+                <div class="overflow-x-auto my-4">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
+                        <thead class="bg-indigo-50">
+                            <tr><th class="px-4 py-2 border">Interface</th><th class="px-4 py-2 border">Durée de vie & rechargement</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b"><td class="px-4 py-2 font-mono">IOptions&lt;T&gt;</td><td class="px-4 py-2">Singleton, figé après le démarrage (pas de rechargement à chaud)</td></tr>
+                            <tr class="border-b"><td class="px-4 py-2 font-mono">IOptionsSnapshot&lt;T&gt;</td><td class="px-4 py-2">Scoped, rechargé à chaque requête si le fichier change</td></tr>
+                            <tr><td class="px-4 py-2 font-mono">IOptionsMonitor&lt;T&gt;</td><td class="px-4 py-2">Singleton, permet d’écouter les changements dynamiques (OnChange)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>🎯 <strong>Recommandation</strong> : pour la plupart des APIs, <code>IOptions&lt;T&gt;</code> suffit. Utilisez <code>IOptionsSnapshot</code> si vous voulez prendre en compte les modifications sans redémarrer l’application.</p>`
+            },
+            {
+                type: "content",
+                title: "🌍 Gestion des environnements (Development, Production, Staging)",
+                content: `<p>ASP.NET Core supporte nativement le concept d'environnement via <code>ASPNETCORE_ENVIRONMENT</code>. Les fichiers de configuration peuvent être surchargés : <strong>appsettings.Development.json</strong>, <strong>appsettings.Production.json</strong>, etc.</p>
+                <div class="flex flex-wrap gap-3 my-4">
+                    <span class="badge-env">🌱 Development → base de données locale, logs détaillés</span>
+                    <span class="badge-env">🚀 Production → chaîne de connexion réelle, clés sécurisées, logs réduits</span>
+                </div>
+                <pre><code>// Dans Program.cs, vous pouvez accéder à l'environnement
+var env = builder.Environment;
+if (env.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/error");
+}
+
+// Exemple de configuration conditionnelle
+if (env.IsProduction())
+{
+    builder.Configuration.AddJsonFile("secrets.prod.json", optional: true);
+}</code></pre>
+                <p class="text-gray-600">💻 Changer l'environnement : définir la variable <code>ASPNETCORE_ENVIRONMENT=Production</code> sur le serveur.</p>`
+            },
+            {
+                type: "content",
+                title: "🛠️ Bonnes pratiques & exemples concrets",
+                content: `<ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li><strong>Hiérarchisation des sources</strong> : Les variables d'environnement remplacent les valeurs JSON.</li>
+                    <li><strong>Validation des options</strong> : utiliser <code>AddValidated&lt;T&gt;</code> ou l'attribut <code>[ValidateDataAnnotations]</code>.</li>
+                    <li><strong>Ne pas injecter IConfiguration partout</strong> : préférez IOptions pour les sections métier.</li>
+                    <li><strong>Exemple concret: chaîne de connexion dynamique</strong> selon environnement.</li>
+                </ul>
+                <div class="bg-indigo-50 rounded-xl p-4 mt-4">
+                    <p class="font-semibold">✨ Mise en situation Camerounaise :</p>
+                    <p>Imaginons une API pour une école. En développement vous utilisez SQLite, en production SQL Server sur un serveur Orange Cloud. IConfiguration vous permet de basculer en modifiant simplement <code>ASPNETCORE_ENVIRONMENT</code> sans toucher au code.</p>
+                </div>
+                <pre><code>// appsettings.Development.json
+"ConnectionStrings": { "SchoolDb": "Data Source=school_local.db" }
+
+// appsettings.Production.json
+"ConnectionStrings": { "SchoolDb": "Server=prod-srv;Database=EcoleDb;User Id=admin;Password=..." }</code></pre>`
+            },
+            {
+                type: "content",
+                title: "🔍 Exemple interactif (simulation)",
+                content: `<p class="mb-3">Ouvrez la console navigateur (F12) pour voir comment <strong>IConfiguration</strong> serait utilisé dans un vrai contrôleur .NET.</p>
+                <div class="bg-gray-800 rounded-xl p-5 text-green-300 font-mono text-sm">
+                    <p>// Simulation d'un service de configuration</p>
+                    <p>➡️ Variables d'environnement mockées : { "ASPNETCORE_ENVIRONMENT": "Development" }</p>
+                    <p>📄 Lecture de appsettings.json: MaxItems = 20, Clé API = "demo_key_123"</p>
+                    <button id="simulateConfig" class="mt-3 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1 rounded-full text-sm">Afficher configuration simulée</button>
+                    <pre id="simulationOutput" class="mt-3 text-xs bg-gray-900 p-2 rounded hidden"></pre>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">(Cliquez sur le bouton pour simuler la récupération de paramètres via IConfiguration)</p>`
+            },
+            {
+                type: "conclusion",
+                title: "🏁 Récapitulatif & prochaine étape",
+                content: `<div class="space-y-3">
+                    <p>✅ <strong>IConfiguration</strong> : accès unifié aux paramètres depuis multiples sources.</p>
+                    <p>✅ <strong>Pattern Options</strong> : injection fortement typée, plus robuste et maintenable.</p>
+                    <p>✅ <strong>Environnements</strong> : changez de comportement sans risques selon Dev/Prod.</p>
+                    <p class="border-t pt-4 mt-4">📌 Prochaine leçon : CORS (Cross-Origin Resource Sharing) pour ouvrir votre API à des applications front-end tierces.</p>
+                    <div class="bg-green-50 p-3 rounded-lg text-green-800">N'hésitez pas à refaire les manipulations dans un vrai projet .NET pour bien maîtriser la configuration !</div>
+                </div>`
+            }
+        ];
+
+        let currentIndex = 0;
+        const totalSlides = slides.length;
+
+        // Mise à jour du DOM
+        function renderSlide(index) {
+            const slide = slides[index];
+            let html = '';
+            
+            if (slide.type === 'title') {
+                html = `
+                    <div class="text-center py-6 md:py-12">
+                        <div class="text-6xl mb-4">${slide.icon || '📘'}</div>
+                        <span class="inline-block bg-indigo-100 text-indigo-800 text-xs px-3 py-1 rounded-full mb-4">${slide.badge}</span>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-700 bg-clip-text text-transparent">${slide.title}</h1>
+                        <p class="text-gray-600 text-lg mt-4 max-w-2xl mx-auto">${slide.subtitle}</p>
+                        <div class="mt-8 flex justify-center">
+                            <div class="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center animate-bounce">👇</div>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (slide.type === 'objectifs') {
+                html = `
+                    <div>
+                        <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-6">${slide.title}</h2>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            ${slide.objectives.map(obj => `
+                                <div class="bg-gray-50 p-4 rounded-xl shadow-sm flex items-start gap-3">
+                                    <span class="text-indigo-500 text-xl">✓</span>
+                                    <span class="text-gray-700">${obj}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-8 text-center text-slate-400 text-sm">🎓 Au terme de cette leçon, vous serez capable de structurer la configuration de vos APIs .NET comme un professionnel.</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'content') {
+                html = `
+                    <div>
+                        <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+                        <div class="prose prose-slate max-w-none">${slide.content}</div>
+                    </div>
+                `;
+            }
+            else if (slide.type === 'conclusion') {
+                html = `
+                    <div>
+                        <h2 class="text-2xl font-bold text-indigo-800 border-l-4 border-indigo-500 pl-4 mb-5">${slide.title}</h2>
+                        <div class="prose prose-slate max-w-none">${slide.content}</div>
+                        <div class="mt-8 flex justify-center">
+                            <div class="bg-indigo-50 px-6 py-3 rounded-full text-indigo-700 font-medium">✅ Leçon 28 terminée ! Excellent travail 🚀</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            $('#slide-content').fadeOut(150, function() {
+                $(this).html(html).fadeIn(200);
+            });
+            
+            $('#current-slide-num').text(index+1);
+            $('#total-slides').text(totalSlides);
+            
+            // Gestion état boutons
+            $('#prevSlide').prop('disabled', index === 0);
+            $('#nextSlide').prop('disabled', index === totalSlides-1);
+            
+            // Après rendu, si c'est le slide avec la simulation, attacher un événement jQuery
+            if (slide.type === 'content' && slide.title.includes("Exemple interactif")) {
+                setTimeout(() => {
+                    $('#simulateConfig').off('click').on('click', function() {
+                        const mockConfig = {
+                            environment: "Development (simulé)",
+                            connectionString: "Server=localhost;Database=SchoolDev;Trusted_Connection=True",
+                            apiSettings: { maxItemsPerPage: 20, openWeatherKey: "demo_key_simulee_12345" }
+                        };
+                        const output = `
+📂 Récupération via IConfiguration :
+- ASPNETCORE_ENVIRONMENT : ${mockConfig.environment}
+- ConnectionStrings:DefaultConnection => ${mockConfig.connectionString}
+- ApiSettings:MaxItemsPerPage => ${mockConfig.apiSettings.maxItemsPerPage}
+- ApiSettings:OpenWeatherKey => ${mockConfig.apiSettings.openWeatherKey}
+💡 En production, ces valeurs viendraient de variables d'environnement ou du Key Vault.
+                        `;
+                        $('#simulationOutput').removeClass('hidden').text(output);
+                    });
+                }, 50);
+            }
+        }
+        
+        // Navigation
+        function nextSlide() {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+                renderSlide(currentIndex);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        
+        function prevSlide() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderSlide(currentIndex);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        
+        $(document).ready(function() {
+            renderSlide(0);
+            $('#nextSlide').on('click', nextSlide);
+            $('#prevSlide').on('click', prevSlide);
+            
+            // Raccourci clavier flèches droite/gauche
+            $(document).on('keydown', function(e) {
+                if (e.key === 'ArrowRight') nextSlide();
+                if (e.key === 'ArrowLeft') prevSlide();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Leçon 30 - Validation commande & confirmation | React E-commerce</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        .slide { transition: opacity 0.35s ease-in-out, transform 0.3s ease; }
+        .slide-active { display: block; opacity: 1; transform: translateX(0); }
+        .slide-inactive { display: none; opacity: 0; transform: translateX(20px); }
+        .btn-nav:active { transform: scale(0.96); }
+        .code-block { background: #0f172a; color: #e2e8f0; border-radius: 1rem; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.8rem; overflow-x: auto; }
+        body { background: #f1f5f9; }
+        .order-summary-card { transition: all 0.2s; }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
+        <div id="slidesContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-indigo-100">
+            
+            <!-- SLIDE 1 : TITRE -->
+            <div class="slide slide-active p-6 md:p-10" data-slide="0">
+                <div class="flex flex-col min-h-[70vh] justify-center items-center text-center">
+                    <div class="mb-6 inline-flex items-center justify-center bg-indigo-100 p-3 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-800 tracking-tight">✅ Leçon 30</h1>
+                    <p class="text-indigo-600 text-lg md:text-xl font-semibold mt-2">Validation de commande & Confirmation</p>
+                    <div class="h-1 w-20 bg-indigo-400 rounded-full my-6 mx-auto"></div>
+                    <p class="text-gray-600 max-w-lg mx-auto text-base md:text-lg">Récapituler la commande, valider le paiement, créer la commande et afficher la page de confirmation avec numéro de commande.</p>
+                    <div class="mt-10 text-sm text-gray-400 italic">👨‍🏫 Classe: Développement Web | React · Interface e-commerce</div>
+                </div>
+            </div>
+
+            <!-- SLIDE 2 : OBJECTIFS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="1">
+                <div class="flex flex-col h-full">
+                    <div class="border-b border-indigo-100 pb-4 mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full inline-flex items-center justify-center text-lg">🎯</span>
+                            Objectifs de la leçon
+                        </h2>
+                    </div>
+                    <ul class="space-y-5 text-gray-700 text-base md:text-lg">
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Afficher un <strong>récapitulatif complet</strong> de la commande (articles, adresse, total)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Valider et créer la commande via l'API (<strong>useMutation</strong>)</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Gérer les états de chargement et les erreurs</span></li>
+                        <li class="flex items-start gap-3"><span class="text-indigo-600 text-xl">✓</span> <span>Afficher la <strong>page de confirmation</strong> avec le numéro de commande et vider le panier</span></li>
+                    </ul>
+                    <div class="mt-8 bg-indigo-50 rounded-xl p-4 border-l-8 border-indigo-400">
+                        <p class="text-indigo-800 font-medium">💡 Une étape cruciale : rassurer le client et finaliser l'achat en toute sécurité !</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 3 : COMPOSANT RÉCAPITULATIF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="2">
+                <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-3 flex gap-2">📋 <span>Récapitulatif de la commande</span></h2>
+                <p>Avant validation, on affiche un résumé : produits, quantités, sous-total, frais de livraison, taxes, total général. On utilise les données du store panier et du store adresse.</p>
+                <div class="code-block">
+                    <pre>// components/OrderSummary.tsx
+import { useCartStore } from '@/stores/cartStore';
+import { useDeliveryStore } from '@/stores/deliveryStore';
+
+export const OrderSummary = () => {
+  const { items, total, shippingCost, tax } = useCartStore();
+  const { shippingAddress } = useDeliveryStore();
+
+  return (
+    &lt;div className="bg-gray-50 p-5 rounded-xl space-y-3"&gt;
+      &lt;h3 className="font-bold text-lg"&gt;Récapitulatif&lt;/h3&gt;
+      {items.map(item => (
+        &lt;div key={item.id} className="flex justify-between"&gt;
+          &lt;span&gt;{item.name} x {item.quantity}&lt;/span&gt;
+          &lt;span&gt;{item.price * item.quantity} FCFA&lt;/span&gt;
+        &lt;/div&gt;
+      ))}
+      &lt;div className="border-t pt-2"&gt;
+        &lt;div className="flex justify-between"&gt;&lt;span&gt;Sous-total&lt;/span&gt;&lt;span&gt;{total} FCFA&lt;/span&gt;&lt;/div&gt;
+        &lt;div className="flex justify-between"&gt;&lt;span&gt;Livraison&lt;/span&gt;&lt;span&gt;{shippingCost} FCFA&lt;/span&gt;&lt;/div&gt;
+        &lt;div className="flex justify-between font-bold"&gt;&lt;span&gt;Total TTC&lt;/span&gt;&lt;span&gt;{total + shippingCost + tax} FCFA&lt;/span&gt;&lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div className="text-sm"&gt;
+        &lt;p&gt;Livraison à : {shippingAddress?.addressLine}, {shippingAddress?.city}&lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <div class="bg-yellow-50 p-2 rounded mt-2 text-sm">📌 Astuce : Ajouter un bouton "Modifier" pour revenir aux étapes précédentes.</div>
+            </div>
+
+            <!-- SLIDE 4 : CRÉATION DE COMMANDE AVEC MUTATION -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="3">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">📦 Envoi au backend (useMutation)</h2>
+                <p>On envoie les données du panier et de l'adresse à l'API pour créer la commande.</p>
+                <div class="code-block">
+                    <pre>// hooks/useCreateOrder.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import { useCartStore } from '@/stores/cartStore';
+import { useDeliveryStore } from '@/stores/deliveryStore';
+
+export const useCreateOrder = () => {
+  const queryClient = useQueryClient();
+  const { items, total, clearCart } = useCartStore();
+  const { shippingAddress } = useDeliveryStore();
+
+  return useMutation({
+    mutationFn: async (paymentDetails: any) => {
+      const orderData = {
+        items: items.map(i => ({ productId: i.id, quantity: i.quantity, price: i.price })),
+        total,
+        shippingAddress,
+        paymentMethod: paymentDetails.method,
+        paymentIntentId: paymentDetails.intentId
+      };
+      const { data } = await api.post('/orders', orderData);
+      return data;
+    },
+    onSuccess: (data) => {
+      clearCart(); // vide le panier local
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      // redirection vers page confirmation avec orderId
+      window.location.href = `/confirmation/${data.id}`;
+    },
+    onError: (error) => {
+      toast.error('Erreur lors de la création de la commande');
+    }
+  });
+};</pre>
+                </div>
+                <p class="text-gray-600 mt-1">La mutation reçoit les détails de paiement (ex: stripePaymentIntent) et retourne l'objet commande.</p>
+            </div>
+
+            <!-- SLIDE 5 : INTÉGRATION DANS LA PAGE CHECKOUT -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🔁 Page Checkout finale</h2>
+                <p>Le composant <code>CheckoutPage</code> affiche le résumé, le formulaire de paiement (Stripe/PayPal) et gère la soumission.</p>
+                <div class="code-block">
+                    <pre>// pages/CheckoutPage.tsx
+import { OrderSummary } from '@/components/OrderSummary';
+import { PaymentForm } from '@/components/PaymentForm';
+import { useCreateOrder } from '@/hooks/useCreateOrder';
+
+export const CheckoutPage = () => {
+  const { mutate, isPending } = useCreateOrder();
+
+  const handlePaymentSuccess = (paymentResult) => {
+    mutate({ method: 'stripe', intentId: paymentResult.id });
+  };
+
+  return (
+    &lt;div className="grid md:grid-cols-2 gap-8"&gt;
+      &lt;OrderSummary /&gt;
+      &lt;div&gt;
+        &lt;h2 className="text-xl font-bold mb-4"&gt;Paiement&lt;/h2&gt;
+        &lt;PaymentForm onSuccess={handlePaymentSuccess} loading={isPending} /&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg mt-3 border-l-4 border-green-500">✅ Le bouton de paiement est désactivé pendant l'envoi et affiche un spinner.</div>
+            </div>
+
+            <!-- SLIDE 6 : PAGE DE CONFIRMATION -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="5">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">🎉 Page de confirmation</h2>
+                <p>Après création réussie, on redirige vers <code>/confirmation/:orderId</code> et on affiche les détails de la commande.</p>
+                <div class="code-block">
+                    <pre>// pages/ConfirmationPage.tsx
+import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
+
+export const ConfirmationPage = () => {
+  const { orderId } = useParams();
+  const { data: order, isLoading } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: () => api.get(`/orders/${orderId}`).then(res => res.data)
+  });
+
+  if (isLoading) return &lt;div&gt;Chargement...&lt;/div&gt;;
+
+  return (
+    &lt;div className="text-center py-12"&gt;
+      &lt;div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"&gt;✓&lt;/div&gt;
+      &lt;h1 className="text-3xl font-bold"&gt;Merci pour votre commande !&lt;/h1&gt;
+      &lt;p className="text-gray-600 mt-2"&gt;N° commande : &lt;strong&gt;{order.id}&lt;/strong&gt;&lt;/p&gt;
+      &lt;p&gt;Un email de confirmation a été envoyé à {order.email}&lt;/p&gt;
+      &lt;Link to="/" className="mt-6 inline-block bg-indigo-600 text-white px-6 py-2 rounded-full"&gt;Continuer mes achats&lt;/Link&gt;
+    &lt;/div&gt;
+  );
+};</pre>
+                </div>
+                <div class="mt-3 flex justify-center">
+                    <div class="border rounded-xl p-4 text-center w-full max-w-md bg-gray-50">
+                        <div class="text-4xl">🎉</div>
+                        <div class="font-bold">Commande #ORD-12345</div>
+                        <div class="text-sm">Un récapitulatif vous a été envoyé par email.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SLIDE 7 : GESTION DES ERREURS & RÉESSAIS -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">⚠️ Gestion des erreurs et réessais</h2>
+                <p>Si la création échoue (paiement refusé, panier expiré), on affiche un message clair et on laisse l'utilisateur réessayer.</p>
+                <div class="code-block">
+                    <pre>// Dans useCreateOrder
+onError: (error) => {
+  if (error.response?.status === 409) {
+    toast.error('Votre panier a expiré, veuillez recommencer la sélection');
+    setTimeout(() => window.location.href = '/cart', 2000);
+  } else {
+    toast.error('Erreur technique, veuillez réessayer ou contacter le support');
+  }
+}
+
+// Dans CheckoutPage on peut aussi retry manuellement avec mutate()</pre>
+                </div>
+                <div class="bg-red-50 p-3 rounded-lg mt-2">
+                    <span class="font-semibold">🔐 Sécurité :</span> Ne jamais stocker les informations de carte bancaire côté frontend. Utiliser Stripe/PayPal en mode tokenisation.
+                </div>
+            </div>
+
+            <!-- SLIDE 8 : BONNES PRATIQUES UX -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="7">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">✨ Améliorer l'expérience utilisateur</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🔄 Indicateur de chargement</span>
+                        <p class="text-sm">Désactiver le bouton de paiement et afficher un spinner lors de la mutation.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">📧 Email de confirmation</span>
+                        <p class="text-sm">Envoyer un email récapitulatif via le backend après création commande.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">🗑️ Vider le panier</span>
+                        <p class="text-sm">Appeler <code>clearCart()</code> uniquement après succès de la mutation.</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <span class="font-bold">📱 Mobile friendly</span>
+                        <p class="text-sm">Empiler les sections résumé / paiement sur petits écrans.</p>
+                    </div>
+                </div>
+                <div class="mt-4 bg-indigo-50 p-3 rounded-lg text-center">
+                    🧪 À retenir : la page de confirmation est aussi une opportunité pour proposer des produits complémentaires (cross-selling).
+                </div>
+            </div>
+
+            <!-- SLIDE 9 : RÉCAPITULATIF -->
+            <div class="slide slide-inactive p-6 md:p-10" data-slide="8">
+                <div class="flex flex-col h-full justify-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📌 Résumé – Ce qu'il faut retenir</h2>
+                    <ul class="space-y-3">
+                        <li class="flex gap-2">✅ <span><strong>Récapitulatif</strong> : afficher clairement produits, adresse et total avant paiement.</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Mutation</strong> : envoyer la commande au backend avec useMutation, vider le panier après succès.</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Confirmation</strong> : page dédiée avec numéro de commande, email envoyé.</span></li>
+                        <li class="flex gap-2">✅ <span><strong>Erreurs</strong> : gérer les cas de panier vide, paiement refusé, expiration.</span></li>
+                    </ul>
+                    <div class="mt-6 bg-indigo-100 p-4 rounded-xl">
+                        <p class="font-medium">🎯 Exercice pratique : Ajoutez une étape "Récapitulatif" avant le paiement avec possibilité de modifier la quantité depuis cette page.</p>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="recapButton" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm shadow transition">✅ Valider la leçon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-between items-center p-4 bg-gray-50 border-t border-gray-200">
+                <button id="prevSlide" class="btn-nav bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>← Précédent</button>
+                <div class="text-sm text-gray-500">Slide <span id="slideCounter">1</span> / <span id="totalSlides">9</span></div>
+                <button id="nextSlide" class="btn-nav bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full shadow-sm flex items-center gap-1 transition">Suivant →</button>
+            </div>
+        </div>
+        <div class="text-center text-gray-400 text-xs mt-6">📘 Leçon 30 : Validation de commande & Confirmation | React E-commerce</div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            let currentSlide = 0;
+            const slides = $('.slide');
+            const total = slides.length;
+            $('#totalSlides').text(total);
+
+            function updateSlides() {
+                slides.each(function(index) {
+                    if (index === currentSlide) $(this).removeClass('slide-inactive').addClass('slide-active');
+                    else $(this).removeClass('slide-active').addClass('slide-inactive');
+                });
+                $('#slideCounter').text(currentSlide + 1);
+                $('#prevSlide').prop('disabled', currentSlide === 0);
+                $('#nextSlide').prop('disabled', currentSlide === total - 1);
+            }
+
+            $('#prevSlide').on('click', function() { if (currentSlide > 0) { currentSlide--; updateSlides(); } });
+            $('#nextSlide').on('click', function() { if (currentSlide < total - 1) { currentSlide++; updateSlides(); } });
+
+            $(document).keydown(function(e) {
+                if (e.key === 'ArrowLeft' && currentSlide > 0) { currentSlide--; updateSlides(); }
+                else if (e.key === 'ArrowRight' && currentSlide < total - 1) { currentSlide++; updateSlides(); }
+            });
+
+            let touchStartX = 0, touchEndX = 0;
+            $('.slide').on('touchstart', function(e) { touchStartX = e.originalEvent.touches[0].clientX; });
+            $('.slide').on('touchend', function(e) {
+                touchEndX = e.originalEvent.changedTouches[0].clientX;
+                if (touchEndX < touchStartX - 40 && currentSlide < total - 1) { currentSlide++; updateSlides(); }
+                else if (touchEndX > touchStartX + 40 && currentSlide > 0) { currentSlide--; updateSlides(); }
+            });
+
+            $('#recapButton').on('click', function() {
+                alert("✅ Félicitations ! Vous maîtrisez le processus de validation de commande. Implémentez ces concepts dans votre projet e-commerce !");
+            });
+        });
+    </script>
+</body>
+</html>

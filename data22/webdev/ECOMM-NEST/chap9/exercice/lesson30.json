@@ -1,0 +1,137 @@
+[
+  {
+    "intitule": "Compréhension des listes de souhaits",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Dans une plateforme e-commerce, une liste de souhaits (wishlist) permet aux utilisateurs de sauvegarder des produits qu'ils souhaitent acheter plus tard.</p><p><strong>Question :</strong> Expliquez trois avantages d'implémenter une fonctionnalité de liste de souhaits pour une boutique en ligne.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez et décrivez trois bénéfices commerciaux d'une wishlist.",
+        "niveau": "easy",
+        "reponse": "1. <strong>Fidélisation client</strong> : Les utilisateurs reviennent régulièrement consulter leur wishlist, augmentant l'engagement et les chances d'achat.\n\n2. <strong>Collecte de données</strong> : Les wishlists révèlent les produits qui intéressent les clients, permettant des recommandations personnalisées et des campagnes marketing ciblées.\n\n3. <strong>Ventilation des achats</strong> : Les produits en wishlist peuvent être suivis (baisse de prix, retour en stock) pour envoyer des notifications qui incitent à l'achat.\n\n4. <strong>Partage social</strong> : Les utilisateurs peuvent partager leur wishlist (anniversaire, liste de mariage), générant du trafic gratuit.",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Modélisation de l'entité Wishlist",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez ajouter une fonctionnalité de liste de souhaits à l'API e-commerce. Chaque utilisateur peut avoir une wishlist contenant plusieurs produits. Un produit peut apparaître dans plusieurs wishlists.</p><p>Créez l'entité TypeORM `Wishlist` avec :</p><ul><li>Un identifiant unique (UUID)</li><li>Une date de création</li><li>La relation ManyToMany avec l'entité `Product`</li><li>La relation ManyToOne avec l'entité `User` (un utilisateur a une seule wishlist)</li><li>Un champ optionnel `name` pour nommer la liste (ex: 'Noël 2024', 'Idées cadeaux')</li><li>Un champ `isPublic` (boolean) pour permettre le partage</li><li>Un champ `shareToken` généré automatiquement pour les listes publiques</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez l'entité `Wishlist` avec toutes les propriétés et relations demandées.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// src/wishlists/entities/wishlist.entity.ts\nimport { Entity, Column, PrimaryGeneratedColumn, ManyToOne, ManyToMany, JoinTable, CreateDateColumn } from 'typeorm';\nimport { User } from '../../users/entities/user.entity';\nimport { Product } from '../../products/entities/product.entity';\nimport { v4 as uuidv4 } from 'uuid';\n\n@Entity()\nexport class Wishlist {\n    @PrimaryGeneratedColumn('uuid')\n    id: string;\n\n    @Column({ nullable: true })\n    name: string;  // Nom personnalisé de la liste\n\n    @Column({ default: false })\n    isPublic: boolean;\n\n    @Column({ nullable: true, unique: true })\n    shareToken: string;  // Token unique pour le partage public\n\n    @CreateDateColumn()\n    createdAt: Date;\n\n    @ManyToOne(() => User, (user) => user.wishlist, { onDelete: 'CASCADE' })\n    user: User;\n\n    @ManyToMany(() => Product, { cascade: true })\n    @JoinTable({ name: 'wishlist_products' })\n    products: Product[];\n}\n```\n\nDans l'entité User, ajouter :\n```typescript\n@OneToOne(() => Wishlist, (wishlist) => wishlist.user, { cascade: true })\nwishlist: Wishlist;\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Pourquoi utilise-t-on `@JoinTable()` du côté de Wishlist plutôt que du côté de Product ?",
+            "niveau": "medium",
+            "reponse": "La relation ManyToMany nécessite un côté propriétaire qui possède la table de jointure. On choisit généralement le côté `Wishlist` car une wishlist est spécifiquement un conteneur de produits. De plus, on veut pouvoir ajouter/supprimer des produits d'une wishlist facilement. L'autre côté (`Product`) reste non propriétaire (`mappedBy`), ce qui évite de polluer l'entité Product avec des détails de wishlist."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Comment générer automatiquement un `shareToken` unique lors de la création d'une wishlist publique ?",
+            "niveau": "medium",
+            "reponse": "On peut utiliser un `@BeforeInsert` dans l'entité :\n```typescript\n@BeforeInsert()\ngenerateShareToken() {\n    if (this.isPublic && !this.shareToken) {\n        this.shareToken = uuidv4();\n    }\n}\n```\nOu dans le service, lors de la création : `if (isPublic) { shareToken = randomBytes(32).toString('hex'); }`"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Ajout et suppression de produits dans la wishlist",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Implémentez les méthodes du service `WishlistService` pour gérer les produits dans la wishlist.</p><p>Contraintes :</p><ul><li>Un produit ne peut pas être ajouté deux fois à la même wishlist</li><li>La suppression doit être possible par ID de produit</li><li>On doit pouvoir vider entièrement la wishlist</li><li>Les méthodes doivent vérifier que la wishlist appartient bien à l'utilisateur connecté</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez les méthodes `addProduct`, `removeProduct` et `clearWishlist` du service.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// src/wishlists/wishlists.service.ts\nasync addProduct(userId: string, productId: string): Promise<Wishlist> {\n    const wishlist = await this.findOrCreateByUser(userId);\n    const product = await this.productService.findOne(productId);\n    \n    // Vérifier si le produit n'est pas déjà dans la wishlist\n    const alreadyExists = wishlist.products.some(p => p.id === productId);\n    if (alreadyExists) {\n        throw new ConflictException('Produit déjà dans la wishlist');\n    }\n    \n    wishlist.products.push(product);\n    return this.wishlistRepository.save(wishlist);\n}\n\nasync removeProduct(userId: string, productId: string): Promise<Wishlist> {\n    const wishlist = await this.findByUser(userId);\n    if (!wishlist) throw new NotFoundException('Wishlist non trouvée');\n    \n    wishlist.products = wishlist.products.filter(p => p.id !== productId);\n    return this.wishlistRepository.save(wishlist);\n}\n\nasync clearWishlist(userId: string): Promise<void> {\n    const wishlist = await this.findByUser(userId);\n    if (wishlist) {\n        wishlist.products = [];\n        await this.wishlistRepository.save(wishlist);\n    }\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Partage public d'une wishlist",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Un utilisateur souhaite partager sa wishlist avec ses amis. Vous devez implémenter :</p><ul><li>Un endpoint `PATCH /wishlists/share` qui active le mode public et génère un token unique</li><li>Un endpoint `GET /wishlists/public/:token` qui permet de consulter une wishlist publique sans authentification</li><li>La wishlist publique ne doit exposer que les informations suivantes : le nom de la liste, les produits (nom, prix, image, note moyenne) et le nom de l'utilisateur</li><li>Ne pas exposer les données sensibles (email, téléphone, adresse)</li></ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez les deux endpoints et la logique de partage.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// wishlists.controller.ts\n@Patch('share')\n@UseGuards(JwtAuthGuard)\nasync enablePublicSharing(@Req() req) {\n    return this.wishlistService.enablePublicSharing(req.user.id);\n}\n\n@Get('public/:token')\nasync getPublicWishlist(@Param('token') token: string) {\n    return this.wishlistService.getPublicWishlist(token);\n}\n\n// wishlists.service.ts\nasync enablePublicSharing(userId: string): Promise<{ shareToken: string; shareUrl: string }> {\n    const wishlist = await this.findOrCreateByUser(userId);\n    \n    if (!wishlist.isPublic || !wishlist.shareToken) {\n        wishlist.isPublic = true;\n        wishlist.shareToken = crypto.randomBytes(32).toString('hex');\n        await this.wishlistRepository.save(wishlist);\n    }\n    \n    const shareUrl = `${this.configService.get('APP_URL')}/wishlists/public/${wishlist.shareToken}`;\n    return { shareToken: wishlist.shareToken, shareUrl };\n}\n\nasync getPublicWishlist(token: string) {\n    const wishlist = await this.wishlistRepository.findOne({\n        where: { shareToken: token, isPublic: true },\n        relations: ['user', 'products']\n    });\n    \n    if (!wishlist) {\n        throw new NotFoundException('Wishlist publique non trouvée ou non partagée');\n    }\n    \n    // Ne retourner que les champs publics\n    return {\n        name: wishlist.name,\n        ownerName: `${wishlist.user.firstName} ${wishlist.user.lastName}`,\n        products: wishlist.products.map(p => ({\n            id: p.id,\n            name: p.name,\n            price: p.price,\n            mainImage: p.images?.[0],\n            averageRating: p.averageRating\n        })),\n        createdAt: wishlist.createdAt\n    };\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment désactiver le partage et invalider l'ancien token ?",
+            "niveau": "medium",
+            "reponse": "On ajoute un endpoint `PATCH /wishlists/unshare` :\n```typescript\nasync disablePublicSharing(userId: string): Promise<void> {\n    const wishlist = await this.findByUser(userId);\n    if (wishlist) {\n        wishlist.isPublic = false;\n        wishlist.shareToken = null;\n        await this.wishlistRepository.save(wishlist);\n    }\n}\n```\nAprès désactivation, l'ancienne URL publique cesse de fonctionner car la condition `isPublic: true` n'est plus satisfaite."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Notification de retour en stock pour les produits en wishlist",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Les clients veulent être notifiés lorsqu'un produit de leur wishlist, actuellement en rupture, redevient disponible.</p><p><strong>Consigne :</strong> Implémentez un mécanisme qui, lorsqu'un produit est réapprovisionné (mise à jour du stock de 0 à >0), envoie une notification (email ou push) à tous les utilisateurs qui ont ce produit dans leur wishlist.</p><p>Utilisez une approche asynchrone avec Bull/Redis pour ne pas bloquer la requête de mise à jour du stock.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez le système de notification de retour en stock.",
+        "niveau": "hard",
+        "reponse": "```typescript\n// 1. Processor Bull\n@Processor('notifications')\nexport class StockNotificationProcessor {\n  @Process('stock-restored')\n  async handleStockRestored(job: Job<{ productId: string; productName: string }>) {\n    const { productId, productName } = job.data;\n    \n    // Récupérer tous les utilisateurs ayant ce produit en wishlist\n    const wishlists = await this.wishlistRepository.find({\n      where: { products: { id: productId } },\n      relations: ['user']\n    });\n    \n    const uniqueUsers = [...new Map(wishlists.map(w => [w.user.id, w.user])).values()];\n    \n    for (const user of uniqueUsers) {\n      await this.emailService.sendBackInStockEmail(user.email, productName);\n    }\n  }\n}\n\n// 2. Dans le service Product, après mise à jour du stock\nasync updateStock(productId: string, newStock: number) {\n    const oldProduct = await this.findOne(productId);\n    const updated = await this.productRepository.update(productId, { stock: newStock });\n    \n    // Si le stock passe de 0 à >0\n    if (oldProduct.stock === 0 && newStock > 0) {\n        await this.notificationQueue.add('stock-restored', {\n            productId,\n            productName: oldProduct.name\n        });\n    }\n    \n    return updated;\n}\n```",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Comment éviter les doublons de notification si le même produit est dans plusieurs wishlists du même utilisateur ?",
+            "niveau": "medium",
+            "reponse": "On utilise une structure de données dédoublonnée. Dans l'exemple ci-dessus, on utilise `Map` avec l'ID utilisateur comme clé. On peut aussi faire une requête SQL distinct :\n```sql\nSELECT DISTINCT user_id FROM wishlist \nINNER JOIN wishlist_products ON wishlist.id = wishlist_products.wishlist_id \nWHERE wishlist_products.product_id = :productId\n```\nOn peut aussi ajouter une colonne `lastNotifiedAt` dans une table `user_notification_preferences` pour ne pas notifier plus d'une fois par jour.",
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Migration de panier anonyme vers wishlist",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Lorsqu'un utilisateur anonyme (non connecté) ajoute des produits à son panier, puis se connecte, vous souhaitez lui proposer de déplacer ces produits vers sa wishlist plutôt que de les perdre.</p><p>Le frontend envoie une requête POST `/wishlists/from-cart` avec la liste des IDs de produits (stockés dans localStorage/session côté front).</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Implémentez l'endpoint qui permet d'ajouter plusieurs produits à la wishlist en une seule requête, en évitant les doublons.",
+        "niveau": "medium",
+        "reponse": "```typescript\n// wishlists.controller.ts\n@Post('from-cart')\n@UseGuards(JwtAuthGuard)\nasync addMultipleFromCart(@Req() req, @Body() body: { productIds: string[] }) {\n    return this.wishlistService.addMultipleProducts(req.user.id, body.productIds);\n}\n\n// wishlists.service.ts\nasync addMultipleProducts(userId: string, productIds: string[]): Promise<Wishlist> {\n    const wishlist = await this.findOrCreateByUser(userId);\n    \n    // Récupérer les produits existants dans la wishlist\n    const existingProductIds = new Set(wishlist.products.map(p => p.id));\n    \n    // Filtrer les nouveaux produits (non déjà présents)\n    const newProductIds = productIds.filter(id => !existingProductIds.has(id));\n    \n    if (newProductIds.length === 0) {\n        return wishlist;\n    }\n    \n    // Récupérer les entités Product\n    const newProducts = await this.productRepository.findByIds(newProductIds);\n    \n    wishlist.products.push(...newProducts);\n    return this.wishlistRepository.save(wishlist);\n}\n```",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

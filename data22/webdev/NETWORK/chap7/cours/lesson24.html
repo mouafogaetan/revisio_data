@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+    <title>Leçon 24 : Sécurisation des réseaux WiFi (WEP, WPA, WPA2, WPA3)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- MathJax (prêt pour formules) -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            background: #f0f4f8;
+            font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .slide-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide-content {
+            flex: 1;
+            padding: 2rem 1.8rem;
+        }
+        .nav-btn {
+            cursor: pointer;
+            background: #0f172a;
+            color: white;
+            border-radius: 9999px;
+            padding: 0.6rem 1.4rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .nav-btn:hover {
+            background: #1e293b;
+            transform: scale(0.97);
+        }
+        .dot-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .dot-indicator.active {
+            background-color: #0f172a;
+            width: 24px;
+            border-radius: 12px;
+        }
+        pre {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+        }
+        code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .highlight {
+            background: #fef9c3;
+            color: #1e293b;
+            padding: 0.1rem 0.3rem;
+            border-radius: 8px;
+        }
+        .security-badge {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            border-radius: 20px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 640px) {
+            .slide-content {
+                padding: 1.5rem 1rem;
+            }
+            .nav-btn {
+                padding: 0.4rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
+        .warning-red {
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+        }
+        .success-green {
+            background-color: #dcfce7;
+            border-left: 4px solid #16a34a;
+        }
+    </style>
+</head>
+<body class="antialiased">
+<div class="max-w-5xl mx-auto px-4 py-6 md:py-8">
+    <div id="slidesWrapper" class="relative"></div>
+
+    <!-- Navigation et indicateurs -->
+    <div class="flex justify-between items-center mt-8 gap-3 flex-wrap">
+        <button id="prevSlide" class="nav-btn px-5 py-2 text-sm md:text-base">← Précédent</button>
+        <div id="dotsContainer" class="flex gap-2 justify-center flex-wrap my-2"></div>
+        <button id="nextSlide" class="nav-btn px-5 py-2 text-sm md:text-base">Suivant →</button>
+    </div>
+</div>
+
+<script>
+    // Slides pour la leçon 24 : Sécurité WiFi (WEP, WPA, WPA2, WPA3, authentification)
+    const slidesData = [
+        {
+            type: "title",
+            title: "🔐 Sécurisation des réseaux WiFi",
+            subtitle: "WEP · WPA · WPA2 · WPA3 · PSK · 802.1X",
+            emoji: "🛡️📡"
+        },
+        {
+            type: "objectifs",
+            title: "🎯 Objectifs de la leçon",
+            objectives: [
+                "Distinguer les protocoles de sécurité : WEP, WPA, WPA2, WPA3",
+                "Comprendre l'authentification (PSK, 802.1X, RADIUS)",
+                "Savoir configurer un réseau WiFi sécurisé (bonnes pratiques)"
+            ]
+        },
+        {
+            type: "content",
+            title: "⚠️ Pourquoi sécuriser un réseau WiFi ?",
+            content: `<p>Un réseau WiFi non sécurisé est une porte ouverte aux intrus :</p>
+            <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li><strong>Écoute clandestine (sniffing)</strong> : interception des données (mots de passe, emails).</li>
+                <li><strong>Usurpation d'identité (spoofing)</strong> : un attaquant peut se faire passer pour le point d'accès.</li>
+                <li><strong>Accès non autorisé à Internet</strong> : utilisation frauduleuse de votre connexion (actes illégaux).</li>
+                <li><strong>Attaques de l'homme du milieu (MITM)</strong> : modification des données en transit.</li>
+            </ul>
+            <div class="bg-yellow-50 p-3 rounded-lg mt-3">💡 Les protocoles de sécurité WiFi (WPA2, WPA3) chiffrent les données et authentifient les utilisateurs.</div>`
+        },
+        {
+            type: "content",
+            title: "📜 WEP : le protocole obsolète (à éviter)",
+            content: `<p><span class="security-badge" style="background:#dc2626;">WEP (Wired Equivalent Privacy)</span> 1997</p>
+            <div class="warning-red p-3 rounded-lg">
+                <p class="font-bold">❌ Vulnérabilités majeures :</p>
+                <ul class="list-disc pl-5">
+                    <li>Clé fixe (40 ou 104 bits) réutilisée, faible entropie.</li>
+                    <li>Faiblesse de l'algorithme RC4 : cassable en quelques minutes avec des outils comme Aircrack-ng.</li>
+                    <li>Plus aucune sécurité : ne doit plus être utilisé.</li>
+                </ul>
+            </div>
+            <p class="mt-2">Aujourd'hui, la plupart des appareils refusent de se connecter à un réseau WEP. À remplacer immédiatement par WPA2 ou WPA3.</p>`
+        },
+        {
+            type: "content",
+            title: "🔄 WPA (Wi-Fi Protected Access) : l'urgence",
+            content: `<p><span class="security-badge" style="background:#f59e0b;">WPA (2003)</span> Transition vers plus de sécurité.</p>
+            <ul class="list-disc pl-5 mt-2">
+                <li>Utilise <strong>TKIP (Temporal Key Integrity Protocol)</strong> : clé dynamique qui change à chaque paquet.</li>
+                <li>Ajoute MIC (Message Integrity Check) pour éviter les falsifications.</li>
+                <li>Compatibilité ascendante avec du matériel WEP (via firmware).</li>
+            </ul>
+            <p class="mt-2">⚠️ WPA a aussi des failles (attaque Beck-Tews, 2008). Aujourd'hui, WPA2 est le minimum requis.</p>`
+        },
+        {
+            type: "content",
+            title: "✅ WPA2 : le standard actuel (recommandé)",
+            content: `<p><span class="security-badge" style="background:#16a34a;">WPA2 (2004)</span> Obligatoire pour tout équipement certifié WiFi.</p>
+            <div class="success-green p-3 rounded-lg">
+                <p class="font-bold">🔒 Points forts :</p>
+                <ul class="list-disc pl-5">
+                    <li>Chiffrement <strong>AES (Advanced Encryption Standard)</strong> robuste (utilisé par les gouvernements).</li>
+                    <li>CCMP (Counter Mode CBC-MAC Protocol) remplace TKIP.</li>
+                    <li>Deux modes : WPA2-Personal (PSK, mot de passe partagé) et WPA2-Enterprise (802.1X/RADIUS).</li>
+                </ul>
+            </div>
+            <p class="mt-2">Vulnérabilité KRACK (2017) corrigée par les mises à jour. Toujours sûr si correctement configuré.</p>`
+        },
+        {
+            type: "content",
+            title: "🌟 WPA3 : la nouvelle génération (2018)",
+            content: `<p><span class="security-badge" style="background:#0891b2;">WPA3</span> Plus robuste contre les attaques par dictionnaire.</p>
+            <ul class="list-disc pl-5 mt-2">
+                <li><strong>SAE (Simultaneous Authentication of Equals)</strong> : remplace le handshake PSK, protège contre les attaques hors ligne.</li>
+                <li>Chiffrement individuel des données (même sur réseaux ouverts).</li>
+                <li><strong>Forward secrecy</strong> : si la clé est compromise, les anciennes sessions restent sécurisées.</li>
+                <li>Mode WPA3-Enterprise avec chiffrement 192 bits (gouvernement, banque).</li>
+            </ul>
+            <p class="mt-2">📱 Les smartphones et ordinateurs récents supportent WPA3 (mode mixte WPA2/WPA3 pour compatibilité).</p>`
+        },
+        {
+            type: "content",
+            title: "🔑 Modes d'authentification : PSK vs 802.1X",
+            content: `<p><strong>WPA2-Personal (PSK - Pre-Shared Key)</strong> : un seul mot de passe pour tout le réseau. Simple pour maison ou petite entreprise. Vulnérable si mot de passe faible.</p>
+            <p class="mt-2"><strong>WPA2-Enterprise (802.1X)</strong> : authentification individuelle (nom d'utilisateur/mot de passe ou certificat). Utilise un serveur RADIUS. Idéal pour entreprises, universités, hôpitaux.</p>
+            <div class="bg-slate-100 p-3 rounded-lg mt-2 text-sm">
+                <span class="font-bold">📌 Schéma 802.1X :</span> Client (Suppliant) → Authenticator (Point d'accès) → Serveur RADIUS (vérifie les identifiants).
+            </div>`
+        },
+        {
+            type: "content",
+            "title": "🛠️ Configuration d'un réseau WiFi sécurisé (bonnes pratiques)",
+            "content": `<ul class="list-disc pl-5 space-y-2">
+                <li><strong>Choisir WPA2-AES ou WPA3</strong> (éviter TKIP).</li>
+                <li><strong>Mot de passe robuste</strong> : au moins 12 caractères, lettres majuscules/minuscules, chiffres, symboles.</li>
+                <li><strong>Désactiver WPS</strong> (Wi-Fi Protected Setup) – vulnérable.</li>
+                <li><strong>Changer l'identifiant (SSID) par défaut</strong> et masquer si besoin (optionnel).</li>
+                <li><strong>Mettre à jour le firmware du routeur</strong> régulièrement.</li>
+                <li>Activer le filtrage MAC (faible sécurité, mais couche supplémentaire).</li>
+                <li>Pour une entreprise : utiliser WPA2-Enterprise avec RADIUS (FreeRADIUS, Windows NPS).</li>
+            </ul>
+            <div class="bg-green-50 p-2 rounded-lg mt-2 text-sm">💡 Pour tester la robustesse de votre mot de passe, utilisez des générateurs de mots de passe forts.</div>`
+        },
+        {
+            type: "content",
+            title: "📊 Tableau comparatif des protocoles WiFi",
+            content: `<table class="min-w-full bg-white border border-gray-200 rounded-lg text-sm">
+                <thead class="bg-gray-100">
+                    <tr><th class="p-2 border">Protocole</th><th class="p-2 border">Année</th><th class="p-2 border">Chiffrement</th><th class="p-2 border">Sécurité</th><th class="p-2 border">Usage recommandé</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b"><td class="p-2">WEP</td><td>1997</td><td>RC4</td><td class="text-red-600">Nul (cassable)</td><td>❌ À proscrire</td></tr>
+                    <tr class="border-b"><td class="p-2">WPA</td><td>2003</td><td>TKIP</td><td class="text-orange-500">Faible</td><td>❌ Déconseillé</td></tr>
+                    <tr class="border-b"><td class="p-2">WPA2</td><td>2004</td><td>AES-CCMP</td><td class="text-green-600">Bon</td><td>✅ Standard actuel</td></tr>
+                    <tr><td class="p-2">WPA3</td><td>2018</td><td>AES-GCMP-256</td><td class="text-green-700">Excellent</td><td>✅ Recommandé (si compatible)</td></tr>
+                </tbody>
+             </table>
+            <p class="text-xs text-gray-500 mt-2">Note : WPA2 reste suffisant pour la plupart des usages domestiques.</p>`
+        },
+        {
+            type: "content",
+            title: "🔍 Détection des failles : outils de test",
+            content: `<p>Les administrateurs utilisent des outils pour auditer leur réseau :</p>
+            <ul class="list-disc pl-5 mt-2">
+                <li><strong>Aircrack-ng</strong> : suite pour cracker WEP/WPA (tests de pénétration).</li>
+                <li><strong>Kismet</strong> : détecteur de réseaux WiFi et intrus.</li>
+                <li><strong>Wifite</strong> : automatisation des attaques (usage éthique).</li>
+            </ul>
+            <div class="bg-red-50 p-2 rounded-lg mt-2 text-sm border border-red-200">
+                ⚠️ <strong>Important</strong> : n'utilisez ces outils que sur vos propres réseaux ou avec autorisation. Le piratage de réseaux est illégal.
+            </div>
+            <p class="mt-2">Pour se protéger : utilisez WPA2/WPA3, mot de passe complexe et activez le pare-feu.</p>`
+        },
+        {
+            type: "end",
+            title: "🏁 Félicitations !",
+            message: "Vous savez maintenant sécuriser un réseau WiFi et reconnaître les protocoles fiables.",
+            nextAction: "Vérifiez la sécurité de votre routeur : passez en WPA2-AES ou WPA3, changez le mot de passe."
+        }
+    ];
+
+    let currentSlide = 0;
+    const totalSlides = slidesData.length;
+
+    function renderSlide(index) {
+        const data = slidesData[index];
+        let html = '';
+        if (data.type === 'title') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[55vh]">
+                        <div class="text-7xl mb-4">${data.emoji}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold bg-gradient-to-r from-slate-800 to-indigo-700 bg-clip-text text-transparent">${data.title}</h1>
+                        <p class="text-xl text-gray-600 mt-4">${data.subtitle}</p>
+                        <div class="mt-6 text-sm text-gray-400">WiFi · Sécurité · WPA2 · WPA3 · 802.1X</div>
+                    </div>
+                </div>
+            `;
+        } 
+        else if (data.type === 'objectifs') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 border-b-4 border-indigo-400 pb-2 inline-block">${data.title}</h2>
+                        <ul class="mt-6 space-y-3">
+                            ${data.objectives.map(obj => `<li class="flex items-start gap-3 text-lg"><span class="text-indigo-600 text-xl">🎯</span> <span>${obj}</span></li>`).join('')}
+                        </ul>
+                        <div class="mt-8 p-4 bg-indigo-50 rounded-2xl">
+                            <p class="text-indigo-800">À la fin, vous saurez protéger votre réseau WiFi contre les intrusions.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'content') {
+            html = `
+                <div class="slide-card">
+                    <div class="slide-content">
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-4">${data.title}</h2>
+                        <div class="prose prose-slate max-w-none text-gray-700 leading-relaxed">
+                            ${data.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        else if (data.type === 'end') {
+            html = `
+                <div class="slide-card text-center">
+                    <div class="slide-content flex flex-col justify-center items-center min-h-[50vh]">
+                        <div class="text-5xl mb-4">🏆</div>
+                        <h2 class="text-3xl font-bold text-slate-800">${data.title}</h2>
+                        <p class="text-xl text-gray-600 mt-3">${data.message}</p>
+                        <p class="mt-6 italic text-gray-500">✨ ${data.nextAction}</p>
+                        <div class="mt-6 text-sm bg-slate-100 px-4 py-2 rounded-full">WiFi sécurisé ✅</div>
+                    </div>
+                </div>
+            `;
+        }
+        $('#slidesWrapper').html(html);
+        updateDots(index);
+        if (window.MathJax) MathJax.typesetPromise();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateDots(activeIndex) {
+        let dotsHtml = '';
+        for (let i = 0; i < totalSlides; i++) {
+            const activeClass = i === activeIndex ? 'active' : '';
+            dotsHtml += `<div class="dot-indicator ${activeClass}" data-index="${i}"></div>`;
+        }
+        $('#dotsContainer').html(dotsHtml);
+        $('.dot-indicator').on('click', function() {
+            const idx = parseInt($(this).data('index'));
+            if (!isNaN(idx) && idx >= 0 && idx < totalSlides) {
+                currentSlide = idx;
+                renderSlide(currentSlide);
+            }
+        });
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            renderSlide(currentSlide);
+        } else {
+            if(currentSlide === totalSlides-1){
+                $('#nextSlide').text('✔ Terminé');
+                setTimeout(()=>$('#nextSlide').text('Suivant →'), 1000);
+            }
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            renderSlide(currentSlide);
+            $('#nextSlide').text('Suivant →');
+        }
+    }
+
+    $(document).ready(function() {
+        renderSlide(0);
+        $('#nextSlide').on('click', nextSlide);
+        $('#prevSlide').on('click', prevSlide);
+        $(document).on('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+        let touchStartX = 0, touchEndX = 0;
+        const wrapper = document.getElementById('slidesWrapper');
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            if (touchEndX < touchStartX - 50) nextSlide();
+            if (touchEndX > touchStartX + 50) prevSlide();
+        });
+    });
+</script>
+<footer class="text-center text-xs text-gray-400 border-t border-gray-200 mt-8 py-5">
+    <p>🛡️ Cours Réseaux — Leçon 24 : Sécurité WiFi (WEP, WPA, WPA2, WPA3) | Enseignant Cameroun 🇨🇲 | Protégez votre réseau sans fil</p>
+</footer>
+</body>
+</html>
