@@ -1,0 +1,162 @@
+[
+  {
+    "intitule": "Comprendre le GIL et ses Implications",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Le GIL (Global Interpreter Lock) est un verrou global présent dans l'interpréteur CPython qui empêche plusieurs threads d'exécuter du bytecode Python simultanément.</p><p>On considère les deux fonctions suivantes :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import time\n\ndef tache_cpu(n):\n    \"\"\"Tâche CPU-bound : calcul intensif\"\"\"\n    somme = 0\n    for i in range(n):\n        somme += i ** 2\n    return somme\n\ndef tache_io(n):\n    \"\"\"Tâche I/O-bound : attente et lecture/écriture\"\"\"\n    time.sleep(n)\n    return f\"Attente de {n} secondes terminée\"</code></pre>",
+      "images": [
+        "Schéma illustrant le GIL comme un verrou qui protège l'accès à l'interpréteur Python.",
+        "Diagramme comparant l'exécution de threads CPU-bound vs I/O-bound avec le GIL."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez ce qu'est le GIL et quel est son impact sur les performances du multithreading en Python.",
+        "niveau": "easy",
+        "reponse": "<p><strong>Le GIL (Global Interpreter Lock) :</strong></p><ul><li>Un verrou global qui permet à un seul thread d'exécuter du bytecode Python à la fois.</li><li>Présent dans CPython (l'implémentation de référence de Python).</li><li>Protège la mémoire interne de Python (gestion des objets, compteurs de références).</li></ul><p><strong>Impact sur les performances :</strong></p><ul><li><strong>Pour les tâches CPU-bound :</strong> Le multithreading n'apporte aucun gain de performance (un seul thread s'exécute à la fois).</li><li><strong>Pour les tâches I/O-bound :</strong> Le multithreading est efficace car le thread libère le GIL pendant les opérations I/O (lecture de fichiers, requêtes réseau).</li></ul>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Déterminez pour chaque fonction (tache_cpu et tache_io) si l'utilisation de threads est pertinente. Justifiez votre réponse.",
+            "niveau": "easy",
+            "reponse": "<p><strong>tache_cpu (CPU-bound) :</strong></p><ul><li>Le threading n'est <strong>pas pertinent</strong> car le calcul est intensif en CPU.</li><li>Le GIL empêche les threads de s'exécuter en parallèle.</li><li>Les threads vont simplement s'exécuter en séquence, avec un surcoût de commutation.</li><li><strong>Solution recommandée :</strong> Multiprocessing.</li></ul><p><strong>tache_io (I/O-bound) :</strong></p><ul><li>Le threading est <strong>pertinent</strong> car la tâche est dominée par les opérations I/O.</li><li>Pendant time.sleep(), le thread libère le GIL.</li><li>D'autres threads peuvent s'exécuter pendant ce temps.</li><li><strong>Solution recommandée :</strong> Threading ou asyncio.</li></ul>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposez un benchmark simple pour mesurer la différence de performance entre threading et multiprocessing pour tache_cpu.",
+            "niveau": "medium",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import time\nimport threading\nimport multiprocessing as mp\n\ndef tache_cpu(n):\n    somme = 0\n    for i in range(n):\n        somme += i ** 2\n    return somme\n\n# Benchmark Threading\nstart = time.time()\nthreads = []\nfor _ in range(4):\n    t = threading.Thread(target=tache_cpu, args=(10_000_000,))\n    threads.append(t)\n    t.start()\nfor t in threads:\n    t.join()\nprint(f\"Threading: {time.time() - start:.2f}s\")\n\n# Benchmark Multiprocessing\nstart = time.time()\nwith mp.Pool(4) as pool:\n    pool.map(tache_cpu, [10_000_000] * 4)\nprint(f\"Multiprocessing: {time.time() - start:.2f}s\")</code></pre><p><strong>Résultats typiques :</strong></p><ul><li>Threading : ~4.5 secondes (exécution séquentielle)</li><li>Multiprocessing : ~1.2 secondes (exécution parallèle sur 4 cœurs)</li></ul>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Discutez des alternatives au multithreading pour les tâches CPU-bound et I/O-bound en Python.",
+        "niveau": "medium",
+        "reponse": "<p><strong>Pour les tâches CPU-bound :</strong></p><ul><li><strong>Multiprocessing :</strong> Utilise plusieurs processus, chacun avec son propre GIL. <br><code>from multiprocessing import Pool</code></li><li><strong>NumPy/Numba :</strong> Les opérations vectorisées sont exécutées en C, contournant le GIL.</li><li><strong>Cython :</strong> Permet de compiler du code Python en C et de libérer le GIL.</li><li><strong>Async :</strong> Pas adapté pour le CPU-bound.</li></ul><p><strong>Pour les tâches I/O-bound :</strong></p><ul><li><strong>Threading :</strong> Bon pour les opérations I/O car le GIL est libéré.</li><li><strong>Asyncio :</strong> Plus efficace pour de nombreuses opérations I/O simultanées (réseau).</li><li><strong>Multiprocessing :</strong> Possible mais plus lourd que nécessaire.</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Optimisation d'un Téléchargement Multi-fichiers",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Un data scientist camerounais doit télécharger 100 fichiers CSV depuis une API publique. Chaque fichier fait environ 10 Mo et le téléchargement dure environ 2 secondes.</p><p>Le code actuel est :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import requests\nimport time\n\ndef telecharger_fichier(url):\n    response = requests.get(url)\n    return response.content\n\nurls = [f\"https://api.exemple.com/data/{i}.csv\" for i in range(100)]\n\nstart = time.time()\nfor url in urls:\n    data = telecharger_fichier(url)\n    # Sauvegarder le fichier\n    with open(f\"fichier_{i}.csv\", \"wb\") as f:\n        f.write(data)\nprint(f\"Temps total: {time.time() - start:.2f}s\")</code></pre>",
+      "images": [
+        "Diagramme de séquence montrant le téléchargement séquentiel vs parallèle.",
+        "Graphique comparant les temps d'exécution avec différents nombres de threads."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Identifiez le type de goulot d'étranglement (CPU-bound ou I/O-bound) et proposez une solution appropriée.",
+        "niveau": "easy",
+        "reponse": "<p><strong>Type de goulot d'étranglement : I/O-bound</strong></p><p>Les téléchargements sont des opérations réseau, donc I/O-bound. Le CPU n'est pas le facteur limitant.</p><p><strong>Solution appropriée : Threading</strong></p><ul><li>Les threads sont efficaces pour les opérations I/O.</li><li>Pendant qu'un thread attend le téléchargement, d'autres threads peuvent s'exécuter.</li><li>Le GIL n'est pas un problème car les threads passent la plupart du temps en attente I/O.</li></ul>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Implémentez une version parallèle de ce code avec threading pour réduire le temps total.",
+            "niveau": "medium",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import threading\nimport requests\nimport time\n\ndef telecharger_fichier(url, index, resultats):\n    response = requests.get(url)\n    resultats[index] = response.content\n\ndef telecharger_tous(urls):\n    resultats = {}\n    threads = []\n    for i, url in enumerate(urls):\n        t = threading.Thread(target=telecharger_fichier, args=(url, i, resultats))\n        threads.append(t)\n        t.start()\n    \n    for t in threads:\n        t.join()\n    \n    # Sauvegarder les fichiers\n    for i, data in resultats.items():\n        with open(f\"fichier_{i}.csv\", \"wb\") as f:\n            f.write(data)\n\nurls = [f\"https://api.exemple.com/data/{i}.csv\" for i in range(100)]\n\nstart = time.time()\ntelecharger_tous(urls)\nprint(f\"Temps total: {time.time() - start:.2f}s\")</code></pre><p><strong>Gain attendu :</strong> ~3 secondes (contre 200 secondes en séquentiel).</p>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Comparez l'approche threading avec une approche multiprocessing pour ce cas d'usage. Laquelle est la plus adaptée et pourquoi ?",
+            "niveau": "medium",
+            "reponse": "<p><strong>Threading :</strong></p><ul><li>Plus léger en mémoire (partage la même mémoire).</li><li>Moins de surcoût de création.</li><li>Parfait pour les opérations I/O-bound.</li><li><strong>Recommandé</strong> pour ce cas d'usage.</li></ul><p><strong>Multiprocessing :</strong></p><ul><li>Crée des processus séparés (plus lourd).</li><li>Chaque processus a sa propre mémoire.</li><li>Nécessite de sérialiser les données (pickle).</li><li>Utile pour CPU-bound, mais overkill ici.</li></ul><p><strong>Conclusion :</strong> Le threading est la meilleure solution car le goulot d'étranglement est réseau, pas CPU.</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Utilisez concurrent.futures pour implémenter une version plus élégante et robuste du téléchargement parallèle.",
+        "niveau": "hard",
+        "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import concurrent.futures\nimport requests\nimport time\n\ndef telecharger_fichier(url, index):\n    \"\"\"Télécharge un fichier et retourne (index, contenu)\"\"\"\n    try:\n        response = requests.get(url, timeout=10)\n        return (index, response.content)\n    except Exception as e:\n        return (index, None)\n\nurls = [f\"https://api.exemple.com/data/{i}.csv\" for i in range(100)]\n\nstart = time.time()\n\n# Utiliser ThreadPoolExecutor\nwith concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:\n    # Soumettre toutes les tâches\n    futures = {executor.submit(telecharger_fichier, url, i): i \n               for i, url in enumerate(urls)}\n    \n    # Récupérer les résultats\n    resultats = {}\n    for future in concurrent.futures.as_completed(futures):\n        i, data = future.result()\n        if data is not None:\n            resultats[i] = data\n            with open(f\"fichier_{i}.csv\", \"wb\") as f:\n                f.write(data)\n\nprint(f\"Temps total: {time.time() - start:.2f}s\")\nprint(f\"Fichiers téléchargés: {len(resultats)}/{len(urls)}\")</code></pre><p><strong>Avantages de concurrent.futures :</strong></p><ul><li>Gestion automatique du pool de threads.</li><li>Gestion des erreurs et des timeouts.</li><li>Code plus propre et plus maintenable.</li><li>Permet de contrôler le nombre de workers (max_workers).</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Parallélisation d'un Calcul Intensif",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Vous travaillez sur un projet d'analyse de données financières à la Bourse de Douala. Vous devez calculer la matrice de corrélation de 1000 séries temporelles, chacune contenant 10 000 points.</p><p>La fonction de calcul de corrélation est CPU-bound et le code actuel est séquentiel :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import numpy as np\nimport time\n\n# Simuler 1000 séries de 10000 points\nseries = [np.random.randn(10000) for _ in range(1000)]\n\ndef calculer_correlation(series):\n    n = len(series)\n    matrice_corr = np.zeros((n, n))\n    for i in range(n):\n        for j in range(i, n):\n            corr = np.corrcoef(series[i], series[j])[0, 1]\n            matrice_corr[i, j] = corr\n            matrice_corr[j, i] = corr\n    return matrice_corr\n\nstart = time.time()\nmatrice = calculer_correlation(series)\nprint(f\"Temps: {time.time() - start:.2f}s\")</code></pre>",
+      "images": [
+        "Visualisation d'une matrice de corrélation avec une échelle de couleurs.",
+        "Schéma montrant la division du travail entre plusieurs processus."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analysez la complexité de ce calcul et identifiez pourquoi il est CPU-bound.",
+        "niveau": "medium",
+        "reponse": "<p><strong>Complexité :</strong></p><ul><li>Il y a $n = 1000$ séries.</li><li>Le nombre de paires de corrélations est $n \\times (n-1) / 2 \\approx 500 000$.</li><li>Chaque corrélation est calculée sur 10 000 points.</li><li>Complexité totale : $O(n^2 \\times m)$ où $m$ est la longueur des séries.</li></ul><p><strong>Pourquoi CPU-bound :</strong></p><ul><li>L'opération np.corrcoef effectue des calculs intensifs (moyennes, écarts-types, produits).</li><li>Il n'y a pas d'opérations I/O (lecture de fichiers, réseau).</li><li>Le temps d'exécution est dominé par les calculs, pas par les attentes.</li></ul>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposez une version parallèle avec multiprocessing pour accélérer ce calcul.",
+            "niveau": "hard",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import numpy as np\nimport multiprocessing as mp\nfrom functools import partial\n\nseries = [np.random.randn(10000) for _ in range(1000)]\n\ndef calculer_ligne(i, series):\n    \"\"\"Calcule la ligne i de la matrice de corrélation\"\"\"\n    n = len(series)\n    ligne = np.zeros(n)\n    for j in range(n):\n        if i <= j:\n            corr = np.corrcoef(series[i], series[j])[0, 1]\n            ligne[j] = corr\n    return i, ligne\n\ndef calculer_matrice_parallele(series):\n    n = len(series)\n    # Créer un pool de processus\n    with mp.Pool(processes=mp.cpu_count()) as pool:\n        # Paralléliser le calcul des lignes\n        results = pool.map(partial(calculer_ligne, series=series), range(n))\n    \n    # Construire la matrice symétrique\n    matrice = np.zeros((n, n))\n    for i, ligne in results:\n        matrice[i] = ligne\n        for j in range(n):\n            if i < j:\n                matrice[j, i] = ligne[j]\n    return matrice\n\nif __name__ == '__main__':\n    start = time.time()\n    matrice = calculer_matrice_parallele(series)\n    print(f\"Temps parallèle: {time.time() - start:.2f}s\")</code></pre><p><strong>Gain attendu :</strong> Proche de $n_{cpu}$ (ex: 4x plus rapide sur 4 cœurs).</p>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Comparez cette approche avec une utilisation de NumPy vectorisé. Quelle approche est plus efficace et pourquoi ?",
+            "niveau": "hard",
+            "reponse": "<p><strong>Approche vectorisée avec NumPy :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>def calculer_matrice_vectorisee(series):\n    data = np.array(series)  # (1000, 10000)\n    # Centrer les données\n    data_centered = data - data.mean(axis=1, keepdims=True)\n    # Calculer la matrice de covariance\n    cov_matrix = np.cov(data_centered)\n    # Calculer les écarts-types\n    std = np.std(data_centered, axis=1)\n    # Normaliser pour obtenir la corrélation\n    corr_matrix = cov_matrix / np.outer(std, std)\n    return corr_matrix</code></pre><p><strong>Comparaison :</strong></p><ul><li><strong>Vectorisé :</strong> Utilise des opérations en C, très rapide (~0.5s).</li><li><strong>Multiprocessing :</strong> Utilise plusieurs cœurs mais avec surcoût Python (~5s).</li><li><strong>NumPy est plus efficace</strong> car les opérations sont vectorisées en C et optimisées avec BLAS.</li></ul><p><strong>Conclusion :</strong> La vectorisation est souvent la meilleure solution pour les calculs matriciels en Python.</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Discutez des avantages et limites du multiprocessing pour ce type de calcul par rapport à la vectorisation NumPy.",
+        "niveau": "hard",
+        "reponse": "<p><strong>Avantages du multiprocessing :</strong></p><ul><li>Utilise réellement plusieurs cœurs CPU.</li><li>Contourne le GIL.</li><li>Permet de paralléliser des calculs qui ne sont pas vectorisables.</li></ul><p><strong>Limites du multiprocessing :</strong></p><ul><li><strong>Surcharge de communication :</strong> Les données doivent être sérialisées/désérialisées (pickle).</li><li><strong>Overhead mémoire :</strong> Chaque processus a sa propre copie des données.</li><li><strong>Complexité :</strong> Plus difficile à déboguer et à maintenir.</li><li><strong>Non adapté aux petites tâches :</strong> Le surcoût de création des processus peut dominer.</li></ul><p><strong>Quand utiliser le multiprocessing :</strong></p><ul><li>Quand la tâche ne peut pas être vectorisée (opérations non numériques).</li><li>Quand les données sont trop grandes pour NumPy (mémoire).</li><li>Quand le calcul nécessite des structures de données complexes.</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse de Performance d'un Pipeline de Données",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Un système de traitement de données en temps réel à l'Institut de Statistique de Yaoundé traite des données de capteurs. Le pipeline actuel est :</p><ul><li>Lecture des données d'un fichier (I/O)</li><li>Nettoyage et transformation (CPU)</li><li>Calcul d'indicateurs statistiques (CPU)</li><li>Écriture des résultats dans une base de données (I/O)</li></ul><p>Le pipeline traite des lots de 1 million de lignes.</p>",
+      "images": [
+        "Schéma d'un pipeline de traitement de données avec les différentes étapes.",
+        "Diagramme du pipeline parallèle avec différentes stratégies."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Analysez ce pipeline et proposez une architecture parallèle adaptée pour optimiser le débit.",
+        "niveau": "very hard",
+        "reponse": "<p><strong>Analyse du pipeline :</strong></p><ul><li><strong>Lecture/Écriture :</strong> I/O-bound.</li><li><strong>Nettoyage et calculs :</strong> CPU-bound.</li></ul><p><strong>Architecture proposée - Pipeline parallèle :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import threading\nimport multiprocessing as mp\nfrom queue import Queue\n\ndef producteur(fichier, queue_lecture):\n    \"\"\"Lecture I/O\"\"\"\n    with open(fichier) as f:\n        for ligne in f:\n            queue_lecture.put(ligne)\n\ndef nettoyeur(queue_lecture, queue_nettoyage):\n    \"\"\"Nettoyage CPU\"\"\"\n    while True:\n        ligne = queue_lecture.get()\n        if ligne is None:\n            break\n        # Nettoyer la ligne\n        ligne_nettoyee = ligne.strip().split(',')\n        queue_nettoyage.put(ligne_nettoyee)\n\ndef calculateur(queue_nettoyage, queue_calcul):\n    \"\"\"Calculs CPU\"\"\"\n    while True:\n        data = queue_nettoyage.get()\n        if data is None:\n            break\n        # Calculer les statistiques\n        resultat = analyser(data)\n        queue_calcul.put(resultat)\n\ndef consommateur(queue_calcul, db):\n    \"\"\"Écriture I/O\"\"\"\n    while True:\n        resultat = queue_calcul.get()\n        if resultat is None:\n            break\n        # Écrire dans la base\n        db.insert(resultat)</code></pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Justifiez pourquoi vous avez choisi threading ou multiprocessing pour chaque étape.",
+            "niveau": "very hard",
+            "reponse": "<p><strong>Choix des technologies :</strong></p><ul><li><strong>Producteur et Consommateur (I/O) :</strong> <strong>Threads</strong> (I/O-bound, partage mémoire).</li><li><strong>Nettoyeur et Calculateur (CPU) :</strong> <strong>Multiprocessing</strong> (CPU-bound, besoin de plusieurs cœurs).</li></ul><p><strong>Justification :</strong></p><ul><li>Les threads sont légers et partagent la mémoire → idéal pour les I/O.</li><li>Les processus contournent le GIL → idéal pour les calculs intensifs.</li><li>Les queues assurent la communication entre les étapes.</li></ul><p><strong>Architecture alternative (hybride) :</strong></p><ul><li>Utiliser des processus pour les étapes CPU.</li><li>Utiliser des threads à l'intérieur des processus pour les I/O.</li><li>Permet de maximiser l'utilisation des ressources.</li></ul>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Évaluez les gains de performance attendus par rapport à un pipeline séquentiel.",
+            "niveau": "very hard",
+            "reponse": "<p><strong>Pipeline séquentiel :</strong></p><ul><li>Temps total = temps de lecture + temps de nettoyage + temps de calcul + temps d'écriture.</li><li>Soit : 10s + 30s + 40s + 10s = 90s.</li></ul><p><strong>Pipeline parallèle (4 étages) :</strong></p><ul><li>Les étages s'exécutent en parallèle.</li><li>Le débit est limité par l'étage le plus lent.</li><li>Si le nettoyage (30s) est l'étage le plus lent, le temps total devient 30s + overhead.</li><li><strong>Gain :</strong> 90s → 35s (environ 2.5x plus rapide).</li></ul><p><strong>Gain supplémentaire avec multiprocessing pour les étapes CPU :</strong></p><ul><li>Si on parallélise le nettoyage et le calcul sur 4 cœurs :</li><li>Nettoyage : 30s → ~8s.</li><li>Calcul : 40s → ~10s.</li><li>Nouveau temps total : 10s + 8s + 10s + 10s ≈ 38s.</li></ul><p><strong>Gain total :</strong> De 90s à 38s (environ 2.4x plus rapide).</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Discutez des défis de synchronisation et de gestion de mémoire dans cette architecture parallèle.",
+        "niveau": "very hard",
+        "reponse": "<p><strong>Défis de synchronisation :</strong></p><ul><li><strong>Gestion des queues :</strong> Risque de deadlock si les queues sont pleines ou vides.</li><li><strong>Signal de fin :</strong> Utiliser des sentinelles (None) pour indiquer la fin.</li><li><strong>Équilibrage de charge :</strong> Un étage plus lent peut créer un goulot d'étranglement.</li></ul><p><strong>Solutions :</strong></p><ul><li>Utiliser des <strong>queues avec taille maximale</strong> pour éviter la saturation mémoire.</li><li>Augmenter le nombre de workers pour les étages lents.</li><li>Utiliser <strong>asyncio</strong> pour les I/O si le nombre de connexions est très élevé.</li></ul><p><strong>Gestion de mémoire :</strong></p><ul><li>Les <strong>threads</strong> partagent la mémoire → risque de corruption si non protégée.</li><li>Les <strong>processus</strong> ont leur propre mémoire → besoin de sérialisation (pickle).</li><li>Utiliser <strong>shared_memory</strong> (Python 3.8+) pour partager efficacement les données entre processus.</li></ul><p><strong>Recommandations :</strong></p><ul><li>Utiliser des <strong>structures de données immutables</strong> pour éviter les problèmes de concurrence.</li><li>Préférer les <strong>queues</strong> à la mémoire partagée pour la simplicité.</li><li>Pour de très grands volumes, considérer des <strong>outils spécialisés</strong> (Apache Spark, Dask).</li></ul>"
+      }
+    ]
+  }
+]

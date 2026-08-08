@@ -1,0 +1,154 @@
+[
+  {
+    "intitule": "Introduction à SQLAlchemy et aux ORM",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>SQLAlchemy est un <strong>ORM (Object-Relational Mapper)</strong> pour Python qui permet de manipuler des bases de données relationnelles en utilisant des objets Python plutôt que des requêtes SQL brutes.</p><p>Les principaux concepts de SQLAlchemy sont :</p><ul><li><strong>Base</strong> : la classe de base pour tous les modèles</li><li><strong>Engine</strong> : le moteur de connexion à la base de données</li><li><strong>Session</strong> : l'interface pour les opérations CRUD</li><li><strong>Column</strong> : la définition des colonnes d'une table</li></ul>",
+      "images": [
+        "Schéma illustrant l'architecture de SQLAlchemy montrant le mapping entre les classes Python et les tables SQL."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez le rôle de la <strong>Session</strong> dans SQLAlchemy. Quelles sont les principales opérations qu'elle permet d'effectuer ?",
+        "niveau": "easy",
+        "reponse": "<p>La <strong>Session</strong> est l'interface principale pour interagir avec la base de données. Elle permet :</p><ul><li><code>add()</code> : ajouter un nouvel objet à la session</li><li><code>commit()</code> : valider les modifications dans la base de données</li><li><code>rollback()</code> : annuler les modifications en cours</li><li><code>query()</code> : effectuer des requêtes sur la base</li><li><code>delete()</code> : supprimer un objet</li></ul><p>La session agit comme un <strong>cache</strong> des objets en mémoire avant leur persistance dans la base.</p>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "À quoi sert la classe <code>declarative_base()</code> dans SQLAlchemy ?",
+        "niveau": "easy",
+        "reponse": "<p><code>declarative_base()</code> crée une classe de base pour tous les modèles (classes qui représentent des tables). C'est à partir de cette classe que les modèles héritent. Elle permet de définir les tables en utilisant une approche déclarative, où la structure de la table est définie directement dans la classe.</p>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Définition de Modèles SQLAlchemy",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Une application de gestion de bibliothèque doit stocker des informations sur les <strong>livres</strong>, les <strong>auteurs</strong> et les <strong>emprunts</strong>.</p><p><strong>Spécifications :</strong></p><ul><li>Un <strong>livre</strong> a : un id, un titre, un ISBN, une année de publication, un id_auteur (clé étrangère)</li><li>Un <strong>auteur</strong> a : un id, un nom, un prénom, une date de naissance</li><li>Un <strong>emprunt</strong> a : un id, un id_livre (clé étrangère), une date d'emprunt, une date de retour (peut être NULL)</li></ul>",
+      "images": [
+        "Diagramme entité-association montrant les relations entre Livre, Auteur et Emprunt."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez les modèles SQLAlchemy correspondants en utilisant la syntaxe déclarative.",
+        "niveau": "medium",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey\nfrom sqlalchemy.ext.declarative import declarative_base\nfrom sqlalchemy.orm import relationship, sessionmaker\n\nBase = declarative_base()\n\nclass Auteur(Base):\n    __tablename__ = 'auteurs'\n\n    id = Column(Integer, primary_key=True)\n    nom = Column(String(50), nullable=False)\n    prenom = Column(String(50), nullable=False)\n    date_naissance = Column(Date)\n\n    livres = relationship('Livre', back_populates='auteur')\n\nclass Livre(Base):\n    __tablename__ = 'livres'\n\n    id = Column(Integer, primary_key=True)\n    titre = Column(String(100), nullable=False)\n    isbn = Column(String(20), unique=True)\n    annee_publication = Column(Integer)\n    id_auteur = Column(Integer, ForeignKey('auteurs.id'))\n\n    auteur = relationship('Auteur', back_populates='livres')\n    emprunts = relationship('Emprunt', back_populates='livre')\n\nclass Emprunt(Base):\n    __tablename__ = 'emprunts'\n\n    id = Column(Integer, primary_key=True)\n    id_livre = Column(Integer, ForeignKey('livres.id'))\n    date_emprunt = Column(Date, nullable=False)\n    date_retour = Column(Date)\n\n    livre = relationship('Livre', back_populates='emprunts')</code></pre>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Décrivez la relation entre <code>Livre</code> et <code>Auteur</code>. Quelle est sa cardinalité ?",
+        "niveau": "medium",
+        "reponse": "<p>La relation entre <code>Livre</code> et <code>Auteur</code> est une relation <strong>Many-to-One</strong> :</p><ul><li>Un auteur peut écrire plusieurs livres</li><li>Un livre est écrit par un seul auteur</li></ul><p>La clé étrangère <code>id_auteur</code> dans la table <code>livres</code> matérialise cette relation. La propriété <code>relationship()</code> permet de naviguer facilement entre les objets : <code>livre.auteur</code> et <code>auteur.livres</code>.</p>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Opérations CRUD avec SQLAlchemy",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Après avoir défini les modèles, il faut les utiliser pour effectuer des opérations CRUD (Create, Read, Update, Delete) sur la base de données.</p><p>Utilisez les modèles suivants (simplifiés) :</p><pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>class Produit(Base):\n    __tablename__ = 'produits'\n    id = Column(Integer, primary_key=True)\n    nom = Column(String(50))\n    prix = Column(Float)\n    stock = Column(Integer)\n\n    def __repr__(self):\n        return f\"&lt;Produit(nom={self.nom}, prix={self.prix})&gt;\"</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez le code SQLAlchemy pour <strong>insérer</strong> un nouveau produit dans la base de données.",
+        "niveau": "easy",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>from sqlalchemy import create_engine\nfrom sqlalchemy.orm import sessionmaker\n\n# Configuration\nengine = create_engine('sqlite:///produits.db')\nSession = sessionmaker(bind=engine)\nsession = Session()\n\n# Insertion\nnouveau_produit = Produit(nom='Laptop', prix=750000, stock=15)\nsession.add(nouveau_produit)\nsession.commit()</code></pre>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Écrivez le code pour <strong>récupérer</strong> tous les produits dont le prix est supérieur à 500000 FCFA.",
+        "niveau": "easy",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>produits_chers = session.query(Produit).filter(Produit.prix > 500000).all()\nfor p in produits_chers:\n    print(p)</code></pre>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez le code pour <strong>mettre à jour</strong> le prix d'un produit spécifique (par exemple, le 'Laptop') à 780000 FCFA.",
+        "niveau": "easy",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>laptop = session.query(Produit).filter(Produit.nom == 'Laptop').first()\nif laptop:\n    laptop.prix = 780000\n    session.commit()</code></pre>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 4,
+        "texte": "Écrivez le code pour <strong>supprimer</strong> un produit de la base de données.",
+        "niveau": "easy",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>produit_a_supprimer = session.query(Produit).filter(Produit.nom == 'Laptop').first()\nif produit_a_supprimer:\n    session.delete(produit_a_supprimer)\n    session.commit()</code></pre>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Relations One-to-Many et Many-to-Many",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>SQLAlchemy permet de modéliser facilement les relations entre les tables à l'aide de la fonction <code>relationship()</code>.</p><p><strong>Exemple :</strong> Une relation Many-to-Many entre <strong>Étudiants</strong> et <strong>Cours</strong> (un étudiant peut suivre plusieurs cours, un cours peut avoir plusieurs étudiants).</p><p>Pour une relation Many-to-Many, on utilise une <strong>table d'association</strong>.</p>",
+      "images": [
+        "Schéma montrant la relation Many-to-Many entre Étudiants et Cours avec la table d'association 'inscriptions'."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définissez les modèles pour la relation Many-to-Many entre <strong>Étudiant</strong> et <strong>Cours</strong> en utilisant une table d'association.",
+        "niveau": "hard",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>from sqlalchemy import Table, Column, Integer, String, ForeignKey\nfrom sqlalchemy.orm import relationship\n\n# Table d'association\ninscription = Table('inscriptions', Base.metadata,\n    Column('id_etudiant', Integer, ForeignKey('etudiants.id')),\n    Column('id_cours', Integer, ForeignKey('cours.id'))\n)\n\nclass Etudiant(Base):\n    __tablename__ = 'etudiants'\n    id = Column(Integer, primary_key=True)\n    nom = Column(String(50))\n    prenom = Column(String(50))\n\n    cours = relationship('Cours', secondary=inscription, back_populates='etudiants')\n\nclass Cours(Base):\n    __tablename__ = 'cours'\n    id = Column(Integer, primary_key=True)\n    nom = Column(String(100))\n    code = Column(String(20))\n\n    etudiants = relationship('Etudiant', secondary=inscription, back_populates='cours')</code></pre>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Expliquez le rôle du paramètre <code>secondary</code> dans <code>relationship()</code>.",
+        "niveau": "hard",
+        "reponse": "<p>Le paramètre <code>secondary</code> spécifie la <strong>table d'association</strong> utilisée pour la relation Many-to-Many. Cette table contient les clés étrangères vers les deux tables principales. Elle permet de lier les deux tables sans ajouter de colonnes dans les tables principales.</p><p>Dans l'exemple, <code>inscription</code> est la table d'association qui contient <code>id_etudiant</code> et <code>id_cours</code>.</p>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 3,
+        "texte": "Écrivez une requête pour récupérer tous les cours d'un étudiant spécifique (par exemple, 'Jean Kamdem').",
+        "niveau": "hard",
+        "reponse": "<pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>etudiant = session.query(Etudiant).filter(Etudiant.nom == 'Kamdem', Etudiant.prenom == 'Jean').first()\nif etudiant:\n    for cours in etudiant.cours:\n        print(cours.nom)</code></pre><p>Grâce à la relation définie dans le modèle, on peut accéder directement à <code>etudiant.cours</code>.</p>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse des Performances des Requêtes SQLAlchemy",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Pour optimiser les performances des requêtes SQLAlchemy, il est important de comprendre comment les requêtes sont générées et exécutées.</p><p>Considérez les modèles suivants :</p><pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>class Auteur(Base):\n    __tablename__ = 'auteurs'\n    id = Column(Integer, primary_key=True)\n    nom = Column(String(50))\n    livres = relationship('Livre', lazy='dynamic')\n\nclass Livre(Base):\n    __tablename__ = 'livres'\n    id = Column(Integer, primary_key=True)\n    titre = Column(String(100))\n    id_auteur = Column(Integer, ForeignKey('auteurs.id'))\n    auteur = relationship('Auteur')</code></pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Quelle est la différence entre le chargement <strong>lazy</strong> et <strong>eager</strong> dans SQLAlchemy ?",
+        "niveau": "hard",
+        "reponse": "<p><strong>Lazy loading</strong> : les données associées sont chargées uniquement lorsqu'elles sont accédées pour la première fois. Cela économise des requêtes si l'association n'est pas utilisée, mais peut causer le problème du <strong>N+1</strong> si on accède à plusieurs associations.</p><p><strong>Eager loading</strong> : les données associées sont chargées immédiatement avec la requête principale via des <code>JOIN</code> ou des requêtes supplémentaires. Cela réduit le nombre de requêtes au prix d'un chargement plus lourd.</p><p>SQLAlchemy propose plusieurs stratégies : <code>lazy='select'</code> (par défaut), <code>lazy='joined'</code>, <code>lazy='subquery'</code>, <code>lazy='dynamic'</code>.</p>",
+        "sousQuestions": []
+      },
+      {
+        "numero": 2,
+        "texte": "Si vous devez récupérer une liste de 100 livres avec leurs auteurs, quelle stratégie de chargement recommanderez-vous pour éviter le problème du N+1 ?",
+        "niveau": "hard",
+        "reponse": "<p>Pour éviter le problème du N+1 (1 requête pour les livres + 1 requête par auteur = 101 requêtes), il faut utiliser un chargement <strong>eager</strong> :</p><pre style='background: #f0f0f0; padding: 10px; border-radius: 5px; overflow-x: auto;'><code>livres = session.query(Livre).join(Auteur).options(joinedload(Livre.auteur)).limit(100).all()\nfor livre in livres:\n    print(livre.titre, livre.auteur.nom)</code></pre><p>Ceci génère une seule requête avec un <code>LEFT OUTER JOIN</code> ou deux requêtes (<code>SELECT ... JOIN ...</code>).</p>",
+        "sousQuestions": []
+      }
+    ]
+  }
+]

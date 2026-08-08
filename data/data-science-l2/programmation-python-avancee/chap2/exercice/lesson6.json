@@ -1,0 +1,202 @@
+[
+  {
+    "intitule": "Comprendre le Protocole Context Manager",
+    "type": "ressource",
+    "niveau": "easy",
+    "enonce": {
+      "texte": "<p>Un context manager (gestionnaire de contexte) est un objet qui définit le protocole <code>__enter__</code> et <code>__exit__</code>. Il est utilisé avec l'instruction <code>with</code> pour garantir l'exécution d'actions de nettoyage ou de finalisation.</p><p>On considère la classe suivante :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>class FichierLogger:\n    def __init__(self, nom_fichier):\n        self.nom_fichier = nom_fichier\n        self.fichier = None\n    \n    def __enter__(self):\n        self.fichier = open(self.nom_fichier, 'a')\n        return self.fichier\n    \n    def __exit__(self, exc_type, exc_val, exc_tb):\n        if self.fichier:\n            self.fichier.close()\n        return False</code></pre>",
+      "images": [
+        "Diagramme illustrant le flux d'exécution d'un context manager avec les méthodes __enter__ et __exit__.",
+        "Représentation visuelle du protocole avec l'instruction 'with'."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquez le rôle de la méthode __enter__ et de la méthode __exit__ dans le contexte de cette classe.",
+        "niveau": "easy",
+        "reponse": "<p><strong>__enter__ :</strong> Cette méthode est appelée à l'entrée du bloc <code>with</code>. Elle ouvre le fichier en mode ajout ('a') et retourne l'objet fichier qui sera assigné à la variable après <code>as</code>. Elle prépare la ressource avant son utilisation.</p><p><strong>__exit__ :</strong> Cette méthode est appelée à la sortie du bloc <code>with</code>, que le bloc se soit terminé normalement ou par une exception. Elle ferme le fichier s'il est ouvert. Le paramètre <code>exc_type</code>, <code>exc_val</code> et <code>exc_tb</code> permettent de gérer les exceptions. Le retour <code>False</code> signifie que les exceptions ne sont pas supprimées.</p>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Écrivez un exemple d'utilisation de cette classe pour écrire 'Hello World' dans un fichier logs.txt.",
+            "niveau": "easy",
+            "reponse": "<p>Voici un exemple d'utilisation :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with FichierLogger('logs.txt') as f:\n    f.write('Hello World\\n')</code></pre><p>Lorsque le bloc <code>with</code> est exécuté :</p><ul><li><code>__enter__</code> est appelé, le fichier est ouvert en mode ajout.</li><li>La méthode <code>write</code> écrit 'Hello World' dans le fichier.</li><li>À la sortie, <code>__exit__</code> est appelé et le fichier est fermé.</li></ul>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Que se passe-t-il si une exception est levée à l'intérieur du bloc with ? Expliquez comment l'__exit__ la gère.",
+            "niveau": "medium",
+            "reponse": "<p>Si une exception est levée à l'intérieur du bloc <code>with</code>, la méthode <code>__exit__</code> est tout de même appelée, avec les informations sur l'exception dans les paramètres <code>exc_type</code>, <code>exc_val</code>, <code>exc_tb</code>.</p><p>Dans notre exemple, le fichier sera fermé, mais l'exception ne sera pas supprimée car <code>__exit__</code> retourne <code>False</code>. L'exception sera donc propagée après l'exécution de <code>__exit__</code>. C'est le comportement standard pour la plupart des gestionnaires de contexte.</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Déterminez les avantages d'utiliser un context manager plutôt que d'ouvrir et fermer manuellement un fichier.",
+        "niveau": "medium",
+        "reponse": "<p>Les avantages d'utiliser un context manager sont :</p><ul><li><strong>Garantie de fermeture :</strong> Le fichier est fermé automatiquement même en cas d'exception, évitant les fuites de ressources.</li><li><strong>Code plus propre :</strong> Le code est plus lisible et moins sujet aux erreurs (pas de gestion manuelle des fermetures).</li><li><strong>Gestion des exceptions :</strong> Les exceptions peuvent être capturées et traitées proprement dans la méthode __exit__.</li><li><strong>Réutilisabilité :</strong> Le comportement peut être encapsulé dans une classe et réutilisé.</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Création d'un Context Manager pour une Connexion Base de Données",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans un projet de Data Science à l'Institut Universitaire de Douala, vous devez gérer des connexions à une base de données SQLite. Les connexions doivent être correctement fermées après utilisation, même en cas d'exception.</p><p>On souhaite créer un context manager <code>DatabaseConnection</code> qui :</p><ul><li>Ouvre une connexion dans <code>__enter__</code>.</li><li>Ferme la connexion dans <code>__exit__</code>.</li><li>Gère les exceptions liées à la base de données.</li><li>Retourne un curseur pour exécuter des requêtes.</li></ul>",
+      "images": [
+        "Schéma d'une connexion à une base de données avec les étapes d'ouverture, d'utilisation et de fermeture.",
+        "Illustration du cycle de vie d'un context manager pour une connexion."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez la classe DatabaseConnection implémentant le protocole context manager. La classe doit prendre en paramètre le nom du fichier de base de données.",
+        "niveau": "medium",
+        "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import sqlite3\n\nclass DatabaseConnection:\n    def __init__(self, db_name):\n        self.db_name = db_name\n        self.connection = None\n        self.cursor = None\n    \n    def __enter__(self):\n        self.connection = sqlite3.connect(self.db_name)\n        self.cursor = self.connection.cursor()\n        return self.cursor\n    \n    def __exit__(self, exc_type, exc_val, exc_tb):\n        if exc_type is not None:\n            self.connection.rollback()\n            print(f\"Exception: {exc_val}\")\n        else:\n            self.connection.commit()\n        \n        if self.cursor:\n            self.cursor.close()\n        if self.connection:\n            self.connection.close()\n        return False  # Les exceptions sont propagées</code></pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Ajoutez la gestion des transactions avec commit en cas de succès et rollback en cas d'exception.",
+            "niveau": "medium",
+            "reponse": "<p>Dans la méthode <code>__exit__</code>, on ajoute le code suivant :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>if exc_type is not None:\n    self.connection.rollback()\n    print(f\"Exception: {exc_val}\")\nelse:\n    self.connection.commit()</code></pre><p>Cela garantit que les modifications sont validées (commit) en l'absence d'exception, et annulées (rollback) en présence d'une exception.</p>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Utilisez votre classe pour exécuter la requête suivante : <code>SELECT * FROM utilisateurs WHERE age > 25</code> et afficher les résultats.",
+            "niveau": "medium",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with DatabaseConnection('ma_base.db') as cursor:\n    cursor.execute(\"SELECT * FROM utilisateurs WHERE age > 25\")\n    results = cursor.fetchall()\n    for row in results:\n        print(row)</code></pre><p>Le context manager ouvre la connexion, exécute la requête, et ferme automatiquement la connexion après le bloc, avec commit ou rollback selon les erreurs.</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Comparez l'approche avec context manager avec une approche manuelle (try-except-finally) pour gérer la connexion. Quelle approche est préférable et pourquoi ?",
+        "niveau": "hard",
+        "reponse": "<p><strong>Approche manuelle :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>conn = sqlite3.connect('ma_base.db')\ncursor = conn.cursor()\ntry:\n    cursor.execute(\"SELECT * FROM utilisateurs WHERE age > 25\")\n    results = cursor.fetchall()\n    for row in results:\n        print(row)\n    conn.commit()\nexcept Exception as e:\n    conn.rollback()\n    raise e\nfinally:\n    cursor.close()\n    conn.close()</code></pre><p><strong>Approche avec context manager :</strong></p><p>L'approche avec context manager est préférable car :</p><ul><li><strong>Code plus concis et lisible :</strong> Le context manager encapsule toute la logique de gestion des ressources.</li><li><strong>Moins d'erreurs :</strong> On oublie moins facilement de fermer la connexion ou de gérer les transactions.</li><li><strong>Réutilisable :</strong> Le contexte peut être réutilisé dans plusieurs parties du code.</li><li><strong>Concentré sur la logique métier :</strong> Le code se concentre sur ce qu'il fait, pas sur comment il gère les ressources.</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Utilisation du Décorateur contextlib.contextmanager",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application de traitement de données, vous devez mesurer le temps d'exécution de différentes fonctions. Vous souhaitez créer un context manager qui affiche le temps d'exécution d'un bloc de code.</p><p>Vous disposez du module <code>time</code> pour mesurer le temps.</p>",
+      "images": [
+        "Illustration d'un chronomètre pour mesurer le temps d'exécution.",
+        "Schéma du flux d'exécution d'un context manager pour le timing."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Créez un context manager nommé <code>timer</code> en utilisant le décorateur <code>@contextmanager</code> du module <code>contextlib</code>.",
+        "niveau": "medium",
+        "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>import time\nfrom contextlib import contextmanager\n\n@contextmanager\ndef timer():\n    start = time.time()\n    yield\n    end = time.time()\n    duration = end - start\n    print(f\"Temps d'exécution : {duration:.4f} secondes\")</code></pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Utilisez ce context manager pour mesurer le temps d'exécution d'une boucle qui calcule la somme des 10 premiers millions d'entiers.",
+            "niveau": "medium",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with timer():\n    somme = sum(range(10_000_000))\n    print(f\"Somme : {somme}\")</code></pre><p>La sortie sera similaire à :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'>Somme : 49999995000000\nTemps d'exécution : 0.3241 secondes</pre>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Modifiez le context manager pour qu'il puisse prendre un paramètre optionnel <code>message</code> qui sera affiché avec le temps d'exécution.",
+            "niveau": "hard",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>@contextmanager\ndef timer(message=\"Temps d'exécution\"):\n    start = time.time()\n    try:\n        yield\n    finally:\n        end = time.time()\n        duration = end - start\n        print(f\"{message} : {duration:.4f} secondes\")</code></pre><p>Exemple d'utilisation :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with timer(\"Calcul de la somme\"):\n    somme = sum(range(10_000_000))\n    print(f\"Somme : {somme}\")</code></pre><p>Sortie :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'>Somme : 49999995000000\nCalcul de la somme : 0.3241 secondes</pre>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Comparez cette approche avec une approche par classe (définissant __enter__ et __exit__) pour le même objectif. Quels sont les avantages du décorateur @contextmanager ?",
+        "niveau": "medium",
+        "reponse": "<p><strong>Approche par classe :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>class Timer:\n    def __enter__(self):\n        self.start = time.time()\n        return self\n    \n    def __exit__(self, exc_type, exc_val, exc_tb):\n        end = time.time()\n        duration = end - self.start\n        print(f\"Temps d'exécution : {duration:.4f} secondes\")\n        return False</code></pre><p><strong>Avantages du décorateur @contextmanager :</strong></p><ul><li><strong>Code plus concis :</strong> Moins de boilerplate, plus lisible.</li><li><strong>Plus Pythonique :</strong> Utilise la syntaxe <code>yield</code> qui est naturelle pour les générateurs.</li><li><strong>Plus flexible :</strong> Permet de gérer des contextes complexes avec des <code>try/finally</code>.</li><li><strong>Moins de risque d'erreurs :</strong> Moins de code à écrire, donc moins de bugs.</li></ul>"
+      }
+    ]
+  },
+  {
+    "intitule": "Gestion Multiples Ressources avec ExitStack",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans un pipeline de traitement de données, vous devez ouvrir plusieurs fichiers simultanément : un fichier d'entrée, un fichier de sortie, et un fichier de logs. Vous souhaitez garantir que tous les fichiers sont correctement fermés, même en cas d'exception.</p><p>Vous devez utiliser <code>contextlib.ExitStack</code> pour gérer ces multiples ressources dynamiquement.</p>",
+      "images": [
+        "Schéma d'un pipeline ETL avec entrée, sortie et logs.",
+        "Illustration de la gestion de plusieurs ressources avec ExitStack."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrivez une fonction <code>process_data</code> qui utilise <code>ExitStack</code> pour ouvrir un fichier d'entrée, un fichier de sortie et un fichier de logs.",
+        "niveau": "hard",
+        "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>from contextlib import ExitStack\n\ndef process_data(input_file, output_file, log_file):\n    with ExitStack() as stack:\n        # Ouvrir les fichiers\n        in_f = stack.enter_context(open(input_file, 'r'))\n        out_f = stack.enter_context(open(output_file, 'w'))\n        log_f = stack.enter_context(open(log_file, 'a'))\n        \n        # Traitement des données\n        for line in in_f:\n            # Traiter la ligne\n            processed = line.upper()\n            out_f.write(processed)\n            log_f.write(f\"Traitement de : {line.strip()}\\n\")\n        \n        # Les fichiers sont automatiquement fermés à la sortie\n        print(\"Traitement terminé avec succès\")</code></pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Ajoutez la gestion d'une exception personnalisée pour les erreurs de traitement et assurez-vous que tous les fichiers sont fermés même en cas d'erreur.",
+            "niveau": "hard",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>class ProcessingError(Exception):\n    pass\n\ndef process_data_with_errors(input_file, output_file, log_file):\n    with ExitStack() as stack:\n        in_f = stack.enter_context(open(input_file, 'r'))\n        out_f = stack.enter_context(open(output_file, 'w'))\n        log_f = stack.enter_context(open(log_file, 'a'))\n        \n        try:\n            for i, line in enumerate(in_f):\n                if not line.strip():\n                    raise ProcessingError(f\"Ligne vide trouvée à la ligne {i+1}\")\n                processed = line.upper()\n                out_f.write(processed)\n                log_f.write(f\"Traitement de la ligne {i+1}: {line.strip()}\\n\")\n        except ProcessingError as e:\n            log_f.write(f\"ERREUR: {e}\\n\")\n            raise  # Propager l'exception après la fermeture\n        # Les fichiers sont fermés automatiquement même en cas d'exception</code></pre><p>Grâce à <code>ExitStack</code>, tous les fichiers sont fermés même si une exception est levée, et les logs capturent l'erreur avant la fermeture.</p>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Comparez cette approche avec une approche utilisant des blocs <code>with</code> imbriqués. Quels sont les avantages de <code>ExitStack</code> ?",
+            "niveau": "hard",
+            "reponse": "<p><strong>Approche avec blocs with imbriqués :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with open(input_file, 'r') as in_f:\n    with open(output_file, 'w') as out_f:\n        with open(log_file, 'a') as log_f:\n            # Traitement des données\n            pass</code></pre><p><strong>Avantages de ExitStack :</strong></p><ul><li><strong>Gestion dynamique :</strong> On peut ouvrir des ressources en fonction de conditions (ex: ouvrir un fichier supplémentaire si besoin).</li><li><strong>Code plus propre :</strong> Évite l'imbrication excessive (pyramide de la mort).</li><li><strong>Gestion centralisée :</strong> Toutes les ressources sont gérées au même niveau.</li><li><strong>Flexibilité :</strong> On peut ajouter ou retirer des ressources facilement.</li></ul><p>L'approche <code>ExitStack</code> est particulièrement utile quand le nombre de ressources n'est pas connu à l'avance ou quand il est élevé.</p>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Décrivez un scénario où l'utilisation de ExitStack serait particulièrement bénéfique par rapport à des blocs with imbriqués.",
+        "niveau": "medium",
+        "reponse": "<p><strong>Scénario 1 : Connexions multiples à des bases de données</strong></p><p>Une application doit se connecter à plusieurs bases de données différentes (SQLite, PostgreSQL, etc.) selon la configuration. Avec <code>ExitStack</code>, on peut ouvrir les connexions dynamiquement selon les besoins.</p><p><strong>Scénario 2 : Pipeline de traitement avec étapes conditionnelles</strong></p><p>Dans un pipeline ETL, certaines étapes peuvent être activées ou désactivées selon la configuration. <code>ExitStack</code> permet d'ouvrir uniquement les ressources nécessaires.</p><p><strong>Scénario 3 : Gestion de ressources temporaires</strong></p><p>On crée des fichiers temporaires ou des connexions réseau qui doivent être nettoyés. <code>ExitStack</code> facilite leur gestion centralisée.</p>"
+      }
+    ]
+  },
+  {
+    "intitule": "Context Manager pour une File d'Attente (Queue)",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans un système de traitement de données en temps réel, vous devez gérer une file d'attente de messages. Vous souhaitez créer un context manager qui permet de :</p><ul><li>Ajouter des messages à la file dans le bloc <code>with</code>.</li><li>Vider automatiquement la file et traiter les messages en lot à la sortie.</li><li>Garantir que la file est vidée même en cas d'exception.</li></ul>",
+      "images": [
+        "Schéma d'une file d'attente avec des messages entrants et un processeur de lots.",
+        "Diagramme de séquence d'un context manager pour une file d'attente."
+      ]
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Concevez une classe <code>BatchQueue</code> qui implémente ce comportement. Elle doit prendre en paramètre une fonction de traitement <code>process_batch</code> qui sera appelée sur chaque lot de messages.",
+        "niveau": "hard",
+        "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>class BatchQueue:\n    def __init__(self, process_batch, batch_size=10):\n        self.process_batch = process_batch\n        self.batch_size = batch_size\n        self.messages = []\n        self.exception = None\n    \n    def add(self, message):\n        \"\"\"Ajoute un message à la file\"\"\"\n        self.messages.append(message)\n        if len(self.messages) >= self.batch_size:\n            self._flush()\n    \n    def _flush(self):\n        \"\"\"Vide la file et traite les messages\"\"\"\n        if self.messages:\n            batch = self.messages[:]\n            self.messages.clear()\n            self.process_batch(batch)\n    \n    def __enter__(self):\n        return self\n    \n    def __exit__(self, exc_type, exc_val, exc_tb):\n        # Vider la file même en cas d'exception\n        self._flush()\n        if exc_type is not None:\n            print(f\"Exception capturée : {exc_val}\")\n        return False  # Propager les exceptions</code></pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Utilisez cette classe pour traiter des messages. Simulez l'ajout de 25 messages et la fonction de traitement qui affiche simplement le lot.",
+            "niveau": "medium",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>def traiter_lot(messages):\n    print(f\"Traitement d'un lot de {len(messages)} messages : {messages}\")\n\nwith BatchQueue(traiter_lot, batch_size=5) as queue:\n    for i in range(25):\n        queue.add(f\"Message {i+1}\")</code></pre><p>Sortie attendue :</p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'>Traitement d'un lot de 5 messages : ['Message 1', 'Message 2', 'Message 3', 'Message 4', 'Message 5']\nTraitement d'un lot de 5 messages : ['Message 6', 'Message 7', 'Message 8', 'Message 9', 'Message 10']\n...\nTraitement d'un lot de 5 messages : ['Message 21', 'Message 22', 'Message 23', 'Message 24', 'Message 25']</pre>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Ajoutez un mécanisme de gestion d'erreurs : si une exception est levée pendant le traitement d'un lot, les messages du lot doivent être conservés pour un retraitement ultérieur.",
+            "niveau": "very hard",
+            "reponse": "<pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>class BatchQueueWithRetry:\n    def __init__(self, process_batch, batch_size=10, max_retries=3):\n        self.process_batch = process_batch\n        self.batch_size = batch_size\n        self.max_retries = max_retries\n        self.messages = []\n        self.failed_batches = []\n    \n    def add(self, message):\n        self.messages.append(message)\n        if len(self.messages) >= self.batch_size:\n            self._flush()\n    \n    def _flush(self):\n        if self.messages:\n            batch = self.messages[:]\n            self.messages.clear()\n            self._process_with_retry(batch)\n    \n    def _process_with_retry(self, batch, retry_count=0):\n        try:\n            self.process_batch(batch)\n        except Exception as e:\n            if retry_count < self.max_retries:\n                print(f\"Échec du traitement, tentative {retry_count+1}/{self.max_retries}\")\n                self._process_with_retry(batch, retry_count+1)\n            else:\n                print(f\"Échec définitif du lot : {batch}\")\n                self.failed_batches.append((batch, e))\n    \n    def __enter__(self):\n        return self\n    \n    def __exit__(self, exc_type, exc_val, exc_tb):\n        self._flush()\n        if self.failed_batches:\n            print(f\"{len(self.failed_batches)} lots ont échoué définitivement\")\n        return False</code></pre>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Évaluez l'impact de l'utilisation d'un context manager sur la lisibilité et la maintenabilité du code par rapport à une approche manuelle avec try-finally.",
+        "niveau": "medium",
+        "reponse": "<p><strong>Approche manuelle (try-finally) :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>queue = BatchQueue(traiter_lot, batch_size=5)\ntry:\n    for i in range(25):\n        queue.add(f\"Message {i+1}\")\nfinally:\n    queue._flush()</code></pre><p><strong>Approche avec context manager :</strong></p><pre style='background:#f5f5f5;padding:10px;border-radius:5px;'><code>with BatchQueue(traiter_lot, batch_size=5) as queue:\n    for i in range(25):\n        queue.add(f\"Message {i+1}\")</code></pre><p><strong>Impact :</strong></p><ul><li><strong>Lisibilité :</strong> Le code avec context manager est plus concis et explicite. L'intention est claire : \"dans ce contexte, je vais ajouter des messages\".</li><li><strong>Maintenabilité :</strong> La logique de gestion des ressources est encapsulée dans la classe. Si on doit changer le comportement de vidage, on modifie la classe sans toucher au code client.</li><li><strong>Moins d'erreurs :</strong> On ne peut pas oublier d'appeler <code>_flush()</code> ou de gérer les exceptions, car le context manager le fait automatiquement.</li></ul>"
+      }
+    ]
+  }
+]

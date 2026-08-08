@@ -1,0 +1,197 @@
+[
+  {
+    "intitule": "Analyse d'un Décorateur de Classe Existant",
+    "type": "ressource",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous travaillez sur un projet Python et vous tombez sur le code suivant :</p>\n<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.9em; color: #1a1a1a;'>\n<code>\ndef add_method(cls):\n    def hello(self):\n        return f\"Bonjour depuis {self.__class__.__name__}\"\n    cls.hello = hello\n    return cls\n\n@add_method\nclass MaClasse:\n    pass\n\nobj = MaClasse()\nprint(obj.hello())\n</code>\n</pre>\n<p>Ce code utilise un décorateur de classe pour ajouter dynamiquement une méthode à une classe.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le rôle du décorateur add_method. Que fait-il exactement et comment fonctionne-t-il ?",
+        "niveau": "medium",
+        "reponse": "<p>Le décorateur <code>add_method</code> est un décorateur de classe. Il prend une classe en paramètre, définit une fonction <code>hello</code> à l'intérieur, puis ajoute cette fonction comme méthode de la classe en utilisant <code>cls.hello = hello</code>. Enfin, il retourne la classe modifiée. Ainsi, toute classe décorée avec <code>@add_method</code> se voit ajouter une méthode <code>hello</code> qui retourne un message de salutation.</p>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Que se passe-t-il si on n'utilise pas le décorateur et qu'on appelle obj.hello() ?",
+            "niveau": "easy",
+            "reponse": "Sans le décorateur, la classe <code>MaClasse</code> n'a pas de méthode <code>hello</code>, donc l'appel <code>obj.hello()</code> lèverait une <code>AttributeError</code>."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposer une amélioration du décorateur pour qu'il puisse accepter un paramètre personnalisant le message de salutation.",
+            "niveau": "hard",
+            "reponse": "<p>Pour accepter un paramètre, il faut créer un décorateur qui renvoie un décorateur de classe :</p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef add_method_with_message(message):\n    def decorator(cls):\n        def hello(self):\n            return f\"{message} depuis {self.__class__.__name__}\"\n        cls.hello = hello\n        return cls\n    return decorator\n\n@add_method_with_message(\"Salut\")\nclass MaClasse:\n    pass\n</code>\n</pre>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Identifier les avantages et les inconvénients de l'utilisation de ce type de décorateur par rapport à l'héritage.",
+        "niveau": "hard",
+        "reponse": "<p><strong>Avantages :</strong></p><ul><li>Le décorateur est plus flexible : il peut être appliqué à n'importe quelle classe sans créer une hiérarchie d'héritage.</li><li>Il permet d'ajouter des fonctionnalités de manière modulaire (aspect-oriented programming).</li><li>Il évite la complexité de l'héritage multiple.</li></ul><p><strong>Inconvénients :</strong></p><ul><li>Le décorateur modifie la classe de manière invisible pour le développeur (moins explicite).</li><li>Les outils de type-checking ou les IDE peuvent ne pas détecter les méthodes ajoutées dynamiquement.</li><li>La réutilisation est moins intuitive que l'héritage.</li></ul>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création d'un Décorateur de Classe pour le Logging",
+    "type": "competence",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Dans un projet de traitement de données, vous devez implémenter un décorateur de classe qui ajoute automatiquement un logging des appels de méthodes pour toutes les méthodes d'une classe.</p>\n<p>Le décorateur doit :</p>\n<ul>\n  <li>Parcourir toutes les méthodes de la classe (à l'exception des méthodes spéciales comme __init__).</li>\n  <li>Envelopper chaque méthode pour afficher un message avant et après son exécution.</li>\n  <li>Utiliser le module <code>logging</code> pour enregistrer les événements.</li>\n</ul>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire le décorateur de classe <code>@log_methods</code> qui répond aux spécifications ci-dessus. Fournir le code complet et un exemple d'utilisation.",
+        "niveau": "hard",
+        "reponse": "<p>Voici une implémentation possible :</p>\n<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\nimport logging\nimport inspect\n\ndef log_methods(cls):\n    logger = logging.getLogger(cls.__name__)\n    logger.setLevel(logging.INFO)\n    if not logger.handlers:\n        handler = logging.StreamHandler()\n        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')\n        handler.setFormatter(formatter)\n        logger.addHandler(handler)\n\n    for name, method in inspect.getmembers(cls, inspect.isfunction):\n        if name.startswith('__'):\n            continue\n        def make_wrapper(method):\n            def wrapper(self, *args, **kwargs):\n                logger.info(f\"Appel de {method.__name__} avec args={args}, kwargs={kwargs}\")\n                result = method(self, *args, **kwargs)\n                logger.info(f\"Fin de {method.__name__} -> résultat: {result}\")\n                return result\n            return wrapper\n        setattr(cls, name, make_wrapper(method))\n    return cls\n\n@log_methods\nclass Calculatrice:\n    def additionner(self, a, b):\n        return a + b\n\n    def multiplier(self, a, b):\n        return a * b\n\nc = Calculatrice()\nc.additionner(3, 5)  # Affiche les logs\nc.multiplier(4, 7)    # Affiche les logs\n</code>\n</pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Que se passe-t-il si une méthode lève une exception ? Comment améliorer le décorateur pour gérer ce cas ?",
+            "niveau": "medium",
+            "reponse": "<p>Si une méthode lève une exception, le log de fin ne sera pas affiché et l'exception sera propagée. Pour améliorer le décorateur, on peut ajouter un bloc <code>try-except</code> :</p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef wrapper(self, *args, **kwargs):\n    logger.info(f\"Appel de {method.__name__}\")\n    try:\n        result = method(self, *args, **kwargs)\n        logger.info(f\"Fin de {method.__name__} -> succès\")\n        return result\n    except Exception as e:\n        logger.error(f\"Erreur dans {method.__name__}: {e}\")\n        raise\n</code>\n</pre>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Proposer une alternative utilisant <code>functools.wraps</code> pour préserver les métadonnées des méthodes. Pourquoi est-ce important ?",
+            "niveau": "medium",
+            "reponse": "<p>Utiliser <code>functools.wraps</code> permet de préserver le nom, la docstring et les annotations de la méthode originale. C'est important pour la lisibilité, le débogage et la compatibilité avec les outils (IDE, Sphinx, etc.).</p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\nfrom functools import wraps\n\ndef make_wrapper(method):\n    @wraps(method)\n    def wrapper(self, *args, **kwargs):\n        logger.info(f\"Appel de {method.__name__}\")\n        return method(self, *args, **kwargs)\n    return wrapper\n</code>\n</pre>"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Utilisation de @dataclass pour des Données Structurées",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Vous devez gérer des données de clients dans une application. Chaque client a un nom, un âge, un email et une date d'inscription.</p>\n<p>Vous souhaitez utiliser le décorateur <code>@dataclass</code> pour créer la classe <code>Client</code> de manière concise.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Définir la classe Client avec @dataclass. Les attributs sont : nom (str), age (int), email (str), date_inscription (str). Ajouter une méthode qui retourne une représentation formatée du client.",
+        "niveau": "easy",
+        "reponse": "<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\nfrom dataclasses import dataclass\n\n@dataclass\nclass Client:\n    nom: str\n    age: int\n    email: str\n    date_inscription: str\n\n    def afficher(self):\n        return f\"Client: {self.nom}, {self.age} ans, email: {self.email}, inscrit le {self.date_inscription}\"\n</code>\n</pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quel est l'avantage d'utiliser @dataclass par rapport à une classe classique ?",
+            "niveau": "easy",
+            "reponse": "<p>Les avantages sont :</p><ul><li>Réduction du code boilerplate (pas besoin d'écrire <code>__init__</code>, <code>__repr__</code>, <code>__eq__</code>, etc.).</li><li>Meilleure lisibilité et maintenabilité.</li><li>Support des valeurs par défaut, de l'ordre, de l'immutabilité avec <code>frozen=True</code>.</li></ul>"
+          },
+          {
+            "numero": "1.b",
+            "texte": "Modifier la classe pour que l'email soit optionnel (par défaut, 'inconnu@exemple.com') et que l'âge soit vérifié pour être entre 0 et 120.",
+            "niveau": "medium",
+            "reponse": "<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\nfrom dataclasses import dataclass, field\n\n@dataclass\nclass Client:\n    nom: str\n    age: int\n    email: str = \"inconnu@exemple.com\"\n    date_inscription: str\n\n    def __post_init__(self):\n        if not (0 <= self.age <= 120):\n            raise ValueError(\"L'âge doit être compris entre 0 et 120\")\n</code>\n</pre>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Créer une classe fille ClientPremium qui hérite de Client et ajoute un attribut abonnement (str). Utiliser @dataclass et super().__init__ pour initialiser.",
+        "niveau": "medium",
+        "reponse": "<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\n@dataclass\nclass ClientPremium(Client):\n    abonnement: str\n\n    def afficher(self):\n        return f\"{super().afficher()}, abonnement: {self.abonnement}\"\n</code>\n</pre>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création d'un Décorateur de Méthode @singleton",
+    "type": "competence",
+    "niveau": "very hard",
+    "enonce": {
+      "texte": "<p>Le pattern Singleton garantit qu'une classe n'a qu'une seule instance. Vous devez créer un décorateur de méthode (ou de classe) qui transforme une classe en Singleton.</p>\n<p>Le décorateur doit assurer que l'instanciation de la classe retourne toujours la même instance.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un décorateur de classe @singleton qui implémente le pattern Singleton. Le décorateur doit remplacer la méthode __new__ ou __call__ de la classe pour gérer l'unique instance.",
+        "niveau": "very hard",
+        "reponse": "<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef singleton(cls):\n    instances = {}\n    def get_instance(*args, **kwargs):\n        if cls not in instances:\n            instances[cls] = cls(*args, **kwargs)\n        return instances[cls]\n    return get_instance\n\n# Utilisation\n@singleton\nclass Config:\n    def __init__(self):\n        self.settings = {}\n\nc1 = Config()\nc2 = Config()\nprint(c1 is c2)  # True\n</code>\n</pre>\n<p><strong>Autre approche avec classe :</strong></p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef singleton(cls):\n    class SingletonWrapper(cls):\n        _instance = None\n        def __new__(cls, *args, **kwargs):\n            if not cls._instance:\n                cls._instance = super().__new__(cls)\n            return cls._instance\n    return SingletonWrapper\n</code>\n</pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quels sont les risques de l'implémentation du Singleton avec un dictionnaire comme dans la première approche ?",
+            "niveau": "medium",
+            "reponse": "La première approche retourne une fonction (get_instance) au lieu d'une classe. Cela signifie que <code>isinstance(Config, type)</code> sera False et que l'héritage n'est pas possible. De plus, les méthodes de classe et les attributs de classe ne sont pas conservés. La deuxième approche est plus robuste car elle préserve le type de la classe."
+          },
+          {
+            "numero": "1.b",
+            "texte": "Adapter le décorateur pour qu'il fonctionne avec l'héritage (une classe fille qui hérite du Singleton).",
+            "niveau": "very hard",
+            "reponse": "<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef singleton(cls):\n    original_new = cls.__new__\n    instances = {}\n    def __new__(cls, *args, **kwargs):\n        if cls not in instances:\n            if original_new is not object.__new__:\n                instance = original_new(cls)\n            else:\n                instance = object.__new__(cls)\n            instances[cls] = instance\n        return instances[cls]\n    cls.__new__ = __new__\n    return cls\n</code>\n</pre>"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "intitule": "Analyse d'un Décorateur de Classe avec Paramètres",
+    "type": "ressource",
+    "niveau": "hard",
+    "enonce": {
+      "texte": "<p>Voici un décorateur de classe utilisé dans un projet :</p>\n<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.9em; color: #1a1a1a;'>\n<code>\ndef version(v):\n    def decorator(cls):\n        cls.version = v\n        return cls\n    return decorator\n\n@version(\"1.0\")\nclass Application:\n    pass\n\nprint(Application.version)\n</code>\n</pre>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Expliquer le fonctionnement de ce décorateur. Quelle est la différence entre un décorateur avec paramètres et un décorateur sans paramètres ?",
+        "niveau": "medium",
+        "reponse": "<p>Ce décorateur ajoute un attribut de classe <code>version</code> à la classe décorée. Il s'agit d'un décorateur de classe paramétré : la fonction <code>version</code> prend un paramètre <code>v</code> et retourne un décorateur de classe qui ajoute l'attribut version à la classe. La différence principale est que le décorateur sans paramètres prend directement la classe en argument, tandis que le décorateur avec paramètres prend d'abord les paramètres, puis la classe.</p>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Proposer une modification pour que le décorateur vérifie que la version est une chaîne de caractères non vide.",
+            "niveau": "easy",
+            "reponse": "<p>On peut ajouter une validation dans la fonction <code>version</code> :</p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\ndef version(v):\n    if not isinstance(v, str) or not v:\n        raise ValueError(\"La version doit être une chaîne non vide\")\n    def decorator(cls):\n        cls.version = v\n        return cls\n    return decorator\n</code>\n</pre>"
+          }
+        ]
+      },
+      {
+        "numero": 2,
+        "texte": "Combiner ce décorateur avec un autre décorateur de classe (par exemple, @singleton). Quel est l'ordre d'application et pourquoi est-il important ?",
+        "niveau": "hard",
+        "reponse": "<p>L'ordre d'application des décorateurs est de bas en haut (du plus proche de la classe vers le plus éloigné). Par exemple :</p>\n<pre style='background-color: #f5f5f5; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\n@singleton\n@version(\"1.0\")\nclass Application:\n    pass\n</code>\n</pre>\n<p>L'ordre est important car chaque décorateur modifie la classe et le résultat est passé au décorateur suivant. Si l'ordre est inversé, le comportement peut être différent.</p>",
+        "sousQuestions": []
+      }
+    ]
+  },
+  {
+    "intitule": "Création d'un Décorateur de Méthode pour Vérification de Types",
+    "type": "competence",
+    "niveau": "medium",
+    "enonce": {
+      "texte": "<p>Dans une application, vous souhaitez éviter les erreurs de type en validant les arguments des méthodes. Vous décidez de créer un décorateur de méthode <code>@type_check</code> qui vérifie les types des arguments et lève une <code>TypeError</code> si un type ne correspond pas.</p>",
+      "images": []
+    },
+    "questions": [
+      {
+        "numero": 1,
+        "texte": "Écrire un décorateur de méthode <code>@type_check</code> qui prend une spécification de types en paramètre (ex: <code>@type_check(a=int, b=int, retour=int)</code>). Le décorateur doit vérifier les types des arguments et le type de retour.",
+        "niveau": "hard",
+        "reponse": "<pre style='background-color: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; color: #1a1a1a;'>\n<code>\nfrom functools import wraps\n\ndef type_check(**types):\n    def decorator(method):\n        @wraps(method)\n        def wrapper(*args, **kwargs):\n            # Vérifier les arguments positionnels\n            for i, (arg_name, expected_type) in enumerate(types.items()):\n                if arg_name == 'retour':\n                    continue\n                if i < len(args):\n                    value = args[i]\n                    if not isinstance(value, expected_type):\n                        raise TypeError(f\"L'argument {arg_name} doit être de type {expected_type.__name__}, reçu {type(value).__name__}\")\n            # Vérifier les arguments nommés\n            for arg_name, value in kwargs.items():\n                if arg_name in types and arg_name != 'retour':\n                    if not isinstance(value, types[arg_name]):\n                        raise TypeError(f\"L'argument {arg_name} doit être de type {types[arg_name].__name__}, reçu {type(value).__name__}\")\n            # Exécuter la méthode\n            result = method(*args, **kwargs)\n            # Vérifier le type de retour\n            if 'retour' in types:\n                if not isinstance(result, types['retour']):\n                    raise TypeError(f\"Le retour doit être de type {types['retour'].__name__}, reçu {type(result).__name__}\")\n            return result\n        return wrapper\n    return decorator\n\n# Utilisation\n@type_check(a=int, b=int, retour=int)\ndef additionner(a, b):\n    return a + b\n\nadditionner(3, 5)   # OK\nadditionner(3, \"5\") # Lève TypeError\n</code>\n</pre>",
+        "sousQuestions": [
+          {
+            "numero": "1.a",
+            "texte": "Quelle est la limite de ce décorateur ? Comment pourrait-on l'améliorer pour gérer des types plus complexes (liste d'int, etc.) ?",
+            "niveau": "medium",
+            "reponse": "<p>La principale limite est qu'il ne vérifie que les types simples (<code>int</code>, <code>str</code>, etc.) et ne gère pas les types génériques (<code>List[int]</code>). Pour améliorer le décorateur, on pourrait utiliser <code>typing</code> et le module <code>inspect</code> pour extraire les annotations de la méthode, ou utiliser des bibliothèques comme <code>pydantic</code> ou <code>typeguard</code>.</p>"
+          }
+        ]
+      }
+    ]
+  }
+]
